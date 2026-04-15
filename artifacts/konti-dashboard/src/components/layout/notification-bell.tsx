@@ -59,7 +59,7 @@ export function NotificationBell() {
 
   useEffect(() => {
     const base = (import.meta.env.BASE_URL ?? "/").replace(/\/$/, "");
-    fetch(`${base}/api/dashboard/activity`)
+    fetch(`${base}/api/notifications`)
       .then((r) => r.json())
       .then((data: ActivityItem[]) => setItems(data))
       .catch(() => {});
