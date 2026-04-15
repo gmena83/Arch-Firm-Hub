@@ -204,8 +204,8 @@ export default function CalculatorPage() {
             <div className="h-64 bg-card rounded-xl border animate-pulse" />
           ) : (
             <>
-              <div className="bg-card rounded-xl border border-card-border shadow-sm overflow-hidden">
-                <table className="w-full text-sm" data-testid="calculator-table">
+              <div className="bg-card rounded-xl border border-card-border shadow-sm overflow-x-auto">
+                <table className="w-full text-sm min-w-[700px]" data-testid="calculator-table">
                   <thead>
                     <tr className="bg-muted/50 border-b border-border">
                       <th className="text-left px-4 py-3 font-semibold text-muted-foreground">{t("Material", "Material")}</th>

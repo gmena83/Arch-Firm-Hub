@@ -1,13 +1,20 @@
 import { Link } from "wouter";
 import { useListProjects } from "@workspace/api-client-react";
 import { AppLayout } from "@/components/layout/app-layout";
-import { RequireAuth } from "@/hooks/use-auth";
+import { RequireAuth, useAuth } from "@/hooks/use-auth";
 import { useLang } from "@/hooks/use-lang";
 import { ArrowRight, MapPin } from "lucide-react";
 
 export default function ProjectsPage() {
   const { t, lang } = useLang();
-  const { data: projects = [], isLoading } = useListProjects();
+  const { user } = useAuth();
+  const { data: allProjects = [], isLoading } = useListProjects();
+
+  const isClientUser = user?.role === "client";
+
+  const projects = isClientUser
+    ? allProjects.filter((p) => p.clientName.includes(user?.name ?? ""))
+    : allProjects;
 
   const phaseColors: Record<string, string> = {
     discovery: "bg-sky-100 text-sky-800",
@@ -23,9 +30,13 @@ export default function ProjectsPage() {
       <AppLayout>
         <div className="space-y-6" data-testid="projects-page">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">{t("Projects", "Proyectos")}</h1>
+            <h1 className="text-2xl font-bold text-foreground">
+              {isClientUser ? t("My Project", "Mi Proyecto") : t("Projects", "Proyectos")}
+            </h1>
             <p className="text-muted-foreground text-sm mt-1">
-              {t("All active and completed projects.", "Todos los proyectos activos y completados.")}
+              {isClientUser
+                ? t("Your current project overview.", "Resumen de tu proyecto actual.")
+                : t("All active and completed projects.", "Todos los proyectos activos y completados.")}
             </p>
           </div>
 
@@ -48,18 +59,18 @@ export default function ProjectsPage() {
                       <img
                         src={project.coverImage}
                         alt={project.name}
-                        className="w-20 h-16 object-cover rounded-lg shrink-0"
+                        className="w-20 h-16 object-cover rounded-lg shrink-0 hidden sm:block"
                       />
                     )}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
                         <h3 className="font-bold text-foreground">{project.name}</h3>
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${phaseColors[project.phase]}`}>
                           {phaseLabel}
                         </span>
                       </div>
                       <p className="text-sm text-muted-foreground flex items-center gap-1">
-                        <MapPin className="w-3 h-3" /> {project.clientName} — {project.location}
+                        <MapPin className="w-3 h-3 shrink-0" /> {project.clientName} — {project.location}
                       </p>
                       <div className="flex items-center gap-4 mt-2">
                         <div className="flex-1">
@@ -71,9 +82,11 @@ export default function ProjectsPage() {
                             <div className="h-full bg-konti-olive rounded-full" style={{ width: `${project.progressPercent}%` }} />
                           </div>
                         </div>
-                        <span className="text-xs text-muted-foreground whitespace-nowrap">
-                          ${project.budgetUsed.toLocaleString()} / ${project.budgetAllocated.toLocaleString()} ({spendPct}%)
-                        </span>
+                        {!isClientUser && (
+                          <span className="text-xs text-muted-foreground whitespace-nowrap hidden sm:block">
+                            ${project.budgetUsed.toLocaleString()} / ${project.budgetAllocated.toLocaleString()} ({spendPct}%)
+                          </span>
+                        )}
                       </div>
                     </div>
                     <Link

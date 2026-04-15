@@ -9,7 +9,10 @@ import { ArrowRight, TrendingUp, FolderOpen, FileText, Clock, Activity, BarChart
 import { formatDistanceToNow } from "date-fns";
 import { es as dateEs } from "date-fns/locale";
 
-function ProjectCard({ project }: { project: { id: string; name: string; clientName: string; location: string; phase: string; phaseLabel: string; phaseLabelEs: string; phaseNumber: number; progressPercent: number; budgetAllocated: number; budgetUsed: number; coverImage?: string; status: string } }) {
+function ProjectCard({ project, isClientUser }: {
+  project: { id: string; name: string; clientName: string; location: string; phase: string; phaseLabel: string; phaseLabelEs: string; phaseNumber: number; progressPercent: number; budgetAllocated: number; budgetUsed: number; coverImage?: string; status: string };
+  isClientUser: boolean;
+}) {
   const { t, lang } = useLang();
   const { data: weather } = useGetProjectWeather(project.id);
 
@@ -61,7 +64,7 @@ function ProjectCard({ project }: { project: { id: string; name: string; clientN
           </div>
         </div>
 
-        {/* Budget */}
+        {/* Budget — hide exact amounts for client users */}
         <div>
           <div className="flex justify-between text-xs mb-1">
             <span className="text-muted-foreground font-medium">{t("Budget Used", "Presupuesto Usado")}</span>
@@ -70,9 +73,11 @@ function ProjectCard({ project }: { project: { id: string; name: string; clientN
           <div className="h-1.5 rounded-full bg-muted overflow-hidden">
             <div className={`h-full rounded-full ${budgetColor}`} style={{ width: `${Math.min(spendPct, 100)}%` }} />
           </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            ${project.budgetUsed.toLocaleString()} / ${project.budgetAllocated.toLocaleString()}
-          </p>
+          {!isClientUser && (
+            <p className="text-xs text-muted-foreground mt-1">
+              ${project.budgetUsed.toLocaleString()} / ${project.budgetAllocated.toLocaleString()}
+            </p>
+          )}
         </div>
 
         {/* Weather */}
@@ -125,32 +130,53 @@ function ActivityIcon({ type }: { type: string }) {
 function DashboardContent() {
   const { t, lang } = useLang();
   const { user } = useAuth();
-  const { data: projects = [], isLoading: projectsLoading } = useListProjects();
+  const { data: allProjects = [], isLoading: projectsLoading } = useListProjects();
   const { data: summary } = useGetDashboardSummary();
-  const { data: activity = [] } = useGetRecentActivity();
+  const { data: allActivity = [] } = useGetRecentActivity();
 
-  const stats = [
-    { label: t("Active Projects", "Proyectos Activos"), value: summary?.activeProjects ?? "—", icon: FolderOpen },
-    { label: t("Total Budget", "Presupuesto Total"), value: summary ? `$${(summary.totalBudget / 1000).toFixed(0)}K` : "—", icon: BarChart3 },
-    { label: t("Pending Tasks", "Tareas Pendientes"), value: summary?.pendingTasks ?? "—", icon: Clock },
-    { label: t("Documents", "Documentos"), value: summary?.totalDocuments ?? "—", icon: FileText },
-  ];
+  const isClientUser = user?.role === "client";
+
+  const projects = isClientUser
+    ? allProjects.filter((p) => p.clientName.includes(user?.name ?? ""))
+    : allProjects;
+
+  const activity = isClientUser
+    ? allActivity.filter((a) => projects.some((p) => p.name === a.projectName))
+    : allActivity;
+
+  const greeting = isClientUser
+    ? t(`Welcome to your project portal, ${user?.name?.split(" ")[0]}`, `Bienvenido a tu portal de proyecto, ${user?.name?.split(" ")[0]}`)
+    : `${t("Good morning", "Buenos días")}, ${user?.name?.split(" ")[0]}`;
+
+  const subtitle = isClientUser
+    ? t("Here's the latest update on your project.", "Aquí tienes la actualización más reciente de tu proyecto.")
+    : t("Here's an overview of your active projects.", "Aquí tienes un resumen de tus proyectos activos.");
+
+  const summaryStats = isClientUser
+    ? [
+        { label: t("Overall Progress", "Progreso General"), value: projects[0] ? `${projects[0].progressPercent}%` : "—", icon: TrendingUp },
+        { label: t("Current Phase", "Fase Actual"), value: projects[0] ? `${projects[0].phaseNumber}/6` : "—", icon: FolderOpen },
+        { label: t("Pending Tasks", "Tareas Pendientes"), value: summary?.pendingTasks ?? "—", icon: Clock },
+        { label: t("Documents", "Documentos"), value: summary?.totalDocuments ?? "—", icon: FileText },
+      ]
+    : [
+        { label: t("Active Projects", "Proyectos Activos"), value: summary?.activeProjects ?? "—", icon: FolderOpen },
+        { label: t("Total Budget", "Presupuesto Total"), value: summary ? `$${(summary.totalBudget / 1000).toFixed(0)}K` : "—", icon: BarChart3 },
+        { label: t("Pending Tasks", "Tareas Pendientes"), value: summary?.pendingTasks ?? "—", icon: Clock },
+        { label: t("Documents", "Documentos"), value: summary?.totalDocuments ?? "—", icon: FileText },
+      ];
 
   return (
     <div className="space-y-8" data-testid="dashboard-page">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-foreground">
-          {t("Good morning", "Buenos días")}, {user?.name?.split(" ")[0]}
-        </h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          {t("Here's an overview of your active projects.", "Aquí tienes un resumen de tus proyectos activos.")}
-        </p>
+        <h1 className="text-2xl font-bold text-foreground">{greeting}</h1>
+        <p className="text-muted-foreground text-sm mt-1">{subtitle}</p>
       </div>
 
       {/* Stats bar */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {stats.map((stat) => (
+        {summaryStats.map((stat) => (
           <div key={stat.label} className="bg-card rounded-xl border border-card-border p-4 shadow-sm" data-testid={`stat-${stat.label.toLowerCase().replace(/\s+/g, "-")}`}>
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-medium text-muted-foreground">{stat.label}</span>
@@ -163,7 +189,9 @@ function DashboardContent() {
 
       {/* Projects grid */}
       <div>
-        <h2 className="text-lg font-bold text-foreground mb-4">{t("Active Projects", "Proyectos Activos")}</h2>
+        <h2 className="text-lg font-bold text-foreground mb-4">
+          {isClientUser ? t("My Project", "Mi Proyecto") : t("Active Projects", "Proyectos Activos")}
+        </h2>
         {projectsLoading ? (
           <div className="grid md:grid-cols-3 gap-6">
             {[1, 2, 3].map((i) => (
@@ -173,7 +201,7 @@ function DashboardContent() {
         ) : (
           <div className="grid md:grid-cols-3 gap-6">
             {projects.map((project) => (
-              <ProjectCard key={project.id} project={project} />
+              <ProjectCard key={project.id} project={project} isClientUser={isClientUser} />
             ))}
           </div>
         )}
