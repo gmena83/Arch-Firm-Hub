@@ -105,6 +105,18 @@ export interface ProjectTask {
   phase: string;
 }
 
+export interface WeatherHistoryEntry {
+  date: string;
+  dayLabel: string;
+  dayLabelEs: string;
+  tempHigh: number;
+  tempLow: number;
+  precipMm: number;
+  condition: string;
+  conditionEs: string;
+  emoji: string;
+}
+
 export type WeatherStatusBuildSuitability =
   (typeof WeatherStatusBuildSuitability)[keyof typeof WeatherStatusBuildSuitability];
 
@@ -130,6 +142,16 @@ export interface WeatherStatus {
   buildSuitabilityReason: string;
   buildSuitabilityReasonEs: string;
   lastUpdated: string;
+  weatherHistory?: WeatherHistoryEntry[];
+}
+
+export interface DocumentVersion {
+  version: number;
+  uploadedBy: string;
+  uploadedAt: string;
+  fileSize: string;
+  notes?: string;
+  notesEs?: string;
 }
 
 export type DocumentType = (typeof DocumentType)[keyof typeof DocumentType];
@@ -164,6 +186,8 @@ export interface Document {
   uploadedAt: string;
   fileSize: string;
   description?: string;
+  previewable?: boolean;
+  versions?: DocumentVersion[];
 }
 
 export type MaterialCategory =

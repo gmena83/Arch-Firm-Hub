@@ -320,6 +320,15 @@ export const WEATHER_DATA = {
     buildSuitabilityReason: "Mild wind and no precipitation expected. Safe for site surveys and foundation work.",
     buildSuitabilityReasonEs: "Viento moderado sin precipitación esperada. Seguro para visitas al sitio y trabajos de fundación.",
     lastUpdated: new Date().toISOString(),
+    weatherHistory: [
+      { date: "2026-04-09", dayLabel: "Wed", dayLabelEs: "Mié", tempHigh: 86, tempLow: 74, precipMm: 0, condition: "Sunny", conditionEs: "Soleado", emoji: "☀️" },
+      { date: "2026-04-10", dayLabel: "Thu", dayLabelEs: "Jue", tempHigh: 85, tempLow: 73, precipMm: 2, condition: "Partly Cloudy", conditionEs: "Parcialmente Nublado", emoji: "⛅" },
+      { date: "2026-04-11", dayLabel: "Fri", dayLabelEs: "Vie", tempHigh: 87, tempLow: 75, precipMm: 0, condition: "Sunny", conditionEs: "Soleado", emoji: "☀️" },
+      { date: "2026-04-12", dayLabel: "Sat", dayLabelEs: "Sáb", tempHigh: 83, tempLow: 72, precipMm: 12, condition: "Light Showers", conditionEs: "Llovizna", emoji: "🌦️" },
+      { date: "2026-04-13", dayLabel: "Sun", dayLabelEs: "Dom", tempHigh: 82, tempLow: 70, precipMm: 6, condition: "Cloudy", conditionEs: "Nublado", emoji: "☁️" },
+      { date: "2026-04-14", dayLabel: "Mon", dayLabelEs: "Lun", tempHigh: 84, tempLow: 73, precipMm: 1, condition: "Partly Cloudy", conditionEs: "Parcialmente Nublado", emoji: "⛅" },
+      { date: "2026-04-15", dayLabel: "Tue", dayLabelEs: "Mar", tempHigh: 84, tempLow: 72, precipMm: 0, condition: "Partly Cloudy", conditionEs: "Parcialmente Nublado", emoji: "⛅" },
+    ],
   },
   "proj-2": {
     projectId: "proj-2",
@@ -337,6 +346,15 @@ export const WEATHER_DATA = {
     buildSuitabilityReason: "Afternoon showers expected. Interior work OK. Delay concrete pours and roofing.",
     buildSuitabilityReasonEs: "Chubascos esperados por la tarde. Trabajo interior permitido. Evitar fundición de concreto y techado.",
     lastUpdated: new Date().toISOString(),
+    weatherHistory: [
+      { date: "2026-04-09", dayLabel: "Wed", dayLabelEs: "Mié", tempHigh: 87, tempLow: 75, precipMm: 3, condition: "Partly Cloudy", conditionEs: "Parcialmente Nublado", emoji: "⛅" },
+      { date: "2026-04-10", dayLabel: "Thu", dayLabelEs: "Jue", tempHigh: 85, tempLow: 74, precipMm: 18, condition: "Scattered Showers", conditionEs: "Chubascos Dispersos", emoji: "🌦️" },
+      { date: "2026-04-11", dayLabel: "Fri", dayLabelEs: "Vie", tempHigh: 82, tempLow: 73, precipMm: 28, condition: "Heavy Showers", conditionEs: "Chubascos Fuertes", emoji: "🌧️" },
+      { date: "2026-04-12", dayLabel: "Sat", dayLabelEs: "Sáb", tempHigh: 84, tempLow: 73, precipMm: 8, condition: "Overcast", conditionEs: "Cielo Cubierto", emoji: "☁️" },
+      { date: "2026-04-13", dayLabel: "Sun", dayLabelEs: "Dom", tempHigh: 86, tempLow: 74, precipMm: 2, condition: "Partly Cloudy", conditionEs: "Parcialmente Nublado", emoji: "⛅" },
+      { date: "2026-04-14", dayLabel: "Mon", dayLabelEs: "Lun", tempHigh: 88, tempLow: 75, precipMm: 0, condition: "Sunny", conditionEs: "Soleado", emoji: "☀️" },
+      { date: "2026-04-15", dayLabel: "Tue", dayLabelEs: "Mar", tempHigh: 87, tempLow: 75, precipMm: 14, condition: "Scattered Showers", conditionEs: "Chubascos Dispersos", emoji: "🌦️" },
+    ],
   },
   "proj-3": {
     projectId: "proj-3",
@@ -354,6 +372,15 @@ export const WEATHER_DATA = {
     buildSuitabilityReason: "Project completed. Clear skies and low humidity — ideal for final exterior photography.",
     buildSuitabilityReasonEs: "Proyecto completado. Cielos despejados y baja humedad — ideal para fotografía exterior.",
     lastUpdated: new Date().toISOString(),
+    weatherHistory: [
+      { date: "2026-04-09", dayLabel: "Wed", dayLabelEs: "Mié", tempHigh: 83, tempLow: 72, precipMm: 0, condition: "Sunny", conditionEs: "Soleado", emoji: "☀️" },
+      { date: "2026-04-10", dayLabel: "Thu", dayLabelEs: "Jue", tempHigh: 84, tempLow: 73, precipMm: 0, condition: "Sunny", conditionEs: "Soleado", emoji: "☀️" },
+      { date: "2026-04-11", dayLabel: "Fri", dayLabelEs: "Vie", tempHigh: 83, tempLow: 72, precipMm: 1, condition: "Partly Cloudy", conditionEs: "Parcialmente Nublado", emoji: "⛅" },
+      { date: "2026-04-12", dayLabel: "Sat", dayLabelEs: "Sáb", tempHigh: 81, tempLow: 71, precipMm: 8, condition: "Light Showers", conditionEs: "Llovizna", emoji: "🌦️" },
+      { date: "2026-04-13", dayLabel: "Sun", dayLabelEs: "Dom", tempHigh: 82, tempLow: 71, precipMm: 2, condition: "Partly Cloudy", conditionEs: "Parcialmente Nublado", emoji: "⛅" },
+      { date: "2026-04-14", dayLabel: "Mon", dayLabelEs: "Lun", tempHigh: 83, tempLow: 72, precipMm: 0, condition: "Sunny", conditionEs: "Soleado", emoji: "☀️" },
+      { date: "2026-04-15", dayLabel: "Tue", dayLabelEs: "Mar", tempHigh: 82, tempLow: 71, precipMm: 0, condition: "Sunny", conditionEs: "Soleado", emoji: "☀️" },
+    ],
   },
 };
 
@@ -367,9 +394,14 @@ export const DOCUMENTS = {
       category: "client_review" as const,
       isClientVisible: true,
       uploadedBy: "Carla Gautier",
-      uploadedAt: "2026-03-20T10:00:00Z",
-      fileSize: "1.2 MB",
+      uploadedAt: "2026-03-28T10:00:00Z",
+      fileSize: "1.4 MB",
       description: "Initial client intake questionnaire with project goals and budget parameters.",
+      previewable: true,
+      versions: [
+        { version: 1, uploadedBy: "Carla Gautier", uploadedAt: "2026-03-20T10:00:00Z", fileSize: "1.2 MB", notes: "Initial draft sent to client for review.", notesEs: "Borrador inicial enviado al cliente para revisión." },
+        { version: 2, uploadedBy: "Carla Gautier", uploadedAt: "2026-03-28T10:00:00Z", fileSize: "1.4 MB", notes: "Updated with client feedback on budget and timeline.", notesEs: "Actualizado con comentarios del cliente sobre presupuesto y cronograma." },
+      ],
     },
     {
       id: "doc-1-2",
@@ -382,6 +414,10 @@ export const DOCUMENTS = {
       uploadedAt: "2026-04-02T14:30:00Z",
       fileSize: "48.5 MB",
       description: "360° site photos and GPS-tagged reference shots.",
+      previewable: false,
+      versions: [
+        { version: 1, uploadedBy: "Jorge Rosa", uploadedAt: "2026-04-02T14:30:00Z", fileSize: "48.5 MB", notes: "Initial site visit documentation.", notesEs: "Documentación de la primera visita al sitio." },
+      ],
     },
     {
       id: "doc-1-3",
@@ -394,6 +430,10 @@ export const DOCUMENTS = {
       uploadedAt: "2026-04-10T09:15:00Z",
       fileSize: "3.8 MB",
       description: "Full topographical survey with elevation contours and soil analysis.",
+      previewable: true,
+      versions: [
+        { version: 1, uploadedBy: "Jorge Rosa", uploadedAt: "2026-04-10T09:15:00Z", fileSize: "3.8 MB", notes: "Certified survey — final version.", notesEs: "Levantamiento certificado — versión final." },
+      ],
     },
     {
       id: "doc-1-4",
@@ -406,20 +446,30 @@ export const DOCUMENTS = {
       uploadedAt: "2026-04-12T11:00:00Z",
       fileSize: "0.9 MB",
       description: "Municipal zoning regulations and setback requirements for residential container structures.",
+      previewable: true,
+      versions: [
+        { version: 1, uploadedBy: "Andrea Camacho", uploadedAt: "2026-04-12T11:00:00Z", fileSize: "0.9 MB", notes: "Zoning code analysis — pending ARPE confirmation.", notesEs: "Análisis de código de zonificación — pendiente confirmación de ARPE." },
+      ],
     },
   ],
   "proj-2": [
     {
       id: "doc-2-1",
       projectId: "proj-2",
-      name: "Construction Estimate — Martínez Ocasio V2",
+      name: "Construction Estimate — Martínez Ocasio",
       type: "excel" as const,
       category: "client_review" as const,
       isClientVisible: true,
       uploadedBy: "Carla Gautier",
-      uploadedAt: "2025-09-01T09:00:00Z",
-      fileSize: "2.1 MB",
+      uploadedAt: "2025-10-15T09:00:00Z",
+      fileSize: "2.4 MB",
       description: "Detailed cost-plus construction estimate with material breakdown.",
+      previewable: true,
+      versions: [
+        { version: 1, uploadedBy: "Carla Gautier", uploadedAt: "2025-08-22T09:00:00Z", fileSize: "1.8 MB", notes: "Initial estimate — preliminary scope.", notesEs: "Estimado inicial — alcance preliminar." },
+        { version: 2, uploadedBy: "Carla Gautier", uploadedAt: "2025-09-01T09:00:00Z", fileSize: "2.1 MB", notes: "Updated with pool and home studio scope.", notesEs: "Actualizado con alcance de piscina y estudio de música." },
+        { version: 3, uploadedBy: "Carla Gautier", uploadedAt: "2025-10-15T09:00:00Z", fileSize: "2.4 MB", notes: "Final signed estimate — client approved.", notesEs: "Estimado final firmado — aprobado por cliente." },
+      ],
     },
     {
       id: "doc-2-2",
@@ -432,6 +482,11 @@ export const DOCUMENTS = {
       uploadedAt: "2026-04-14T16:00:00Z",
       fileSize: "4.2 MB",
       description: "Photo-documented progress report with completed tasks and upcoming milestones.",
+      previewable: true,
+      versions: [
+        { version: 1, uploadedBy: "Miranda Klopf", uploadedAt: "2026-04-14T12:00:00Z", fileSize: "3.9 MB", notes: "Draft — pending photo additions.", notesEs: "Borrador — pendiente de agregar fotos." },
+        { version: 2, uploadedBy: "Miranda Klopf", uploadedAt: "2026-04-14T16:00:00Z", fileSize: "4.2 MB", notes: "Final — photos added and formatting updated.", notesEs: "Final — fotos agregadas y formato actualizado." },
+      ],
     },
     {
       id: "doc-2-3",
@@ -444,6 +499,12 @@ export const DOCUMENTS = {
       uploadedAt: "2026-01-15T10:30:00Z",
       fileSize: "18.7 MB",
       description: "Complete approved permit package from OGPE including structural, electrical, and plumbing.",
+      previewable: true,
+      versions: [
+        { version: 1, uploadedBy: "Andrea Camacho", uploadedAt: "2025-11-05T10:00:00Z", fileSize: "16.2 MB", notes: "First submission — awaiting OGPE review.", notesEs: "Primera presentación — en revisión OGPE." },
+        { version: 2, uploadedBy: "Andrea Camacho", uploadedAt: "2025-12-18T14:00:00Z", fileSize: "17.5 MB", notes: "Revised per OGPE comments — structural addendum added.", notesEs: "Revisado según comentarios de OGPE — addendum estructural agregado." },
+        { version: 3, uploadedBy: "Andrea Camacho", uploadedAt: "2026-01-15T10:30:00Z", fileSize: "18.7 MB", notes: "Final approved set — stamp received.", notesEs: "Juego aprobado final — sello recibido." },
+      ],
     },
     {
       id: "doc-2-4",
@@ -456,6 +517,10 @@ export const DOCUMENTS = {
       uploadedAt: "2026-04-13T17:00:00Z",
       fileSize: "1.5 MB",
       description: "Internal contractor hours tracking and performance monitoring spreadsheet.",
+      previewable: true,
+      versions: [
+        { version: 1, uploadedBy: "Jorge Rosa", uploadedAt: "2026-04-13T17:00:00Z", fileSize: "1.5 MB", notes: "Monthly report — April 2026.", notesEs: "Reporte mensual — Abril 2026." },
+      ],
     },
     {
       id: "doc-2-5",
@@ -468,11 +533,16 @@ export const DOCUMENTS = {
       uploadedAt: "2025-10-20T11:00:00Z",
       fileSize: "8.3 MB",
       description: "Structural engineering specifications for the welded steel frame connecting the three containers.",
+      previewable: true,
+      versions: [
+        { version: 1, uploadedBy: "Michelle Telon Sosa", uploadedAt: "2025-09-12T11:00:00Z", fileSize: "7.1 MB", notes: "Preliminary structural design.", notesEs: "Diseño estructural preliminar." },
+        { version: 2, uploadedBy: "Michelle Telon Sosa", uploadedAt: "2025-10-20T11:00:00Z", fileSize: "8.3 MB", notes: "Final PE-stamped specifications.", notesEs: "Especificaciones finales con sello de ingeniero." },
+      ],
     },
     {
       id: "doc-2-6",
       projectId: "proj-2",
-      name: "Interior Design Presentation V3",
+      name: "Interior Design Presentation",
       type: "pptx" as const,
       category: "client_review" as const,
       isClientVisible: true,
@@ -480,6 +550,12 @@ export const DOCUMENTS = {
       uploadedAt: "2026-02-28T14:00:00Z",
       fileSize: "22.4 MB",
       description: "Final approved interior design presentation including finishes, fixtures, and furniture layout.",
+      previewable: false,
+      versions: [
+        { version: 1, uploadedBy: "Michelle Telon Sosa", uploadedAt: "2025-12-05T14:00:00Z", fileSize: "18.1 MB", notes: "Initial concept presentation — 3 material boards.", notesEs: "Presentación de concepto inicial — 3 tableros de materiales." },
+        { version: 2, uploadedBy: "Michelle Telon Sosa", uploadedAt: "2026-01-22T14:00:00Z", fileSize: "20.6 MB", notes: "Revised per client selections — furniture added.", notesEs: "Revisado según selecciones del cliente — mobiliario agregado." },
+        { version: 3, uploadedBy: "Michelle Telon Sosa", uploadedAt: "2026-02-28T14:00:00Z", fileSize: "22.4 MB", notes: "Final approved — all finishes confirmed.", notesEs: "Final aprobado — todos los acabados confirmados." },
+      ],
     },
     {
       id: "doc-2-7",
@@ -492,6 +568,10 @@ export const DOCUMENTS = {
       uploadedAt: "2026-04-01T08:30:00Z",
       fileSize: "0.8 MB",
       description: "Detailed punch list for Phase 4 closeout — 94% items resolved.",
+      previewable: true,
+      versions: [
+        { version: 1, uploadedBy: "Jorge Rosa", uploadedAt: "2026-04-01T08:30:00Z", fileSize: "0.8 MB", notes: "Punch list — 94% resolved.", notesEs: "Punch list — 94% resuelto." },
+      ],
     },
     {
       id: "doc-2-8",
@@ -504,6 +584,11 @@ export const DOCUMENTS = {
       uploadedAt: "2026-04-12T15:00:00Z",
       fileSize: "95.2 MB",
       description: "Weekly site photo documentation including framing, electrical rough-in, and pool excavation.",
+      previewable: false,
+      versions: [
+        { version: 1, uploadedBy: "Jorge Rosa", uploadedAt: "2026-04-05T15:00:00Z", fileSize: "68.4 MB", notes: "Week 31 site photos.", notesEs: "Fotos del sitio semana 31." },
+        { version: 2, uploadedBy: "Jorge Rosa", uploadedAt: "2026-04-12T15:00:00Z", fileSize: "95.2 MB", notes: "Week 32 — framing and electrical rough-in added.", notesEs: "Semana 32 — estructura y electricidad rough-in agregados." },
+      ],
     },
   ],
   "proj-3": [
@@ -518,6 +603,10 @@ export const DOCUMENTS = {
       uploadedAt: "2025-11-28T10:00:00Z",
       fileSize: "0.4 MB",
       description: "Official ARPE Certificate of Occupancy for commercial use.",
+      previewable: true,
+      versions: [
+        { version: 1, uploadedBy: "Andrea Camacho", uploadedAt: "2025-11-28T10:00:00Z", fileSize: "0.4 MB", notes: "Official CO — received from ARPE.", notesEs: "CO oficial — recibido de ARPE." },
+      ],
     },
     {
       id: "doc-3-2",
@@ -530,6 +619,11 @@ export const DOCUMENTS = {
       uploadedAt: "2025-11-25T14:00:00Z",
       fileSize: "31.6 MB",
       description: "Complete as-built drawing set including architectural, structural, MEP, and civil.",
+      previewable: true,
+      versions: [
+        { version: 1, uploadedBy: "Michelle Telon Sosa", uploadedAt: "2025-11-10T14:00:00Z", fileSize: "29.2 MB", notes: "Draft as-built — field verification pending.", notesEs: "As-built borrador — verificación de campo pendiente." },
+        { version: 2, uploadedBy: "Michelle Telon Sosa", uploadedAt: "2025-11-25T14:00:00Z", fileSize: "31.6 MB", notes: "Final as-built — all field revisions incorporated.", notesEs: "As-built final — todas las revisiones de campo incorporadas." },
+      ],
     },
     {
       id: "doc-3-3",
@@ -542,6 +636,11 @@ export const DOCUMENTS = {
       uploadedAt: "2025-12-01T09:00:00Z",
       fileSize: "1.8 MB",
       description: "Final cost-plus reconciliation report. Total project came in 3.7% under initial estimate.",
+      previewable: true,
+      versions: [
+        { version: 1, uploadedBy: "Carla Gautier", uploadedAt: "2025-11-20T09:00:00Z", fileSize: "1.5 MB", notes: "Draft reconciliation — pending final receipts.", notesEs: "Reconciliación borrador — pendiente recibos finales." },
+        { version: 2, uploadedBy: "Carla Gautier", uploadedAt: "2025-12-01T09:00:00Z", fileSize: "1.8 MB", notes: "Final — 3.7% under estimate. Client signed.", notesEs: "Final — 3.7% por debajo del estimado. Firmado por cliente." },
+      ],
     },
     {
       id: "doc-3-4",
@@ -554,6 +653,10 @@ export const DOCUMENTS = {
       uploadedAt: "2025-12-05T12:00:00Z",
       fileSize: "287.4 MB",
       description: "Professional photography shoot for portfolio and client deliverable. 84 edited images.",
+      previewable: false,
+      versions: [
+        { version: 1, uploadedBy: "Miranda Klopf", uploadedAt: "2025-12-05T12:00:00Z", fileSize: "287.4 MB", notes: "84 edited images — grand opening.", notesEs: "84 imágenes editadas — inauguración." },
+      ],
     },
     {
       id: "doc-3-5",
@@ -566,6 +669,10 @@ export const DOCUMENTS = {
       uploadedAt: "2025-12-03T11:00:00Z",
       fileSize: "5.1 MB",
       description: "Complete warranty documentation and 5-year maintenance schedule for all systems.",
+      previewable: true,
+      versions: [
+        { version: 1, uploadedBy: "Jorge Rosa", uploadedAt: "2025-12-03T11:00:00Z", fileSize: "5.1 MB", notes: "Final — 5-year maintenance schedule included.", notesEs: "Final — cronograma de mantenimiento de 5 años incluido." },
+      ],
     },
   ],
 };

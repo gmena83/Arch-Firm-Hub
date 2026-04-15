@@ -11,32 +11,30 @@ import {
   getGetProjectWeatherQueryKey,
   getGetProjectDocumentsQueryKey,
   getGetProjectCalculationsQueryKey,
+  type Document,
+  type WeatherHistoryEntry,
 } from "@workspace/api-client-react";
+import {
+  ResponsiveContainer,
+  ComposedChart,
+  Bar,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+} from "recharts";
 import { AppLayout } from "@/components/layout/app-layout";
 import { RequireAuth, useAuth } from "@/hooks/use-auth";
 import { useLang } from "@/hooks/use-lang";
 import { WeatherBadge } from "@/components/weather-badge";
 import {
-  MapPin, Calendar, Users, FileText, Upload, Check, Clock, ChevronLeft,
-  Wind, Droplets, Thermometer, Eye, EyeOff, ArrowRight, X
+  MapPin, Users, FileText, Upload, Check, Clock, ChevronLeft,
+  Wind, Droplets, Thermometer, Eye, EyeOff, ArrowRight, X,
+  ChevronDown, ChevronUp, BarChart2, History,
 } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
-import { es as dateEs } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
-
-function DocIcon({ type }: { type: string }) {
-  const colors: Record<string, string> = {
-    pdf: "text-red-600",
-    excel: "text-emerald-600",
-    pptx: "text-orange-600",
-    photo: "text-sky-600",
-  };
-  return (
-    <div className={`w-8 h-8 rounded flex items-center justify-center bg-muted ${colors[type] ?? "text-muted-foreground"}`}>
-      <FileText className="w-4 h-4" />
-    </div>
-  );
-}
 
 function UploadModal({ onClose, projectId }: { onClose: () => void; projectId: string }) {
   const { t } = useLang();
@@ -115,6 +113,270 @@ function UploadModal({ onClose, projectId }: { onClose: () => void; projectId: s
   );
 }
 
+function WeatherHistoryChart({ history }: { history: WeatherHistoryEntry[] }) {
+  const { t, lang } = useLang();
+  const [visible, setVisible] = useState(false);
+
+  const data = history.map((h) => ({
+    day: lang === "es" ? h.dayLabelEs : h.dayLabel,
+    emoji: h.emoji,
+    tempHigh: h.tempHigh,
+    tempLow: h.tempLow,
+    precip: h.precipMm,
+  }));
+
+  return (
+    <div className="mt-4 border-t border-border pt-4">
+      <button
+        onClick={() => setVisible((v) => !v)}
+        className="flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+        data-testid="btn-toggle-weather-chart"
+      >
+        <BarChart2 className="w-3.5 h-3.5" />
+        {t("7-Day Weather History", "Historial Climático (7 Días)")}
+        {visible ? <ChevronUp className="w-3.5 h-3.5 ml-auto" /> : <ChevronDown className="w-3.5 h-3.5 ml-auto" />}
+      </button>
+
+      {visible && (
+        <div className="mt-3" data-testid="weather-history-chart">
+          <ResponsiveContainer width="100%" height={200}>
+            <ComposedChart data={data} margin={{ top: 8, right: 16, left: -8, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+              <XAxis
+                dataKey="day"
+                tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                yAxisId="temp"
+                orientation="left"
+                domain={[60, 100]}
+                tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={(v) => `${v}°`}
+              />
+              <YAxis
+                yAxisId="precip"
+                orientation="right"
+                domain={[0, 40]}
+                tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={(v) => `${v}mm`}
+              />
+              <Tooltip
+                contentStyle={{
+                  background: "var(--card)",
+                  border: "1px solid var(--border)",
+                  borderRadius: "8px",
+                  fontSize: "12px",
+                }}
+                formatter={(value, name) => {
+                  if (name === "precip") return [`${value}mm`, t("Precipitation", "Precipitación")];
+                  if (name === "tempHigh") return [`${value}°F`, t("High Temp", "Temp. Máx.")];
+                  if (name === "tempLow") return [`${value}°F`, t("Low Temp", "Temp. Mín.")];
+                  return [value, name];
+                }}
+              />
+              <Bar yAxisId="precip" dataKey="precip" fill="#3B82F6" opacity={0.7} radius={[3, 3, 0, 0]} maxBarSize={24} name="precip" />
+              <Line yAxisId="temp" type="monotone" dataKey="tempHigh" stroke="#F97316" strokeWidth={2} dot={{ r: 3, fill: "#F97316" }} name="tempHigh" />
+              <Line yAxisId="temp" type="monotone" dataKey="tempLow" stroke="#94A3B8" strokeWidth={1.5} strokeDasharray="4 2" dot={false} name="tempLow" />
+            </ComposedChart>
+          </ResponsiveContainer>
+          <div className="flex items-center gap-4 mt-1 justify-center">
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><span className="w-3 h-0.5 bg-orange-400 inline-block rounded" /> {t("High", "Máx.")}</span>
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><span className="w-3 h-0.5 bg-slate-400 inline-block rounded" style={{ borderTop: "2px dashed #94A3B8", background: "none" }} /> {t("Low", "Mín.")}</span>
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><span className="w-3 h-3 rounded-sm bg-blue-400 opacity-70 inline-block" /> {t("Precip.", "Precip.")}</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DocPreviewModal({ doc, onClose }: { doc: Document; onClose: () => void }) {
+  const { t, lang } = useLang();
+  const catColors: Record<string, string> = {
+    client_review: "bg-sky-100 text-sky-800",
+    internal: "bg-purple-100 text-purple-800",
+    permits: "bg-amber-100 text-amber-800",
+    construction: "bg-orange-100 text-orange-800",
+    design: "bg-indigo-100 text-indigo-800",
+  };
+  const versions = doc.versions ?? [];
+  const latestVersion = versions.length > 0 ? versions[versions.length - 1] : null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" data-testid="doc-preview-modal">
+      <div className="bg-card rounded-xl border border-card-border shadow-xl w-full max-w-lg flex flex-col max-h-[90vh]">
+        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-border shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <FileText className="w-5 h-5 text-konti-olive shrink-0" />
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-foreground truncate">{doc.name}</p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${catColors[doc.category] ?? "bg-gray-100 text-gray-700"}`}>
+                  {doc.category === "client_review" ? t("Client", "Cliente") : doc.category}
+                </span>
+                {versions.length > 1 && (
+                  <span className="text-xs bg-konti-olive/10 text-konti-olive border border-konti-olive/30 px-1.5 py-0.5 rounded font-medium">
+                    v{versions.length}
+                  </span>
+                )}
+                <span className="text-xs text-muted-foreground">{doc.fileSize}</span>
+              </div>
+            </div>
+          </div>
+          <button onClick={onClose} data-testid="btn-close-doc-preview" className="text-muted-foreground hover:text-foreground ml-3 shrink-0">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="overflow-y-auto flex-1 p-6 space-y-5">
+          {doc.previewable ? (
+            <div className="rounded-lg border border-dashed border-border bg-muted/30 flex flex-col items-center justify-center h-40 gap-2">
+              <FileText className="w-8 h-8 text-muted-foreground/50" />
+              <p className="text-xs text-muted-foreground font-medium">{t("Document Preview", "Vista Previa")}</p>
+              <p className="text-xs text-muted-foreground/70">{t("Full preview available in production.", "Vista completa disponible en producción.")}</p>
+            </div>
+          ) : (
+            <div className="rounded-lg border border-dashed border-border bg-muted/30 flex flex-col items-center justify-center h-32 gap-2">
+              <p className="text-xs text-muted-foreground">{t("Preview not available for this file type.", "Vista previa no disponible para este tipo de archivo.")}</p>
+            </div>
+          )}
+
+          {doc.description && (
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground mb-1">{t("Description", "Descripción")}</p>
+              <p className="text-sm text-foreground">{doc.description}</p>
+            </div>
+          )}
+
+          {versions.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <History className="w-3.5 h-3.5 text-muted-foreground" />
+                <p className="text-xs font-semibold text-muted-foreground">{t("Version History", "Historial de Versiones")}</p>
+              </div>
+              <div className="space-y-2">
+                {[...versions].reverse().map((v) => {
+                  const isLatest = v.version === versions.length;
+                  return (
+                    <div key={v.version} className={`rounded-lg border p-3 text-xs ${isLatest ? "border-konti-olive/30 bg-konti-olive/5" : "border-border bg-muted/20"}`}>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className={`font-bold ${isLatest ? "text-konti-olive" : "text-muted-foreground"}`}>
+                          v{v.version} {isLatest && <span className="text-xs font-normal ml-1 opacity-70">{t("current", "actual")}</span>}
+                        </span>
+                        <span className="text-muted-foreground">{new Date(v.uploadedAt).toLocaleDateString(lang === "es" ? "es-PR" : "en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-muted-foreground mb-1.5">
+                        <span>{v.uploadedBy}</span>
+                        <span>{v.fileSize}</span>
+                      </div>
+                      {(lang === "es" ? v.notesEs : v.notes) && (
+                        <p className="text-muted-foreground leading-relaxed">{lang === "es" ? v.notesEs : v.notes}</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DocCard({ doc, isClientView }: { doc: Document; isClientView: boolean }) {
+  const { t, lang } = useLang();
+  const [showVersions, setShowVersions] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+
+  const catColors: Record<string, string> = {
+    client_review: "bg-sky-100 text-sky-800",
+    internal: "bg-purple-100 text-purple-800",
+    permits: "bg-amber-100 text-amber-800",
+    construction: "bg-orange-100 text-orange-800",
+    design: "bg-indigo-100 text-indigo-800",
+  };
+
+  const typeColors: Record<string, string> = {
+    pdf: "text-red-600 bg-red-50",
+    excel: "text-emerald-600 bg-emerald-50",
+    pptx: "text-orange-600 bg-orange-50",
+    photo: "text-sky-600 bg-sky-50",
+  };
+
+  const versions = doc.versions ?? [];
+  const hasVersions = versions.length > 1;
+
+  return (
+    <>
+      <div data-testid={`doc-${doc.id}`} className="rounded-lg border border-border hover:border-konti-olive/30 hover:bg-muted/20 transition-colors">
+        <button
+          className="w-full flex items-start gap-2.5 p-2.5 text-left"
+          onClick={() => setShowPreview(true)}
+          data-testid={`btn-preview-doc-${doc.id}`}
+        >
+          <div className={`w-8 h-8 rounded flex items-center justify-center shrink-0 ${typeColors[doc.type] ?? "bg-muted text-muted-foreground"}`}>
+            <FileText className="w-4 h-4" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-medium text-foreground truncate">{doc.name}</p>
+            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+              <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${catColors[doc.category] ?? "bg-gray-100 text-gray-700"}`}>
+                {doc.category === "client_review" ? t("Client", "Cliente") : doc.category}
+              </span>
+              <span className="text-xs text-muted-foreground">{doc.fileSize}</span>
+              {hasVersions && (
+                <span className="text-xs bg-konti-olive/10 text-konti-olive border border-konti-olive/30 px-1.5 py-0.5 rounded font-semibold">
+                  v{versions.length}
+                </span>
+              )}
+            </div>
+          </div>
+          {hasVersions && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowVersions((v) => !v); }}
+              className="p-1 text-muted-foreground hover:text-foreground transition-colors shrink-0 mt-0.5"
+              data-testid={`btn-toggle-versions-${doc.id}`}
+            >
+              {showVersions ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            </button>
+          )}
+        </button>
+
+        {showVersions && (
+          <div className="border-t border-border px-3 pb-2 pt-2 space-y-1.5" data-testid={`version-history-${doc.id}`}>
+            <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5 mb-2">
+              <History className="w-3 h-3" /> {t("Version History", "Historial de Versiones")}
+            </p>
+            {[...versions].reverse().map((v) => {
+              const isLatest = v.version === versions.length;
+              return (
+                <div key={v.version} className="flex items-start justify-between gap-2 text-xs">
+                  <div className="flex items-center gap-1.5">
+                    <span className={`font-bold ${isLatest ? "text-konti-olive" : "text-muted-foreground"}`}>v{v.version}</span>
+                    <span className="text-muted-foreground truncate max-w-[140px]">{lang === "es" ? v.notesEs : v.notes}</span>
+                  </div>
+                  <span className="text-muted-foreground whitespace-nowrap shrink-0">
+                    {new Date(v.uploadedAt).toLocaleDateString(lang === "es" ? "es-PR" : "en-US", { month: "short", day: "numeric" })}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {showPreview && <DocPreviewModal doc={doc} onClose={() => setShowPreview(false)} />}
+    </>
+  );
+}
+
 function ProjectDetailContent({ projectId }: { projectId: string }) {
   const { t, lang } = useLang();
   const { viewRole, setViewRole, user } = useAuth();
@@ -154,14 +416,6 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
     { key: "construction", label: t("Construction", "Construcción"), num: 5 },
     { key: "completed", label: t("Completed", "Completado"), num: 6 },
   ];
-
-  const catColors: Record<string, string> = {
-    client_review: "bg-sky-100 text-sky-800",
-    internal: "bg-purple-100 text-purple-800",
-    permits: "bg-amber-100 text-amber-800",
-    construction: "bg-orange-100 text-orange-800",
-    design: "bg-indigo-100 text-indigo-800",
-  };
 
   const priorityColors: Record<string, string> = {
     high: "text-red-600 bg-red-50 border border-red-200",
@@ -298,6 +552,10 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
                   {lang === "es" ? weather.buildSuitabilityReasonEs : weather.buildSuitabilityReason}
                 </p>
               </div>
+
+              {weather.weatherHistory && weather.weatherHistory.length > 0 && (
+                <WeatherHistoryChart history={weather.weatherHistory} />
+              )}
             </div>
           )}
 
@@ -421,20 +679,9 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
                 </button>
               )}
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {docs.map((doc) => (
-                <div key={doc.id} data-testid={`doc-${doc.id}`} className="flex items-start gap-2.5 p-2 rounded-lg hover:bg-muted/30 transition-colors">
-                  <DocIcon type={doc.type} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-foreground truncate">{doc.name}</p>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${catColors[doc.category] ?? "bg-gray-100 text-gray-700"}`}>
-                        {doc.category === "client_review" ? t("Client", "Cliente") : doc.category}
-                      </span>
-                      <span className="text-xs text-muted-foreground">{doc.fileSize}</span>
-                    </div>
-                  </div>
-                </div>
+                <DocCard key={doc.id} doc={doc} isClientView={isClientView} />
               ))}
               {docs.length === 0 && (
                 <p className="text-xs text-muted-foreground text-center py-4">{t("No documents available.", "No hay documentos disponibles.")}</p>

@@ -150,6 +150,21 @@ export const GetProjectWeatherResponse = zod.object({
   buildSuitabilityReason: zod.string(),
   buildSuitabilityReasonEs: zod.string(),
   lastUpdated: zod.string(),
+  weatherHistory: zod
+    .array(
+      zod.object({
+        date: zod.string(),
+        dayLabel: zod.string(),
+        dayLabelEs: zod.string(),
+        tempHigh: zod.number(),
+        tempLow: zod.number(),
+        precipMm: zod.number(),
+        condition: zod.string(),
+        conditionEs: zod.string(),
+        emoji: zod.string(),
+      }),
+    )
+    .optional(),
 });
 
 /**
@@ -180,6 +195,19 @@ export const GetProjectDocumentsResponseItem = zod.object({
   uploadedAt: zod.string(),
   fileSize: zod.string(),
   description: zod.string().optional(),
+  previewable: zod.boolean().optional(),
+  versions: zod
+    .array(
+      zod.object({
+        version: zod.number(),
+        uploadedBy: zod.string(),
+        uploadedAt: zod.string(),
+        fileSize: zod.string(),
+        notes: zod.string().optional(),
+        notesEs: zod.string().optional(),
+      }),
+    )
+    .optional(),
 });
 export const GetProjectDocumentsResponse = zod.array(
   GetProjectDocumentsResponseItem,

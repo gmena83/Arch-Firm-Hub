@@ -7,6 +7,7 @@
  */
 import type { DocumentCategory } from "./documentCategory";
 import type { DocumentType } from "./documentType";
+import type { DocumentVersion } from "./documentVersion";
 
 export interface Document {
   id: string;
@@ -19,4 +20,6 @@ export interface Document {
   uploadedAt: string;
   fileSize: string;
   description?: string;
+  previewable?: boolean;
+  versions?: DocumentVersion[];
 }
