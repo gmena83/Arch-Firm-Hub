@@ -109,6 +109,15 @@ router.post("/ai/chat", async (req, res) => {
     { role: "user" as const, content: message },
   ];
 
+  if (!process.env["ANTHROPIC_API_KEY"]) {
+    const fallback =
+      mode === "client_assistant"
+        ? "The KONTi Client Assistant is not configured in this environment. Please contact your KONTi project manager for assistance."
+        : "The KONTi Internal Spec Bot is not configured in this environment. Please set the ANTHROPIC_API_KEY to enable AI assistance.";
+    res.json({ message: fallback, mode, projectId });
+    return;
+  }
+
   try {
     const response = await anthropic.messages.create({
       model: "claude-opus-4-5",

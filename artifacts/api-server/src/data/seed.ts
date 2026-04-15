@@ -54,8 +54,8 @@ export const PROJECTS = [
   },
   {
     id: "proj-2",
-    name: "Residencia Martínez Ocasio",
-    nameEs: "Residencia Martínez Ocasio",
+    name: "Residencia Martínez Ocasio – Bad Bunny",
+    nameEs: "Residencia Martínez Ocasio – Bad Bunny",
     clientName: "Benito Antonio Martínez Ocasio",
     location: "Vega Alta, Puerto Rico",
     city: "Vega Alta",
