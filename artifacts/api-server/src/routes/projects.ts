@@ -40,7 +40,10 @@ router.get("/projects/:projectId/weather", (req, res) => {
 router.get("/projects/:projectId/documents", (req, res) => {
   const projectId = req.params["projectId"];
   const clientVisible = req.query["clientVisible"];
-  let docs = DOCUMENTS[projectId as keyof typeof DOCUMENTS] ?? [];
+  let docs = (DOCUMENTS[projectId as keyof typeof DOCUMENTS] ?? []) as Array<{
+    id: string; projectId: string; name: string; type: string; category: string;
+    isClientVisible: boolean; uploadedBy: string; uploadedAt: string; fileSize: string; description: string;
+  }>;
 
   if (clientVisible === "true") {
     docs = docs.filter((d) => d.isClientVisible);
