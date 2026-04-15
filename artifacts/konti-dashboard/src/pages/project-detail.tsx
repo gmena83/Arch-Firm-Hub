@@ -23,7 +23,7 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
+  LabelList,
 } from "recharts";
 import { AppLayout } from "@/components/layout/app-layout";
 import { RequireAuth, useAuth } from "@/hooks/use-auth";
@@ -191,7 +191,35 @@ function WeatherHistoryChart({ history }: { history: WeatherHistoryEntry[] }) {
                   return [value, name];
                 }}
               />
-              <Bar yAxisId="precip" dataKey="precip" fill="#3B82F6" opacity={0.7} radius={[3, 3, 0, 0]} maxBarSize={24} name="precip" />
+              <Bar
+                yAxisId="precip"
+                dataKey="precip"
+                fill="#3B82F6"
+                opacity={0.7}
+                radius={[3, 3, 0, 0]}
+                maxBarSize={24}
+                name="precip"
+              >
+                <LabelList
+                  dataKey="emoji"
+                  position="top"
+                  content={(props) => {
+                    const { x, y, width, value } = props;
+                    if (!value) return null;
+                    return (
+                      <text
+                        x={Number(x ?? 0) + Number(width ?? 0) / 2}
+                        y={Number(y ?? 0) - 4}
+                        textAnchor="middle"
+                        fontSize={13}
+                        data-testid="weather-emoji-label"
+                      >
+                        {String(value)}
+                      </text>
+                    );
+                  }}
+                />
+              </Bar>
               <Line yAxisId="temp" type="monotone" dataKey="tempHigh" stroke="#F97316" strokeWidth={2} dot={{ r: 3, fill: "#F97316" }} name="tempHigh" />
               <Line yAxisId="temp" type="monotone" dataKey="tempLow" stroke="#94A3B8" strokeWidth={1.5} strokeDasharray="4 2" dot={false} name="tempLow" />
             </ComposedChart>
@@ -207,6 +235,13 @@ function WeatherHistoryChart({ history }: { history: WeatherHistoryEntry[] }) {
   );
 }
 
+const TYPE_ICON_CONFIG: Record<string, { color: string; bg: string; border: string; label: string }> = {
+  pdf:   { color: "text-red-600",     bg: "bg-red-50",     border: "border-red-200",     label: "PDF" },
+  excel: { color: "text-emerald-600", bg: "bg-emerald-50", border: "border-emerald-200", label: "XLSX" },
+  pptx:  { color: "text-orange-600",  bg: "bg-orange-50",  border: "border-orange-200",  label: "PPTX" },
+  photo: { color: "text-sky-600",     bg: "bg-sky-50",     border: "border-sky-200",     label: "IMG" },
+};
+
 function DocPreviewModal({ doc, onClose }: { doc: Document; onClose: () => void }) {
   const { t, lang } = useLang();
   const catColors: Record<string, string> = {
@@ -217,7 +252,7 @@ function DocPreviewModal({ doc, onClose }: { doc: Document; onClose: () => void 
     design: "bg-indigo-100 text-indigo-800",
   };
   const versions = doc.versions ?? [];
-  const latestVersion = versions.length > 0 ? versions[versions.length - 1] : null;
+  const typeIcon = TYPE_ICON_CONFIG[doc.type] ?? { color: "text-muted-foreground", bg: "bg-muted", border: "border-border", label: "FILE" };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" data-testid="doc-preview-modal">
@@ -247,14 +282,21 @@ function DocPreviewModal({ doc, onClose }: { doc: Document; onClose: () => void 
 
         <div className="overflow-y-auto flex-1 p-6 space-y-5">
           {doc.previewable ? (
-            <div className="rounded-lg border border-dashed border-border bg-muted/30 flex flex-col items-center justify-center h-40 gap-2">
-              <FileText className="w-8 h-8 text-muted-foreground/50" />
-              <p className="text-xs text-muted-foreground font-medium">{t("Document Preview", "Vista Previa")}</p>
-              <p className="text-xs text-muted-foreground/70">{t("Full preview available in production.", "Vista completa disponible en producción.")}</p>
+            <div className={`rounded-xl border-2 border-dashed ${typeIcon.border} ${typeIcon.bg} flex flex-col items-center justify-center h-44 gap-3`}>
+              <div className={`w-16 h-16 rounded-2xl ${typeIcon.bg} border ${typeIcon.border} flex items-center justify-center`}>
+                <FileText className={`w-9 h-9 ${typeIcon.color}`} />
+              </div>
+              <div className="text-center">
+                <p className={`text-sm font-bold ${typeIcon.color}`}>{typeIcon.label} {t("Document", "Documento")}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{t("Full preview available in production.", "Vista completa disponible en producción.")}</p>
+              </div>
             </div>
           ) : (
-            <div className="rounded-lg border border-dashed border-border bg-muted/30 flex flex-col items-center justify-center h-32 gap-2">
-              <p className="text-xs text-muted-foreground">{t("Preview not available for this file type.", "Vista previa no disponible para este tipo de archivo.")}</p>
+            <div className={`rounded-xl border-2 border-dashed ${typeIcon.border} ${typeIcon.bg} flex flex-col items-center justify-center h-36 gap-3`}>
+              <div className={`w-14 h-14 rounded-2xl ${typeIcon.bg} border ${typeIcon.border} flex items-center justify-center`}>
+                <FileText className={`w-8 h-8 ${typeIcon.color}`} />
+              </div>
+              <p className="text-xs text-muted-foreground">{typeIcon.label} — {t("Preview not available for this file type.", "Vista previa no disponible para este tipo de archivo.")}</p>
             </div>
           )}
 
