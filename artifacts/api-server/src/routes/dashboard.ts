@@ -35,4 +35,8 @@ router.get("/dashboard/activity", (_req, res) => {
   res.json(RECENT_ACTIVITY);
 });
 
+router.get("/notifications", (_req, res) => {
+  res.json(RECENT_ACTIVITY);
+});
+
 export default router;

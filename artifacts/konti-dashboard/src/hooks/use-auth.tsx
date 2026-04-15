@@ -93,3 +93,26 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
   if (!isAuthenticated) return null;
   return <>{children}</>;
 }
+
+export function RequireRole({
+  roles,
+  children,
+}: {
+  roles: AuthUser["role"][];
+  children: React.ReactNode;
+}) {
+  const { isAuthenticated, user } = useAuth();
+  const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setLocation("/login");
+    } else if (user && !roles.includes(user.role)) {
+      setLocation("/dashboard");
+    }
+  }, [isAuthenticated, user, roles, setLocation]);
+
+  if (!isAuthenticated) return null;
+  if (user && !roles.includes(user.role)) return null;
+  return <>{children}</>;
+}

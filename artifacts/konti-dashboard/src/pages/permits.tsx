@@ -1,6 +1,6 @@
 import { FileCheck, CheckCircle, Clock, AlertCircle, Minus } from "lucide-react";
 import { AppLayout } from "@/components/layout/app-layout";
-import { RequireAuth } from "@/hooks/use-auth";
+import { RequireRole } from "@/hooks/use-auth";
 import { useLang } from "@/hooks/use-lang";
 
 type PermitStatus = "approved" | "submitted" | "pending" | "na";
@@ -109,11 +109,11 @@ const PERMITS: Permit[] = [
     nameEs: "Certificado de Habitabilidad",
     agency: "OGPE / Municipio",
     responsible: "Carla Gautier",
-    status: "pending",
+    status: "approved",
     processingTime: "2–4 weeks after completion",
     processingTimeEs: "2–4 semanas tras completar",
-    notes: "Pending construction completion and final inspection.",
-    notesEs: "Pendiente a la finalización de construcción e inspección final.",
+    notes: "Occupancy certificate issued — project in Phase 5.",
+    notesEs: "Certificado de habitabilidad emitido — proyecto en Fase 5.",
   },
   {
     id: "perm-9",
@@ -121,11 +121,11 @@ const PERMITS: Permit[] = [
     nameEs: "AASIF Solar / Almacenamiento de Energía",
     agency: "PREB / AASIF",
     responsible: "Andrea Camacho",
-    status: "submitted",
+    status: "approved",
     processingTime: "4–6 weeks",
     processingTimeEs: "4–6 semanas",
-    notes: "Solar panel interconnection application submitted to LUMA.",
-    notesEs: "Solicitud de interconexión solar enviada a LUMA.",
+    notes: "Solar panel interconnection approved by LUMA.",
+    notesEs: "Interconexión solar aprobada por LUMA.",
   },
   {
     id: "perm-10",
@@ -177,7 +177,7 @@ export default function PermitsPage() {
   const { t, lang } = useLang();
 
   return (
-    <RequireAuth>
+    <RequireRole roles={["admin", "superadmin", "architect"]}>
       <AppLayout>
         <div className="space-y-6" data-testid="permits-page">
           <div>
@@ -254,6 +254,6 @@ export default function PermitsPage() {
           </p>
         </div>
       </AppLayout>
-    </RequireAuth>
+    </RequireRole>
   );
 }
