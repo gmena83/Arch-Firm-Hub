@@ -30,8 +30,10 @@ import type {
   LoginRequest,
   LoginResponse,
   Material,
+  MaterialPriceRefreshResponse,
   Project,
   ProjectTask,
+  RefreshMaterialPricesParams,
   WeatherStatus,
 } from "./api.schemas";
 
@@ -934,6 +936,107 @@ export function useListMaterials<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Refresh material prices using Perplexity AI
+ */
+export const getRefreshMaterialPricesUrl = (
+  params?: RefreshMaterialPricesParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/materials/prices/refresh?${stringifiedParams}`
+    : `/api/materials/prices/refresh`;
+};
+
+export const refreshMaterialPrices = async (
+  params?: RefreshMaterialPricesParams,
+  options?: RequestInit,
+): Promise<MaterialPriceRefreshResponse> => {
+  return customFetch<MaterialPriceRefreshResponse>(
+    getRefreshMaterialPricesUrl(params),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+};
+
+export const getRefreshMaterialPricesMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof refreshMaterialPrices>>,
+    TError,
+    { params?: RefreshMaterialPricesParams },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof refreshMaterialPrices>>,
+  TError,
+  { params?: RefreshMaterialPricesParams },
+  TContext
+> => {
+  const mutationKey = ["refreshMaterialPrices"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof refreshMaterialPrices>>,
+    { params?: RefreshMaterialPricesParams }
+  > = (props) => {
+    const { params } = props ?? {};
+
+    return refreshMaterialPrices(params, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RefreshMaterialPricesMutationResult = NonNullable<
+  Awaited<ReturnType<typeof refreshMaterialPrices>>
+>;
+
+export type RefreshMaterialPricesMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Refresh material prices using Perplexity AI
+ */
+export const useRefreshMaterialPrices = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof refreshMaterialPrices>>,
+    TError,
+    { params?: RefreshMaterialPricesParams },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof refreshMaterialPrices>>,
+  TError,
+  { params?: RefreshMaterialPricesParams },
+  TContext
+> => {
+  return useMutation(getRefreshMaterialPricesMutationOptions(options));
+};
 
 /**
  * @summary Get overall dashboard summary stats

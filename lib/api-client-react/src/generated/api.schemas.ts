@@ -282,10 +282,28 @@ export interface ChatResponse {
   projectId?: string;
 }
 
+export interface MaterialPriceItem {
+  id: string;
+  item: string;
+  suggestedPrice: number;
+  source: string;
+}
+
+export interface MaterialPriceRefreshResponse {
+  prices: MaterialPriceItem[];
+  refreshedAt: string;
+  source: string;
+  cached: boolean;
+}
+
 export type GetProjectDocumentsParams = {
   clientVisible?: boolean;
 };
 
 export type ListMaterialsParams = {
+  category?: string;
+};
+
+export type RefreshMaterialPricesParams = {
   category?: string;
 };
