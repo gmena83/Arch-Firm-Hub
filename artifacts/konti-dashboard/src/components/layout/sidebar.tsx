@@ -1,8 +1,9 @@
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, FolderOpen, Calculator, Package, MessageSquare, LogOut, Menu, X } from "lucide-react";
+import { LayoutDashboard, FolderOpen, Calculator, Package, MessageSquare, LogOut, Menu, X, Users, FileCheck, Settings } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useLang } from "@/hooks/use-lang";
+import { NotificationBell } from "./notification-bell";
 import logoWhite from "@assets/Horizontal02_WhitePNG_1776258303461.png";
 
 const ALL_NAV_ITEMS = [
@@ -11,6 +12,8 @@ const ALL_NAV_ITEMS = [
   { href: "/calculator", icon: Calculator, label: "Calculator", labelEs: "Calculadora", clientVisible: false },
   { href: "/materials", icon: Package, label: "Materials", labelEs: "Materiales", clientVisible: false },
   { href: "/ai", icon: MessageSquare, label: "AI Assistant", labelEs: "Asistente IA", clientVisible: true },
+  { href: "/team", icon: Users, label: "Team", labelEs: "Equipo", clientVisible: false },
+  { href: "/permits", icon: FileCheck, label: "Permits", labelEs: "Permisos", clientVisible: false },
 ];
 
 export function Sidebar() {
@@ -20,6 +23,7 @@ export function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const isClient = user?.role === "client";
+  const showNotifications = !isClient;
   const navItems = ALL_NAV_ITEMS.filter((item) => !isClient || item.clientVisible);
 
   const LangToggle = ({ testId = "lang-toggle" }: { testId?: string }) => (
@@ -39,7 +43,10 @@ export function Sidebar() {
     <div className="flex flex-col h-full">
       <div className="px-6 py-5 border-b border-sidebar-border flex items-center justify-between">
         <img src={logoWhite} alt="KONTi" className="h-7 w-auto" />
-        <LangToggle testId="lang-toggle-sidebar" />
+        <div className="flex items-center gap-1">
+          {showNotifications && <NotificationBell />}
+          <LangToggle testId="lang-toggle-sidebar" />
+        </div>
       </div>
 
       <nav className="flex-1 px-3 py-4 space-y-1" data-testid="sidebar-nav">
@@ -76,6 +83,15 @@ export function Sidebar() {
             <p className="text-xs font-medium text-sidebar-foreground truncate">{user?.name}</p>
             <p className="text-xs text-sidebar-foreground/50 capitalize">{user?.role}</p>
           </div>
+          <Link
+            href="/settings"
+            onClick={() => setMobileOpen(false)}
+            data-testid="nav-settings"
+            className="text-sidebar-foreground/40 hover:text-sidebar-foreground transition-colors"
+            title={t("Settings", "Configuración")}
+          >
+            <Settings className="w-4 h-4" />
+          </Link>
           <button
             onClick={logout}
             data-testid="btn-logout"
@@ -100,6 +116,7 @@ export function Sidebar() {
       <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-sidebar text-sidebar-foreground px-4 py-3 flex items-center justify-between">
         <img src={logoWhite} alt="KONTi" className="h-6 w-auto" />
         <div className="flex items-center gap-2">
+          {showNotifications && <NotificationBell />}
           <LangToggle testId="lang-toggle-mobile" />
           <div className="w-px h-4 bg-white/20" />
           <button onClick={() => setMobileOpen(!mobileOpen)} data-testid="mobile-menu-toggle">

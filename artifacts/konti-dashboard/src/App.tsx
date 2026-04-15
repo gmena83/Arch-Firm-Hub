@@ -13,6 +13,9 @@ import ProjectReportPage from "@/pages/project-report";
 import CalculatorPage from "@/pages/calculator";
 import MaterialsPage from "@/pages/materials";
 import AiAssistantPage from "@/pages/ai-assistant";
+import SettingsPage from "@/pages/settings";
+import TeamPage from "@/pages/team";
+import PermitsPage from "@/pages/permits";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -37,6 +40,9 @@ function Router() {
       <Route path="/calculator" component={CalculatorPage} />
       <Route path="/materials" component={MaterialsPage} />
       <Route path="/ai" component={AiAssistantPage} />
+      <Route path="/settings" component={SettingsPage} />
+      <Route path="/team" component={TeamPage} />
+      <Route path="/permits" component={PermitsPage} />
       <Route component={NotFound} />
     </Switch>
   );
