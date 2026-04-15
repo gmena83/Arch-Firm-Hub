@@ -3,13 +3,29 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: KONTi Design | Build Studio - Project Management API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication operations
+  - name: projects
+    description: Project management
+  - name: documents
+    description: Document management
+  - name: materials
+    description: Materials library
+  - name: calculator
+    description: Building cost calculator
+  - name: weather
+    description: Weather and site conditions
+  - name: ai
+    description: AI assistant
+  - name: dashboard
+    description: Dashboard summaries
 paths:
   /healthz:
     get:
@@ -24,6 +40,225 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Successful login
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /projects:
+    get:
+      operationId: listProjects
+      tags: [projects]
+      summary: List all projects
+      responses:
+        "200":
+          description: List of projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Project"
+
+  /projects/{projectId}:
+    get:
+      operationId: getProject
+      tags: [projects]
+      summary: Get a single project
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Project details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /projects/{projectId}/tasks:
+    get:
+      operationId: getProjectTasks
+      tags: [projects]
+      summary: Get tasks for a project
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of tasks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProjectTask"
+
+  /projects/{projectId}/weather:
+    get:
+      operationId: getProjectWeather
+      tags: [weather]
+      summary: Get weather status for a project site
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Current weather and build suitability
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WeatherStatus"
+
+  /projects/{projectId}/documents:
+    get:
+      operationId: getProjectDocuments
+      tags: [documents]
+      summary: Get documents for a project
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: clientVisible
+          in: query
+          required: false
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: List of documents
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Document"
+
+  /projects/{projectId}/calculations:
+    get:
+      operationId: getProjectCalculations
+      tags: [calculator]
+      summary: Get material calculations for a project
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Calculator entries and total
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CalculatorSummary"
+
+  /materials:
+    get:
+      operationId: listMaterials
+      tags: [materials]
+      summary: List materials library
+      parameters:
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of materials
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Material"
+
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Get overall dashboard summary stats
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  /dashboard/activity:
+    get:
+      operationId: getRecentActivity
+      tags: [dashboard]
+      summary: Get recent activity feed
+      responses:
+        "200":
+          description: Recent activity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityItem"
+
+  /ai/chat:
+    post:
+      operationId: sendChatMessage
+      tags: [ai]
+      summary: Send a message to the AI assistant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatRequest"
+      responses:
+        "200":
+          description: AI response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +269,429 @@ components:
       required:
         - status
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required:
+        - error
+        - message
+
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+      required:
+        - email
+        - password
+
+    LoginResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        user:
+          $ref: "#/components/schemas/User"
+      required:
+        - token
+        - user
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [admin, architect, client]
+        avatar:
+          type: string
+      required:
+        - id
+        - name
+        - email
+        - role
+
+    Project:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        nameEs:
+          type: string
+        clientName:
+          type: string
+        location:
+          type: string
+        city:
+          type: string
+        phase:
+          type: string
+          enum: [discovery, pre_design, design, permits, construction, completed]
+        phaseLabel:
+          type: string
+        phaseLabelEs:
+          type: string
+        phaseNumber:
+          type: integer
+        progressPercent:
+          type: integer
+        budgetAllocated:
+          type: number
+        budgetUsed:
+          type: number
+        startDate:
+          type: string
+        estimatedEndDate:
+          type: string
+        description:
+          type: string
+        coverImage:
+          type: string
+        asanaGid:
+          type: string
+        gammaReportUrl:
+          type: string
+        teamMembers:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+          enum: [active, on_hold, completed]
+      required:
+        - id
+        - name
+        - clientName
+        - location
+        - city
+        - phase
+        - phaseLabel
+        - phaseLabelEs
+        - phaseNumber
+        - progressPercent
+        - budgetAllocated
+        - budgetUsed
+        - startDate
+        - estimatedEndDate
+        - status
+
+    ProjectTask:
+      type: object
+      properties:
+        id:
+          type: string
+        projectId:
+          type: string
+        title:
+          type: string
+        titleEs:
+          type: string
+        dueDate:
+          type: string
+        completed:
+          type: boolean
+        assignee:
+          type: string
+        priority:
+          type: string
+          enum: [low, medium, high]
+        phase:
+          type: string
+      required:
+        - id
+        - projectId
+        - title
+        - titleEs
+        - completed
+        - priority
+        - phase
+
+    WeatherStatus:
+      type: object
+      properties:
+        projectId:
+          type: string
+        city:
+          type: string
+        temperature:
+          type: number
+        temperatureUnit:
+          type: string
+        condition:
+          type: string
+        conditionEs:
+          type: string
+        humidity:
+          type: integer
+        windSpeed:
+          type: number
+        windUnit:
+          type: string
+        buildSuitability:
+          type: string
+          enum: [green, yellow, red]
+        buildSuitabilityLabel:
+          type: string
+        buildSuitabilityLabelEs:
+          type: string
+        buildSuitabilityReason:
+          type: string
+        buildSuitabilityReasonEs:
+          type: string
+        lastUpdated:
+          type: string
+      required:
+        - projectId
+        - city
+        - temperature
+        - temperatureUnit
+        - condition
+        - conditionEs
+        - humidity
+        - windSpeed
+        - windUnit
+        - buildSuitability
+        - buildSuitabilityLabel
+        - buildSuitabilityLabelEs
+        - buildSuitabilityReason
+        - buildSuitabilityReasonEs
+        - lastUpdated
+
+    Document:
+      type: object
+      properties:
+        id:
+          type: string
+        projectId:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+          enum: [pdf, excel, pptx, photo, other]
+        category:
+          type: string
+          enum: [client_review, internal, permits, construction, design]
+        isClientVisible:
+          type: boolean
+        uploadedBy:
+          type: string
+        uploadedAt:
+          type: string
+        fileSize:
+          type: string
+        description:
+          type: string
+      required:
+        - id
+        - projectId
+        - name
+        - type
+        - category
+        - isClientVisible
+        - uploadedBy
+        - uploadedAt
+        - fileSize
+
+    Material:
+      type: object
+      properties:
+        id:
+          type: string
+        item:
+          type: string
+        itemEs:
+          type: string
+        unit:
+          type: string
+        basePrice:
+          type: number
+        category:
+          type: string
+          enum: [lumber, foundation, finishes, electrical, plumbing, steel, insulation, other]
+      required:
+        - id
+        - item
+        - itemEs
+        - unit
+        - basePrice
+        - category
+
+    CalculatorEntry:
+      type: object
+      properties:
+        id:
+          type: string
+        projectId:
+          type: string
+        materialId:
+          type: string
+        materialName:
+          type: string
+        materialNameEs:
+          type: string
+        category:
+          type: string
+        unit:
+          type: string
+        quantity:
+          type: number
+        basePrice:
+          type: number
+        manualPriceOverride:
+          type: number
+        effectivePrice:
+          type: number
+        lineTotal:
+          type: number
+      required:
+        - id
+        - projectId
+        - materialId
+        - materialName
+        - materialNameEs
+        - category
+        - unit
+        - quantity
+        - basePrice
+        - effectivePrice
+        - lineTotal
+
+    CalculatorSummary:
+      type: object
+      properties:
+        projectId:
+          type: string
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/CalculatorEntry"
+        subtotalByCategory:
+          type: object
+          additionalProperties:
+            type: number
+        grandTotal:
+          type: number
+      required:
+        - projectId
+        - entries
+        - subtotalByCategory
+        - grandTotal
+
+    DashboardSummary:
+      type: object
+      properties:
+        totalProjects:
+          type: integer
+        activeProjects:
+          type: integer
+        completedProjects:
+          type: integer
+        totalBudget:
+          type: number
+        budgetUsed:
+          type: number
+        totalDocuments:
+          type: integer
+        pendingTasks:
+          type: integer
+        projectsByPhase:
+          type: object
+          additionalProperties:
+            type: integer
+      required:
+        - totalProjects
+        - activeProjects
+        - completedProjects
+        - totalBudget
+        - budgetUsed
+        - totalDocuments
+        - pendingTasks
+        - projectsByPhase
+
+    ActivityItem:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum: [document_upload, task_completed, phase_change, weather_alert, comment]
+        projectId:
+          type: string
+        projectName:
+          type: string
+        description:
+          type: string
+        descriptionEs:
+          type: string
+        actor:
+          type: string
+        timestamp:
+          type: string
+      required:
+        - id
+        - type
+        - projectId
+        - projectName
+        - description
+        - descriptionEs
+        - actor
+        - timestamp
+
+    ChatRequest:
+      type: object
+      properties:
+        message:
+          type: string
+        mode:
+          type: string
+          enum: [client_assistant, internal_spec_bot]
+        projectId:
+          type: string
+        conversationHistory:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChatMessage"
+      required:
+        - message
+        - mode
+
+    ChatMessage:
+      type: object
+      properties:
+        role:
+          type: string
+          enum: [user, assistant]
+        content:
+          type: string
+      required:
+        - role
+        - content
+
+    ChatResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        mode:
+          type: string
+        projectId:
+          type: string
+      required:
+        - message
+        - mode
