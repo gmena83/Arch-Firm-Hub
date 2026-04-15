@@ -29,7 +29,7 @@ export const LoginResponse = zod.object({
     id: zod.string(),
     name: zod.string(),
     email: zod.string(),
-    role: zod.enum(["admin", "architect", "client"]),
+    role: zod.enum(["admin", "superadmin", "architect", "client"]),
     avatar: zod.string().optional(),
   }),
 });
