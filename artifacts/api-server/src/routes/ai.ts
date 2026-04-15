@@ -5,8 +5,13 @@ import { PROJECTS, PROJECT_TASKS, DOCUMENTS, WEATHER_DATA } from "../data/seed";
 
 const router: IRouter = Router();
 
-const anthropic = new Anthropic({ apiKey: process.env["ANTHROPIC_API_KEY"] });
-const openai = new OpenAI({ apiKey: process.env["OPENAI_API_KEY"] });
+const anthropic = process.env["ANTHROPIC_API_KEY"]
+  ? new Anthropic({ apiKey: process.env["ANTHROPIC_API_KEY"] })
+  : null;
+
+const openai = process.env["OPENAI_API_KEY"]
+  ? new OpenAI({ apiKey: process.env["OPENAI_API_KEY"] })
+  : null;
 
 const KONTI_CONTEXT = `KONTi Design | Build Studio is a sustainable architecture firm based in Puerto Rico, specializing in shipping container construction. Founded after Hurricane María. LEED-accredited team. Containers withstand 180 mph sustained wind per Puerto Rico Building Code. Cost-Plus construction model for full transparency.`;
 
@@ -111,7 +116,7 @@ router.post("/ai/chat", async (req, res) => {
     { role: "user" as const, content: message },
   ];
 
-  if (process.env["ANTHROPIC_API_KEY"]) {
+  if (anthropic) {
     try {
       const response = await anthropic.messages.create({
         model: "claude-opus-4-5",
@@ -134,7 +139,7 @@ router.post("/ai/chat", async (req, res) => {
     }
   }
 
-  if (process.env["OPENAI_API_KEY"]) {
+  if (openai) {
     try {
       const response = await openai.chat.completions.create({
         model: "gpt-4o-mini",

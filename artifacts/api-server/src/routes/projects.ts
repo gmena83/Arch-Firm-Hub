@@ -111,9 +111,15 @@ router.post("/projects/:id/pdf", async (req, res) => {
       }),
     });
 
+    if (!pdfResponse.ok) {
+      req.log.error({ status: pdfResponse.status }, "PDF.co API request failed");
+      res.status(500).json({ error: "pdf_error", message: "PDF generation failed" });
+      return;
+    }
+
     const pdfData = await pdfResponse.json() as { url?: string; error?: boolean; message?: string };
 
-    if (!pdfData.url) {
+    if (!pdfData.url || pdfData.error) {
       req.log.error({ pdfData }, "PDF.co did not return a URL");
       res.status(500).json({ error: "pdf_error", message: "PDF generation failed" });
       return;
