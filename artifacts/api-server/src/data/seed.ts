@@ -25,6 +25,22 @@ export const USERS = [
     avatar: "BA",
     password: "konti2026",
   },
+  {
+    id: "user-super-1",
+    name: "Tatiana",
+    email: "tatiana@menatech.cloud",
+    role: "superadmin" as const,
+    avatar: "TM",
+    password: "Konti123",
+  },
+  {
+    id: "user-super-2",
+    name: "Gonzalo",
+    email: "gonzalo@menatech.cloud",
+    role: "superadmin" as const,
+    avatar: "GM",
+    password: "Konti123",
+  },
 ];
 
 export const PROJECTS = [

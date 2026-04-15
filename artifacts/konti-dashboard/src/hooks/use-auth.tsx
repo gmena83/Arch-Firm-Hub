@@ -5,7 +5,7 @@ interface AuthUser {
   id: string;
   name: string;
   email: string;
-  role: "admin" | "architect" | "client";
+  role: "admin" | "superadmin" | "architect" | "client";
   avatar: string;
 }
 
