@@ -5,6 +5,7 @@
  * KONTi Design | Build Studio - Project Management API
  * OpenAPI spec version: 0.1.0
  */
+import type { WeatherHistoryEntry } from "./weatherHistoryEntry";
 import type { WeatherStatusBuildSuitability } from "./weatherStatusBuildSuitability";
 
 export interface WeatherStatus {
@@ -23,4 +24,5 @@ export interface WeatherStatus {
   buildSuitabilityReason: string;
   buildSuitabilityReasonEs: string;
   lastUpdated: string;
+  weatherHistory?: WeatherHistoryEntry[];
 }

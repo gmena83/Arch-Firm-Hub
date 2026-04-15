@@ -475,6 +475,38 @@ components:
         - priority
         - phase
 
+    WeatherHistoryEntry:
+      type: object
+      properties:
+        date:
+          type: string
+        dayLabel:
+          type: string
+        dayLabelEs:
+          type: string
+        tempHigh:
+          type: number
+        tempLow:
+          type: number
+        precipMm:
+          type: number
+        condition:
+          type: string
+        conditionEs:
+          type: string
+        emoji:
+          type: string
+      required:
+        - date
+        - dayLabel
+        - dayLabelEs
+        - tempHigh
+        - tempLow
+        - precipMm
+        - condition
+        - conditionEs
+        - emoji
+
     WeatherStatus:
       type: object
       properties:
@@ -509,6 +541,10 @@ components:
           type: string
         lastUpdated:
           type: string
+        weatherHistory:
+          type: array
+          items:
+            $ref: "#/components/schemas/WeatherHistoryEntry"
       required:
         - projectId
         - city
@@ -525,6 +561,27 @@ components:
         - buildSuitabilityReason
         - buildSuitabilityReasonEs
         - lastUpdated
+
+    DocumentVersion:
+      type: object
+      properties:
+        version:
+          type: integer
+        uploadedBy:
+          type: string
+        uploadedAt:
+          type: string
+        fileSize:
+          type: string
+        notes:
+          type: string
+        notesEs:
+          type: string
+      required:
+        - version
+        - uploadedBy
+        - uploadedAt
+        - fileSize
 
     Document:
       type: object
@@ -551,6 +608,12 @@ components:
           type: string
         description:
           type: string
+        previewable:
+          type: boolean
+        versions:
+          type: array
+          items:
+            $ref: "#/components/schemas/DocumentVersion"
       required:
         - id
         - projectId
