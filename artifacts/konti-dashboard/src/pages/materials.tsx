@@ -143,7 +143,7 @@ export default function MaterialsPage() {
                 {t("Prices updated", "Precios actualizados")} &middot;{" "}
                 {formatRelativeTime(lastRefreshedAt, lang)} &middot;{" "}
                 <span className="text-muted-foreground">
-                  {t("Source:", "Fuente:")} {priceSource}
+                  {t("Prices sourced from public listings", "Precios obtenidos de listados públicos")} ({priceSource?.split("·")[0]?.trim()})
                 </span>
               </span>
             </div>

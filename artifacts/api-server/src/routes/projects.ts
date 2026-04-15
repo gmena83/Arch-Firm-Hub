@@ -144,20 +144,52 @@ Respond with ONLY a valid JSON array. No code fences. No extra text.`;
     const data = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
     const content = data.choices?.[0]?.message?.content ?? "";
 
-    let prices: Array<{ id: string; item: string; suggestedPrice: number; source: string }> = [];
+    let rawPrices: unknown[] = [];
     try {
       const cleaned = content.replace(/```json|```/g, "").trim();
-      prices = JSON.parse(cleaned);
+      rawPrices = JSON.parse(cleaned);
+      if (!Array.isArray(rawPrices)) throw new Error("Not an array");
     } catch {
       req.log.error({ content }, "Failed to parse Perplexity response as JSON");
       res.status(502).json({ error: "parse_error", message: "Could not parse pricing data from AI response" });
       return;
     }
 
+    const knownIds = new Set(filteredMaterials.map((m) => m.id));
+    const prices: Array<{ id: string; item: string; suggestedPrice: number; source: string }> = [];
+    for (const entry of rawPrices) {
+      if (
+        typeof entry !== "object" || entry === null ||
+        typeof (entry as Record<string, unknown>)["id"] !== "string" ||
+        typeof (entry as Record<string, unknown>)["item"] !== "string" ||
+        typeof (entry as Record<string, unknown>)["suggestedPrice"] !== "number" ||
+        !isFinite((entry as Record<string, unknown>)["suggestedPrice"] as number) ||
+        (entry as Record<string, unknown>)["suggestedPrice"] as number <= 0 ||
+        !knownIds.has((entry as Record<string, unknown>)["id"] as string)
+      ) {
+        req.log.warn({ entry }, "Skipping invalid price entry from Perplexity");
+        continue;
+      }
+      prices.push({
+        id: (entry as Record<string, unknown>)["id"] as string,
+        item: (entry as Record<string, unknown>)["item"] as string,
+        suggestedPrice: (entry as Record<string, unknown>)["suggestedPrice"] as number,
+        source: typeof (entry as Record<string, unknown>)["source"] === "string"
+          ? (entry as Record<string, unknown>)["source"] as string
+          : "Home Depot (estimated)",
+      });
+    }
+
+    if (prices.length === 0) {
+      req.log.error({ content }, "No valid prices returned from Perplexity");
+      res.status(502).json({ error: "parse_error", message: "No valid prices returned from AI" });
+      return;
+    }
+
     const result = {
       prices,
       refreshedAt: new Date().toISOString(),
-      source: "Home Depot via Perplexity AI (sonar)",
+      source: "Home Depot via Perplexity AI (sonar) · Prices sourced from public listings",
       cached: false,
     };
 
