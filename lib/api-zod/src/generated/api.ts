@@ -215,6 +215,13 @@ export const GetProjectCalculationsResponse = zod.object({
 });
 
 /**
+ * @summary Export project report as PDF
+ */
+export const ExportProjectPdfParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+/**
  * @summary List materials library
  */
 export const ListMaterialsQueryParams = zod.object({

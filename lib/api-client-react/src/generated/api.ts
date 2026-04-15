@@ -758,6 +758,90 @@ export function useGetProjectCalculations<
 }
 
 /**
+ * @summary Export project report as PDF
+ */
+export const getExportProjectPdfUrl = (id: string) => {
+  return `/api/projects/${id}/pdf`;
+};
+
+export const exportProjectPdf = async (
+  id: string,
+  options?: RequestInit,
+): Promise<Blob> => {
+  return customFetch<Blob>(getExportProjectPdfUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getExportProjectPdfMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof exportProjectPdf>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof exportProjectPdf>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ["exportProjectPdf"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof exportProjectPdf>>,
+    { id: string }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return exportProjectPdf(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ExportProjectPdfMutationResult = NonNullable<
+  Awaited<ReturnType<typeof exportProjectPdf>>
+>;
+
+export type ExportProjectPdfMutationError = ErrorType<void>;
+
+/**
+ * @summary Export project report as PDF
+ */
+export const useExportProjectPdf = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof exportProjectPdf>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof exportProjectPdf>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  return useMutation(getExportProjectPdfMutationOptions(options));
+};
+
+/**
  * @summary List materials library
  */
 export const getListMaterialsUrl = (params?: ListMaterialsParams) => {

@@ -1,10 +1,12 @@
 import { Router, type IRouter } from "express";
 import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 import { PROJECTS, PROJECT_TASKS, DOCUMENTS, WEATHER_DATA } from "../data/seed";
 
 const router: IRouter = Router();
 
 const anthropic = new Anthropic({ apiKey: process.env["ANTHROPIC_API_KEY"] });
+const openai = new OpenAI({ apiKey: process.env["OPENAI_API_KEY"] });
 
 const KONTI_CONTEXT = `KONTi Design | Build Studio is a sustainable architecture firm based in Puerto Rico, specializing in shipping container construction. Founded after Hurricane María. LEED-accredited team. Containers withstand 180 mph sustained wind per Puerto Rico Building Code. Cost-Plus construction model for full transparency.`;
 
@@ -101,7 +103,7 @@ router.post("/ai/chat", async (req, res) => {
       ? buildClientPrompt(projectId)
       : INTERNAL_SYSTEM_PROMPT;
 
-  const messages: Anthropic.MessageParam[] = [
+  const sharedMessages = [
     ...conversationHistory.map((m) => ({
       role: m.role as "user" | "assistant",
       content: m.content,
@@ -109,33 +111,55 @@ router.post("/ai/chat", async (req, res) => {
     { role: "user" as const, content: message },
   ];
 
-  if (!process.env["ANTHROPIC_API_KEY"]) {
-    const fallback =
-      mode === "client_assistant"
-        ? "The KONTi Client Assistant is not configured in this environment. Please contact your KONTi project manager for assistance."
-        : "The KONTi Internal Spec Bot is not configured in this environment. Please set the ANTHROPIC_API_KEY to enable AI assistance.";
-    res.json({ message: fallback, mode, projectId });
-    return;
+  if (process.env["ANTHROPIC_API_KEY"]) {
+    try {
+      const response = await anthropic.messages.create({
+        model: "claude-opus-4-5",
+        max_tokens: 1024,
+        system: systemPrompt,
+        messages: sharedMessages as Anthropic.MessageParam[],
+      });
+
+      const assistantMessage =
+        response.content[0]?.type === "text"
+          ? response.content[0].text
+          : "I'm sorry, I couldn't process that request.";
+
+      res.json({ message: assistantMessage, mode, projectId });
+      return;
+    } catch (err) {
+      req.log.error({ err }, "Anthropic API error");
+      res.status(500).json({ error: "ai_error", message: "Failed to get AI response" });
+      return;
+    }
   }
 
-  try {
-    const response = await anthropic.messages.create({
-      model: "claude-opus-4-5",
-      max_tokens: 1024,
-      system: systemPrompt,
-      messages,
-    });
+  if (process.env["OPENAI_API_KEY"]) {
+    try {
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        max_tokens: 1024,
+        messages: [
+          { role: "system", content: systemPrompt },
+          ...sharedMessages,
+        ],
+      });
 
-    const assistantMessage =
-      response.content[0]?.type === "text"
-        ? response.content[0].text
-        : "I'm sorry, I couldn't process that request.";
-
-    res.json({ message: assistantMessage, mode, projectId });
-  } catch (err) {
-    req.log.error({ err }, "Anthropic API error");
-    res.status(500).json({ error: "ai_error", message: "Failed to get AI response" });
+      const assistantMessage = response.choices[0]?.message?.content ?? "I'm sorry, I couldn't process that request.";
+      res.json({ message: assistantMessage, mode, projectId });
+      return;
+    } catch (err) {
+      req.log.error({ err }, "OpenAI API error");
+      res.status(500).json({ error: "ai_error", message: "Failed to get AI response" });
+      return;
+    }
   }
+
+  const fallback =
+    mode === "client_assistant"
+      ? "The KONTi Client Assistant is not configured in this environment. Please contact your KONTi project manager for assistance."
+      : "The KONTi Internal Spec Bot is not configured in this environment. Please set the ANTHROPIC_API_KEY to enable AI assistance.";
+  res.json({ message: fallback, mode, projectId });
 });
 
 export default router;

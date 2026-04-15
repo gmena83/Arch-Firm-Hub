@@ -1,4 +1,5 @@
 import { useParams, Link } from "wouter";
+import { useState } from "react";
 import {
   useGetProject, useGetProjectWeather, useGetProjectTasks,
   useGetProjectCalculations,
@@ -9,13 +10,14 @@ import { RequireAuth } from "@/hooks/use-auth";
 import { useLang } from "@/hooks/use-lang";
 import { WeatherBadge } from "@/components/weather-badge";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
-import { Check, ArrowLeft, MapPin, Calendar, TrendingUp } from "lucide-react";
+import { Check, ArrowLeft, MapPin, Calendar, TrendingUp, Download, Loader2 } from "lucide-react";
 import logoWhite from "@assets/Horizontal02_WhitePNG_1776258303461.png";
 
 const CHART_COLORS = ["#4F5E2A", "#778894", "#1C1814", "#a3b38c", "#9fb0ba"];
 
 function ReportContent({ projectId }: { projectId: string }) {
   const { t, lang } = useLang();
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const { data: project } = useGetProject(projectId, {
     query: { enabled: !!projectId, queryKey: getGetProjectQueryKey(projectId) }
@@ -29,6 +31,30 @@ function ReportContent({ projectId }: { projectId: string }) {
   const { data: calc } = useGetProjectCalculations(projectId, {
     query: { enabled: !!projectId, queryKey: getGetProjectCalculationsQueryKey(projectId) }
   });
+
+  async function downloadPdf() {
+    if (!project || isDownloading) return;
+    setIsDownloading(true);
+    try {
+      const response = await fetch(`/api/projects/${project.id}/pdf`, { method: "POST" });
+      if (!response.ok) {
+        window.print();
+        return;
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const dateStr = new Date().toISOString().slice(0, 10);
+      a.href = url;
+      a.download = `KONTi-Report-${project.name.replace(/\s+/g, "-")}-${dateStr}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      window.print();
+    } finally {
+      setIsDownloading(false);
+    }
+  }
 
   if (!project) {
     return <div className="min-h-screen flex items-center justify-center bg-konti-dark text-white">Loading report...</div>;
@@ -67,8 +93,19 @@ function ReportContent({ projectId }: { projectId: string }) {
       {/* Header */}
       <div className="bg-konti-dark border-b border-white/10 px-6 md:px-12 py-4 flex items-center justify-between sticky top-0 z-10">
         <img src={logoWhite} alt="KONTi" className="h-7 w-auto" />
-        <div className="flex items-center gap-4">
-          <span className="text-white/50 text-xs">{t("Progress Report", "Reporte de Progreso")} — {reportDate}</span>
+        <div className="flex items-center gap-3">
+          <span className="text-white/50 text-xs hidden sm:inline">{t("Progress Report", "Reporte de Progreso")} — {reportDate}</span>
+          <button
+            onClick={downloadPdf}
+            disabled={isDownloading}
+            data-testid="btn-download-pdf"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-konti-olive text-white text-xs font-semibold hover:bg-konti-olive/80 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+          >
+            {isDownloading
+              ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> {t("Generating…", "Generando…")}</>
+              : <><Download className="w-3.5 h-3.5" /> {t("Download PDF", "Descargar PDF")}</>
+            }
+          </button>
           <Link
             href={`/projects/${projectId}`}
             className="flex items-center gap-1.5 text-xs text-white/60 hover:text-white transition-colors"

@@ -191,6 +191,30 @@ paths:
               schema:
                 $ref: "#/components/schemas/CalculatorSummary"
 
+  /projects/{id}/pdf:
+    post:
+      operationId: exportProjectPdf
+      tags: [projects]
+      summary: Export project report as PDF
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: PDF file
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: Project not found
+        "501":
+          description: PDF export not configured
+
   /materials:
     get:
       operationId: listMaterials
