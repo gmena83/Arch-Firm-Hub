@@ -95,7 +95,7 @@ router.post("/projects/:id/pdf", async (req, res) => {
     : `http://localhost:${process.env["PORT"] ?? 8080}/projects/${project.id}/report`;
 
   try {
-    const pdfResponse = await fetch("https://api.pdf.co/v1/url/convert", {
+    const pdfResponse = await fetch("https://api.pdf.co/v1/pdf/convert/from/url", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
