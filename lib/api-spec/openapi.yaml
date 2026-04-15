@@ -314,7 +314,7 @@ components:
           type: string
         role:
           type: string
-          enum: [admin, architect, client]
+          enum: [admin, superadmin, architect, client]
         avatar:
           type: string
       required:

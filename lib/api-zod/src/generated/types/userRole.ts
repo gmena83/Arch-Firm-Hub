@@ -10,6 +10,7 @@ export type UserRole = (typeof UserRole)[keyof typeof UserRole];
 
 export const UserRole = {
   admin: "admin",
+  superadmin: "superadmin",
   architect: "architect",
   client: "client",
 } as const;
