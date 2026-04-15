@@ -5,12 +5,12 @@ import { useAuth } from "@/hooks/use-auth";
 import { useLang } from "@/hooks/use-lang";
 import logoWhite from "@assets/Horizontal02_WhitePNG_1776258303461.png";
 
-const navItems = [
-  { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard", labelEs: "Panel" },
-  { href: "/projects", icon: FolderOpen, label: "Projects", labelEs: "Proyectos" },
-  { href: "/calculator", icon: Calculator, label: "Calculator", labelEs: "Calculadora" },
-  { href: "/materials", icon: Package, label: "Materials", labelEs: "Materiales" },
-  { href: "/ai", icon: MessageSquare, label: "AI Assistant", labelEs: "Asistente IA" },
+const ALL_NAV_ITEMS = [
+  { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard", labelEs: "Panel", clientVisible: true },
+  { href: "/projects", icon: FolderOpen, label: "Projects", labelEs: "Proyectos", clientVisible: true },
+  { href: "/calculator", icon: Calculator, label: "Calculator", labelEs: "Calculadora", clientVisible: false },
+  { href: "/materials", icon: Package, label: "Materials", labelEs: "Materiales", clientVisible: false },
+  { href: "/ai", icon: MessageSquare, label: "AI Assistant", labelEs: "Asistente IA", clientVisible: true },
 ];
 
 export function Sidebar() {
@@ -19,15 +19,39 @@ export function Sidebar() {
   const { t, lang, toggleLang } = useLang();
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  const isClient = user?.role === "client";
+  const navItems = ALL_NAV_ITEMS.filter((item) => !isClient || item.clientVisible);
+
+  const LangToggle = ({ compact = false }: { compact?: boolean }) => (
+    <button
+      onClick={toggleLang}
+      data-testid="lang-toggle"
+      className={`flex items-center gap-1.5 font-semibold transition-colors ${
+        compact
+          ? "text-white/80 hover:text-white px-1.5 py-1 rounded text-xs"
+          : "w-full justify-center gap-2 px-3 py-2 rounded-md text-xs text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+      }`}
+      title={lang === "en" ? "Switch to Spanish" : "Cambiar a inglés"}
+    >
+      <span className={lang === "en" ? "text-white font-bold" : "opacity-50"}>EN</span>
+      <span className="opacity-30">|</span>
+      <span className={lang === "es" ? "text-white font-bold" : "opacity-50"}>ES</span>
+    </button>
+  );
+
   const NavContent = () => (
     <div className="flex flex-col h-full">
-      <div className="px-6 py-6 border-b border-sidebar-border">
-        <img src={logoWhite} alt="KONTi" className="h-8 w-auto" />
+      <div className="px-6 py-5 border-b border-sidebar-border flex items-center justify-between">
+        <img src={logoWhite} alt="KONTi" className="h-7 w-auto" />
+        <LangToggle />
       </div>
 
       <nav className="flex-1 px-3 py-4 space-y-1" data-testid="sidebar-nav">
         {navItems.map((item) => {
           const isActive = location.startsWith(item.href);
+          const label = isClient && item.href === "/projects"
+            ? t("My Project", "Mi Proyecto")
+            : t(item.label, item.labelEs);
           return (
             <Link
               key={item.href}
@@ -41,23 +65,13 @@ export function Sidebar() {
               }`}
             >
               <item.icon className="w-4 h-4 shrink-0" />
-              {t(item.label, item.labelEs)}
+              {label}
             </Link>
           );
         })}
       </nav>
 
-      <div className="px-3 py-4 border-t border-sidebar-border space-y-2">
-        <button
-          onClick={toggleLang}
-          data-testid="lang-toggle"
-          className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-md text-xs font-semibold text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
-        >
-          <span className={lang === "en" ? "text-white" : "opacity-50"}>EN</span>
-          <span className="opacity-30">|</span>
-          <span className={lang === "es" ? "text-white" : "opacity-50"}>ES</span>
-        </button>
-
+      <div className="px-3 py-4 border-t border-sidebar-border">
         <div className="flex items-center gap-3 px-3 py-2">
           <div className="w-8 h-8 rounded-full bg-konti-olive flex items-center justify-center text-white text-xs font-bold shrink-0">
             {user?.avatar ?? user?.name?.slice(0, 2).toUpperCase()}
@@ -89,9 +103,13 @@ export function Sidebar() {
       {/* Mobile header */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-sidebar text-sidebar-foreground px-4 py-3 flex items-center justify-between">
         <img src={logoWhite} alt="KONTi" className="h-6 w-auto" />
-        <button onClick={() => setMobileOpen(!mobileOpen)} data-testid="mobile-menu-toggle">
-          {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-        </button>
+        <div className="flex items-center gap-2">
+          <LangToggle compact />
+          <div className="w-px h-4 bg-white/20" />
+          <button onClick={() => setMobileOpen(!mobileOpen)} data-testid="mobile-menu-toggle">
+            {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
+        </div>
       </div>
 
       {/* Mobile slide-out menu */}

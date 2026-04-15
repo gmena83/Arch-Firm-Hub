@@ -344,8 +344,17 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
           {/* Budget */}
           <div className="bg-card rounded-xl border border-card-border p-5 shadow-sm">
             <h2 className="font-bold text-foreground mb-3">{t("Budget", "Presupuesto")}</h2>
-            <div className="text-3xl font-bold text-foreground mb-1">${project.budgetUsed.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground mb-3">{t("of", "de")} ${project.budgetAllocated.toLocaleString()} {t("allocated", "asignado")}</p>
+            {isClientView ? (
+              <>
+                <div className="text-3xl font-bold text-foreground mb-1">{spendPct}%</div>
+                <p className="text-xs text-muted-foreground mb-3">{t("of budget used", "del presupuesto utilizado")}</p>
+              </>
+            ) : (
+              <>
+                <div className="text-3xl font-bold text-foreground mb-1">${project.budgetUsed.toLocaleString()}</div>
+                <p className="text-xs text-muted-foreground mb-3">{t("of", "de")} ${project.budgetAllocated.toLocaleString()} {t("allocated", "asignado")}</p>
+              </>
+            )}
             <div className="h-2 rounded-full bg-muted overflow-hidden mb-1">
               <div className={`h-full rounded-full ${spendPct > 90 ? "bg-red-500" : spendPct > 70 ? "bg-amber-500" : "bg-konti-olive"}`} style={{ width: `${Math.min(spendPct, 100)}%` }} />
             </div>
