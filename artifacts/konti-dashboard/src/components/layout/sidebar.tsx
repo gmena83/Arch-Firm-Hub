@@ -22,15 +22,11 @@ export function Sidebar() {
   const isClient = user?.role === "client";
   const navItems = ALL_NAV_ITEMS.filter((item) => !isClient || item.clientVisible);
 
-  const LangToggle = ({ compact = false }: { compact?: boolean }) => (
+  const LangToggle = ({ testId = "lang-toggle" }: { testId?: string }) => (
     <button
       onClick={toggleLang}
-      data-testid="lang-toggle"
-      className={`flex items-center gap-1.5 font-semibold transition-colors ${
-        compact
-          ? "text-white/80 hover:text-white px-1.5 py-1 rounded text-xs"
-          : "w-full justify-center gap-2 px-3 py-2 rounded-md text-xs text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground"
-      }`}
+      data-testid={testId}
+      className="flex items-center gap-1.5 font-semibold transition-colors text-white/80 hover:text-white px-1.5 py-1 rounded text-xs"
       title={lang === "en" ? "Switch to Spanish" : "Cambiar a inglés"}
     >
       <span className={lang === "en" ? "text-white font-bold" : "opacity-50"}>EN</span>
@@ -43,7 +39,7 @@ export function Sidebar() {
     <div className="flex flex-col h-full">
       <div className="px-6 py-5 border-b border-sidebar-border flex items-center justify-between">
         <img src={logoWhite} alt="KONTi" className="h-7 w-auto" />
-        <LangToggle />
+        <LangToggle testId="lang-toggle-sidebar" />
       </div>
 
       <nav className="flex-1 px-3 py-4 space-y-1" data-testid="sidebar-nav">
@@ -104,7 +100,7 @@ export function Sidebar() {
       <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-sidebar text-sidebar-foreground px-4 py-3 flex items-center justify-between">
         <img src={logoWhite} alt="KONTi" className="h-6 w-auto" />
         <div className="flex items-center gap-2">
-          <LangToggle compact />
+          <LangToggle testId="lang-toggle-mobile" />
           <div className="w-px h-4 bg-white/20" />
           <button onClick={() => setMobileOpen(!mobileOpen)} data-testid="mobile-menu-toggle">
             {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
