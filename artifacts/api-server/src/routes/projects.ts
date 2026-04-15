@@ -77,4 +77,65 @@ router.get("/materials", (req, res) => {
   res.json(materials);
 });
 
+router.post("/projects/:id/pdf", async (req, res) => {
+  const project = PROJECTS.find((p) => p.id === req.params["id"]);
+  if (!project) {
+    res.status(404).json({ error: "not_found", message: "Project not found" });
+    return;
+  }
+
+  const pdfApiKey = process.env["PDF_CO_API_KEY"];
+  if (!pdfApiKey) {
+    res.status(501).json({ error: "pdf_not_configured", message: "PDF export not configured" });
+    return;
+  }
+
+  const reportUrl = process.env["REPLIT_DEV_DOMAIN"]
+    ? `https://${process.env["REPLIT_DEV_DOMAIN"]}/projects/${project.id}/report`
+    : `http://localhost:${process.env["PORT"] ?? 8080}/projects/${project.id}/report`;
+
+  try {
+    const pdfResponse = await fetch("https://api.pdf.co/v1/url/convert", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": pdfApiKey,
+      },
+      body: JSON.stringify({
+        url: reportUrl,
+        name: `KONTi-Report-${project.name.replace(/\s+/g, "-")}.pdf`,
+        async: false,
+        printBackground: true,
+        landscape: false,
+        paperSize: "Letter",
+      }),
+    });
+
+    const pdfData = await pdfResponse.json() as { url?: string; error?: boolean; message?: string };
+
+    if (!pdfData.url) {
+      req.log.error({ pdfData }, "PDF.co did not return a URL");
+      res.status(500).json({ error: "pdf_error", message: "PDF generation failed" });
+      return;
+    }
+
+    const fileResponse = await fetch(pdfData.url);
+    if (!fileResponse.ok || !fileResponse.body) {
+      res.status(500).json({ error: "pdf_download_error", message: "Failed to fetch generated PDF" });
+      return;
+    }
+
+    const safeName = project.name.replace(/[^a-zA-Z0-9\-_]/g, "-");
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="KONTi-Report-${safeName}.pdf"`);
+
+    const { Readable } = await import("stream");
+    const nodeStream = Readable.fromWeb(fileResponse.body as import("stream/web").ReadableStream);
+    nodeStream.pipe(res);
+  } catch (err) {
+    req.log.error({ err }, "PDF export error");
+    res.status(500).json({ error: "pdf_error", message: "PDF generation failed" });
+  }
+});
+
 export default router;
