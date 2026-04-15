@@ -1,6 +1,6 @@
 import { Users, Mail, Award } from "lucide-react";
 import { AppLayout } from "@/components/layout/app-layout";
-import { RequireAuth } from "@/hooks/use-auth";
+import { RequireRole } from "@/hooks/use-auth";
 import { useLang } from "@/hooks/use-lang";
 
 const TEAM = [
@@ -60,7 +60,7 @@ export default function TeamPage() {
   const { t, lang } = useLang();
 
   return (
-    <RequireAuth>
+    <RequireRole roles={["admin", "superadmin", "architect"]}>
       <AppLayout>
         <div className="space-y-6" data-testid="team-page">
           <div>
@@ -111,6 +111,6 @@ export default function TeamPage() {
           </div>
         </div>
       </AppLayout>
-    </RequireAuth>
+    </RequireRole>
   );
 }
