@@ -51,7 +51,7 @@ export default function LoginPage() {
           <img
             src={logoWhite}
             alt="KONTi"
-            className="konti-logo-anim h-auto w-auto max-h-36 max-w-xs object-contain"
+            className="konti-logo-anim h-auto w-full max-w-[560px] object-contain"
             data-testid="login-logo"
           />
           <div>
