@@ -77,6 +77,102 @@ router.get("/materials", (req, res) => {
   res.json(materials);
 });
 
+let cachedPrices: { prices: Array<{ id: string; item: string; suggestedPrice: number; source: string }>; refreshedAt: string; source: string; cached: boolean } | null = null;
+let cacheExpiresAt = 0;
+const CACHE_TTL_MS = 30 * 60 * 1000;
+
+router.post("/materials/prices/refresh", async (req, res) => {
+  const perplexityKey = process.env["PERPLEXITY_API_KEY"];
+  if (!perplexityKey) {
+    res.status(501).json({ error: "perplexity_not_configured", message: "Perplexity API key not configured" });
+    return;
+  }
+
+  const category = req.query["category"] as string | undefined;
+
+  if (!category && cachedPrices && Date.now() < cacheExpiresAt) {
+    res.json({ ...cachedPrices, cached: true });
+    return;
+  }
+
+  const filteredMaterials = category
+    ? MATERIALS.filter((m) => m.category === category)
+    : MATERIALS;
+
+  const materialList = filteredMaterials
+    .map((m) => `- ${m.id}: ${m.item} (unit: ${m.unit})`)
+    .join("\n");
+
+  const prompt = `You are a construction materials pricing assistant for Puerto Rico. Look up current retail prices from Home Depot (USA/Puerto Rico) for each of the following construction materials. Return a JSON array only, no markdown, no explanation.
+
+For each material, return an object with:
+- "id": the exact ID provided
+- "item": the material name
+- "suggestedPrice": a realistic current retail price (number, in USD)
+- "source": "Home Depot (estimated)"
+
+Materials to price:
+${materialList}
+
+Respond with ONLY a valid JSON array. No code fences. No extra text.`;
+
+  try {
+    const response = await fetch("https://api.perplexity.ai/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${perplexityKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "sonar",
+        messages: [
+          { role: "system", content: "You are a construction materials pricing assistant. Always respond with valid JSON arrays only." },
+          { role: "user", content: prompt },
+        ],
+        max_tokens: 2000,
+        temperature: 0.1,
+      }),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      req.log.error({ status: response.status, errText }, "Perplexity API error");
+      res.status(502).json({ error: "perplexity_error", message: "Perplexity API request failed" });
+      return;
+    }
+
+    const data = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
+    const content = data.choices?.[0]?.message?.content ?? "";
+
+    let prices: Array<{ id: string; item: string; suggestedPrice: number; source: string }> = [];
+    try {
+      const cleaned = content.replace(/```json|```/g, "").trim();
+      prices = JSON.parse(cleaned);
+    } catch {
+      req.log.error({ content }, "Failed to parse Perplexity response as JSON");
+      res.status(502).json({ error: "parse_error", message: "Could not parse pricing data from AI response" });
+      return;
+    }
+
+    const result = {
+      prices,
+      refreshedAt: new Date().toISOString(),
+      source: "Home Depot via Perplexity AI (sonar)",
+      cached: false,
+    };
+
+    if (!category) {
+      cachedPrices = result;
+      cacheExpiresAt = Date.now() + CACHE_TTL_MS;
+    }
+
+    res.json(result);
+  } catch (err) {
+    req.log.error({ err }, "Perplexity fetch error");
+    res.status(502).json({ error: "perplexity_error", message: "Failed to reach Perplexity API" });
+  }
+});
+
 router.post("/projects/:id/pdf", async (req, res) => {
   const project = PROJECTS.find((p) => p.id === req.params["id"]);
   if (!project) {

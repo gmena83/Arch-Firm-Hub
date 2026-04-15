@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { useLogin } from "@workspace/api-client-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useLang } from "@/hooks/use-lang";
-import logoGreen from "@assets/Horizontal02_VerdePNG_1776258303461.png";
+import logoGreen from "@assets/Horizontal01_VerdePNG_extracted.png";
 import logoWhite from "@assets/Horizontal02_WhitePNG_1776258303461.png";
 
 export default function LoginPage() {
@@ -36,7 +36,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex flex-col md:flex-row" data-testid="login-page">
       {/* Left panel — dark brand */}
       <div className="hidden md:flex flex-col justify-between w-1/2 bg-konti-dark p-12">
-        <img src={logoWhite} alt="KONTi" className="h-10 w-auto" />
+        <img src={logoWhite} alt="KONTi" className="h-auto w-auto max-h-12 max-w-[220px] object-contain" />
         <div>
           <h1 className="font-display text-5xl font-bold text-konti-light leading-tight mb-4">
             {t("Build the future.", "Construye el futuro.")}
@@ -61,7 +61,7 @@ export default function LoginPage() {
       <div className="flex-1 flex flex-col justify-center items-center px-8 py-12 bg-background">
         <div className="w-full max-w-sm">
           <div className="mb-8 md:hidden">
-            <img src={logoGreen} alt="KONTi" className="h-8 w-auto" />
+            <img src={logoGreen} alt="KONTi" className="h-auto w-auto max-h-10 max-w-[200px] object-contain" />
           </div>
 
           <div className="flex justify-end mb-6">

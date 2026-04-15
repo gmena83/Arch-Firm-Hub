@@ -248,6 +248,27 @@ export const ListMaterialsResponseItem = zod.object({
 export const ListMaterialsResponse = zod.array(ListMaterialsResponseItem);
 
 /**
+ * @summary Refresh material prices using Perplexity AI
+ */
+export const RefreshMaterialPricesQueryParams = zod.object({
+  category: zod.coerce.string().optional(),
+});
+
+export const RefreshMaterialPricesResponse = zod.object({
+  prices: zod.array(
+    zod.object({
+      id: zod.string(),
+      item: zod.string(),
+      suggestedPrice: zod.number(),
+      source: zod.string(),
+    }),
+  ),
+  refreshedAt: zod.string(),
+  source: zod.string(),
+  cached: zod.boolean(),
+});
+
+/**
  * @summary Get overall dashboard summary stats
  */
 export const GetDashboardSummaryResponse = zod.object({

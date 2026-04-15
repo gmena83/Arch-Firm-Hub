@@ -236,6 +236,37 @@ paths:
                 items:
                   $ref: "#/components/schemas/Material"
 
+  /materials/prices/refresh:
+    post:
+      operationId: refreshMaterialPrices
+      tags: [materials]
+      summary: Refresh material prices using Perplexity AI
+      parameters:
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Updated prices for materials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MaterialPriceRefreshResponse"
+        "501":
+          description: Perplexity not configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: Perplexity API error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /dashboard/summary:
     get:
       operationId: getDashboardSummary
@@ -719,3 +750,39 @@ components:
       required:
         - message
         - mode
+
+    MaterialPriceItem:
+      type: object
+      properties:
+        id:
+          type: string
+        item:
+          type: string
+        suggestedPrice:
+          type: number
+        source:
+          type: string
+      required:
+        - id
+        - item
+        - suggestedPrice
+        - source
+
+    MaterialPriceRefreshResponse:
+      type: object
+      properties:
+        prices:
+          type: array
+          items:
+            $ref: "#/components/schemas/MaterialPriceItem"
+        refreshedAt:
+          type: string
+        source:
+          type: string
+        cached:
+          type: boolean
+      required:
+        - prices
+        - refreshedAt
+        - source
+        - cached

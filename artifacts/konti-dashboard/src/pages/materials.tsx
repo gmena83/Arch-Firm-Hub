@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useListMaterials } from "@workspace/api-client-react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { RequireAuth } from "@/hooks/use-auth";
 import { useLang } from "@/hooks/use-lang";
-import { Search, Package } from "lucide-react";
+import { Search, Package, RefreshCw, CheckCircle, AlertCircle } from "lucide-react";
 
 const CATEGORIES = [
   { key: "all", label: "All", labelEs: "Todos" },
@@ -26,11 +26,67 @@ const CAT_COLORS: Record<string, string> = {
   insulation: "bg-purple-100 text-purple-700",
 };
 
+type PriceMap = Record<string, { price: number; source: string; updated: boolean }>;
+
+function formatRelativeTime(isoString: string, lang: string): string {
+  const diff = Date.now() - new Date(isoString).getTime();
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return lang === "es" ? "hace un momento" : "just now";
+  if (minutes === 1) return lang === "es" ? "hace 1 minuto" : "1 minute ago";
+  if (minutes < 60) return lang === "es" ? `hace ${minutes} minutos` : `${minutes} minutes ago`;
+  const hours = Math.floor(minutes / 60);
+  return lang === "es" ? `hace ${hours} hora${hours > 1 ? "s" : ""}` : `${hours} hour${hours > 1 ? "s" : ""} ago`;
+}
+
 export default function MaterialsPage() {
   const { t, lang } = useLang();
   const { data: materials = [], isLoading } = useListMaterials();
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("all");
+
+  const [priceMap, setPriceMap] = useState<PriceMap>({});
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<string | null>(null);
+  const [priceSource, setPriceSource] = useState<string | null>(null);
+
+  const handleRefreshPrices = useCallback(async () => {
+    setIsRefreshing(true);
+    setRefreshError(null);
+    try {
+      const base = (import.meta.env.BASE_URL ?? "/").replace(/\/$/, "");
+      const resp = await fetch(`${base}/api/materials/prices/refresh`, { method: "POST" });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({})) as { message?: string };
+        if (resp.status === 501) {
+          setRefreshError(t(
+            "Perplexity API key not configured. Contact your administrator.",
+            "Clave de Perplexity no configurada. Contacte al administrador."
+          ));
+        } else {
+          setRefreshError(err.message ?? t("Price refresh failed.", "Error al actualizar precios."));
+        }
+        return;
+      }
+      const data = await resp.json() as {
+        prices: Array<{ id: string; item: string; suggestedPrice: number; source: string }>;
+        refreshedAt: string;
+        source: string;
+        cached: boolean;
+      };
+      const map: PriceMap = {};
+      for (const p of data.prices) {
+        map[p.id] = { price: p.suggestedPrice, source: p.source, updated: true };
+      }
+      setPriceMap(map);
+      setLastRefreshedAt(data.refreshedAt);
+      setPriceSource(data.source);
+    } catch {
+      setRefreshError(t("Network error during price refresh.", "Error de red al actualizar precios."));
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [t]);
 
   const filtered = materials.filter((mat) => {
     const matchCat = activeCategory === "all" || mat.category === activeCategory;
@@ -43,15 +99,55 @@ export default function MaterialsPage() {
     <RequireAuth>
       <AppLayout>
         <div className="space-y-6" data-testid="materials-page">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-              <Package className="w-6 h-6 text-konti-olive" />
-              {t("Materials Library", "Biblioteca de Materiales")}
-            </h1>
-            <p className="text-muted-foreground text-sm mt-1">
-              {t("Reference catalog of all construction materials.", "Catálogo de referencia de todos los materiales de construcción.")}
-            </p>
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+                <Package className="w-6 h-6 text-konti-olive" />
+                {t("Materials Library", "Biblioteca de Materiales")}
+              </h1>
+              <p className="text-muted-foreground text-sm mt-1">
+                {t("Reference catalog of all construction materials.", "Catálogo de referencia de todos los materiales de construcción.")}
+              </p>
+            </div>
+
+            <button
+              onClick={handleRefreshPrices}
+              disabled={isRefreshing}
+              data-testid="btn-refresh-prices"
+              className="flex items-center gap-2 px-4 py-2 bg-konti-olive hover:bg-konti-olive/90 text-white text-sm font-semibold rounded-md transition-colors disabled:opacity-50 shrink-0"
+            >
+              <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`} />
+              {isRefreshing
+                ? t("Refreshing...", "Actualizando...")
+                : t("Refresh Prices", "Actualizar Precios")}
+            </button>
           </div>
+
+          {refreshError && (
+            <div
+              data-testid="refresh-error"
+              className="flex items-start gap-2 px-4 py-3 bg-destructive/10 border border-destructive/30 rounded-lg text-sm text-destructive"
+            >
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>{refreshError}</span>
+            </div>
+          )}
+
+          {lastRefreshedAt && !refreshError && (
+            <div
+              data-testid="refresh-success-banner"
+              className="flex items-center gap-2 px-4 py-2.5 bg-konti-olive/10 border border-konti-olive/30 rounded-lg text-sm text-konti-olive"
+            >
+              <CheckCircle className="w-4 h-4 shrink-0" />
+              <span>
+                {t("Prices updated", "Precios actualizados")} &middot;{" "}
+                {formatRelativeTime(lastRefreshedAt, lang)} &middot;{" "}
+                <span className="text-muted-foreground">
+                  {t("Source:", "Fuente:")} {priceSource}
+                </span>
+              </span>
+            </div>
+          )}
 
           {/* Search + category filters */}
           <div className="space-y-4">
@@ -102,19 +198,33 @@ export default function MaterialsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {filtered.map((mat) => (
-                    <tr key={mat.id} data-testid={`material-row-${mat.id}`} className="hover:bg-muted/20 transition-colors">
-                      <td className="px-4 py-3 font-medium text-foreground">{mat.item}</td>
-                      <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">{mat.itemEs}</td>
-                      <td className="px-4 py-3">
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${CAT_COLORS[mat.category] ?? "bg-gray-100 text-gray-700"}`}>
-                          {mat.category}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground">{mat.unit}</td>
-                      <td className="px-4 py-3 text-right font-semibold text-foreground">${mat.basePrice.toLocaleString()}</td>
-                    </tr>
-                  ))}
+                  {filtered.map((mat) => {
+                    const refreshed = priceMap[mat.id];
+                    const displayPrice = refreshed ? refreshed.price : mat.basePrice;
+                    return (
+                      <tr key={mat.id} data-testid={`material-row-${mat.id}`} className="hover:bg-muted/20 transition-colors">
+                        <td className="px-4 py-3 font-medium text-foreground">{mat.item}</td>
+                        <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">{mat.itemEs}</td>
+                        <td className="px-4 py-3">
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${CAT_COLORS[mat.category] ?? "bg-gray-100 text-gray-700"}`}>
+                            {mat.category}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground">{mat.unit}</td>
+                        <td className="px-4 py-3 text-right">
+                          <span className="font-semibold text-foreground">${displayPrice.toLocaleString()}</span>
+                          {refreshed && (
+                            <span
+                              data-testid={`price-updated-badge-${mat.id}`}
+                              className="ml-2 text-xs font-medium px-1.5 py-0.5 rounded bg-konti-olive/15 text-konti-olive"
+                            >
+                              {t("updated", "actualizado")}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                   {filtered.length === 0 && (
                     <tr>
                       <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
