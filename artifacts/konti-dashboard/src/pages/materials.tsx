@@ -7,23 +7,23 @@ import { Search, Package } from "lucide-react";
 
 const CATEGORIES = [
   { key: "all", label: "All", labelEs: "Todos" },
-  { key: "Steel", label: "Steel", labelEs: "Acero" },
-  { key: "Foundation", label: "Foundation", labelEs: "Fundación" },
-  { key: "Lumber", label: "Lumber", labelEs: "Madera" },
-  { key: "Electrical", label: "Electrical", labelEs: "Eléctrico" },
-  { key: "Plumbing", label: "Plumbing", labelEs: "Plomería" },
-  { key: "Finishes", label: "Finishes", labelEs: "Acabados" },
-  { key: "Insulation", label: "Insulation", labelEs: "Aislamiento" },
+  { key: "steel", label: "Steel", labelEs: "Acero" },
+  { key: "foundation", label: "Foundation", labelEs: "Fundación" },
+  { key: "lumber", label: "Lumber", labelEs: "Madera" },
+  { key: "electrical", label: "Electrical", labelEs: "Eléctrico" },
+  { key: "plumbing", label: "Plumbing", labelEs: "Plomería" },
+  { key: "finishes", label: "Finishes", labelEs: "Acabados" },
+  { key: "insulation", label: "Insulation", labelEs: "Aislamiento" },
 ];
 
 const CAT_COLORS: Record<string, string> = {
-  Steel: "bg-slate-100 text-slate-700",
-  Foundation: "bg-stone-100 text-stone-700",
-  Lumber: "bg-amber-100 text-amber-700",
-  Electrical: "bg-yellow-100 text-yellow-700",
-  Plumbing: "bg-sky-100 text-sky-700",
-  Finishes: "bg-pink-100 text-pink-700",
-  Insulation: "bg-purple-100 text-purple-700",
+  steel: "bg-slate-100 text-slate-700",
+  foundation: "bg-stone-100 text-stone-700",
+  lumber: "bg-amber-100 text-amber-700",
+  electrical: "bg-yellow-100 text-yellow-700",
+  plumbing: "bg-sky-100 text-sky-700",
+  finishes: "bg-pink-100 text-pink-700",
+  insulation: "bg-purple-100 text-purple-700",
 };
 
 export default function MaterialsPage() {

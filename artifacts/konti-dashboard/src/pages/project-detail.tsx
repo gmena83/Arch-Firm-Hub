@@ -5,10 +5,12 @@ import {
   useGetProjectTasks,
   useGetProjectWeather,
   useGetProjectDocuments,
+  useGetProjectCalculations,
   getGetProjectQueryKey,
   getGetProjectTasksQueryKey,
   getGetProjectWeatherQueryKey,
   getGetProjectDocumentsQueryKey,
+  getGetProjectCalculationsQueryKey,
 } from "@workspace/api-client-react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { RequireAuth, useAuth } from "@/hooks/use-auth";
@@ -129,6 +131,9 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
   });
   const { data: allDocs = [] } = useGetProjectDocuments(projectId, undefined, {
     query: { enabled: !!projectId, queryKey: getGetProjectDocumentsQueryKey(projectId, undefined) }
+  });
+  const { data: calc } = useGetProjectCalculations(projectId, {
+    query: { enabled: !!projectId, queryKey: getGetProjectCalculationsQueryKey(projectId) }
   });
 
   const isClientView = viewRole === "client";
@@ -362,6 +367,33 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
                     <span className="text-sm text-foreground">{member}</span>
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* Material Cost Summary */}
+          {calc && (
+            <div className="bg-card rounded-xl border border-card-border p-5 shadow-sm" data-testid="material-cost-summary">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="font-bold text-foreground">{t("Material Costs", "Costos de Materiales")}</h2>
+                <Link
+                  href="/calculator"
+                  className="text-xs text-konti-olive hover:text-konti-olive/80 font-medium transition-colors"
+                >
+                  {t("Full Calculator", "Calculadora Completa")} →
+                </Link>
+              </div>
+              <div className="space-y-1.5">
+                {Object.entries(calc.subtotalByCategory ?? {}).map(([cat, total]) => (
+                  <div key={cat} className="flex items-center justify-between text-xs">
+                    <span className="capitalize text-muted-foreground">{cat}</span>
+                    <span className="font-semibold text-foreground">${(total as number).toLocaleString()}</span>
+                  </div>
+                ))}
+                <div className="border-t border-border pt-1.5 mt-1.5 flex items-center justify-between">
+                  <span className="text-sm font-bold text-foreground">{t("Grand Total", "Total General")}</span>
+                  <span className="text-sm font-bold text-konti-olive">${calc.grandTotal.toLocaleString()}</span>
+                </div>
               </div>
             </div>
           )}
