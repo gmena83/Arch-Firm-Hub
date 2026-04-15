@@ -1,0 +1,220 @@
+import { Link } from "wouter";
+import { useListProjects, useGetDashboardSummary, useGetRecentActivity } from "@workspace/api-client-react";
+import { AppLayout } from "@/components/layout/app-layout";
+import { RequireAuth, useAuth } from "@/hooks/use-auth";
+import { useLang } from "@/hooks/use-lang";
+import { WeatherBadge } from "@/components/weather-badge";
+import { useGetProjectWeather } from "@workspace/api-client-react";
+import { ArrowRight, TrendingUp, FolderOpen, FileText, Clock, Activity, BarChart3, CheckCircle } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { es as dateEs } from "date-fns/locale";
+
+function ProjectCard({ project }: { project: { id: string; name: string; clientName: string; location: string; phase: string; phaseLabel: string; phaseLabelEs: string; phaseNumber: number; progressPercent: number; budgetAllocated: number; budgetUsed: number; coverImage?: string; status: string } }) {
+  const { t, lang } = useLang();
+  const { data: weather } = useGetProjectWeather(project.id);
+
+  const phaseColors: Record<string, string> = {
+    discovery: "bg-sky-100 text-sky-800",
+    pre_design: "bg-purple-100 text-purple-800",
+    design: "bg-indigo-100 text-indigo-800",
+    permits: "bg-amber-100 text-amber-800",
+    construction: "bg-orange-100 text-orange-800",
+    completed: "bg-emerald-100 text-emerald-800",
+  };
+
+  const spendPct = Math.round((project.budgetUsed / project.budgetAllocated) * 100);
+  const phaseLabel = lang === "es" ? project.phaseLabelEs : project.phaseLabel;
+  const budgetColor = spendPct > 90 ? "bg-red-500" : spendPct > 70 ? "bg-amber-500" : "bg-konti-olive";
+
+  return (
+    <div
+      data-testid={`card-project-${project.id}`}
+      className="bg-card rounded-xl border border-card-border shadow-sm overflow-hidden hover:shadow-md transition-shadow"
+    >
+      {project.coverImage && (
+        <div className="relative h-44 overflow-hidden">
+          <img
+            src={project.coverImage}
+            alt={project.name}
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-konti-dark/80 to-transparent" />
+          <div className="absolute bottom-3 left-4 right-4">
+            <h3 className="font-bold text-white text-lg leading-tight">{project.name}</h3>
+            <p className="text-white/70 text-xs">{project.clientName} — {project.location}</p>
+          </div>
+          <span className={`absolute top-3 right-3 text-xs font-semibold px-2.5 py-0.5 rounded-full ${phaseColors[project.phase] ?? "bg-gray-100 text-gray-800"}`}>
+            {phaseLabel}
+          </span>
+        </div>
+      )}
+
+      <div className="p-4 space-y-3">
+        {/* Progress */}
+        <div>
+          <div className="flex justify-between text-xs mb-1">
+            <span className="text-muted-foreground font-medium">{t("Overall Progress", "Progreso General")}</span>
+            <span className="font-bold text-foreground">{project.progressPercent}%</span>
+          </div>
+          <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+            <div className="h-full bg-konti-olive rounded-full" style={{ width: `${project.progressPercent}%` }} />
+          </div>
+        </div>
+
+        {/* Budget */}
+        <div>
+          <div className="flex justify-between text-xs mb-1">
+            <span className="text-muted-foreground font-medium">{t("Budget Used", "Presupuesto Usado")}</span>
+            <span className="font-bold text-foreground">{spendPct}%</span>
+          </div>
+          <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+            <div className={`h-full rounded-full ${budgetColor}`} style={{ width: `${Math.min(spendPct, 100)}%` }} />
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            ${project.budgetUsed.toLocaleString()} / ${project.budgetAllocated.toLocaleString()}
+          </p>
+        </div>
+
+        {/* Weather */}
+        {weather && (
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-muted-foreground">{weather.city}</span>
+            <WeatherBadge
+              buildSuitability={weather.buildSuitability as "green" | "yellow" | "red"}
+              buildSuitabilityLabel={weather.buildSuitabilityLabel}
+              buildSuitabilityLabelEs={weather.buildSuitabilityLabelEs}
+              temperature={weather.temperature}
+              temperatureUnit={weather.temperatureUnit}
+              compact
+            />
+          </div>
+        )}
+
+        <div className="flex gap-2 pt-1">
+          <Link
+            href={`/projects/${project.id}`}
+            data-testid={`link-project-detail-${project.id}`}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 bg-konti-olive hover:bg-konti-olive/90 text-white text-xs font-semibold rounded-md transition-colors"
+          >
+            {t("View Project", "Ver Proyecto")} <ArrowRight className="w-3 h-3" />
+          </Link>
+          <Link
+            href={`/projects/${project.id}/report`}
+            data-testid={`link-project-report-${project.id}`}
+            className="flex items-center justify-center gap-1.5 py-2 px-3 border border-border text-xs font-semibold rounded-md text-muted-foreground hover:bg-muted/50 transition-colors"
+          >
+            {t("Report", "Reporte")}
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ActivityIcon({ type }: { type: string }) {
+  const icons: Record<string, React.ReactNode> = {
+    document_upload: <FileText className="w-4 h-4" />,
+    task_completed: <CheckCircle className="w-4 h-4" />,
+    phase_change: <TrendingUp className="w-4 h-4" />,
+    weather_alert: <Activity className="w-4 h-4" />,
+    comment: <Activity className="w-4 h-4" />,
+  };
+  return <>{icons[type] ?? <Activity className="w-4 h-4" />}</>;
+}
+
+function DashboardContent() {
+  const { t, lang } = useLang();
+  const { user } = useAuth();
+  const { data: projects = [], isLoading: projectsLoading } = useListProjects();
+  const { data: summary } = useGetDashboardSummary();
+  const { data: activity = [] } = useGetRecentActivity();
+
+  const stats = [
+    { label: t("Active Projects", "Proyectos Activos"), value: summary?.activeProjects ?? "—", icon: FolderOpen },
+    { label: t("Total Budget", "Presupuesto Total"), value: summary ? `$${(summary.totalBudget / 1000).toFixed(0)}K` : "—", icon: BarChart3 },
+    { label: t("Pending Tasks", "Tareas Pendientes"), value: summary?.pendingTasks ?? "—", icon: Clock },
+    { label: t("Documents", "Documentos"), value: summary?.totalDocuments ?? "—", icon: FileText },
+  ];
+
+  return (
+    <div className="space-y-8" data-testid="dashboard-page">
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold text-foreground">
+          {t("Good morning", "Buenos días")}, {user?.name?.split(" ")[0]}
+        </h1>
+        <p className="text-muted-foreground text-sm mt-1">
+          {t("Here's an overview of your active projects.", "Aquí tienes un resumen de tus proyectos activos.")}
+        </p>
+      </div>
+
+      {/* Stats bar */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {stats.map((stat) => (
+          <div key={stat.label} className="bg-card rounded-xl border border-card-border p-4 shadow-sm" data-testid={`stat-${stat.label.toLowerCase().replace(/\s+/g, "-")}`}>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-medium text-muted-foreground">{stat.label}</span>
+              <stat.icon className="w-4 h-4 text-konti-olive" />
+            </div>
+            <p className="text-2xl font-bold text-foreground">{stat.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Projects grid */}
+      <div>
+        <h2 className="text-lg font-bold text-foreground mb-4">{t("Active Projects", "Proyectos Activos")}</h2>
+        {projectsLoading ? (
+          <div className="grid md:grid-cols-3 gap-6">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="bg-card rounded-xl border border-card-border h-80 animate-pulse" />
+            ))}
+          </div>
+        ) : (
+          <div className="grid md:grid-cols-3 gap-6">
+            {projects.map((project) => (
+              <ProjectCard key={project.id} project={project} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Recent Activity */}
+      <div>
+        <h2 className="text-lg font-bold text-foreground mb-4">{t("Recent Activity", "Actividad Reciente")}</h2>
+        <div className="bg-card rounded-xl border border-card-border shadow-sm divide-y divide-border">
+          {activity.slice(0, 6).map((item) => {
+            const desc = lang === "es" ? item.descriptionEs : item.description;
+            const timeAgo = formatDistanceToNow(new Date(item.timestamp), {
+              addSuffix: true,
+              locale: lang === "es" ? dateEs : undefined,
+            });
+            return (
+              <div key={item.id} className="flex items-start gap-3 p-4" data-testid={`activity-${item.id}`}>
+                <div className="mt-0.5 w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground shrink-0">
+                  <ActivityIcon type={item.type} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-foreground">{desc}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    <span className="font-medium text-konti-olive">{item.projectName}</span> — {timeAgo}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <RequireAuth>
+      <AppLayout>
+        <DashboardContent />
+      </AppLayout>
+    </RequireAuth>
+  );
+}
