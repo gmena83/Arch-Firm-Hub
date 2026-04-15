@@ -113,6 +113,16 @@ function UploadModal({ onClose, projectId }: { onClose: () => void; projectId: s
   );
 }
 
+function EmojiDayTick({ x, y, payload, chartData }: { x?: number; y?: number; payload?: { value: string }; chartData: Array<{ day: string; emoji: string }> }) {
+  const entry = chartData.find((d) => d.day === payload?.value);
+  return (
+    <g transform={`translate(${x ?? 0},${y ?? 0})`}>
+      <text x={0} y={0} dy={14} textAnchor="middle" fontSize={10} fill="currentColor" className="fill-muted-foreground">{payload?.value}</text>
+      <text x={0} y={0} dy={30} textAnchor="middle" fontSize={13}>{entry?.emoji ?? ""}</text>
+    </g>
+  );
+}
+
 function WeatherHistoryChart({ history }: { history: WeatherHistoryEntry[] }) {
   const { t, lang } = useLang();
   const [visible, setVisible] = useState(false);
@@ -129,7 +139,7 @@ function WeatherHistoryChart({ history }: { history: WeatherHistoryEntry[] }) {
     <div className="mt-4 border-t border-border pt-4">
       <button
         onClick={() => setVisible((v) => !v)}
-        className="flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+        className="flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors w-full"
         data-testid="btn-toggle-weather-chart"
       >
         <BarChart2 className="w-3.5 h-3.5" />
@@ -139,14 +149,15 @@ function WeatherHistoryChart({ history }: { history: WeatherHistoryEntry[] }) {
 
       {visible && (
         <div className="mt-3" data-testid="weather-history-chart">
-          <ResponsiveContainer width="100%" height={200}>
-            <ComposedChart data={data} margin={{ top: 8, right: 16, left: -8, bottom: 0 }}>
+          <ResponsiveContainer width="100%" height={220}>
+            <ComposedChart data={data} margin={{ top: 8, right: 16, left: -8, bottom: 20 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
               <XAxis
                 dataKey="day"
-                tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                tick={(props) => <EmojiDayTick {...props} chartData={data} />}
                 axisLine={false}
                 tickLine={false}
+                height={48}
               />
               <YAxis
                 yAxisId="temp"
@@ -316,41 +327,47 @@ function DocCard({ doc, isClientView }: { doc: Document; isClientView: boolean }
   return (
     <>
       <div data-testid={`doc-${doc.id}`} className="rounded-lg border border-border hover:border-konti-olive/30 hover:bg-muted/20 transition-colors">
-        <button
-          className="w-full flex items-start gap-2.5 p-2.5 text-left"
-          onClick={() => setShowPreview(true)}
-          data-testid={`btn-preview-doc-${doc.id}`}
-        >
-          <div className={`w-8 h-8 rounded flex items-center justify-center shrink-0 ${typeColors[doc.type] ?? "bg-muted text-muted-foreground"}`}>
-            <FileText className="w-4 h-4" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium text-foreground truncate">{doc.name}</p>
-            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-              <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${catColors[doc.category] ?? "bg-gray-100 text-gray-700"}`}>
-                {doc.category === "client_review" ? t("Client", "Cliente") : doc.category}
-              </span>
-              <span className="text-xs text-muted-foreground">{doc.fileSize}</span>
-              {hasVersions && (
-                <span className="text-xs bg-konti-olive/10 text-konti-olive border border-konti-olive/30 px-1.5 py-0.5 rounded font-semibold">
-                  v{versions.length}
+        <div className="flex items-start gap-2.5 p-2.5">
+          <div
+            role="button"
+            tabIndex={0}
+            className="flex-1 flex items-start gap-2.5 cursor-pointer min-w-0"
+            onClick={() => setShowPreview(true)}
+            onKeyDown={(e) => e.key === "Enter" && setShowPreview(true)}
+            data-testid={`btn-preview-doc-${doc.id}`}
+          >
+            <div className={`w-8 h-8 rounded flex items-center justify-center shrink-0 ${typeColors[doc.type] ?? "bg-muted text-muted-foreground"}`}>
+              <FileText className="w-4 h-4" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-foreground truncate">{doc.name}</p>
+              <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${catColors[doc.category] ?? "bg-gray-100 text-gray-700"}`}>
+                  {doc.category === "client_review" ? t("Client", "Cliente") : doc.category}
                 </span>
-              )}
+                <span className="text-xs text-muted-foreground">{doc.fileSize}</span>
+                {hasVersions && (
+                  <span className="text-xs bg-konti-olive/10 text-konti-olive border border-konti-olive/30 px-1.5 py-0.5 rounded font-semibold">
+                    v{versions.length}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
           {hasVersions && (
             <button
-              onClick={(e) => { e.stopPropagation(); setShowVersions((v) => !v); }}
+              onClick={() => setShowVersions((v) => !v)}
               className="p-1 text-muted-foreground hover:text-foreground transition-colors shrink-0 mt-0.5"
               data-testid={`btn-toggle-versions-${doc.id}`}
+              aria-label={showVersions ? t("Hide version history", "Ocultar historial") : t("Show version history", "Ver historial")}
             >
               {showVersions ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
             </button>
           )}
-        </button>
+        </div>
 
         {showVersions && (
-          <div className="border-t border-border px-3 pb-2 pt-2 space-y-1.5" data-testid={`version-history-${doc.id}`}>
+          <div className="border-t border-border px-3 pb-2.5 pt-2 space-y-2" data-testid={`version-history-${doc.id}`}>
             <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5 mb-2">
               <History className="w-3 h-3" /> {t("Version History", "Historial de Versiones")}
             </p>
@@ -358,11 +375,16 @@ function DocCard({ doc, isClientView }: { doc: Document; isClientView: boolean }
               const isLatest = v.version === versions.length;
               return (
                 <div key={v.version} className="flex items-start justify-between gap-2 text-xs">
-                  <div className="flex items-center gap-1.5">
-                    <span className={`font-bold ${isLatest ? "text-konti-olive" : "text-muted-foreground"}`}>v{v.version}</span>
-                    <span className="text-muted-foreground truncate max-w-[140px]">{lang === "es" ? v.notesEs : v.notes}</span>
+                  <div className="min-w-0 space-y-0.5">
+                    <div className="flex items-center gap-1.5">
+                      <span className={`font-bold shrink-0 ${isLatest ? "text-konti-olive" : "text-muted-foreground"}`}>v{v.version}</span>
+                      <span className="text-muted-foreground font-medium truncate">{v.uploadedBy}</span>
+                    </div>
+                    {(lang === "es" ? v.notesEs : v.notes) && (
+                      <p className="text-muted-foreground/80 truncate">{lang === "es" ? v.notesEs : v.notes}</p>
+                    )}
                   </div>
-                  <span className="text-muted-foreground whitespace-nowrap shrink-0">
+                  <span className="text-muted-foreground whitespace-nowrap shrink-0 text-right">
                     {new Date(v.uploadedAt).toLocaleDateString(lang === "es" ? "es-PR" : "en-US", { month: "short", day: "numeric" })}
                   </span>
                 </div>
