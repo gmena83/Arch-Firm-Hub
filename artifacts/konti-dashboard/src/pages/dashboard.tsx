@@ -1,5 +1,9 @@
 import { Link } from "wouter";
-import { useListProjects, useGetDashboardSummary, useGetRecentActivity } from "@workspace/api-client-react";
+import {
+  useListProjects, useGetDashboardSummary, useGetRecentActivity,
+  useGetProjectTasks, useGetProjectDocuments,
+  getGetProjectTasksQueryKey, getGetProjectDocumentsQueryKey,
+} from "@workspace/api-client-react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { RequireAuth, useAuth } from "@/hooks/use-auth";
 import { useLang } from "@/hooks/use-lang";
@@ -140,6 +144,15 @@ function DashboardContent() {
     ? allProjects.filter((p) => p.clientName.includes(user?.name ?? ""))
     : allProjects;
 
+  const clientProjectId = isClientUser ? (projects[0]?.id ?? "") : "";
+
+  const { data: clientTasks = [] } = useGetProjectTasks(clientProjectId, {
+    query: { enabled: isClientUser && !!clientProjectId, queryKey: getGetProjectTasksQueryKey(clientProjectId) }
+  });
+  const { data: clientDocs = [] } = useGetProjectDocuments(clientProjectId, undefined, {
+    query: { enabled: isClientUser && !!clientProjectId, queryKey: getGetProjectDocumentsQueryKey(clientProjectId, undefined) }
+  });
+
   const activity = isClientUser
     ? allActivity.filter((a) => projects.some((p) => p.name === a.projectName))
     : allActivity;
@@ -152,12 +165,15 @@ function DashboardContent() {
     ? t("Here's the latest update on your project.", "Aquí tienes la actualización más reciente de tu proyecto.")
     : t("Here's an overview of your active projects.", "Aquí tienes un resumen de tus proyectos activos.");
 
+  const clientPendingTasks = clientTasks.filter((task) => !task.completed).length;
+  const clientVisibleDocs = clientDocs.filter((doc) => doc.isClientVisible).length;
+
   const summaryStats = isClientUser
     ? [
         { label: t("Overall Progress", "Progreso General"), value: projects[0] ? `${projects[0].progressPercent}%` : "—", icon: TrendingUp },
         { label: t("Current Phase", "Fase Actual"), value: projects[0] ? `${projects[0].phaseNumber}/6` : "—", icon: FolderOpen },
-        { label: t("Pending Tasks", "Tareas Pendientes"), value: summary?.pendingTasks ?? "—", icon: Clock },
-        { label: t("Documents", "Documentos"), value: summary?.totalDocuments ?? "—", icon: FileText },
+        { label: t("Pending Tasks", "Tareas Pendientes"), value: clientTasks.length > 0 ? clientPendingTasks : "—", icon: Clock },
+        { label: t("Documents", "Documentos"), value: clientDocs.length > 0 ? clientVisibleDocs : "—", icon: FileText },
       ]
     : [
         { label: t("Active Projects", "Proyectos Activos"), value: summary?.activeProjects ?? "—", icon: FolderOpen },
