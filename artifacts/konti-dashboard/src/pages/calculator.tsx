@@ -6,13 +6,13 @@ import { useLang } from "@/hooks/use-lang";
 import { Calculator, Plus, X } from "lucide-react";
 
 const CAT_COLORS: Record<string, string> = {
-  Steel: "bg-slate-100 text-slate-700",
-  Foundation: "bg-stone-100 text-stone-700",
-  Lumber: "bg-amber-100 text-amber-700",
-  Electrical: "bg-yellow-100 text-yellow-700",
-  Plumbing: "bg-sky-100 text-sky-700",
-  Finishes: "bg-pink-100 text-pink-700",
-  Insulation: "bg-purple-100 text-purple-700",
+  steel: "bg-slate-100 text-slate-700",
+  foundation: "bg-stone-100 text-stone-700",
+  lumber: "bg-amber-100 text-amber-700",
+  electrical: "bg-yellow-100 text-yellow-700",
+  plumbing: "bg-sky-100 text-sky-700",
+  finishes: "bg-pink-100 text-pink-700",
+  insulation: "bg-purple-100 text-purple-700",
 };
 
 function AddMaterialModal({

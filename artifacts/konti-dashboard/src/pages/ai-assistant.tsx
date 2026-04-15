@@ -43,7 +43,7 @@ function ChatInterface({ mode, projectId }: { mode: ChatMode; projectId: string 
         onSuccess: (data) => {
           setMessages((prev) => [
             ...prev,
-            { role: "assistant", content: data.response },
+            { role: "assistant", content: data.message },
           ]);
         },
         onError: () => {
