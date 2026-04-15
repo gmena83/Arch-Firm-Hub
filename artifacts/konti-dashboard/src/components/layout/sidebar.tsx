@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useLang } from "@/hooks/use-lang";
 import { NotificationBell } from "./notification-bell";
 import logoWhite from "@assets/Horizontal02_WhitePNG_1776258303461.png";
+import menatechLogo from "@assets/menatech}_1776274281761.png";
 
 const ALL_NAV_ITEMS = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard", labelEs: "Panel", clientVisible: true },
@@ -74,7 +75,7 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div className="px-3 py-4 border-t border-sidebar-border">
+      <div className="px-3 py-4 border-t border-sidebar-border space-y-1">
         <div className="flex items-center gap-3 px-3 py-2">
           <div className="w-8 h-8 rounded-full bg-konti-olive flex items-center justify-center text-white text-xs font-bold shrink-0">
             {user?.avatar ?? user?.name?.slice(0, 2).toUpperCase()}
@@ -101,6 +102,17 @@ export function Sidebar() {
             <LogOut className="w-4 h-4" />
           </button>
         </div>
+        <a
+          href="https://menatech.cloud"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="hidden md:flex items-center gap-1.5 px-3 py-1.5 opacity-30 hover:opacity-60 transition-opacity"
+          data-testid="menatech-attribution-sidebar"
+        >
+          <img src={menatechLogo} alt="Menatech" className="h-4 w-4 object-contain rounded" />
+          <span className="text-sidebar-foreground/70 text-xs">{t("Powered by", "Desarrollado por")}</span>
+          <span className="text-sidebar-foreground text-xs font-semibold">menatech</span>
+        </a>
       </div>
     </div>
   );
