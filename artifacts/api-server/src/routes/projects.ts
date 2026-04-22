@@ -538,6 +538,11 @@ router.get("/projects/:id/design", requireRole(["team", "client"]), (req, res) =
     state: stateOut ?? null,
     subPhaseOrder: DESIGN_SUB_PHASE_ORDER,
     subPhaseLabels: DESIGN_SUB_PHASE_LABELS,
+    docVersionCadence: {
+      schematic_design: { maxVersions: 3, label: "SD up to V3" },
+      design_development: { maxVersions: 3, label: "DD up to V3" },
+      construction_documents: { maxVersions: 2, label: "CD up to V2" },
+    },
   });
 });
 

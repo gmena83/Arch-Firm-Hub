@@ -193,6 +193,236 @@ paths:
               schema:
                 $ref: "#/components/schemas/CalculatorSummary"
 
+  /projects/{projectId}/design:
+    get:
+      operationId: getProjectDesign
+      tags: [design]
+      summary: Get Phase-3 design state for a project (sub-phases, deliverables)
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Design state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DesignStateResponse"
+
+  /projects/{projectId}/design/deliverable:
+    post:
+      operationId: updateDesignDeliverable
+      tags: [design]
+      summary: Update status of a single design deliverable
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [subPhase, deliverableId, status]
+              properties:
+                subPhase:
+                  type: string
+                  enum: [schematic_design, design_development, construction_documents]
+                deliverableId: { type: string }
+                status:
+                  type: string
+                  enum: [pending, in_progress, done]
+      responses:
+        "200": { description: Updated deliverable }
+
+  /projects/{projectId}/design/advance-sub-phase:
+    post:
+      operationId: advanceDesignSubPhase
+      tags: [design]
+      summary: Advance project to the next design sub-phase (or to permits if CD complete)
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: New design state and synced project phase
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  projectId: { type: string }
+                  state: { $ref: "#/components/schemas/DesignState" }
+                  project: { $ref: "#/components/schemas/Project" }
+
+  /projects/{projectId}/proposals:
+    get:
+      operationId: getProjectProposals
+      tags: [proposals]
+      summary: List comparison-view proposals for a project
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Proposals
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  projectId: { type: string }
+                  proposals:
+                    type: array
+                    items: { $ref: "#/components/schemas/Proposal" }
+
+  /projects/{projectId}/proposals/{proposalId}/approve:
+    post:
+      operationId: approveProposal
+      tags: [proposals]
+      summary: Client approves a proposal — auto-advances project to Permits
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: proposalId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Approved proposal and updated project
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  projectId: { type: string }
+                  proposals:
+                    type: array
+                    items: { $ref: "#/components/schemas/Proposal" }
+                  approved: { $ref: "#/components/schemas/Proposal" }
+                  project: { $ref: "#/components/schemas/Project" }
+
+  /projects/{projectId}/change-orders:
+    get:
+      operationId: getProjectChangeOrders
+      tags: [change-orders]
+      summary: List change orders + totals
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Change-order list and totals
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChangeOrderResponse"
+    post:
+      operationId: createChangeOrder
+      tags: [change-orders]
+      summary: Create a new change order (team / admin)
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, amountDelta, scheduleImpactDays]
+              properties:
+                title: { type: string }
+                titleEs: { type: string }
+                description: { type: string }
+                descriptionEs: { type: string }
+                amountDelta: { type: number }
+                scheduleImpactDays: { type: number }
+                reason: { type: string }
+                reasonEs: { type: string }
+                outsideOfScope:
+                  type: boolean
+                  description: Flag indicating the work falls outside the signed proposal scope.
+      responses:
+        "200":
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  projectId: { type: string }
+                  changeOrder: { $ref: "#/components/schemas/ChangeOrder" }
+
+  /projects/{projectId}/change-orders/{coId}:
+    delete:
+      operationId: deleteChangeOrder
+      tags: [change-orders]
+      summary: Delete a pending change order (team / admin)
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: coId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Deleted }
+
+  /projects/{projectId}/change-orders/{coId}/status:
+    post:
+      operationId: setChangeOrderStatus
+      tags: [change-orders]
+      summary: Architect / admin sets the change-order status (team-only)
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: coId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [pending, approved, rejected]
+                note: { type: string }
+      responses:
+        "200":
+          description: Updated change order
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  projectId: { type: string }
+                  changeOrder: { $ref: "#/components/schemas/ChangeOrder" }
+
   /projects/{id}/pdf:
     post:
       operationId: exportProjectPdf
@@ -663,6 +893,10 @@ components:
         category:
           type: string
           enum: [client_review, internal, permits, construction, design]
+        designSubPhase:
+          type: string
+          enum: [schematic_design, design_development, construction_documents]
+          description: Optional Phase-3 sub-phase tag (SD/DD/CD).
         isClientVisible:
           type: boolean
         uploadedBy:
@@ -1032,3 +1266,134 @@ components:
         - project
         - asanaGid
         - asanaMessage
+
+    Deliverable:
+      type: object
+      properties:
+        id: { type: string }
+        label: { type: string }
+        labelEs: { type: string }
+        status:
+          type: string
+          enum: [pending, in_progress, done]
+        completedAt: { type: string }
+      required: [id, label, labelEs, status]
+
+    DesignSubPhaseState:
+      type: object
+      properties:
+        deliverables:
+          type: array
+          items: { $ref: "#/components/schemas/Deliverable" }
+        startedAt: { type: string }
+        completedAt: { type: string }
+      required: [deliverables]
+
+    DesignState:
+      type: object
+      description: Phase-3 design model. `subPhases` is the deliverables map keyed by sub-phase.
+      properties:
+        currentSubPhase:
+          type: string
+          enum: [schematic_design, design_development, construction_documents, complete]
+        subPhases:
+          type: object
+          properties:
+            schematic_design: { $ref: "#/components/schemas/DesignSubPhaseState" }
+            design_development: { $ref: "#/components/schemas/DesignSubPhaseState" }
+            construction_documents: { $ref: "#/components/schemas/DesignSubPhaseState" }
+      required: [currentSubPhase, subPhases]
+
+    DesignStateResponse:
+      type: object
+      properties:
+        projectId: { type: string }
+        available: { type: boolean }
+        isProjectInDesign: { type: boolean }
+        state:
+          oneOf:
+            - $ref: "#/components/schemas/DesignState"
+            - type: "null"
+        subPhaseOrder:
+          type: array
+          items:
+            type: string
+            enum: [schematic_design, design_development, construction_documents]
+        subPhaseLabels:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              en: { type: string }
+              es: { type: string }
+      required: [projectId, available, isProjectInDesign]
+
+    Proposal:
+      type: object
+      properties:
+        id: { type: string }
+        projectId: { type: string }
+        scenario:
+          type: string
+          enum: [economy, standard, premium]
+        title: { type: string }
+        titleEs: { type: string }
+        summary: { type: string }
+        summaryEs: { type: string }
+        totalCost: { type: number }
+        timelineWeeks: { type: number }
+        highlights:
+          type: array
+          items: { type: string }
+        highlightsEs:
+          type: array
+          items: { type: string }
+        status:
+          type: string
+          enum: [pending, approved, rejected]
+        decidedBy: { type: string }
+        decidedAt: { type: string }
+      required: [id, projectId, scenario, title, totalCost, status]
+
+    ChangeOrder:
+      type: object
+      properties:
+        id: { type: string }
+        projectId: { type: string }
+        number: { type: string }
+        title: { type: string }
+        titleEs: { type: string }
+        description: { type: string }
+        descriptionEs: { type: string }
+        amountDelta: { type: number }
+        scheduleImpactDays: { type: number }
+        reason: { type: string }
+        reasonEs: { type: string }
+        requestedBy: { type: string }
+        requestedAt: { type: string }
+        status:
+          type: string
+          enum: [pending, approved, rejected]
+        decidedBy: { type: string }
+        decidedAt: { type: string }
+        decisionNote: { type: string }
+        outsideOfScope:
+          type: boolean
+          description: True if the change adds work beyond the signed proposal scope.
+      required: [id, projectId, number, title, amountDelta, scheduleImpactDays, status]
+
+    ChangeOrderResponse:
+      type: object
+      properties:
+        projectId: { type: string }
+        changeOrders:
+          type: array
+          items: { $ref: "#/components/schemas/ChangeOrder" }
+        totals:
+          type: object
+          properties:
+            approvedDelta: { type: number }
+            pendingDelta: { type: number }
+            approvedDays: { type: number }
+          required: [approvedDelta, pendingDelta, approvedDays]
+      required: [projectId, changeOrders, totals]

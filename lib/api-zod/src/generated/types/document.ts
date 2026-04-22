@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { DocumentCategory } from "./documentCategory";
+import type { DocumentDesignSubPhase } from "./documentDesignSubPhase";
 import type { DocumentType } from "./documentType";
 import type { DocumentVersion } from "./documentVersion";
 
@@ -15,6 +16,8 @@ export interface Document {
   name: string;
   type: DocumentType;
   category: DocumentCategory;
+  /** Optional Phase-3 sub-phase tag (SD/DD/CD). */
+  designSubPhase?: DocumentDesignSubPhase;
   isClientVisible: boolean;
   uploadedBy: string;
   uploadedAt: string;
