@@ -18,11 +18,27 @@ import logoWhite from "@assets/Horizontal02_WhitePNG_1776258303461.png";
 const CHART_COLORS = ["#4F5E2A", "#778894", "#1C1814", "#a3b38c", "#9fb0ba"];
 
 interface ReportTemplate { name: string; columns: string[]; headerLines: string[]; footer: string }
+interface ContractorLine { id: string; category: string; description: string; descriptionEs: string; quantity: number; unit: string; unitPrice: number; lineTotal: number }
+interface ContractorEstimate { lines: ContractorLine[]; grandTotal: number }
+
+const DEFAULT_REPORT_COLUMNS = ["Category", "Item", "Qty", "Unit", "Unit Price", "Total"];
+
+function reportCellForColumn(col: string, line: ContractorLine, lang: string): string {
+  const c = col.trim().toLowerCase();
+  if (c === "category" || c === "categoría" || c === "categoria") return line.category;
+  if (c === "item" || c === "description" || c === "descripción" || c === "descripcion") return lang === "es" ? line.descriptionEs : line.description;
+  if (c === "qty" || c === "quantity" || c === "cant." || c === "cantidad") return String(line.quantity);
+  if (c === "unit" || c === "unidad") return line.unit;
+  if (c === "unit price" || c === "precio unit." || c === "precio unitario") return `$${line.unitPrice.toLocaleString()}`;
+  if (c === "total") return `$${line.lineTotal.toLocaleString()}`;
+  return "";
+}
 
 function ReportContent({ projectId }: { projectId: string }) {
   const { t, lang } = useLang();
   const [isDownloading, setIsDownloading] = useState(false);
   const [template, setTemplate] = useState<ReportTemplate | null>(null);
+  const [contractorEst, setContractorEst] = useState<ContractorEstimate | null>(null);
 
   useEffect(() => {
     if (!projectId) return;
@@ -30,9 +46,14 @@ function ReportContent({ projectId }: { projectId: string }) {
     const raw = typeof window !== "undefined" ? window.localStorage.getItem("konti_auth") : null;
     let token: string | undefined;
     try { token = raw ? (JSON.parse(raw).token as string) : undefined; } catch { /* ignore */ }
-    fetch(`/api/projects/${projectId}/report-template`, { headers: token ? { Authorization: `Bearer ${token}` } : undefined })
+    const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
+    fetch(`/api/projects/${projectId}/report-template`, { headers })
       .then((r) => r.ok ? r.json() : null)
       .then((d) => { if (!cancel && d) setTemplate(d as ReportTemplate); })
+      .catch(() => undefined);
+    fetch(`/api/projects/${projectId}/contractor-estimate`, { headers })
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => { if (!cancel && d) setContractorEst(d as ContractorEstimate); })
       .catch(() => undefined);
     return () => { cancel = true; };
   }, [projectId]);
@@ -306,6 +327,42 @@ function ReportContent({ projectId }: { projectId: string }) {
                 <span className="text-white font-bold">{t("Final Total", "Total Final")}</span>
                 <span className="text-white text-xl font-bold">${costPlus.finalTotal.toLocaleString()}</span>
               </div>
+            </div>
+          </section>
+        )}
+
+        {/* Bill of Materials — uses uploaded template column order/headings when available */}
+        {contractorEst && contractorEst.lines.length > 0 && (
+          <section data-testid="report-bill-of-materials">
+            <h2 className="text-white/40 text-xs font-semibold uppercase tracking-widest mb-4">
+              {t("Bill of Materials", "Lista de Materiales")}
+              {template ? <span className="ml-2 text-konti-olive normal-case font-normal">· {template.name}</span> : null}
+            </h2>
+            <div className="bg-white/5 rounded-xl border border-white/10 overflow-hidden">
+              <table className="w-full text-sm" data-testid="report-bom-table">
+                <thead className="bg-white/5">
+                  <tr>
+                    {(template?.columns?.length ? template.columns : DEFAULT_REPORT_COLUMNS).map((col) => (
+                      <th key={col} className="text-left px-4 py-2 text-xs uppercase tracking-wider text-white/60" data-testid={`report-bom-col-${col.replace(/\s+/g, "-").toLowerCase()}`}>{col}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/10">
+                  {contractorEst.lines.map((line) => (
+                    <tr key={line.id}>
+                      {(template?.columns?.length ? template.columns : DEFAULT_REPORT_COLUMNS).map((col) => (
+                        <td key={col} className="px-4 py-2 text-white/80">{reportCellForColumn(col, line, lang)}</td>
+                      ))}
+                    </tr>
+                  ))}
+                  <tr className="bg-konti-olive/20">
+                    <td colSpan={(template?.columns?.length ? template.columns : DEFAULT_REPORT_COLUMNS).length - 1} className="px-4 py-3 text-right font-bold text-white">
+                      {t("Grand Total", "Total General")}
+                    </td>
+                    <td className="px-4 py-3 text-right font-bold text-konti-olive">${contractorEst.grandTotal.toLocaleString()}</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </section>
         )}
