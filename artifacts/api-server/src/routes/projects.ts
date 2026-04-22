@@ -35,6 +35,18 @@ const VALID_CHECKLIST_STATUS: ChecklistStatus[] = ["pending", "in_progress", "do
 const VALID_PROJECT_TYPES = ["residencial", "comercial", "mixto", "contenedor"] as const;
 const VALID_ZONING = /^[A-Z]{1,3}-[0-9]{1,2}$/;
 
+// Demo project ownership: maps client user ids to the projects they own.
+// The demo client account is associated with all three sample projects so
+// reviewers can exercise both the consultation gate and the in-flight project
+// views from a single login.
+const CLIENT_PROJECT_OWNERSHIP: Record<string, string[]> = {
+  "user-client-1": ["proj-1", "proj-2", "proj-3"],
+};
+
+function clientCanAccessProject(userId: string, projectId: string): boolean {
+  return (CLIENT_PROJECT_OWNERSHIP[userId] ?? []).includes(projectId);
+}
+
 router.get("/projects", (_req, res) => {
   return res.json(PROJECTS);
 });
@@ -304,6 +316,10 @@ router.post("/projects/:id/pdf", async (req, res) => {
 router.get("/projects/:id/pre-design", requireRole(["team", "client"]), (req, res) => {
   const project = PROJECTS.find((p) => p.id === req.params.id);
   if (!project) return res.status(404).json({ error: "not_found" });
+  const user = (req as { user?: { id: string; role: string } }).user;
+  if (user?.role === "client" && !clientCanAccessProject(user.id, project.id)) {
+    return res.status(403).json({ error: "forbidden", message: "Client cannot access this project" });
+  }
   return res.json({
     projectId: project.id,
     checklist: PRE_DESIGN_CHECKLISTS[project.id] ?? [],
@@ -336,7 +352,7 @@ router.post("/projects/:id/checklist-toggle", requireRole(["team", "admin", "sup
   return res.json({ projectId: project.id, item });
 });
 
-router.post("/projects/:id/structured-variables", requireRole(["team", "admin", "superadmin"]), (req, res) => {
+router.post("/projects/:id/structured-variables", requireRole(["admin", "superadmin"]), (req, res) => {
   const { squareMeters, zoningCode, projectType } = req.body ?? {};
   if (typeof squareMeters !== "number" || squareMeters <= 0 || squareMeters > 100000) {
     return res.status(400).json({ error: "invalid_square_meters" });
@@ -370,35 +386,95 @@ router.post("/projects/:id/structured-variables", requireRole(["team", "admin", 
   return res.json({ projectId: project.id, structuredVariables: vars, assistedBudgetRange: budget });
 });
 
-router.post("/projects/:id/advance-phase", requireRole(["team", "admin", "superadmin", "client"]), (req, res) => {
+router.post("/projects/:id/advance-phase", requireRole(["team", "client"]), (req, res) => {
   const project = PROJECTS.find((p) => p.id === req.params.id);
   if (!project) return res.status(404).json({ error: "not_found" });
   const idx = PHASE_ORDER.indexOf(project.phase);
   if (idx === -1 || idx >= PHASE_ORDER.length - 1) {
     return res.status(400).json({ error: "cannot_advance", message: "Project is already in final phase" });
   }
+  const user = (req as { user?: { id: string; name?: string; role?: string } }).user;
+  const isClient = user?.role === "client";
+
+  // Client gate: clients may only approve the consultation → pre_design transition
+  // and only on projects they own.
+  if (isClient) {
+    if (!user || !clientCanAccessProject(user.id, project.id)) {
+      return res.status(403).json({ error: "forbidden", message: "Client cannot advance this project" });
+    }
+    if (project.phase !== "consultation") {
+      return res.status(400).json({ error: "client_gate_invalid", message: "Clients may only approve the consultation gate" });
+    }
+  }
+
   const nextPhase = PHASE_ORDER[idx + 1];
   const labels = PHASE_LABELS[nextPhase];
-  // mutate (demo state)
   (project as { phase: typeof nextPhase }).phase = nextPhase;
   (project as { phaseLabel: string }).phaseLabel = labels.en;
   (project as { phaseLabelEs: string }).phaseLabelEs = labels.es;
   (project as { phaseNumber: number }).phaseNumber = idx + 2;
-  const actor = (req as { user?: { name?: string; role?: string } }).user;
+
+  const actor = user?.name ?? "Client";
   appendActivity(project.id, {
     type: "phase_change",
-    actor: actor?.name ?? "Client",
-    description: `Phase advanced to ${labels.en}${actor?.role === "client" ? " (client decision)" : ""}`,
-    descriptionEs: `Fase avanzada a ${labels.es}${actor?.role === "client" ? " (decisión del cliente)" : ""}`,
+    actor,
+    description: `Phase advanced to ${labels.en}${isClient ? " (client decision)" : ""}`,
+    descriptionEs: `Fase avanzada a ${labels.es}${isClient ? " (decisión del cliente)" : ""}`,
   });
+
+  // Simulate the automated comms that follow a client-approved consultation
+  if (isClient) {
+    appendActivity(project.id, {
+      type: "email_sent",
+      actor: "System",
+      description: "Pre-Design kickoff email sent to client and team",
+      descriptionEs: "Correo de inicio de Pre-Diseño enviado al cliente y al equipo",
+    });
+    appendActivity(project.id, {
+      type: "invoice_sent",
+      actor: "System",
+      description: "Pre-Design & Viability Study invoice issued",
+      descriptionEs: "Factura del Estudio de Pre-Diseño y Viabilidad emitida",
+    });
+  }
+
   return res.json({ project, advancedTo: nextPhase });
 });
 
-router.post("/projects/:id/gamma-report", requireRole(["team", "admin", "superadmin"]), (req, res) => {
+router.post("/projects/:id/decline-phase", requireRole(["client"]), (req, res) => {
+  const project = PROJECTS.find((p) => p.id === req.params.id);
+  if (!project) return res.status(404).json({ error: "not_found" });
+  const { reason } = req.body ?? {};
+  const user = (req as { user?: { id: string; name?: string } }).user;
+  if (!user || !clientCanAccessProject(user.id, project.id)) {
+    return res.status(403).json({ error: "forbidden", message: "Client cannot decline this project" });
+  }
+  if (project.phase !== "consultation") {
+    return res.status(400).json({ error: "client_gate_invalid", message: "Decline only available at the consultation gate" });
+  }
+  const note = typeof reason === "string" && reason.trim().length > 0 ? `: ${reason.trim().slice(0, 200)}` : "";
+  appendActivity(project.id, {
+    type: "phase_change",
+    actor: user.name ?? "Client",
+    description: `Client declined to advance to Pre-Design${note}`,
+    descriptionEs: `El cliente no aprobó avanzar a Pre-Diseño${note}`,
+  });
+  appendActivity(project.id, {
+    type: "email_sent",
+    actor: "System",
+    description: "Internal team notified of client decline",
+    descriptionEs: "Equipo interno notificado del rechazo del cliente",
+  });
+  return res.json({ project, declinedAt: new Date().toISOString() });
+});
+
+router.post("/projects/:id/gamma-report", requireRole(["team"]), (req, res) => {
   const project = PROJECTS.find((p) => p.id === req.params.id);
   if (!project) return res.status(404).json({ error: "not_found" });
   const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
   const reportId = `gamma-${project.id}-${Date.now()}`;
+  const url = `https://gamma.app/docs/konti-${project.id}-${reportId}`;
+  (project as { gammaReportUrl?: string }).gammaReportUrl = url;
   appendActivity(project.id, {
     type: "gamma_generated",
     actor: `${actor} via GAMMA`,
@@ -408,7 +484,8 @@ router.post("/projects/:id/gamma-report", requireRole(["team", "admin", "superad
   return res.json({
     projectId: project.id,
     reportId,
-    url: `/projects/${project.id}/report`,
+    gammaReportUrl: url,
+    url,
     generatedAt: new Date().toISOString(),
     generatedBy: "GAMMA",
     pages: 12,

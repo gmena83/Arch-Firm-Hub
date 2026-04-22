@@ -120,10 +120,13 @@ export function PreDesignPanel({
   const generateGamma = async () => {
     setBusyAction("gamma");
     try {
-      const res = await customFetch<{ url: string }>(`/api/projects/${projectId}/gamma-report`, { method: "POST" });
-      toast({ title: t("GAMMA report ready", "Reporte GAMMA listo"), description: t("Opening client-facing report.", "Abriendo reporte para el cliente.") });
+      // Simulated loading delay before opening the GAMMA presentation in a new tab.
+      const res = await customFetch<{ gammaReportUrl: string }>(`/api/projects/${projectId}/gamma-report`, { method: "POST" });
+      toast({ title: t("GAMMA report ready", "Reporte GAMMA listo"), description: t("Opening presentation in a new tab.", "Abriendo presentación en una pestaña nueva.") });
       await refresh();
-      setTimeout(() => { window.location.href = res.url; }, 800);
+      setTimeout(() => {
+        window.open(res.gammaReportUrl, "_blank", "noopener,noreferrer");
+      }, 600);
     } catch {
       toast({ title: t("GAMMA failed", "GAMMA falló"), variant: "destructive" });
     } finally {
@@ -135,10 +138,31 @@ export function PreDesignPanel({
     setBusyAction("advance");
     try {
       await customFetch(`/api/projects/${projectId}/advance-phase`, { method: "POST" });
-      toast({ title: t("Phase advanced", "Fase avanzada"), description: t("The project has moved to the next phase.", "El proyecto avanzó a la siguiente fase.") });
+      toast({ title: t("Pre-Design approved", "Pre-Diseño aprobado"), description: t("Kickoff email and invoice sent automatically.", "Correo de inicio y factura enviados automáticamente.") });
       window.location.reload();
     } catch {
       toast({ title: t("Could not advance phase", "No se pudo avanzar la fase"), variant: "destructive" });
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
+  const declinePhase = async () => {
+    const reason = window.prompt(
+      t("Optional: tell the team why you're not ready to advance.", "Opcional: dile al equipo por qué no quieres avanzar todavía.") ?? "",
+      "",
+    );
+    if (reason === null) return; // user cancelled
+    setBusyAction("decline");
+    try {
+      await customFetch(`/api/projects/${projectId}/decline-phase`, {
+        method: "POST",
+        body: JSON.stringify({ reason }),
+      });
+      toast({ title: t("Decision sent to team", "Decisión enviada al equipo"), description: t("KONTi will follow up with you.", "KONTi se pondrá en contacto contigo.") });
+      await refresh();
+    } catch {
+      toast({ title: t("Could not record decline", "No se pudo registrar el rechazo"), variant: "destructive" });
     } finally {
       setBusyAction(null);
     }
@@ -182,9 +206,11 @@ export function PreDesignPanel({
   const totalSteps = data.checklist.length;
   const doneSteps = data.checklist.filter((c) => c.status === "done").length;
   const checklistComplete = totalSteps > 0 && doneSteps === totalSteps;
-  const showChecklist = currentPhase === "consultation" || currentPhase === "discovery";
+  const showChecklist = currentPhase === "consultation" || currentPhase === "pre_design";
   const isTeam = !isClientView && user?.role !== "client";
+  const isAdmin = isTeam && (user?.role === "admin" || user?.role === "superadmin");
   const isClient = user?.role === "client";
+  const showClientDecision = isClient && currentPhase === "consultation";
 
   const projectTypeLabel = (pt: string) => {
     const map: Record<string, { en: string; es: string }> = {
@@ -267,7 +293,7 @@ export function PreDesignPanel({
       <div className="bg-card rounded-xl border border-card-border p-5 shadow-sm" data-testid="structured-vars-card">
         <div className="flex items-center justify-between mb-3">
           <h2 className="font-bold text-foreground">{t("Structured Variables & Assisted Budget", "Variables Estructuradas y Presupuesto Asistido")}</h2>
-          {isTeam && !showVarsForm && (
+          {isAdmin && !showVarsForm && (
             <button
               type="button"
               data-testid="btn-edit-vars"
@@ -353,29 +379,38 @@ export function PreDesignPanel({
         )}
       </div>
 
-      {/* Client decision card */}
-      {isClient && (currentPhase === "consultation" || currentPhase === "pre_design") && (
+      {/* Client decision card — consultation gate only */}
+      {showClientDecision && (
         <div className="bg-konti-olive/10 border-2 border-konti-olive rounded-xl p-5 shadow-sm" data-testid="client-decision-card">
           <div className="flex items-start gap-3">
             <ArrowRight className="w-6 h-6 text-konti-olive shrink-0 mt-0.5" />
             <div className="flex-1">
               <h3 className="font-bold text-foreground mb-1">
-                {t("Ready to advance?", "¿Listo para avanzar?")}
+                {t("Ready to start Pre-Design & Viability?", "¿Listo para iniciar Pre-Diseño y Viabilidad?")}
               </h3>
               <p className="text-sm text-muted-foreground mb-3">
-                {currentPhase === "consultation"
-                  ? t("Review the consultation summary and approve to move into Pre-Design & Viability.", "Revisa el resumen de la consulta y aprueba para entrar en Pre-Diseño y Viabilidad.")
-                  : t("Approve the viability study to begin the Design phase.", "Aprueba el estudio de viabilidad para iniciar la fase de Diseño.")}
+                {t("Review the consultation summary. Approving moves the project into Pre-Design and triggers the kickoff email + invoice. You can decline to keep talking with the team.", "Revisa el resumen de la consulta. Al aprobar, el proyecto pasa a Pre-Diseño y se envían el correo de inicio y la factura. Puedes rechazar para seguir conversando con el equipo.")}
               </p>
-              <button
-                type="button"
-                data-testid="btn-client-advance"
-                onClick={advancePhase}
-                disabled={busyAction === "advance"}
-                className="px-4 py-2 rounded-md bg-konti-olive text-white text-sm font-semibold hover:bg-konti-olive/90 disabled:opacity-50"
-              >
-                {busyAction === "advance" ? <Loader2 className="w-4 h-4 animate-spin" /> : t("Approve & Advance", "Aprobar y Avanzar")}
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  data-testid="btn-client-advance"
+                  onClick={advancePhase}
+                  disabled={busyAction === "advance" || busyAction === "decline"}
+                  className="px-4 py-2 rounded-md bg-konti-olive text-white text-sm font-semibold hover:bg-konti-olive/90 disabled:opacity-50"
+                >
+                  {busyAction === "advance" ? <Loader2 className="w-4 h-4 animate-spin" /> : t("Approve & Advance", "Aprobar y Avanzar")}
+                </button>
+                <button
+                  type="button"
+                  data-testid="btn-client-decline"
+                  onClick={declinePhase}
+                  disabled={busyAction === "advance" || busyAction === "decline"}
+                  className="px-4 py-2 rounded-md border border-konti-olive text-konti-olive text-sm font-semibold hover:bg-konti-olive/10 disabled:opacity-50"
+                >
+                  {busyAction === "decline" ? <Loader2 className="w-4 h-4 animate-spin" /> : t("Decline", "Rechazar")}
+                </button>
+              </div>
             </div>
           </div>
         </div>
