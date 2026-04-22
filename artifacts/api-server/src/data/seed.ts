@@ -1059,7 +1059,7 @@ export interface PreDesignChecklistItem {
 export interface ProjectActivity {
   id: string;
   timestamp: string;
-  type: "phase_change" | "checklist_toggle" | "gamma_generated" | "email_sent" | "invoice_sent" | "weekly_report" | "structured_variables" | "proposal_decision" | "change_order_created" | "change_order_decision" | "sub_phase_advanced" | "permit_authorization" | "permit_signature" | "permit_submitted" | "permit_state_change" | "inspection_scheduled" | "inspection_status_change" | "inspection_report_sent" | "milestone_status_change";
+  type: "phase_change" | "checklist_toggle" | "gamma_generated" | "email_sent" | "invoice_sent" | "weekly_report" | "structured_variables" | "proposal_decision" | "change_order_created" | "change_order_decision" | "sub_phase_advanced" | "permit_authorization" | "permit_signature" | "permit_submitted" | "permit_state_change" | "inspection_scheduled" | "inspection_status_change" | "inspection_report_sent" | "milestone_status_change" | "receipts_upload" | "report_template_upload" | "contractor_estimate";
   actor: string;
   description: string;
   descriptionEs: string;

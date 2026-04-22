@@ -3,7 +3,8 @@ import { useListMaterials } from "@workspace/api-client-react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { RequireAuth } from "@/hooks/use-auth";
 import { useLang } from "@/hooks/use-lang";
-import { Search, Package, RefreshCw, CheckCircle, AlertCircle } from "lucide-react";
+import { Search, Package, RefreshCw, CheckCircle, AlertCircle, Upload } from "lucide-react";
+import { Link } from "wouter";
 
 const CATEGORIES = [
   { key: "all", label: "All", labelEs: "Todos" },
@@ -110,6 +111,15 @@ export default function MaterialsPage() {
               </p>
             </div>
 
+            <div className="flex items-center gap-2 shrink-0">
+            <Link
+              href="/calculator"
+              data-testid="btn-import-materials"
+              className="flex items-center gap-2 px-4 py-2 bg-card hover:bg-muted text-foreground border border-card-border text-sm font-semibold rounded-md transition-colors"
+            >
+              <Upload className="w-4 h-4" />
+              {t("Import CSV", "Importar CSV")}
+            </Link>
             <button
               onClick={handleRefreshPrices}
               disabled={isRefreshing}
@@ -121,6 +131,7 @@ export default function MaterialsPage() {
                 ? t("Refreshing...", "Actualizando...")
                 : t("Refresh Prices", "Actualizar Precios")}
             </button>
+            </div>
           </div>
 
           {refreshError && (
