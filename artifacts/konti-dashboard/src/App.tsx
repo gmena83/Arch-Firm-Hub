@@ -16,6 +16,8 @@ import AiAssistantPage from "@/pages/ai-assistant";
 import SettingsPage from "@/pages/settings";
 import TeamPage from "@/pages/team";
 import PermitsPage from "@/pages/permits";
+import IntakePage from "@/pages/intake";
+import LeadsPage from "@/pages/leads";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -43,6 +45,8 @@ function Router() {
       <Route path="/settings" component={SettingsPage} />
       <Route path="/team" component={TeamPage} />
       <Route path="/permits" component={PermitsPage} />
+      <Route path="/intake" component={IntakePage} />
+      <Route path="/leads" component={LeadsPage} />
       <Route component={NotFound} />
     </Switch>
   );

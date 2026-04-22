@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import { useLogin } from "@workspace/api-client-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useLang } from "@/hooks/use-lang";
@@ -170,6 +170,19 @@ export default function LoginPage() {
                 </p>
                 <p className="text-xs text-muted-foreground/60">{t("Password: konti2026", "Contraseña: konti2026")}</p>
               </div>
+            </div>
+
+            <div className="mt-6 pt-6 border-t border-border text-center">
+              <p className="text-xs text-muted-foreground mb-2">
+                {t("New to KONTi?", "¿Nuevo en KONTi?")}
+              </p>
+              <Link
+                href="/intake"
+                data-testid="link-intake"
+                className="inline-flex items-center gap-1.5 text-sm font-semibold text-konti-olive hover:underline"
+              >
+                {t("Start a project →", "Iniciar un proyecto →")}
+              </Link>
             </div>
           </div>
         </div>

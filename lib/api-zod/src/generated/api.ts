@@ -334,6 +334,139 @@ export const GetRecentActivityResponse = zod.array(
 );
 
 /**
+ * @summary List all leads (sorted by score desc)
+ */
+export const ListLeadsResponseItem = zod.object({
+  id: zod.string(),
+  source: zod.enum(["website", "social", "referral", "media", "events"]),
+  projectType: zod.enum(["residencial", "comercial", "mixto", "contenedor"]),
+  location: zod.string(),
+  budgetRange: zod.enum([
+    "under_150k",
+    "150k_300k",
+    "300k_500k",
+    "500k_1m",
+    "over_1m",
+  ]),
+  terrainStatus: zod.enum(["no_terrain", "with_terrain", "with_plans"]),
+  contactName: zod.string(),
+  email: zod.string(),
+  phone: zod.string(),
+  notes: zod.string().optional(),
+  createdAt: zod.string(),
+  score: zod.number(),
+  status: zod.enum(["new", "contacted", "accepted", "rejected"]),
+  booking: zod
+    .object({
+      type: zod.enum(["consultation_30min", "weekly_seminar"]),
+      slot: zod.string(),
+      label: zod.string(),
+    })
+    .optional(),
+  asanaGid: zod.string().optional(),
+});
+export const ListLeadsResponse = zod.array(ListLeadsResponseItem);
+
+/**
+ * @summary Submit a new public lead from the intake form
+ */
+export const CreateLeadBody = zod.object({
+  source: zod.enum(["website", "social", "referral", "media", "events"]),
+  projectType: zod.enum(["residencial", "comercial", "mixto", "contenedor"]),
+  location: zod.string(),
+  budgetRange: zod.enum([
+    "under_150k",
+    "150k_300k",
+    "300k_500k",
+    "500k_1m",
+    "over_1m",
+  ]),
+  terrainStatus: zod.enum(["no_terrain", "with_terrain", "with_plans"]),
+  contactName: zod.string(),
+  email: zod.string(),
+  phone: zod.string(),
+  notes: zod.string().optional(),
+  booking: zod
+    .object({
+      type: zod.enum(["consultation_30min", "weekly_seminar"]),
+      slot: zod.string(),
+      label: zod.string(),
+    })
+    .optional(),
+});
+
+/**
+ * @summary Accept a lead and create a Discovery-phase project
+ */
+export const AcceptLeadParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const AcceptLeadResponse = zod.object({
+  lead: zod.object({
+    id: zod.string(),
+    source: zod.enum(["website", "social", "referral", "media", "events"]),
+    projectType: zod.enum(["residencial", "comercial", "mixto", "contenedor"]),
+    location: zod.string(),
+    budgetRange: zod.enum([
+      "under_150k",
+      "150k_300k",
+      "300k_500k",
+      "500k_1m",
+      "over_1m",
+    ]),
+    terrainStatus: zod.enum(["no_terrain", "with_terrain", "with_plans"]),
+    contactName: zod.string(),
+    email: zod.string(),
+    phone: zod.string(),
+    notes: zod.string().optional(),
+    createdAt: zod.string(),
+    score: zod.number(),
+    status: zod.enum(["new", "contacted", "accepted", "rejected"]),
+    booking: zod
+      .object({
+        type: zod.enum(["consultation_30min", "weekly_seminar"]),
+        slot: zod.string(),
+        label: zod.string(),
+      })
+      .optional(),
+    asanaGid: zod.string().optional(),
+  }),
+  project: zod.object({
+    id: zod.string(),
+    name: zod.string(),
+    nameEs: zod.string().optional(),
+    clientName: zod.string(),
+    location: zod.string(),
+    city: zod.string(),
+    phase: zod.enum([
+      "discovery",
+      "pre_design",
+      "design",
+      "permits",
+      "construction",
+      "completed",
+    ]),
+    phaseLabel: zod.string(),
+    phaseLabelEs: zod.string(),
+    phaseNumber: zod.number(),
+    progressPercent: zod.number(),
+    budgetAllocated: zod.number(),
+    budgetUsed: zod.number(),
+    startDate: zod.string(),
+    estimatedEndDate: zod.string(),
+    description: zod.string().optional(),
+    coverImage: zod.string().optional(),
+    asanaGid: zod.string().optional(),
+    gammaReportUrl: zod.string().optional(),
+    teamMembers: zod.array(zod.string()).optional(),
+    status: zod.enum(["active", "on_hold", "completed"]),
+  }),
+  asanaGid: zod.string(),
+  asanaMessage: zod.string(),
+});
+
+/**
  * @summary Send a message to the AI assistant
  */
 export const SendChatMessageBody = zod.object({
