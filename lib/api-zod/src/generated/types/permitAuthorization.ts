@@ -11,5 +11,7 @@ export interface PermitAuthorization {
   status: PermitAuthorizationStatus;
   authorizedBy?: string;
   authorizedAt?: string;
+  /** Captured (or mocked) IP address of the authorizing client for audit */
+  authorizedIpMock?: string;
   summaryAccepted: boolean;
 }

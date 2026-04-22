@@ -22,6 +22,7 @@ interface Authorization {
   status: AuthStatus;
   authorizedBy?: string;
   authorizedAt?: string;
+  authorizedIpMock?: string;
   summaryAccepted: boolean;
 }
 interface Signature {
@@ -242,10 +243,17 @@ export default function PermitsPanel({ projectId, projectPhase, onProjectUpdated
               )}
             </p>
             {authorization.status === "authorized" ? (
-              <div className="mt-2 inline-flex items-center gap-2 px-3 py-1 text-xs rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
-                <CheckCircle2 className="w-3 h-3" />
-                {t("Authorized by", "Autorizado por")} {authorization.authorizedBy}
-                {authorization.authorizedAt && ` · ${new Date(authorization.authorizedAt).toLocaleDateString()}`}
+              <div className="mt-2 space-y-1">
+                <div className="inline-flex items-center gap-2 px-3 py-1 text-xs rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+                  <CheckCircle2 className="w-3 h-3" />
+                  {t("Authorized by", "Autorizado por")} {authorization.authorizedBy}
+                  {authorization.authorizedAt && ` · ${new Date(authorization.authorizedAt).toLocaleString()}`}
+                </div>
+                {authorization.authorizedIpMock && (
+                  <div className="text-[11px] text-slate-500 font-mono">
+                    {t("IP", "IP")}: {authorization.authorizedIpMock}
+                  </div>
+                )}
               </div>
             ) : isClient && inPermitsPhase ? (
               <button

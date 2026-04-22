@@ -1591,6 +1591,9 @@ components:
           enum: [none, authorized]
         authorizedBy: { type: string }
         authorizedAt: { type: string }
+        authorizedIpMock:
+          type: string
+          description: Captured (or mocked) IP address of the authorizing client for audit
         summaryAccepted: { type: boolean }
       required: [status, summaryAccepted]
 

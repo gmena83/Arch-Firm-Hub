@@ -1478,6 +1478,7 @@ export interface PermitAuthorization {
   status: PermitAuthorizationStatus;
   authorizedBy?: string;
   authorizedAt?: string;
+  authorizedIpMock?: string;
   summaryAccepted: boolean;
 }
 
@@ -1535,8 +1536,8 @@ const permitItemsTemplate = (defaults: { state: PermitItemState; lastUpdatedAt?:
 
 export const PROJECT_PERMIT_AUTHORIZATIONS: Record<string, PermitAuthorization> = {
   "proj-1": { status: "none", summaryAccepted: false },
-  "proj-2": { status: "authorized", authorizedBy: "Andrés Martínez", authorizedAt: "2025-09-15T10:00:00Z", summaryAccepted: true },
-  "proj-3": { status: "authorized", authorizedBy: "Sofia Marrero", authorizedAt: "2025-04-20T10:00:00Z", summaryAccepted: true },
+  "proj-2": { status: "authorized", authorizedBy: "Andrés Martínez", authorizedAt: "2025-09-15T10:00:00Z", authorizedIpMock: "73.144.22.108", summaryAccepted: true },
+  "proj-3": { status: "authorized", authorizedBy: "Sofia Marrero", authorizedAt: "2025-04-20T10:00:00Z", authorizedIpMock: "70.45.180.221", summaryAccepted: true },
 };
 
 export const PROJECT_REQUIRED_SIGNATURES: Record<string, RequiredSignature[]> = {
