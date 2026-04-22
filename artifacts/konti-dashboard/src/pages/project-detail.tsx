@@ -872,7 +872,9 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
           <ProposalsPanel projectId={projectId} isClientView={isClientView} currentPhase={project.phase} />
 
           {/* Design sub-phases (Design phase onward) */}
-          <DesignPanel projectId={projectId} isClientView={isClientView} currentPhase={project.phase} />
+          <div id="design">
+            <DesignPanel projectId={projectId} isClientView={isClientView} currentPhase={project.phase} />
+          </div>
 
           {/* Change Orders (Design phase onward, or anytime there are existing COs) */}
           <div id="change-orders">
