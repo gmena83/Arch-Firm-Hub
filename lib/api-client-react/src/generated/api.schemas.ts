@@ -492,6 +492,7 @@ export interface Deliverable {
   id: string;
   label: string;
   labelEs: string;
+  owner?: string;
   status: DeliverableStatus;
   completedAt?: string;
 }
@@ -578,7 +579,7 @@ export interface Proposal {
   summary?: string;
   summaryEs?: string;
   totalCost: number;
-  timelineWeeks?: number;
+  durationWeeks?: number;
   highlights?: string[];
   highlightsEs?: string[];
   status: ProposalStatus;

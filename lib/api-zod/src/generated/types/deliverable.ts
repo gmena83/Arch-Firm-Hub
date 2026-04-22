@@ -11,6 +11,7 @@ export interface Deliverable {
   id: string;
   label: string;
   labelEs: string;
+  owner?: string;
   status: DeliverableStatus;
   completedAt?: string;
 }
