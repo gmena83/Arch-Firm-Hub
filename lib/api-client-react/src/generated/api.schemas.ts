@@ -689,7 +689,7 @@ export type CreateChangeOrderBody = {
   outsideOfScope?: boolean;
 };
 
-export type CreateChangeOrder200 = {
+export type CreateChangeOrder201 = {
   projectId?: string;
   changeOrder?: ChangeOrder;
 };

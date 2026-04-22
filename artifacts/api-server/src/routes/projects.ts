@@ -633,6 +633,14 @@ router.post("/projects/:id/proposals/:proposalId/approve", requireRole(["client"
   if (list.some((p) => p.status === "approved")) {
     return res.status(400).json({ error: "already_approved", message: "A proposal has already been approved for this project" });
   }
+  // Phase gate: only approvable while the project is still in pre-design or schematic design (i.e. before permits)
+  const allowedPhases = ["pre_design", "schematic_design"];
+  if (!allowedPhases.includes(project.phase)) {
+    return res.status(400).json({
+      error: "invalid_phase",
+      message: `Proposal approval is only allowed during ${allowedPhases.join(" or ")} (current: ${project.phase})`,
+    });
+  }
   const now = new Date().toISOString();
   for (const p of list) {
     if (p.id === target.id) {

@@ -7,7 +7,7 @@
  */
 import type { ChangeOrder } from "./changeOrder";
 
-export type CreateChangeOrder200 = {
+export type CreateChangeOrder201 = {
   projectId?: string;
   changeOrder?: ChangeOrder;
 };
