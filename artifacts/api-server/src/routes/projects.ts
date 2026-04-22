@@ -23,6 +23,15 @@ import {
   PROJECT_REQUIRED_SIGNATURES,
   PROJECT_PERMIT_ITEMS,
   PERMIT_ITEM_STATE_ORDER,
+  PROJECT_COST_PLUS,
+  PROJECT_INSPECTIONS,
+  STRUCTURAL_ENGINEERS,
+  PROJECT_MILESTONES,
+  type Inspection,
+  type InspectionType,
+  type InspectionStatus,
+  type Milestone,
+  type MilestoneStatus,
   type ChecklistStatus,
   type DesignSubPhase,
   type DesignDeliverableStatus,
@@ -1022,6 +1031,166 @@ router.post("/projects/:id/permit-items/:itemId/state", requireRole(["admin", "a
     advanced = true;
   }
   return res.json({ projectId: project.id, permitItem: item, project, advancedToConstruction: advanced });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 5 — Construction: Cost-Plus, Inspections, Milestones, Engineers
+// ---------------------------------------------------------------------------
+
+const VALID_INSPECTION_TYPES: InspectionType[] = ["foundation", "framing", "electrical", "plumbing", "final"];
+const VALID_INSPECTION_STATUS: InspectionStatus[] = ["scheduled", "passed", "failed", "re_inspect"];
+const VALID_MILESTONE_STATUS: MilestoneStatus[] = ["completed", "in_progress", "upcoming"];
+
+router.get("/structural-engineers", requireRole(["admin", "architect", "superadmin"]), (_req, res) => {
+  res.json(STRUCTURAL_ENGINEERS);
+});
+
+router.get("/projects/:id/cost-plus", (req, res) => {
+  const project = PROJECTS.find((p) => p.id === req.params["id"]);
+  if (!project) return res.status(404).json({ error: "not_found", message: "Project not found" });
+  const cp = PROJECT_COST_PLUS[project.id];
+  if (!cp) return res.status(404).json({ error: "not_found", message: "Cost-plus budget not configured" });
+  return res.json(cp);
+});
+
+router.get("/projects/:id/inspections", (req, res) => {
+  const project = PROJECTS.find((p) => p.id === req.params["id"]);
+  if (!project) return res.status(404).json({ error: "not_found", message: "Project not found" });
+  const list = PROJECT_INSPECTIONS[project.id] ?? [];
+  return res.json({ projectId: project.id, inspections: list });
+});
+
+router.post("/projects/:id/inspections", requireRole(["admin", "architect", "superadmin"]), (req, res) => {
+  const project = PROJECTS.find((p) => p.id === req.params["id"]);
+  if (!project) return res.status(404).json({ error: "not_found", message: "Project not found" });
+  const body = (req.body ?? {}) as Partial<Inspection>;
+  if (!body.type || !VALID_INSPECTION_TYPES.includes(body.type)) {
+    return res.status(400).json({ error: "validation", message: "type required" });
+  }
+  if (!body.title || !body.titleEs || !body.inspector || !body.scheduledDate) {
+    return res.status(400).json({ error: "validation", message: "title, titleEs, inspector, scheduledDate required" });
+  }
+  const status: InspectionStatus = body.status && VALID_INSPECTION_STATUS.includes(body.status) ? body.status : "scheduled";
+  const list = PROJECT_INSPECTIONS[project.id] ?? (PROJECT_INSPECTIONS[project.id] = []);
+  const inspection: Inspection = {
+    id: `ins-${project.id}-${Date.now()}`,
+    projectId: project.id,
+    type: body.type,
+    title: body.title,
+    titleEs: body.titleEs,
+    inspector: body.inspector,
+    scheduledDate: body.scheduledDate,
+    status,
+    ...(body.completedDate ? { completedDate: body.completedDate } : {}),
+    ...(body.notes ? { notes: body.notes } : {}),
+    ...(body.notesEs ? { notesEs: body.notesEs } : {}),
+  };
+  list.push(inspection);
+  const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
+  appendActivity(project.id, {
+    type: "inspection_scheduled",
+    actor,
+    description: `Inspection scheduled: ${inspection.title} (${inspection.scheduledDate})`,
+    descriptionEs: `Inspección programada: ${inspection.titleEs} (${inspection.scheduledDate})`,
+  });
+  return res.status(201).json({ projectId: project.id, inspection });
+});
+
+router.patch("/projects/:id/inspections/:insId", requireRole(["admin", "architect", "superadmin"]), (req, res) => {
+  const project = PROJECTS.find((p) => p.id === req.params["id"]);
+  if (!project) return res.status(404).json({ error: "not_found", message: "Project not found" });
+  const list = PROJECT_INSPECTIONS[project.id] ?? [];
+  const insp = list.find((i) => i.id === req.params["insId"]);
+  if (!insp) return res.status(404).json({ error: "not_found", message: "Inspection not found" });
+  const body = (req.body ?? {}) as Partial<Inspection>;
+  const prevStatus = insp.status;
+  if (body.status !== undefined) {
+    if (!VALID_INSPECTION_STATUS.includes(body.status)) {
+      return res.status(400).json({ error: "validation", message: "invalid status" });
+    }
+    insp.status = body.status;
+    if ((body.status === "passed" || body.status === "failed") && !insp.completedDate) {
+      insp.completedDate = body.completedDate ?? new Date().toISOString().slice(0, 10);
+    }
+  }
+  if (body.scheduledDate !== undefined) insp.scheduledDate = body.scheduledDate;
+  if (body.completedDate !== undefined) insp.completedDate = body.completedDate;
+  if (body.inspector !== undefined) insp.inspector = body.inspector;
+  if (body.notes !== undefined) insp.notes = body.notes;
+  if (body.notesEs !== undefined) insp.notesEs = body.notesEs;
+  if (body.title !== undefined) insp.title = body.title;
+  if (body.titleEs !== undefined) insp.titleEs = body.titleEs;
+  const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
+  if (body.status !== undefined && body.status !== prevStatus) {
+    appendActivity(project.id, {
+      type: "inspection_status_change",
+      actor,
+      description: `${insp.title}: ${prevStatus} → ${insp.status}`,
+      descriptionEs: `${insp.titleEs}: ${prevStatus} → ${insp.status}`,
+    });
+  }
+  return res.json({ projectId: project.id, inspection: insp });
+});
+
+router.post("/projects/:id/inspections/:insId/send-report", requireRole(["admin", "architect", "superadmin"]), (req, res) => {
+  const project = PROJECTS.find((p) => p.id === req.params["id"]);
+  if (!project) return res.status(404).json({ error: "not_found", message: "Project not found" });
+  const list = PROJECT_INSPECTIONS[project.id] ?? [];
+  const insp = list.find((i) => i.id === req.params["insId"]);
+  if (!insp) return res.status(404).json({ error: "not_found", message: "Inspection not found" });
+  if (insp.status !== "passed" && insp.status !== "failed" && insp.status !== "re_inspect") {
+    return res.status(400).json({ error: "validation", message: "Report can only be sent for completed inspections" });
+  }
+  const body = (req.body ?? {}) as { engineerId?: string; note?: string };
+  const engineer = STRUCTURAL_ENGINEERS.find((e) => e.id === body.engineerId);
+  if (!engineer) return res.status(400).json({ error: "validation", message: "engineerId required" });
+  insp.reportSentTo = engineer.id;
+  insp.reportSentToName = engineer.name;
+  insp.reportSentAt = new Date().toISOString();
+  if (body.note) insp.reportSentNote = body.note;
+  const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
+  appendActivity(project.id, {
+    type: "inspection_report_sent",
+    actor,
+    description: `${insp.title} report sent to ${engineer.name} (${engineer.firm})`,
+    descriptionEs: `Reporte de ${insp.titleEs} enviado a ${engineer.name} (${engineer.firm})`,
+  });
+  return res.json({ projectId: project.id, inspection: insp });
+});
+
+router.get("/projects/:id/milestones", (req, res) => {
+  const project = PROJECTS.find((p) => p.id === req.params["id"]);
+  if (!project) return res.status(404).json({ error: "not_found", message: "Project not found" });
+  const list = PROJECT_MILESTONES[project.id] ?? [];
+  return res.json({ projectId: project.id, milestones: list });
+});
+
+router.patch("/projects/:id/milestones/:milestoneId", requireRole(["admin", "architect", "superadmin"]), (req, res) => {
+  const project = PROJECTS.find((p) => p.id === req.params["id"]);
+  if (!project) return res.status(404).json({ error: "not_found", message: "Project not found" });
+  const list = PROJECT_MILESTONES[project.id] ?? [];
+  const m = list.find((x) => x.id === req.params["milestoneId"]);
+  if (!m) return res.status(404).json({ error: "not_found", message: "Milestone not found" });
+  const body = (req.body ?? {}) as Partial<Milestone>;
+  const prev = m.status;
+  if (body.status !== undefined) {
+    if (!VALID_MILESTONE_STATUS.includes(body.status)) {
+      return res.status(400).json({ error: "validation", message: "invalid status" });
+    }
+    m.status = body.status;
+  }
+  if (body.startDate !== undefined) m.startDate = body.startDate;
+  if (body.endDate !== undefined) m.endDate = body.endDate;
+  const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
+  if (body.status !== undefined && body.status !== prev) {
+    appendActivity(project.id, {
+      type: "milestone_status_change",
+      actor,
+      description: `Milestone ${m.title}: ${prev} → ${m.status}`,
+      descriptionEs: `Hito ${m.titleEs}: ${prev} → ${m.status}`,
+    });
+  }
+  return res.json({ projectId: project.id, milestone: m });
 });
 
 export default router;

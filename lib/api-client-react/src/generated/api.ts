@@ -25,8 +25,11 @@ import type {
   ChangeOrderResponse,
   ChatRequest,
   ChatResponse,
+  CostPlusBudget,
   CreateChangeOrder201,
   CreateChangeOrderBody,
+  CreateInspection201,
+  CreateInspectionBody,
   DashboardSummary,
   DesignStateResponse,
   Document,
@@ -34,6 +37,7 @@ import type {
   GetProjectDocumentsParams,
   GetProjectProposals200,
   HealthStatus,
+  InspectionsResponse,
   Lead,
   LeadAcceptResponse,
   LeadCreateRequest,
@@ -42,20 +46,28 @@ import type {
   LoginResponse,
   Material,
   MaterialPriceRefreshResponse,
+  MilestonesResponse,
   PermitsResponse,
   Project,
   ProjectTask,
   RefreshMaterialPricesParams,
+  SendInspectionReport200,
+  SendInspectionReportBody,
   SetChangeOrderStatus200,
   SetChangeOrderStatusBody,
   SetPermitItemState200,
   SetPermitItemStateBody,
   SignPermitForm200,
   SignPermitFormBody,
+  StructuralEngineer,
   SubmitPermitsToOgpe200,
   UpdateChangeOrder200,
   UpdateChangeOrderBody,
   UpdateDesignDeliverableBody,
+  UpdateInspection200,
+  UpdateInspectionBody,
+  UpdateMilestone200,
+  UpdateMilestoneBody,
   WeatherStatus,
 } from "./api.schemas";
 
@@ -1688,6 +1700,703 @@ export const useSetChangeOrderStatus = <
   TContext
 > => {
   return useMutation(getSetChangeOrderStatusMutationOptions(options));
+};
+
+/**
+ * @summary List structural engineers (directory)
+ */
+export const getListStructuralEngineersUrl = () => {
+  return `/api/structural-engineers`;
+};
+
+export const listStructuralEngineers = async (
+  options?: RequestInit,
+): Promise<StructuralEngineer[]> => {
+  return customFetch<StructuralEngineer[]>(getListStructuralEngineersUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListStructuralEngineersQueryKey = () => {
+  return [`/api/structural-engineers`] as const;
+};
+
+export const getListStructuralEngineersQueryOptions = <
+  TData = Awaited<ReturnType<typeof listStructuralEngineers>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listStructuralEngineers>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListStructuralEngineersQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listStructuralEngineers>>
+  > = ({ signal }) => listStructuralEngineers({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listStructuralEngineers>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListStructuralEngineersQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listStructuralEngineers>>
+>;
+export type ListStructuralEngineersQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List structural engineers (directory)
+ */
+
+export function useListStructuralEngineers<
+  TData = Awaited<ReturnType<typeof listStructuralEngineers>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listStructuralEngineers>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListStructuralEngineersQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get the Cost-Plus budget breakdown for a project
+ */
+export const getGetProjectCostPlusUrl = (id: string) => {
+  return `/api/projects/${id}/cost-plus`;
+};
+
+export const getProjectCostPlus = async (
+  id: string,
+  options?: RequestInit,
+): Promise<CostPlusBudget> => {
+  return customFetch<CostPlusBudget>(getGetProjectCostPlusUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetProjectCostPlusQueryKey = (id: string) => {
+  return [`/api/projects/${id}/cost-plus`] as const;
+};
+
+export const getGetProjectCostPlusQueryOptions = <
+  TData = Awaited<ReturnType<typeof getProjectCostPlus>>,
+  TError = ErrorType<void>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getProjectCostPlus>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetProjectCostPlusQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getProjectCostPlus>>
+  > = ({ signal }) => getProjectCostPlus(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getProjectCostPlus>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetProjectCostPlusQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getProjectCostPlus>>
+>;
+export type GetProjectCostPlusQueryError = ErrorType<void>;
+
+/**
+ * @summary Get the Cost-Plus budget breakdown for a project
+ */
+
+export function useGetProjectCostPlus<
+  TData = Awaited<ReturnType<typeof getProjectCostPlus>>,
+  TError = ErrorType<void>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getProjectCostPlus>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetProjectCostPlusQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List inspections for a project
+ */
+export const getGetProjectInspectionsUrl = (id: string) => {
+  return `/api/projects/${id}/inspections`;
+};
+
+export const getProjectInspections = async (
+  id: string,
+  options?: RequestInit,
+): Promise<InspectionsResponse> => {
+  return customFetch<InspectionsResponse>(getGetProjectInspectionsUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetProjectInspectionsQueryKey = (id: string) => {
+  return [`/api/projects/${id}/inspections`] as const;
+};
+
+export const getGetProjectInspectionsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getProjectInspections>>,
+  TError = ErrorType<unknown>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getProjectInspections>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetProjectInspectionsQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getProjectInspections>>
+  > = ({ signal }) => getProjectInspections(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getProjectInspections>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetProjectInspectionsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getProjectInspections>>
+>;
+export type GetProjectInspectionsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List inspections for a project
+ */
+
+export function useGetProjectInspections<
+  TData = Awaited<ReturnType<typeof getProjectInspections>>,
+  TError = ErrorType<unknown>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getProjectInspections>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetProjectInspectionsQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Schedule a new inspection (admin/architect)
+ */
+export const getCreateInspectionUrl = (id: string) => {
+  return `/api/projects/${id}/inspections`;
+};
+
+export const createInspection = async (
+  id: string,
+  createInspectionBody: CreateInspectionBody,
+  options?: RequestInit,
+): Promise<CreateInspection201> => {
+  return customFetch<CreateInspection201>(getCreateInspectionUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createInspectionBody),
+  });
+};
+
+export const getCreateInspectionMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createInspection>>,
+    TError,
+    { id: string; data: BodyType<CreateInspectionBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createInspection>>,
+  TError,
+  { id: string; data: BodyType<CreateInspectionBody> },
+  TContext
+> => {
+  const mutationKey = ["createInspection"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createInspection>>,
+    { id: string; data: BodyType<CreateInspectionBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return createInspection(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateInspectionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createInspection>>
+>;
+export type CreateInspectionMutationBody = BodyType<CreateInspectionBody>;
+export type CreateInspectionMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Schedule a new inspection (admin/architect)
+ */
+export const useCreateInspection = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createInspection>>,
+    TError,
+    { id: string; data: BodyType<CreateInspectionBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createInspection>>,
+  TError,
+  { id: string; data: BodyType<CreateInspectionBody> },
+  TContext
+> => {
+  return useMutation(getCreateInspectionMutationOptions(options));
+};
+
+/**
+ * @summary Update an inspection (admin/architect)
+ */
+export const getUpdateInspectionUrl = (id: string, insId: string) => {
+  return `/api/projects/${id}/inspections/${insId}`;
+};
+
+export const updateInspection = async (
+  id: string,
+  insId: string,
+  updateInspectionBody: UpdateInspectionBody,
+  options?: RequestInit,
+): Promise<UpdateInspection200> => {
+  return customFetch<UpdateInspection200>(getUpdateInspectionUrl(id, insId), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateInspectionBody),
+  });
+};
+
+export const getUpdateInspectionMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateInspection>>,
+    TError,
+    { id: string; insId: string; data: BodyType<UpdateInspectionBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateInspection>>,
+  TError,
+  { id: string; insId: string; data: BodyType<UpdateInspectionBody> },
+  TContext
+> => {
+  const mutationKey = ["updateInspection"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateInspection>>,
+    { id: string; insId: string; data: BodyType<UpdateInspectionBody> }
+  > = (props) => {
+    const { id, insId, data } = props ?? {};
+
+    return updateInspection(id, insId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateInspectionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateInspection>>
+>;
+export type UpdateInspectionMutationBody = BodyType<UpdateInspectionBody>;
+export type UpdateInspectionMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Update an inspection (admin/architect)
+ */
+export const useUpdateInspection = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateInspection>>,
+    TError,
+    { id: string; insId: string; data: BodyType<UpdateInspectionBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateInspection>>,
+  TError,
+  { id: string; insId: string; data: BodyType<UpdateInspectionBody> },
+  TContext
+> => {
+  return useMutation(getUpdateInspectionMutationOptions(options));
+};
+
+/**
+ * @summary Send the inspection report to a structural engineer (admin/architect)
+ */
+export const getSendInspectionReportUrl = (id: string, insId: string) => {
+  return `/api/projects/${id}/inspections/${insId}/send-report`;
+};
+
+export const sendInspectionReport = async (
+  id: string,
+  insId: string,
+  sendInspectionReportBody: SendInspectionReportBody,
+  options?: RequestInit,
+): Promise<SendInspectionReport200> => {
+  return customFetch<SendInspectionReport200>(
+    getSendInspectionReportUrl(id, insId),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(sendInspectionReportBody),
+    },
+  );
+};
+
+export const getSendInspectionReportMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendInspectionReport>>,
+    TError,
+    { id: string; insId: string; data: BodyType<SendInspectionReportBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof sendInspectionReport>>,
+  TError,
+  { id: string; insId: string; data: BodyType<SendInspectionReportBody> },
+  TContext
+> => {
+  const mutationKey = ["sendInspectionReport"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof sendInspectionReport>>,
+    { id: string; insId: string; data: BodyType<SendInspectionReportBody> }
+  > = (props) => {
+    const { id, insId, data } = props ?? {};
+
+    return sendInspectionReport(id, insId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SendInspectionReportMutationResult = NonNullable<
+  Awaited<ReturnType<typeof sendInspectionReport>>
+>;
+export type SendInspectionReportMutationBody =
+  BodyType<SendInspectionReportBody>;
+export type SendInspectionReportMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Send the inspection report to a structural engineer (admin/architect)
+ */
+export const useSendInspectionReport = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendInspectionReport>>,
+    TError,
+    { id: string; insId: string; data: BodyType<SendInspectionReportBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof sendInspectionReport>>,
+  TError,
+  { id: string; insId: string; data: BodyType<SendInspectionReportBody> },
+  TContext
+> => {
+  return useMutation(getSendInspectionReportMutationOptions(options));
+};
+
+/**
+ * @summary Get the construction milestones timeline for a project
+ */
+export const getGetProjectMilestonesUrl = (id: string) => {
+  return `/api/projects/${id}/milestones`;
+};
+
+export const getProjectMilestones = async (
+  id: string,
+  options?: RequestInit,
+): Promise<MilestonesResponse> => {
+  return customFetch<MilestonesResponse>(getGetProjectMilestonesUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetProjectMilestonesQueryKey = (id: string) => {
+  return [`/api/projects/${id}/milestones`] as const;
+};
+
+export const getGetProjectMilestonesQueryOptions = <
+  TData = Awaited<ReturnType<typeof getProjectMilestones>>,
+  TError = ErrorType<unknown>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getProjectMilestones>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetProjectMilestonesQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getProjectMilestones>>
+  > = ({ signal }) => getProjectMilestones(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getProjectMilestones>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetProjectMilestonesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getProjectMilestones>>
+>;
+export type GetProjectMilestonesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get the construction milestones timeline for a project
+ */
+
+export function useGetProjectMilestones<
+  TData = Awaited<ReturnType<typeof getProjectMilestones>>,
+  TError = ErrorType<unknown>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getProjectMilestones>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetProjectMilestonesQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Update a milestone status / dates (admin/architect)
+ */
+export const getUpdateMilestoneUrl = (id: string, milestoneId: string) => {
+  return `/api/projects/${id}/milestones/${milestoneId}`;
+};
+
+export const updateMilestone = async (
+  id: string,
+  milestoneId: string,
+  updateMilestoneBody: UpdateMilestoneBody,
+  options?: RequestInit,
+): Promise<UpdateMilestone200> => {
+  return customFetch<UpdateMilestone200>(
+    getUpdateMilestoneUrl(id, milestoneId),
+    {
+      ...options,
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(updateMilestoneBody),
+    },
+  );
+};
+
+export const getUpdateMilestoneMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateMilestone>>,
+    TError,
+    { id: string; milestoneId: string; data: BodyType<UpdateMilestoneBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateMilestone>>,
+  TError,
+  { id: string; milestoneId: string; data: BodyType<UpdateMilestoneBody> },
+  TContext
+> => {
+  const mutationKey = ["updateMilestone"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateMilestone>>,
+    { id: string; milestoneId: string; data: BodyType<UpdateMilestoneBody> }
+  > = (props) => {
+    const { id, milestoneId, data } = props ?? {};
+
+    return updateMilestone(id, milestoneId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateMilestoneMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateMilestone>>
+>;
+export type UpdateMilestoneMutationBody = BodyType<UpdateMilestoneBody>;
+export type UpdateMilestoneMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Update a milestone status / dates (admin/architect)
+ */
+export const useUpdateMilestone = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateMilestone>>,
+    TError,
+    { id: string; milestoneId: string; data: BodyType<UpdateMilestoneBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateMilestone>>,
+  TError,
+  { id: string; milestoneId: string; data: BodyType<UpdateMilestoneBody> },
+  TContext
+> => {
+  return useMutation(getUpdateMilestoneMutationOptions(options));
 };
 
 /**

@@ -712,6 +712,109 @@ export interface PermitsResponse {
   stateOrder?: PermitsResponseStateOrderItem[];
 }
 
+export interface StructuralEngineer {
+  id: string;
+  name: string;
+  firm: string;
+  email: string;
+  phone: string;
+  specialty: string;
+  specialtyEs: string;
+}
+
+export interface CostPlusBudget {
+  projectId: string;
+  materialsCost: number;
+  laborCost: number;
+  subcontractorCost: number;
+  subtotal: number;
+  plusFeePercent: number;
+  plusFeeAmount: number;
+  finalTotal: number;
+  notes?: string;
+  notesEs?: string;
+}
+
+export type InspectionType =
+  (typeof InspectionType)[keyof typeof InspectionType];
+
+export const InspectionType = {
+  foundation: "foundation",
+  framing: "framing",
+  electrical: "electrical",
+  plumbing: "plumbing",
+  final: "final",
+} as const;
+
+export type InspectionStatus =
+  (typeof InspectionStatus)[keyof typeof InspectionStatus];
+
+export const InspectionStatus = {
+  scheduled: "scheduled",
+  passed: "passed",
+  failed: "failed",
+  re_inspect: "re_inspect",
+} as const;
+
+export interface Inspection {
+  id: string;
+  projectId: string;
+  type: InspectionType;
+  title: string;
+  titleEs: string;
+  inspector: string;
+  scheduledDate: string;
+  completedDate?: string;
+  status: InspectionStatus;
+  notes?: string;
+  notesEs?: string;
+  reportSentTo?: string;
+  reportSentToName?: string;
+  reportSentAt?: string;
+  reportSentNote?: string;
+}
+
+export interface InspectionsResponse {
+  projectId: string;
+  inspections: Inspection[];
+}
+
+export type MilestoneKey = (typeof MilestoneKey)[keyof typeof MilestoneKey];
+
+export const MilestoneKey = {
+  foundation: "foundation",
+  framing: "framing",
+  roofing: "roofing",
+  mep: "mep",
+  finishes: "finishes",
+  final: "final",
+} as const;
+
+export type MilestoneStatus =
+  (typeof MilestoneStatus)[keyof typeof MilestoneStatus];
+
+export const MilestoneStatus = {
+  completed: "completed",
+  in_progress: "in_progress",
+  upcoming: "upcoming",
+} as const;
+
+export interface Milestone {
+  id: string;
+  projectId: string;
+  key: MilestoneKey;
+  title: string;
+  titleEs: string;
+  startDate: string;
+  endDate: string;
+  status: MilestoneStatus;
+}
+
+export interface MilestonesResponse {
+  projectId: string;
+  milestones: Milestone[];
+}
+
 export type GetProjectDocumentsParams = {
   clientVisible?: boolean;
 };
@@ -810,6 +913,100 @@ export type SetChangeOrderStatusBody = {
 export type SetChangeOrderStatus200 = {
   projectId?: string;
   changeOrder?: ChangeOrder;
+};
+
+export type CreateInspectionBodyType =
+  (typeof CreateInspectionBodyType)[keyof typeof CreateInspectionBodyType];
+
+export const CreateInspectionBodyType = {
+  foundation: "foundation",
+  framing: "framing",
+  electrical: "electrical",
+  plumbing: "plumbing",
+  final: "final",
+} as const;
+
+export type CreateInspectionBodyStatus =
+  (typeof CreateInspectionBodyStatus)[keyof typeof CreateInspectionBodyStatus];
+
+export const CreateInspectionBodyStatus = {
+  scheduled: "scheduled",
+  passed: "passed",
+  failed: "failed",
+  re_inspect: "re_inspect",
+} as const;
+
+export type CreateInspectionBody = {
+  type: CreateInspectionBodyType;
+  title: string;
+  titleEs: string;
+  inspector: string;
+  scheduledDate: string;
+  completedDate?: string;
+  status?: CreateInspectionBodyStatus;
+  notes?: string;
+  notesEs?: string;
+};
+
+export type CreateInspection201 = {
+  projectId?: string;
+  inspection?: Inspection;
+};
+
+export type UpdateInspectionBodyStatus =
+  (typeof UpdateInspectionBodyStatus)[keyof typeof UpdateInspectionBodyStatus];
+
+export const UpdateInspectionBodyStatus = {
+  scheduled: "scheduled",
+  passed: "passed",
+  failed: "failed",
+  re_inspect: "re_inspect",
+} as const;
+
+export type UpdateInspectionBody = {
+  title?: string;
+  titleEs?: string;
+  inspector?: string;
+  scheduledDate?: string;
+  completedDate?: string;
+  status?: UpdateInspectionBodyStatus;
+  notes?: string;
+  notesEs?: string;
+};
+
+export type UpdateInspection200 = {
+  projectId?: string;
+  inspection?: Inspection;
+};
+
+export type SendInspectionReportBody = {
+  engineerId: string;
+  note?: string;
+};
+
+export type SendInspectionReport200 = {
+  projectId?: string;
+  inspection?: Inspection;
+};
+
+export type UpdateMilestoneBodyStatus =
+  (typeof UpdateMilestoneBodyStatus)[keyof typeof UpdateMilestoneBodyStatus];
+
+export const UpdateMilestoneBodyStatus = {
+  completed: "completed",
+  in_progress: "in_progress",
+  upcoming: "upcoming",
+} as const;
+
+export type UpdateMilestoneBody = {
+  status?: UpdateMilestoneBodyStatus;
+  startDate?: string;
+  endDate?: string;
+};
+
+export type UpdateMilestone200 = {
+  projectId?: string;
+  milestone?: Milestone;
 };
 
 export type AuthorizePermits200 = {

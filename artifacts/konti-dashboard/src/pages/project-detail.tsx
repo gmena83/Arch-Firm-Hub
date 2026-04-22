@@ -36,6 +36,9 @@ import { DesignPanel } from "@/components/design-panel";
 import { ProposalsPanel } from "@/components/proposals-panel";
 import { ChangeOrdersPanel } from "@/components/change-orders-panel";
 import PermitsPanel from "@/components/permits-panel";
+import { CostPlusBudget } from "@/components/cost-plus-budget";
+import { InspectionsSection } from "@/components/inspections-section";
+import { MilestonesTimeline } from "@/components/milestones-timeline";
 import {
   MapPin, Users, FileText, Upload, Check, Clock, ChevronLeft,
   Wind, Droplets, Thermometer, Eye, EyeOff, ArrowRight, X,
@@ -652,6 +655,14 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
           {/* Phase 4 — Permits authorization workflow */}
           <PermitsPanel projectId={projectId} projectPhase={project.phase} onProjectUpdated={onProjectUpdated} />
 
+          {/* Phase 5 — Construction milestones + inspections (visible from construction onward) */}
+          {(project.phase === "construction" || project.phase === "completed") && (
+            <>
+              <MilestonesTimeline projectId={projectId} />
+              <InspectionsSection projectId={projectId} />
+            </>
+          )}
+
           {/* Weather widget */}
           {weather && (
             <div className="bg-card rounded-xl border border-card-border p-5 shadow-sm">
@@ -740,6 +751,11 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
 
         {/* Right column */}
         <div className="space-y-6">
+          {/* Phase 5 — Cost-Plus breakdown (shown for construction & completed projects) */}
+          {(project.phase === "construction" || project.phase === "completed") && (
+            <CostPlusBudget projectId={projectId} isClientView={isClientView} />
+          )}
+
           {/* Budget */}
           <div className="bg-card rounded-xl border border-card-border p-5 shadow-sm">
             <h2 className="font-bold text-foreground mb-3">{t("Budget", "Presupuesto")}</h2>
