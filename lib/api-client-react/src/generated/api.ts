@@ -24,7 +24,7 @@ import type {
   ChangeOrderResponse,
   ChatRequest,
   ChatResponse,
-  CreateChangeOrder200,
+  CreateChangeOrder201,
   CreateChangeOrderBody,
   DashboardSummary,
   DesignStateResponse,
@@ -1327,8 +1327,8 @@ export const createChangeOrder = async (
   projectId: string,
   createChangeOrderBody: CreateChangeOrderBody,
   options?: RequestInit,
-): Promise<CreateChangeOrder200> => {
-  return customFetch<CreateChangeOrder200>(getCreateChangeOrderUrl(projectId), {
+): Promise<CreateChangeOrder201> => {
+  return customFetch<CreateChangeOrder201>(getCreateChangeOrderUrl(projectId), {
     ...options,
     method: "POST",
     headers: { "Content-Type": "application/json", ...options?.headers },

@@ -22,7 +22,7 @@ export * from "./chatMessageRole";
 export * from "./chatRequest";
 export * from "./chatRequestMode";
 export * from "./chatResponse";
-export * from "./createChangeOrder200";
+export * from "./createChangeOrder201";
 export * from "./createChangeOrderBody";
 export * from "./dashboardSummary";
 export * from "./dashboardSummaryProjectsByPhase";
