@@ -137,8 +137,10 @@ function VoiceButton({ onTranscript, lang }: { onTranscript: (text: string) => v
 
 function SpecUpdatesReport({ projectId, projectName, onClose }: { projectId: string; projectName: string; onClose: () => void }) {
   const { t } = useLang();
+  const { toast } = useToast();
   const [data, setData] = useState<{ totals: { added: number; opened: number; resolved: number }; addedByWeek: { week: string; count: number }[]; openVsResolved: { status: string; count: number }[]; recent: { title: string; kind: string; createdAt: string }[] } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -147,6 +149,30 @@ function SpecUpdatesReport({ projectId, projectName, onClose }: { projectId: str
       .then((d) => setData(d))
       .finally(() => setLoading(false));
   }, [projectId]);
+
+  const exportPdf = async () => {
+    setExporting(true);
+    try {
+      const r = await fetch(`/api/projects/${projectId}/spec-updates-report/pdf`, { method: "POST", headers: authHeader() });
+      if (!r.ok) {
+        if (r.status === 501) {
+          toast({ title: t("PDF export not configured", "Exportación PDF no configurada"), description: t("Falling back to print view.", "Usando vista de impresión."), variant: "destructive" });
+          window.print();
+          return;
+        }
+        throw new Error(`http_${r.status}`);
+      }
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `KONTi-Spec-Report-${projectName.replace(/\s+/g, "-")}.pdf`;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+      toast({ title: t("PDF downloaded", "PDF descargado") });
+    } catch {
+      toast({ title: t("PDF export failed", "Falló la exportación PDF"), variant: "destructive" });
+    } finally { setExporting(false); }
+  };
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose} data-testid="spec-report-modal">
@@ -157,8 +183,9 @@ function SpecUpdatesReport({ projectId, projectName, onClose }: { projectId: str
             <p className="text-xs text-muted-foreground">{projectName}</p>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={() => window.print()} data-testid="btn-print-report" className="inline-flex items-center gap-1 px-3 py-1.5 bg-konti-olive text-white text-xs font-semibold rounded-md hover:bg-konti-olive/90">
-              <Printer className="w-3 h-3" />{t("Export PDF", "Exportar PDF")}
+            <button onClick={exportPdf} disabled={exporting} data-testid="btn-print-report" className="inline-flex items-center gap-1 px-3 py-1.5 bg-konti-olive text-white text-xs font-semibold rounded-md hover:bg-konti-olive/90 disabled:opacity-60">
+              {exporting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Printer className="w-3 h-3" />}
+              {t("Export PDF", "Exportar PDF")}
             </button>
             <button onClick={onClose} className="p-1.5 hover:bg-muted rounded-md"><X className="w-4 h-4" /></button>
           </div>

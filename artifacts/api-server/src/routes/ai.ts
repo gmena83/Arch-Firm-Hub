@@ -195,6 +195,84 @@ router.get("/projects/:id/spec-updates-report", requireRole(["team", "admin", "s
   res.json({ projectId: id, generatedAt: new Date().toISOString(), totals: { added: events.filter((e)=>e.kind==="added").length, opened, resolved }, addedByWeek, openVsResolved, recent });
 });
 
+// POST PDF export of the spec-updates report — reuses the PDF.co pipeline
+// already used by /projects/:id/pdf, but converts inline HTML so we don't need
+// to spin up a dedicated printable frontend route.
+router.post("/projects/:id/spec-updates-report/pdf", requireRole(["team", "admin", "superadmin", "architect", "client"]), async (req, res) => {
+  const id = req.params["id"] as string;
+  const project = PROJECTS.find((p) => p.id === id);
+  if (!project) { res.status(404).json({ error: "not_found" }); return; }
+
+  const pdfApiKey = process.env["PDF_CO_API_KEY"];
+  if (!pdfApiKey) { res.status(501).json({ error: "pdf_not_configured", message: "PDF export not configured" }); return; }
+
+  const events = SPEC_EVENTS.filter((e) => e.projectId === id);
+  const week = (iso: string) => {
+    const d = new Date(iso);
+    const oj = new Date(d.getFullYear(), 0, 1);
+    const w = Math.ceil((((d.getTime() - oj.getTime()) / 86400000) + oj.getDay() + 1) / 7);
+    return `${d.getFullYear()}-W${String(w).padStart(2, "0")}`;
+  };
+  const addedMap: Record<string, number> = {};
+  for (const e of events) if (e.kind === "added") addedMap[week(e.createdAt)] = (addedMap[week(e.createdAt)] ?? 0) + 1;
+  const addedByWeek = Object.entries(addedMap).sort(([a], [b]) => a.localeCompare(b));
+  let opened = 0, resolved = 0;
+  for (const e of events) { if (e.kind === "opened") opened++; else if (e.kind === "resolved") resolved++; }
+  const open = Math.max(opened - resolved, 0);
+  const totalAdded = events.filter((e) => e.kind === "added").length;
+  const recent = [...events].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 10);
+
+  // Inline SVG bar chart for "Specs added per week".
+  const maxBar = Math.max(1, ...addedByWeek.map(([, c]) => c));
+  const barW = addedByWeek.length > 0 ? Math.floor(560 / addedByWeek.length) - 8 : 0;
+  const bars = addedByWeek.map(([w, c], i) => {
+    const h = Math.round((c / maxBar) * 160);
+    const x = 30 + i * (barW + 8); const y = 180 - h;
+    return `<rect x="${x}" y="${y}" width="${barW}" height="${h}" fill="#4F5E2A"/><text x="${x + barW/2}" y="195" font-size="9" text-anchor="middle" fill="#555">${w}</text><text x="${x + barW/2}" y="${y - 3}" font-size="9" text-anchor="middle" fill="#333">${c}</text>`;
+  }).join("");
+  const barChart = `<svg width="600" height="210" xmlns="http://www.w3.org/2000/svg"><rect width="600" height="210" fill="#fafafa" stroke="#e5e5e5"/>${bars || '<text x="300" y="110" text-anchor="middle" font-size="12" fill="#888">No data</text>'}</svg>`;
+
+  // Inline SVG donut for "Open vs Resolved".
+  const total = open + resolved || 1;
+  const openPct = open / total;
+  const cx = 100, cy = 100, r = 70;
+  const a = openPct * 2 * Math.PI;
+  const x1 = cx + r * Math.sin(a), y1 = cy - r * Math.cos(a);
+  const large = openPct > 0.5 ? 1 : 0;
+  const openSlice = open === 0 ? "" : open === total
+    ? `<circle cx="${cx}" cy="${cy}" r="${r}" fill="#778894"/>`
+    : `<path d="M${cx},${cy} L${cx},${cy - r} A${r},${r} 0 ${large} 1 ${x1},${y1} Z" fill="#778894"/>`;
+  const resolvedSlice = resolved === 0 ? "" : resolved === total
+    ? `<circle cx="${cx}" cy="${cy}" r="${r}" fill="#4F5E2A"/>`
+    : `<path d="M${cx},${cy} L${x1},${y1} A${r},${r} 0 ${1 - large} 1 ${cx},${cy - r} Z" fill="#4F5E2A"/>`;
+  const pieChart = `<svg width="240" height="210" xmlns="http://www.w3.org/2000/svg">${openSlice}${resolvedSlice}<circle cx="${cx}" cy="${cy}" r="35" fill="#fff"/><text x="${cx}" y="${cy + 4}" text-anchor="middle" font-size="14" font-weight="bold">${total}</text></svg><div style="font-size:11px;margin-top:6px;"><span style="display:inline-block;width:10px;height:10px;background:#778894;margin-right:4px;"></span>Open: ${open} &nbsp; <span style="display:inline-block;width:10px;height:10px;background:#4F5E2A;margin-right:4px;"></span>Resolved: ${resolved}</div>`;
+
+  const recentRows = recent.map((e) => `<tr><td style="padding:4px 8px;border-bottom:1px solid #eee;font-family:monospace;font-size:10px;color:#666;">${e.kind}</td><td style="padding:4px 8px;border-bottom:1px solid #eee;">${e.title}</td><td style="padding:4px 8px;border-bottom:1px solid #eee;color:#777;font-size:10px;">${new Date(e.createdAt).toLocaleString()}</td></tr>`).join("");
+
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Spec Updates Report — ${project.name}</title><style>body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;color:#222;margin:32px;}h1{color:#4F5E2A;margin:0 0 4px;}h2{font-size:14px;margin:24px 0 8px;color:#333;border-bottom:1px solid #ddd;padding-bottom:4px;}.kpis{display:flex;gap:12px;margin:16px 0;}.kpi{flex:1;background:#f5f5f0;border-radius:8px;padding:12px;text-align:center;}.kpi b{display:block;font-size:24px;color:#4F5E2A;}.kpi span{font-size:11px;color:#666;}table{width:100%;border-collapse:collapse;font-size:12px;}.charts{display:flex;gap:16px;align-items:flex-start;}</style></head><body><h1>Spec Updates Report</h1><p style="color:#666;margin:0 0 4px;">${project.name} — ${project.location ?? ""}</p><p style="color:#999;font-size:11px;">Generated ${new Date().toLocaleString()}</p><div class="kpis"><div class="kpi"><b>${totalAdded}</b><span>Specs added</span></div><div class="kpi"><b>${open}</b><span>Open questions</span></div><div class="kpi"><b>${resolved}</b><span>Resolved</span></div></div><h2>Specs added per week</h2>${barChart}<h2>Open vs resolved questions</h2><div class="charts"><div>${pieChart}</div></div><h2>Recent activity</h2><table>${recentRows || '<tr><td style="padding:8px;color:#888;">No activity yet.</td></tr>'}</table></body></html>`;
+
+  try {
+    const pdfRes = await fetch("https://api.pdf.co/v1/pdf/convert/from/html", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": pdfApiKey },
+      body: JSON.stringify({ html, name: `KONTi-Spec-Report-${project.name.replace(/\s+/g, "-")}.pdf`, async: false, paperSize: "Letter", printBackground: true }),
+    });
+    if (!pdfRes.ok) { res.status(500).json({ error: "pdf_error" }); return; }
+    const data = (await pdfRes.json()) as { url?: string; error?: boolean };
+    if (!data.url || data.error) { res.status(500).json({ error: "pdf_error" }); return; }
+    const file = await fetch(data.url);
+    if (!file.ok || !file.body) { res.status(500).json({ error: "pdf_download_error" }); return; }
+    const safe = project.name.replace(/[^a-zA-Z0-9\-_]/g, "-");
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="KONTi-Spec-Report-${safe}.pdf"`);
+    const { Readable } = await import("stream");
+    Readable.fromWeb(file.body as import("stream/web").ReadableStream).pipe(res);
+  } catch (err) {
+    req.log.error({ err }, "Spec report PDF error");
+    res.status(500).json({ error: "pdf_error" });
+  }
+});
+
 router.post("/ai/chat", requireRole(["team", "admin", "superadmin", "architect", "client"]), async (req, res) => {
   const requestedMode = (req.body as { mode?: string } | undefined)?.mode;
   const userRole = (req as { user?: { role?: string } }).user?.role;
