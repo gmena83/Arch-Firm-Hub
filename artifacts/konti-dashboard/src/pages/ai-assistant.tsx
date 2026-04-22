@@ -64,6 +64,11 @@ function ConfirmActionCard({ proposed, projectId, onDone }: { proposed: Proposed
         headers: { "Content-Type": "application/json", ...authHeader() },
         body: JSON.stringify({ projectId: projectId || "proj-1", action: proposed.action, items: proposed.items }),
       });
+      if (!r.ok) {
+        toast({ title: t("Action failed", "Falló la acción"), description: t(`Server returned ${r.status}.`, `El servidor devolvió ${r.status}.`), variant: "destructive" });
+        setBusy(null);
+        return;
+      }
       const data = (await r.json()) as { classified?: number };
       onDone(t(`Confirmed — ${data.classified ?? proposed.items.length} item(s) classified.`, `Confirmado — ${data.classified ?? proposed.items.length} elemento(s) clasificado(s).`));
     } catch {
