@@ -817,8 +817,150 @@ export interface MilestonesResponse {
   milestones: Milestone[];
 }
 
+export type PreDesignChecklistItemStatus =
+  (typeof PreDesignChecklistItemStatus)[keyof typeof PreDesignChecklistItemStatus];
+
+export const PreDesignChecklistItemStatus = {
+  pending: "pending",
+  in_progress: "in_progress",
+  done: "done",
+} as const;
+
+export interface PreDesignChecklistItem {
+  id: string;
+  label: string;
+  labelEs: string;
+  status: PreDesignChecklistItemStatus;
+  assignee: string;
+  completedAt?: string;
+}
+
+export type StructuredVariablesProjectType =
+  (typeof StructuredVariablesProjectType)[keyof typeof StructuredVariablesProjectType];
+
+export const StructuredVariablesProjectType = {
+  residencial: "residencial",
+  comercial: "comercial",
+  mixto: "mixto",
+  contenedor: "contenedor",
+} as const;
+
+export interface StructuredVariables {
+  squareMeters: number;
+  zoningCode: string;
+  projectType: StructuredVariablesProjectType;
+  submittedAt: string;
+  submittedBy: string;
+}
+
+export interface AssistedBudgetRange {
+  low: number;
+  mid: number;
+  high: number;
+  currency: string;
+  perSqMeterMid: number;
+}
+
+export interface WeeklyReport {
+  id: string;
+  weekStart: string;
+  weekEnd: string;
+  title: string;
+  titleEs: string;
+  url: string;
+}
+
+export interface ProjectActivity {
+  id: string;
+  timestamp: string;
+  type: string;
+  actor: string;
+  description: string;
+  descriptionEs: string;
+}
+
+export interface PreDesignData {
+  projectId: string;
+  checklist: PreDesignChecklistItem[];
+  structuredVariables: StructuredVariables | null;
+  assistedBudgetRange: AssistedBudgetRange | null;
+  weeklyReports: WeeklyReport[];
+  activities: ProjectActivity[];
+}
+
+export interface GammaReportResponse {
+  projectId: string;
+  reportId: string;
+  gammaReportUrl: string;
+  url: string;
+  generatedAt: string;
+  generatedBy: string;
+  pages: number;
+}
+
 export type GetProjectDocumentsParams = {
   clientVisible?: boolean;
+};
+
+export type ToggleChecklistItemBodyStatus =
+  (typeof ToggleChecklistItemBodyStatus)[keyof typeof ToggleChecklistItemBodyStatus];
+
+export const ToggleChecklistItemBodyStatus = {
+  pending: "pending",
+  in_progress: "in_progress",
+  done: "done",
+} as const;
+
+export type ToggleChecklistItemBody = {
+  itemId: string;
+  status: ToggleChecklistItemBodyStatus;
+};
+
+export type ToggleChecklistItem200 = {
+  projectId: string;
+  item: PreDesignChecklistItem;
+};
+
+export type SubmitStructuredVariablesBodyProjectType =
+  (typeof SubmitStructuredVariablesBodyProjectType)[keyof typeof SubmitStructuredVariablesBodyProjectType];
+
+export const SubmitStructuredVariablesBodyProjectType = {
+  residencial: "residencial",
+  comercial: "comercial",
+  mixto: "mixto",
+  contenedor: "contenedor",
+} as const;
+
+export type SubmitStructuredVariablesBody = {
+  /**
+   * @minimum 1
+   * @maximum 100000
+   */
+  squareMeters: number;
+  /** Format like R-3, C-2, etc. */
+  zoningCode: string;
+  projectType: SubmitStructuredVariablesBodyProjectType;
+};
+
+export type SubmitStructuredVariables200 = {
+  projectId: string;
+  structuredVariables: StructuredVariables;
+  assistedBudgetRange: AssistedBudgetRange;
+};
+
+export type AdvanceProjectPhase200 = {
+  project: Project;
+  advancedTo: string;
+};
+
+export type DeclineProjectPhaseBody = {
+  /** Optional free-text reason (truncated to 200 chars server-side) */
+  reason?: string;
+};
+
+export type DeclineProjectPhase200 = {
+  project: Project;
+  declinedAt: string;
 };
 
 export type UpdateDesignDeliverableBodySubPhase =

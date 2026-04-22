@@ -34,6 +34,8 @@ tags:
     description: Phase 5 — Construction cost-plus, inspections, milestones
   - name: engineers
     description: Structural engineer directory
+  - name: pre-design
+    description: Phase 2 — Pre-Design & Viability (checklist, structured variables, GAMMA, phase advance)
 paths:
   /healthz:
     get:
@@ -198,6 +200,236 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CalculatorSummary"
+
+  /projects/{projectId}/pre-design:
+    get:
+      operationId: getProjectPreDesign
+      tags: [pre-design]
+      summary: Get Phase-2 Pre-Design & Viability state for a project
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Pre-design data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PreDesignData"
+        "403":
+          description: Client cannot access this project
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /projects/{projectId}/checklist-toggle:
+    post:
+      operationId: toggleChecklistItem
+      tags: [pre-design]
+      summary: Update the status of a Pre-Design checklist item
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [itemId, status]
+              properties:
+                itemId: { type: string }
+                status:
+                  type: string
+                  enum: [pending, in_progress, done]
+      responses:
+        "200":
+          description: Updated checklist item
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [projectId, item]
+                properties:
+                  projectId: { type: string }
+                  item: { $ref: "#/components/schemas/PreDesignChecklistItem" }
+        "400":
+          description: Invalid payload
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Project, checklist, or item not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /projects/{projectId}/structured-variables:
+    post:
+      operationId: submitStructuredVariables
+      tags: [pre-design]
+      summary: Submit structured variables and compute the assisted budget range
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [squareMeters, zoningCode, projectType]
+              properties:
+                squareMeters:
+                  type: number
+                  minimum: 1
+                  maximum: 100000
+                zoningCode:
+                  type: string
+                  description: Format like R-3, C-2, etc.
+                projectType:
+                  type: string
+                  enum: [residencial, comercial, mixto, contenedor]
+      responses:
+        "200":
+          description: Saved structured variables and computed budget
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [projectId, structuredVariables, assistedBudgetRange]
+                properties:
+                  projectId: { type: string }
+                  structuredVariables: { $ref: "#/components/schemas/StructuredVariables" }
+                  assistedBudgetRange: { $ref: "#/components/schemas/AssistedBudgetRange" }
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /projects/{projectId}/advance-phase:
+    post:
+      operationId: advanceProjectPhase
+      tags: [pre-design]
+      summary: Advance the project to the next canonical phase (client may only approve the consultation gate)
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Updated project and the new phase identifier
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [project, advancedTo]
+                properties:
+                  project: { $ref: "#/components/schemas/Project" }
+                  advancedTo: { type: string }
+        "400":
+          description: Cannot advance (already in final phase or client gate violation)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Client cannot advance this project
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /projects/{projectId}/decline-phase:
+    post:
+      operationId: declineProjectPhase
+      tags: [pre-design]
+      summary: Client declines to advance from the consultation gate (records reason and notifies team)
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  description: Optional free-text reason (truncated to 200 chars server-side)
+      responses:
+        "200":
+          description: Project (unchanged phase) and the timestamp the decline was recorded
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [project, declinedAt]
+                properties:
+                  project: { $ref: "#/components/schemas/Project" }
+                  declinedAt: { type: string }
+        "400":
+          description: Decline only available at the consultation gate
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Client cannot decline this project
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /projects/{projectId}/gamma-report:
+    post:
+      operationId: generateGammaReport
+      tags: [pre-design]
+      summary: Generate (mock) a GAMMA presentation for the project and persist its URL
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Generated GAMMA report metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GammaReportResponse"
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
 
   /projects/{projectId}/design:
     get:
@@ -1992,3 +2224,95 @@ components:
           type: array
           items: { $ref: "#/components/schemas/Milestone" }
       required: [projectId, milestones]
+
+    PreDesignChecklistItem:
+      type: object
+      properties:
+        id: { type: string }
+        label: { type: string }
+        labelEs: { type: string }
+        status:
+          type: string
+          enum: [pending, in_progress, done]
+        assignee: { type: string }
+        completedAt: { type: string }
+      required: [id, label, labelEs, status, assignee]
+
+    StructuredVariables:
+      type: object
+      properties:
+        squareMeters: { type: number }
+        zoningCode: { type: string }
+        projectType:
+          type: string
+          enum: [residencial, comercial, mixto, contenedor]
+        submittedAt: { type: string }
+        submittedBy: { type: string }
+      required: [squareMeters, zoningCode, projectType, submittedAt, submittedBy]
+
+    AssistedBudgetRange:
+      type: object
+      properties:
+        low: { type: number }
+        mid: { type: number }
+        high: { type: number }
+        currency: { type: string }
+        perSqMeterMid: { type: number }
+      required: [low, mid, high, currency, perSqMeterMid]
+
+    WeeklyReport:
+      type: object
+      properties:
+        id: { type: string }
+        weekStart: { type: string }
+        weekEnd: { type: string }
+        title: { type: string }
+        titleEs: { type: string }
+        url: { type: string }
+      required: [id, weekStart, weekEnd, title, titleEs, url]
+
+    ProjectActivity:
+      type: object
+      properties:
+        id: { type: string }
+        timestamp: { type: string }
+        type: { type: string }
+        actor: { type: string }
+        description: { type: string }
+        descriptionEs: { type: string }
+      required: [id, timestamp, type, actor, description, descriptionEs]
+
+    PreDesignData:
+      type: object
+      properties:
+        projectId: { type: string }
+        checklist:
+          type: array
+          items: { $ref: "#/components/schemas/PreDesignChecklistItem" }
+        structuredVariables:
+          oneOf:
+            - $ref: "#/components/schemas/StructuredVariables"
+            - type: "null"
+        assistedBudgetRange:
+          oneOf:
+            - $ref: "#/components/schemas/AssistedBudgetRange"
+            - type: "null"
+        weeklyReports:
+          type: array
+          items: { $ref: "#/components/schemas/WeeklyReport" }
+        activities:
+          type: array
+          items: { $ref: "#/components/schemas/ProjectActivity" }
+      required: [projectId, checklist, structuredVariables, assistedBudgetRange, weeklyReports, activities]
+
+    GammaReportResponse:
+      type: object
+      properties:
+        projectId: { type: string }
+        reportId: { type: string }
+        gammaReportUrl: { type: string }
+        url: { type: string }
+        generatedAt: { type: string }
+        generatedBy: { type: string }
+        pages: { type: integer }
+      required: [projectId, reportId, gammaReportUrl, url, generatedAt, generatedBy, pages]

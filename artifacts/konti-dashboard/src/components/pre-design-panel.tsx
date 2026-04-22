@@ -1,5 +1,16 @@
-import { useEffect, useState } from "react";
-import { customFetch } from "@workspace/api-client-react";
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  useGetProjectPreDesign,
+  getGetProjectPreDesignQueryKey,
+  useToggleChecklistItem,
+  useSubmitStructuredVariables,
+  useAdvanceProjectPhase,
+  useDeclineProjectPhase,
+  useGenerateGammaReport,
+  type PreDesignChecklistItem,
+  type SubmitStructuredVariablesBodyProjectType,
+} from "@workspace/api-client-react";
 import { useLang } from "@/hooks/use-lang";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -8,58 +19,6 @@ import {
 } from "lucide-react";
 
 type ChecklistStatus = "pending" | "in_progress" | "done";
-
-interface ChecklistItem {
-  id: string;
-  label: string;
-  labelEs: string;
-  status: ChecklistStatus;
-  assignee: string;
-  completedAt?: string;
-}
-
-interface StructuredVariables {
-  squareMeters: number;
-  zoningCode: string;
-  projectType: "residencial" | "comercial" | "mixto" | "contenedor";
-  submittedAt: string;
-  submittedBy: string;
-}
-
-interface AssistedBudgetRange {
-  low: number;
-  mid: number;
-  high: number;
-  currency: string;
-  perSqMeterMid: number;
-}
-
-interface WeeklyReport {
-  id: string;
-  weekStart: string;
-  weekEnd: string;
-  title: string;
-  titleEs: string;
-  url: string;
-}
-
-interface ProjectActivity {
-  id: string;
-  timestamp: string;
-  type: string;
-  actor: string;
-  description: string;
-  descriptionEs: string;
-}
-
-interface PreDesignData {
-  projectId: string;
-  checklist: ChecklistItem[];
-  structuredVariables: StructuredVariables | null;
-  assistedBudgetRange: AssistedBudgetRange | null;
-  weeklyReports: WeeklyReport[];
-  activities: ProjectActivity[];
-}
 
 const STATUS_CYCLE: Record<ChecklistStatus, ChecklistStatus> = {
   pending: "in_progress",
@@ -79,37 +38,27 @@ export function PreDesignPanel({
   const { t, lang } = useLang();
   const { user } = useAuth();
   const { toast } = useToast();
-  const [data, setData] = useState<PreDesignData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [busyItem, setBusyItem] = useState<string | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [showVarsForm, setShowVarsForm] = useState(false);
-  const [varsForm, setVarsForm] = useState({ squareMeters: "", zoningCode: "", projectType: "residencial" });
+  const [varsForm, setVarsForm] = useState<{ squareMeters: string; zoningCode: string; projectType: SubmitStructuredVariablesBodyProjectType }>({ squareMeters: "", zoningCode: "", projectType: "residencial" });
 
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    customFetch<PreDesignData>(`/api/projects/${projectId}/pre-design`)
-      .then((d) => { if (!cancelled) setData(d); })
-      .catch(() => { /* ignore */ })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, [projectId]);
+  const { data, isLoading: loading } = useGetProjectPreDesign(projectId);
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: getGetProjectPreDesignQueryKey(projectId) });
 
-  const refresh = async () => {
-    const d = await customFetch<PreDesignData>(`/api/projects/${projectId}/pre-design`);
-    setData(d);
-  };
+  const toggleMutation = useToggleChecklistItem();
+  const submitVarsMutation = useSubmitStructuredVariables();
+  const advanceMutation = useAdvanceProjectPhase();
+  const declineMutation = useDeclineProjectPhase();
+  const gammaMutation = useGenerateGammaReport();
 
-  const toggleItem = async (item: ChecklistItem) => {
+  const toggleItem = async (item: PreDesignChecklistItem) => {
     setBusyItem(item.id);
     try {
       const next = STATUS_CYCLE[item.status];
-      await customFetch(`/api/projects/${projectId}/checklist-toggle`, {
-        method: "POST",
-        body: JSON.stringify({ itemId: item.id, status: next }),
-      });
-      await refresh();
+      await toggleMutation.mutateAsync({ projectId, data: { itemId: item.id, status: next } });
+      await invalidate();
     } catch {
       toast({ title: t("Update failed", "Error al actualizar"), description: t("Could not update checklist item.", "No se pudo actualizar la tarea."), variant: "destructive" });
     } finally {
@@ -121,9 +70,9 @@ export function PreDesignPanel({
     setBusyAction("gamma");
     try {
       // Simulated loading delay before opening the GAMMA presentation in a new tab.
-      const res = await customFetch<{ gammaReportUrl: string }>(`/api/projects/${projectId}/gamma-report`, { method: "POST" });
+      const res = await gammaMutation.mutateAsync({ projectId });
       toast({ title: t("GAMMA presentation ready", "Presentación GAMMA lista"), description: t("Opening presentation in a new tab.", "Abriendo presentación en una pestaña nueva.") });
-      await refresh();
+      await invalidate();
       // Mock GAMMA loading delay before launching the presentation.
       setTimeout(() => {
         window.open(res.gammaReportUrl, "_blank", "noopener,noreferrer");
@@ -138,7 +87,7 @@ export function PreDesignPanel({
   const advancePhase = async () => {
     setBusyAction("advance");
     try {
-      await customFetch(`/api/projects/${projectId}/advance-phase`, { method: "POST" });
+      await advanceMutation.mutateAsync({ projectId });
       toast({ title: t("Pre-Design approved", "Pre-Diseño aprobado"), description: t("Kickoff email and invoice sent automatically.", "Correo de inicio y factura enviados automáticamente.") });
       window.location.reload();
     } catch {
@@ -156,12 +105,9 @@ export function PreDesignPanel({
     if (reason === null) return; // user cancelled
     setBusyAction("decline");
     try {
-      await customFetch(`/api/projects/${projectId}/decline-phase`, {
-        method: "POST",
-        body: JSON.stringify({ reason }),
-      });
+      await declineMutation.mutateAsync({ projectId, data: { reason } });
       toast({ title: t("Decision sent to team", "Decisión enviada al equipo"), description: t("KONTi will follow up with you.", "KONTi se pondrá en contacto contigo.") });
-      await refresh();
+      await invalidate();
     } catch {
       toast({ title: t("Could not record decline", "No se pudo registrar el rechazo"), variant: "destructive" });
     } finally {
@@ -173,18 +119,18 @@ export function PreDesignPanel({
     e.preventDefault();
     setBusyAction("vars");
     try {
-      await customFetch(`/api/projects/${projectId}/structured-variables`, {
-        method: "POST",
-        body: JSON.stringify({
+      await submitVarsMutation.mutateAsync({
+        projectId,
+        data: {
           squareMeters: Number(varsForm.squareMeters),
           zoningCode: varsForm.zoningCode.trim().toUpperCase(),
           projectType: varsForm.projectType,
-        }),
+        },
       });
       toast({ title: t("Variables saved", "Variables guardadas"), description: t("Assisted budget range computed.", "Rango de presupuesto asistido calculado.") });
       setShowVarsForm(false);
       setVarsForm({ squareMeters: "", zoningCode: "", projectType: "residencial" });
-      await refresh();
+      await invalidate();
     } catch (err) {
       const message = err instanceof Error ? err.message : t("Validation failed", "Validación fallida");
       toast({ title: t("Could not save variables", "No se pudieron guardar las variables"), description: message, variant: "destructive" });
@@ -338,7 +284,7 @@ export function PreDesignPanel({
               <select
                 data-testid="select-project-type"
                 value={varsForm.projectType}
-                onChange={(e) => setVarsForm({ ...varsForm, projectType: e.target.value })}
+                onChange={(e) => setVarsForm({ ...varsForm, projectType: e.target.value as SubmitStructuredVariablesBodyProjectType })}
                 className="mt-1 w-full px-2 py-1.5 text-sm rounded-md border border-input bg-background"
               >
                 <option value="residencial">{t("Residential", "Residencial")}</option>

@@ -19,6 +19,7 @@ import type {
 import type {
   ActivityItem,
   AdvanceDesignSubPhase200,
+  AdvanceProjectPhase200,
   ApproveProposal200,
   AuthorizePermits200,
   CalculatorSummary,
@@ -31,9 +32,12 @@ import type {
   CreateInspection201,
   CreateInspectionBody,
   DashboardSummary,
+  DeclineProjectPhase200,
+  DeclineProjectPhaseBody,
   DesignStateResponse,
   Document,
   ErrorResponse,
+  GammaReportResponse,
   GetInspection200,
   GetProjectDocumentsParams,
   GetProjectProposals200,
@@ -49,6 +53,7 @@ import type {
   MaterialPriceRefreshResponse,
   MilestonesResponse,
   PermitsResponse,
+  PreDesignData,
   Project,
   ProjectTask,
   RefreshMaterialPricesParams,
@@ -62,6 +67,10 @@ import type {
   SignPermitFormBody,
   StructuralEngineer,
   SubmitPermitsToOgpe200,
+  SubmitStructuredVariables200,
+  SubmitStructuredVariablesBody,
+  ToggleChecklistItem200,
+  ToggleChecklistItemBody,
   UpdateChangeOrder200,
   UpdateChangeOrderBody,
   UpdateDesignDeliverableBody,
@@ -793,6 +802,540 @@ export function useGetProjectCalculations<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Get Phase-2 Pre-Design & Viability state for a project
+ */
+export const getGetProjectPreDesignUrl = (projectId: string) => {
+  return `/api/projects/${projectId}/pre-design`;
+};
+
+export const getProjectPreDesign = async (
+  projectId: string,
+  options?: RequestInit,
+): Promise<PreDesignData> => {
+  return customFetch<PreDesignData>(getGetProjectPreDesignUrl(projectId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetProjectPreDesignQueryKey = (projectId: string) => {
+  return [`/api/projects/${projectId}/pre-design`] as const;
+};
+
+export const getGetProjectPreDesignQueryOptions = <
+  TData = Awaited<ReturnType<typeof getProjectPreDesign>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  projectId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getProjectPreDesign>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetProjectPreDesignQueryKey(projectId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getProjectPreDesign>>
+  > = ({ signal }) =>
+    getProjectPreDesign(projectId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!projectId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getProjectPreDesign>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetProjectPreDesignQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getProjectPreDesign>>
+>;
+export type GetProjectPreDesignQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Get Phase-2 Pre-Design & Viability state for a project
+ */
+
+export function useGetProjectPreDesign<
+  TData = Awaited<ReturnType<typeof getProjectPreDesign>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  projectId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getProjectPreDesign>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetProjectPreDesignQueryOptions(projectId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Update the status of a Pre-Design checklist item
+ */
+export const getToggleChecklistItemUrl = (projectId: string) => {
+  return `/api/projects/${projectId}/checklist-toggle`;
+};
+
+export const toggleChecklistItem = async (
+  projectId: string,
+  toggleChecklistItemBody: ToggleChecklistItemBody,
+  options?: RequestInit,
+): Promise<ToggleChecklistItem200> => {
+  return customFetch<ToggleChecklistItem200>(
+    getToggleChecklistItemUrl(projectId),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(toggleChecklistItemBody),
+    },
+  );
+};
+
+export const getToggleChecklistItemMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof toggleChecklistItem>>,
+    TError,
+    { projectId: string; data: BodyType<ToggleChecklistItemBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof toggleChecklistItem>>,
+  TError,
+  { projectId: string; data: BodyType<ToggleChecklistItemBody> },
+  TContext
+> => {
+  const mutationKey = ["toggleChecklistItem"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof toggleChecklistItem>>,
+    { projectId: string; data: BodyType<ToggleChecklistItemBody> }
+  > = (props) => {
+    const { projectId, data } = props ?? {};
+
+    return toggleChecklistItem(projectId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ToggleChecklistItemMutationResult = NonNullable<
+  Awaited<ReturnType<typeof toggleChecklistItem>>
+>;
+export type ToggleChecklistItemMutationBody = BodyType<ToggleChecklistItemBody>;
+export type ToggleChecklistItemMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Update the status of a Pre-Design checklist item
+ */
+export const useToggleChecklistItem = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof toggleChecklistItem>>,
+    TError,
+    { projectId: string; data: BodyType<ToggleChecklistItemBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof toggleChecklistItem>>,
+  TError,
+  { projectId: string; data: BodyType<ToggleChecklistItemBody> },
+  TContext
+> => {
+  return useMutation(getToggleChecklistItemMutationOptions(options));
+};
+
+/**
+ * @summary Submit structured variables and compute the assisted budget range
+ */
+export const getSubmitStructuredVariablesUrl = (projectId: string) => {
+  return `/api/projects/${projectId}/structured-variables`;
+};
+
+export const submitStructuredVariables = async (
+  projectId: string,
+  submitStructuredVariablesBody: SubmitStructuredVariablesBody,
+  options?: RequestInit,
+): Promise<SubmitStructuredVariables200> => {
+  return customFetch<SubmitStructuredVariables200>(
+    getSubmitStructuredVariablesUrl(projectId),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(submitStructuredVariablesBody),
+    },
+  );
+};
+
+export const getSubmitStructuredVariablesMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof submitStructuredVariables>>,
+    TError,
+    { projectId: string; data: BodyType<SubmitStructuredVariablesBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof submitStructuredVariables>>,
+  TError,
+  { projectId: string; data: BodyType<SubmitStructuredVariablesBody> },
+  TContext
+> => {
+  const mutationKey = ["submitStructuredVariables"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof submitStructuredVariables>>,
+    { projectId: string; data: BodyType<SubmitStructuredVariablesBody> }
+  > = (props) => {
+    const { projectId, data } = props ?? {};
+
+    return submitStructuredVariables(projectId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SubmitStructuredVariablesMutationResult = NonNullable<
+  Awaited<ReturnType<typeof submitStructuredVariables>>
+>;
+export type SubmitStructuredVariablesMutationBody =
+  BodyType<SubmitStructuredVariablesBody>;
+export type SubmitStructuredVariablesMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Submit structured variables and compute the assisted budget range
+ */
+export const useSubmitStructuredVariables = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof submitStructuredVariables>>,
+    TError,
+    { projectId: string; data: BodyType<SubmitStructuredVariablesBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof submitStructuredVariables>>,
+  TError,
+  { projectId: string; data: BodyType<SubmitStructuredVariablesBody> },
+  TContext
+> => {
+  return useMutation(getSubmitStructuredVariablesMutationOptions(options));
+};
+
+/**
+ * @summary Advance the project to the next canonical phase (client may only approve the consultation gate)
+ */
+export const getAdvanceProjectPhaseUrl = (projectId: string) => {
+  return `/api/projects/${projectId}/advance-phase`;
+};
+
+export const advanceProjectPhase = async (
+  projectId: string,
+  options?: RequestInit,
+): Promise<AdvanceProjectPhase200> => {
+  return customFetch<AdvanceProjectPhase200>(
+    getAdvanceProjectPhaseUrl(projectId),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+};
+
+export const getAdvanceProjectPhaseMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof advanceProjectPhase>>,
+    TError,
+    { projectId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof advanceProjectPhase>>,
+  TError,
+  { projectId: string },
+  TContext
+> => {
+  const mutationKey = ["advanceProjectPhase"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof advanceProjectPhase>>,
+    { projectId: string }
+  > = (props) => {
+    const { projectId } = props ?? {};
+
+    return advanceProjectPhase(projectId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AdvanceProjectPhaseMutationResult = NonNullable<
+  Awaited<ReturnType<typeof advanceProjectPhase>>
+>;
+
+export type AdvanceProjectPhaseMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Advance the project to the next canonical phase (client may only approve the consultation gate)
+ */
+export const useAdvanceProjectPhase = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof advanceProjectPhase>>,
+    TError,
+    { projectId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof advanceProjectPhase>>,
+  TError,
+  { projectId: string },
+  TContext
+> => {
+  return useMutation(getAdvanceProjectPhaseMutationOptions(options));
+};
+
+/**
+ * @summary Client declines to advance from the consultation gate (records reason and notifies team)
+ */
+export const getDeclineProjectPhaseUrl = (projectId: string) => {
+  return `/api/projects/${projectId}/decline-phase`;
+};
+
+export const declineProjectPhase = async (
+  projectId: string,
+  declineProjectPhaseBody?: DeclineProjectPhaseBody,
+  options?: RequestInit,
+): Promise<DeclineProjectPhase200> => {
+  return customFetch<DeclineProjectPhase200>(
+    getDeclineProjectPhaseUrl(projectId),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(declineProjectPhaseBody),
+    },
+  );
+};
+
+export const getDeclineProjectPhaseMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof declineProjectPhase>>,
+    TError,
+    { projectId: string; data: BodyType<DeclineProjectPhaseBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof declineProjectPhase>>,
+  TError,
+  { projectId: string; data: BodyType<DeclineProjectPhaseBody> },
+  TContext
+> => {
+  const mutationKey = ["declineProjectPhase"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof declineProjectPhase>>,
+    { projectId: string; data: BodyType<DeclineProjectPhaseBody> }
+  > = (props) => {
+    const { projectId, data } = props ?? {};
+
+    return declineProjectPhase(projectId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeclineProjectPhaseMutationResult = NonNullable<
+  Awaited<ReturnType<typeof declineProjectPhase>>
+>;
+export type DeclineProjectPhaseMutationBody = BodyType<DeclineProjectPhaseBody>;
+export type DeclineProjectPhaseMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Client declines to advance from the consultation gate (records reason and notifies team)
+ */
+export const useDeclineProjectPhase = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof declineProjectPhase>>,
+    TError,
+    { projectId: string; data: BodyType<DeclineProjectPhaseBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof declineProjectPhase>>,
+  TError,
+  { projectId: string; data: BodyType<DeclineProjectPhaseBody> },
+  TContext
+> => {
+  return useMutation(getDeclineProjectPhaseMutationOptions(options));
+};
+
+/**
+ * @summary Generate (mock) a GAMMA presentation for the project and persist its URL
+ */
+export const getGenerateGammaReportUrl = (projectId: string) => {
+  return `/api/projects/${projectId}/gamma-report`;
+};
+
+export const generateGammaReport = async (
+  projectId: string,
+  options?: RequestInit,
+): Promise<GammaReportResponse> => {
+  return customFetch<GammaReportResponse>(
+    getGenerateGammaReportUrl(projectId),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+};
+
+export const getGenerateGammaReportMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof generateGammaReport>>,
+    TError,
+    { projectId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof generateGammaReport>>,
+  TError,
+  { projectId: string },
+  TContext
+> => {
+  const mutationKey = ["generateGammaReport"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof generateGammaReport>>,
+    { projectId: string }
+  > = (props) => {
+    const { projectId } = props ?? {};
+
+    return generateGammaReport(projectId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type GenerateGammaReportMutationResult = NonNullable<
+  Awaited<ReturnType<typeof generateGammaReport>>
+>;
+
+export type GenerateGammaReportMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Generate (mock) a GAMMA presentation for the project and persist its URL
+ */
+export const useGenerateGammaReport = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof generateGammaReport>>,
+    TError,
+    { projectId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof generateGammaReport>>,
+  TError,
+  { projectId: string },
+  TContext
+> => {
+  return useMutation(getGenerateGammaReportMutationOptions(options));
+};
 
 /**
  * @summary Get Phase-3 design state for a project (sub-phases, deliverables)

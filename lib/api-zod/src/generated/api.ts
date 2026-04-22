@@ -253,6 +253,244 @@ export const GetProjectCalculationsResponse = zod.object({
 });
 
 /**
+ * @summary Get Phase-2 Pre-Design & Viability state for a project
+ */
+export const GetProjectPreDesignParams = zod.object({
+  projectId: zod.coerce.string(),
+});
+
+export const GetProjectPreDesignResponse = zod.object({
+  projectId: zod.string(),
+  checklist: zod.array(
+    zod.object({
+      id: zod.string(),
+      label: zod.string(),
+      labelEs: zod.string(),
+      status: zod.enum(["pending", "in_progress", "done"]),
+      assignee: zod.string(),
+      completedAt: zod.string().optional(),
+    }),
+  ),
+  structuredVariables: zod.union([
+    zod.object({
+      squareMeters: zod.number(),
+      zoningCode: zod.string(),
+      projectType: zod.enum([
+        "residencial",
+        "comercial",
+        "mixto",
+        "contenedor",
+      ]),
+      submittedAt: zod.string(),
+      submittedBy: zod.string(),
+    }),
+    zod.null(),
+  ]),
+  assistedBudgetRange: zod.union([
+    zod.object({
+      low: zod.number(),
+      mid: zod.number(),
+      high: zod.number(),
+      currency: zod.string(),
+      perSqMeterMid: zod.number(),
+    }),
+    zod.null(),
+  ]),
+  weeklyReports: zod.array(
+    zod.object({
+      id: zod.string(),
+      weekStart: zod.string(),
+      weekEnd: zod.string(),
+      title: zod.string(),
+      titleEs: zod.string(),
+      url: zod.string(),
+    }),
+  ),
+  activities: zod.array(
+    zod.object({
+      id: zod.string(),
+      timestamp: zod.string(),
+      type: zod.string(),
+      actor: zod.string(),
+      description: zod.string(),
+      descriptionEs: zod.string(),
+    }),
+  ),
+});
+
+/**
+ * @summary Update the status of a Pre-Design checklist item
+ */
+export const ToggleChecklistItemParams = zod.object({
+  projectId: zod.coerce.string(),
+});
+
+export const ToggleChecklistItemBody = zod.object({
+  itemId: zod.string(),
+  status: zod.enum(["pending", "in_progress", "done"]),
+});
+
+export const ToggleChecklistItemResponse = zod.object({
+  projectId: zod.string(),
+  item: zod.object({
+    id: zod.string(),
+    label: zod.string(),
+    labelEs: zod.string(),
+    status: zod.enum(["pending", "in_progress", "done"]),
+    assignee: zod.string(),
+    completedAt: zod.string().optional(),
+  }),
+});
+
+/**
+ * @summary Submit structured variables and compute the assisted budget range
+ */
+export const SubmitStructuredVariablesParams = zod.object({
+  projectId: zod.coerce.string(),
+});
+
+export const submitStructuredVariablesBodySquareMetersMax = 100000;
+
+export const SubmitStructuredVariablesBody = zod.object({
+  squareMeters: zod
+    .number()
+    .min(1)
+    .max(submitStructuredVariablesBodySquareMetersMax),
+  zoningCode: zod.string().describe("Format like R-3, C-2, etc."),
+  projectType: zod.enum(["residencial", "comercial", "mixto", "contenedor"]),
+});
+
+export const SubmitStructuredVariablesResponse = zod.object({
+  projectId: zod.string(),
+  structuredVariables: zod.object({
+    squareMeters: zod.number(),
+    zoningCode: zod.string(),
+    projectType: zod.enum(["residencial", "comercial", "mixto", "contenedor"]),
+    submittedAt: zod.string(),
+    submittedBy: zod.string(),
+  }),
+  assistedBudgetRange: zod.object({
+    low: zod.number(),
+    mid: zod.number(),
+    high: zod.number(),
+    currency: zod.string(),
+    perSqMeterMid: zod.number(),
+  }),
+});
+
+/**
+ * @summary Advance the project to the next canonical phase (client may only approve the consultation gate)
+ */
+export const AdvanceProjectPhaseParams = zod.object({
+  projectId: zod.coerce.string(),
+});
+
+export const AdvanceProjectPhaseResponse = zod.object({
+  project: zod.object({
+    id: zod.string(),
+    name: zod.string(),
+    nameEs: zod.string().optional(),
+    clientName: zod.string(),
+    location: zod.string(),
+    city: zod.string(),
+    phase: zod.enum([
+      "discovery",
+      "consultation",
+      "pre_design",
+      "schematic_design",
+      "design_development",
+      "construction_documents",
+      "permits",
+      "construction",
+      "completed",
+    ]),
+    phaseLabel: zod.string(),
+    phaseLabelEs: zod.string(),
+    phaseNumber: zod.number(),
+    progressPercent: zod.number(),
+    budgetAllocated: zod.number(),
+    budgetUsed: zod.number(),
+    startDate: zod.string(),
+    estimatedEndDate: zod.string(),
+    description: zod.string().optional(),
+    coverImage: zod.string().optional(),
+    asanaGid: zod.string().optional(),
+    gammaReportUrl: zod.string().optional(),
+    teamMembers: zod.array(zod.string()).optional(),
+    status: zod.enum(["active", "on_hold", "completed"]),
+  }),
+  advancedTo: zod.string(),
+});
+
+/**
+ * @summary Client declines to advance from the consultation gate (records reason and notifies team)
+ */
+export const DeclineProjectPhaseParams = zod.object({
+  projectId: zod.coerce.string(),
+});
+
+export const DeclineProjectPhaseBody = zod.object({
+  reason: zod
+    .string()
+    .optional()
+    .describe("Optional free-text reason (truncated to 200 chars server-side)"),
+});
+
+export const DeclineProjectPhaseResponse = zod.object({
+  project: zod.object({
+    id: zod.string(),
+    name: zod.string(),
+    nameEs: zod.string().optional(),
+    clientName: zod.string(),
+    location: zod.string(),
+    city: zod.string(),
+    phase: zod.enum([
+      "discovery",
+      "consultation",
+      "pre_design",
+      "schematic_design",
+      "design_development",
+      "construction_documents",
+      "permits",
+      "construction",
+      "completed",
+    ]),
+    phaseLabel: zod.string(),
+    phaseLabelEs: zod.string(),
+    phaseNumber: zod.number(),
+    progressPercent: zod.number(),
+    budgetAllocated: zod.number(),
+    budgetUsed: zod.number(),
+    startDate: zod.string(),
+    estimatedEndDate: zod.string(),
+    description: zod.string().optional(),
+    coverImage: zod.string().optional(),
+    asanaGid: zod.string().optional(),
+    gammaReportUrl: zod.string().optional(),
+    teamMembers: zod.array(zod.string()).optional(),
+    status: zod.enum(["active", "on_hold", "completed"]),
+  }),
+  declinedAt: zod.string(),
+});
+
+/**
+ * @summary Generate (mock) a GAMMA presentation for the project and persist its URL
+ */
+export const GenerateGammaReportParams = zod.object({
+  projectId: zod.coerce.string(),
+});
+
+export const GenerateGammaReportResponse = zod.object({
+  projectId: zod.string(),
+  reportId: zod.string(),
+  gammaReportUrl: zod.string(),
+  url: zod.string(),
+  generatedAt: zod.string(),
+  generatedBy: zod.string(),
+  pages: zod.number(),
+});
+
+/**
  * @summary Get Phase-3 design state for a project (sub-phases, deliverables)
  */
 export const GetProjectDesignParams = zod.object({
