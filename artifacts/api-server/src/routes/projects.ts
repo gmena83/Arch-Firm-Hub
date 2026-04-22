@@ -19,10 +19,15 @@ import {
   DESIGN_SUB_PHASE_LABELS,
   PROJECT_PROPOSALS,
   PROJECT_CHANGE_ORDERS,
+  PROJECT_PERMIT_AUTHORIZATIONS,
+  PROJECT_REQUIRED_SIGNATURES,
+  PROJECT_PERMIT_ITEMS,
+  PERMIT_ITEM_STATE_ORDER,
   type ChecklistStatus,
   type DesignSubPhase,
   type DesignDeliverableStatus,
   type ChangeOrder,
+  type PermitItemState,
 } from "../data/seed";
 import { requireRole } from "../middlewares/require-role";
 
@@ -832,6 +837,182 @@ router.post("/projects/:id/change-orders/:coId/status", requireRole(["team", "ad
     descriptionEs: `${co.number} marcada ${status === "approved" ? "aprobada" : status === "rejected" ? "rechazada" : "pendiente"}${co.decisionNote ? `: ${co.decisionNote}` : ""}`,
   });
   return res.json({ projectId: project.id, changeOrder: co });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 4 — Permits Authorization Workflow
+// ---------------------------------------------------------------------------
+
+function computePermitMilestones(projectId: string) {
+  const auth = PROJECT_PERMIT_AUTHORIZATIONS[projectId] ?? { status: "none" as const, summaryAccepted: false };
+  const sigs = PROJECT_REQUIRED_SIGNATURES[projectId] ?? [];
+  const items = PROJECT_PERMIT_ITEMS[projectId] ?? [];
+  const allSigned = sigs.length > 0 && sigs.filter((s) => s.required).every((s) => !!s.signedAt);
+  const anySubmitted = items.some((i) => i.state !== "not_submitted");
+  const anyInReviewLike = items.some((i) => i.state === "in_review" || i.state === "approved" || i.state === "revision_requested");
+  const allApproved = items.length > 0 && items.every((i) => i.state === "approved");
+  return {
+    auth, sigs, items, allSigned, anySubmitted, anyInReviewLike, allApproved,
+    milestones: {
+      authorization: auth.status === "authorized",
+      signatures: allSigned,
+      submission: anySubmitted,
+      review: anyInReviewLike,
+      approval: allApproved,
+    },
+  };
+}
+
+router.get("/projects/:id/permits", requireRole(["team", "client"]), (req, res) => {
+  const project = getProjectOr404(String(req.params["id"]), res);
+  if (!project) return;
+  if (!clientCanReadOrForbid(req, res, project.id)) return;
+  const m = computePermitMilestones(project.id);
+  return res.json({
+    projectId: project.id,
+    authorization: m.auth,
+    requiredSignatures: m.sigs,
+    permitItems: m.items,
+    milestones: m.milestones,
+    canSubmitToOgpe: m.auth.status === "authorized" && m.allSigned && m.items.some((i) => i.state === "not_submitted"),
+    stateOrder: PERMIT_ITEM_STATE_ORDER,
+  });
+});
+
+router.post("/projects/:id/authorize-permits", requireRole(["client"]), (req, res) => {
+  const project = getProjectOr404(String(req.params["id"]), res);
+  if (!project) return;
+  const user = (req as { user?: { id: string; name?: string } }).user;
+  if (!user || !clientCanAccessProject(user.id, project.id)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+  if (project.phase !== "permits") {
+    return res.status(400).json({ error: "invalid_phase", message: "Project is not in the permits phase" });
+  }
+  const auth = PROJECT_PERMIT_AUTHORIZATIONS[project.id] ?? (PROJECT_PERMIT_AUTHORIZATIONS[project.id] = { status: "none", summaryAccepted: false });
+  if (auth.status === "authorized") {
+    return res.status(400).json({ error: "already_authorized" });
+  }
+  auth.status = "authorized";
+  auth.authorizedBy = user.name ?? "Client";
+  auth.authorizedAt = new Date().toISOString();
+  auth.summaryAccepted = true;
+  appendActivity(project.id, {
+    type: "permit_authorization",
+    actor: user.name ?? "Client",
+    description: "Client authorized OGPE submission packet",
+    descriptionEs: "Cliente autorizó el paquete de sometimiento a OGPE",
+  });
+  return res.json({ projectId: project.id, authorization: auth });
+});
+
+router.post("/projects/:id/sign/:signatureId", requireRole(["client"]), (req, res) => {
+  const project = getProjectOr404(String(req.params["id"]), res);
+  if (!project) return;
+  const user = (req as { user?: { id: string; name?: string } }).user;
+  if (!user || !clientCanAccessProject(user.id, project.id)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+  if (project.phase !== "permits") {
+    return res.status(400).json({ error: "invalid_phase", message: "Signatures only accepted during the permits phase" });
+  }
+  const { signatureName } = req.body ?? {};
+  if (typeof signatureName !== "string" || signatureName.trim().length < 2) {
+    return res.status(400).json({ error: "invalid_signature_name", message: "Signature name must be at least 2 characters" });
+  }
+  const sigs = PROJECT_REQUIRED_SIGNATURES[project.id] ?? [];
+  const sig = sigs.find((s) => s.id === String(req.params["signatureId"]));
+  if (!sig) return res.status(404).json({ error: "signature_not_found" });
+  if (sig.signedAt) return res.status(400).json({ error: "already_signed" });
+  sig.signedBy = signatureName.trim().slice(0, 100);
+  sig.signedAt = new Date().toISOString();
+  appendActivity(project.id, {
+    type: "permit_signature",
+    actor: sig.signedBy,
+    description: `Signed: ${sig.formName}`,
+    descriptionEs: `Firmado: ${sig.formNameEs}`,
+  });
+  return res.json({ projectId: project.id, signature: sig });
+});
+
+router.post("/projects/:id/permit-items/submit-to-ogpe", requireRole(["team", "admin", "superadmin"]), (req, res) => {
+  const project = getProjectOr404(String(req.params["id"]), res);
+  if (!project) return;
+  const auth = PROJECT_PERMIT_AUTHORIZATIONS[project.id];
+  const sigs = PROJECT_REQUIRED_SIGNATURES[project.id] ?? [];
+  const items = PROJECT_PERMIT_ITEMS[project.id] ?? [];
+  if (!auth || auth.status !== "authorized") {
+    return res.status(400).json({ error: "not_authorized", message: "Client authorization required before submitting" });
+  }
+  if (!sigs.filter((s) => s.required).every((s) => !!s.signedAt)) {
+    return res.status(400).json({ error: "signatures_incomplete", message: "All required signatures must be collected first" });
+  }
+  const now = new Date().toISOString();
+  let count = 0;
+  for (const it of items) {
+    if (it.state === "not_submitted") {
+      it.state = "submitted";
+      it.lastUpdatedAt = now;
+      count++;
+    }
+  }
+  if (count === 0) {
+    return res.status(400).json({ error: "nothing_to_submit", message: "All permit items have already been submitted" });
+  }
+  const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
+  appendActivity(project.id, {
+    type: "permit_submitted",
+    actor,
+    description: `Submitted ${count} permit item${count === 1 ? "" : "s"} to OGPE`,
+    descriptionEs: `Enviados ${count} ítem${count === 1 ? "" : "s"} de permiso a OGPE`,
+  });
+  return res.json({ projectId: project.id, permitItems: items, submittedCount: count });
+});
+
+router.post("/projects/:id/permit-items/:itemId/state", requireRole(["team", "admin", "superadmin"]), (req, res) => {
+  const project = getProjectOr404(String(req.params["id"]), res);
+  if (!project) return;
+  const { state, revisionNote, revisionNoteEs } = req.body ?? {};
+  if (!PERMIT_ITEM_STATE_ORDER.includes(state)) {
+    return res.status(400).json({ error: "invalid_state" });
+  }
+  const items = PROJECT_PERMIT_ITEMS[project.id] ?? [];
+  const item = items.find((i) => i.id === String(req.params["itemId"]));
+  if (!item) return res.status(404).json({ error: "permit_item_not_found" });
+  const targetState: PermitItemState = state;
+  item.state = targetState;
+  item.lastUpdatedAt = new Date().toISOString();
+  if (targetState === "revision_requested") {
+    if (typeof revisionNote === "string" && revisionNote.trim()) item.revisionNote = revisionNote.trim().slice(0, 300);
+    if (typeof revisionNoteEs === "string" && revisionNoteEs.trim()) item.revisionNoteEs = revisionNoteEs.trim().slice(0, 300);
+  } else if (targetState === "approved" || targetState === "submitted" || targetState === "in_review") {
+    item.revisionNote = undefined;
+    item.revisionNoteEs = undefined;
+  }
+  const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
+  appendActivity(project.id, {
+    type: "permit_state_change",
+    actor,
+    description: `${item.name} → ${targetState}`,
+    descriptionEs: `${item.nameEs} → ${targetState}`,
+  });
+  // Auto-advance to construction when all permit items are approved
+  let advanced = false;
+  if (project.phase === "permits" && items.length > 0 && items.every((i) => i.state === "approved")) {
+    const labels = PHASE_LABELS["construction"];
+    (project as { phase: "construction" }).phase = "construction";
+    (project as { phaseLabel: string }).phaseLabel = labels.en;
+    (project as { phaseLabelEs: string }).phaseLabelEs = labels.es;
+    (project as { phaseNumber: number }).phaseNumber = PHASE_ORDER.indexOf("construction") + 1;
+    appendActivity(project.id, {
+      type: "phase_change",
+      actor: "System",
+      description: "All permits approved — advanced to Construction",
+      descriptionEs: "Todos los permisos aprobados — avanzado a Construcción",
+    });
+    advanced = true;
+  }
+  return res.json({ projectId: project.id, permitItem: item, project, advancedToConstruction: advanced });
 });
 
 export default router;

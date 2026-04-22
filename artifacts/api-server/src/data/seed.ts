@@ -1048,7 +1048,7 @@ export interface PreDesignChecklistItem {
 export interface ProjectActivity {
   id: string;
   timestamp: string;
-  type: "phase_change" | "checklist_toggle" | "gamma_generated" | "email_sent" | "invoice_sent" | "weekly_report" | "structured_variables" | "proposal_decision" | "change_order_created" | "change_order_decision" | "sub_phase_advanced";
+  type: "phase_change" | "checklist_toggle" | "gamma_generated" | "email_sent" | "invoice_sent" | "weekly_report" | "structured_variables" | "proposal_decision" | "change_order_created" | "change_order_decision" | "sub_phase_advanced" | "permit_authorization" | "permit_signature" | "permit_submitted" | "permit_state_change";
   actor: string;
   description: string;
   descriptionEs: string;
@@ -1467,3 +1467,86 @@ export function nextChangeOrderNumber(projectId: string): string {
   const n = list.length + 1 + (changeOrderSeq++ % 1); // simple count
   return `CO-${String(n).padStart(3, "0")}`;
 }
+
+// ---------------------------------------------------------------------------
+// Phase 4 — Permits Authorization Workflow
+// ---------------------------------------------------------------------------
+
+export type PermitAuthorizationStatus = "none" | "authorized";
+
+export interface PermitAuthorization {
+  status: PermitAuthorizationStatus;
+  authorizedBy?: string;
+  authorizedAt?: string;
+  summaryAccepted: boolean;
+}
+
+export interface RequiredSignature {
+  id: string;
+  formName: string;
+  formNameEs: string;
+  required: boolean;
+  signedBy?: string;
+  signedAt?: string;
+}
+
+export type PermitItemState = "not_submitted" | "submitted" | "in_review" | "revision_requested" | "approved";
+
+export const PERMIT_ITEM_STATE_ORDER: PermitItemState[] = [
+  "not_submitted",
+  "submitted",
+  "in_review",
+  "revision_requested",
+  "approved",
+];
+
+export interface PermitItem {
+  id: string;
+  name: string;
+  nameEs: string;
+  agency: string;
+  responsible: string;
+  state: PermitItemState;
+  lastUpdatedAt?: string;
+  revisionNote?: string;
+  revisionNoteEs?: string;
+  estimatedTime: string;
+  estimatedTimeEs: string;
+  notes: string;
+  notesEs: string;
+}
+
+const standardSignatures = (): RequiredSignature[] => [
+  { id: "sig-owner-affidavit", formName: "Owner's Affidavit", formNameEs: "Affidavit del Dueño", required: true },
+  { id: "sig-pe-authorization", formName: "PE Stamp Authorization", formNameEs: "Autorización Sello PE", required: true },
+  { id: "sig-arpe-application", formName: "ARPE Use Permit Application", formNameEs: "Solicitud Permiso de Uso ARPE", required: true },
+  { id: "sig-ogpe-cover", formName: "OGPE Submission Cover Letter", formNameEs: "Carta de Sometimiento OGPE", required: true },
+];
+
+const permitItemsTemplate = (defaults: { state: PermitItemState; lastUpdatedAt?: string }): PermitItem[] => [
+  { id: "perm-pe-stamp", name: "Structural Engineering Stamp", nameEs: "Sello de Ingeniería Estructural", agency: "CIAPR", responsible: "Andrea Camacho", state: defaults.state, lastUpdatedAt: defaults.lastUpdatedAt, estimatedTime: "2–4 weeks", estimatedTimeEs: "2–4 semanas", notes: "Licensed PE stamp on structural drawings.", notesEs: "Sello PE licenciado en planos estructurales." },
+  { id: "perm-arpe-use", name: "ARPE Use Permit (Uso Conforme)", nameEs: "Permiso de Uso ARPE (Uso Conforme)", agency: "ARPE", responsible: "Andrea Camacho", state: defaults.state, lastUpdatedAt: defaults.lastUpdatedAt, estimatedTime: "4–8 weeks", estimatedTimeEs: "4–8 semanas", notes: "Land use conformity by ARPE.", notesEs: "Conformidad de uso de suelo por ARPE." },
+  { id: "perm-building", name: "Building Permit (Permiso de Construcción)", nameEs: "Permiso de Construcción", agency: "OGPE / Municipio", responsible: "Andrea Camacho", state: defaults.state, lastUpdatedAt: defaults.lastUpdatedAt, estimatedTime: "6–12 weeks", estimatedTimeEs: "6–12 semanas", notes: "Main construction permit issued by OGPE.", notesEs: "Permiso principal de construcción emitido por OGPE." },
+  { id: "perm-electrical", name: "Electrical Inspection Permit", nameEs: "Permiso de Inspección Eléctrica", agency: "AELEC / LUMA", responsible: "Jorge Rosa", state: defaults.state, lastUpdatedAt: defaults.lastUpdatedAt, estimatedTime: "1–3 weeks", estimatedTimeEs: "1–3 semanas", notes: "Electrical system inspection.", notesEs: "Inspección del sistema eléctrico." },
+  { id: "perm-plumbing", name: "Plumbing Inspection Permit", nameEs: "Permiso de Inspección de Plomería", agency: "Junta de Calidad Ambiental", responsible: "Jorge Rosa", state: defaults.state, lastUpdatedAt: defaults.lastUpdatedAt, estimatedTime: "1–2 weeks", estimatedTimeEs: "1–2 semanas", notes: "Potable water and sewage approvals.", notesEs: "Aprobaciones de agua potable y alcantarillado." },
+  { id: "perm-fire", name: "Fire & Safety Certificate", nameEs: "Certificado de Bomberos", agency: "Cuerpo de Bomberos PR", responsible: "Jorge Rosa", state: defaults.state, lastUpdatedAt: defaults.lastUpdatedAt, estimatedTime: "2–4 weeks", estimatedTimeEs: "2–4 semanas", notes: "Fire suppression and egress.", notesEs: "Supresión de incendios y salidas de emergencia." },
+  { id: "perm-environmental", name: "Environmental Clearance (DIA)", nameEs: "Autorización Ambiental (DIA)", agency: "Junta de Calidad Ambiental", responsible: "Andrea Camacho", state: defaults.state, lastUpdatedAt: defaults.lastUpdatedAt, estimatedTime: "8–16 weeks", estimatedTimeEs: "8–16 semanas", notes: "Environmental impact assessment.", notesEs: "Evaluación de impacto ambiental." },
+];
+
+export const PROJECT_PERMIT_AUTHORIZATIONS: Record<string, PermitAuthorization> = {
+  "proj-1": { status: "none", summaryAccepted: false },
+  "proj-2": { status: "authorized", authorizedBy: "Andrés Martínez", authorizedAt: "2025-09-15T10:00:00Z", summaryAccepted: true },
+  "proj-3": { status: "authorized", authorizedBy: "Sofia Marrero", authorizedAt: "2025-04-20T10:00:00Z", summaryAccepted: true },
+};
+
+export const PROJECT_REQUIRED_SIGNATURES: Record<string, RequiredSignature[]> = {
+  "proj-1": standardSignatures(),
+  "proj-2": standardSignatures().map((s) => ({ ...s, signedBy: "Andrés Martínez", signedAt: "2025-09-16T11:00:00Z" })),
+  "proj-3": standardSignatures().map((s) => ({ ...s, signedBy: "Sofia Marrero", signedAt: "2025-04-21T11:00:00Z" })),
+};
+
+export const PROJECT_PERMIT_ITEMS: Record<string, PermitItem[]> = {
+  "proj-1": permitItemsTemplate({ state: "not_submitted" }),
+  "proj-2": permitItemsTemplate({ state: "approved", lastUpdatedAt: "2025-10-30T15:00:00Z" }),
+  "proj-3": permitItemsTemplate({ state: "approved", lastUpdatedAt: "2025-05-30T15:00:00Z" }),
+};

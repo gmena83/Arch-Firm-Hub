@@ -763,6 +763,230 @@ export const SetChangeOrderStatusResponse = zod.object({
 });
 
 /**
+ * @summary Get Phase-4 permit authorization, signatures, items, and milestones
+ */
+export const GetProjectPermitsParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const GetProjectPermitsResponse = zod.object({
+  projectId: zod.string(),
+  authorization: zod.object({
+    status: zod.enum(["none", "authorized"]),
+    authorizedBy: zod.string().optional(),
+    authorizedAt: zod.string().optional(),
+    summaryAccepted: zod.boolean(),
+  }),
+  requiredSignatures: zod.array(
+    zod.object({
+      id: zod.string(),
+      formName: zod.string(),
+      formNameEs: zod.string(),
+      required: zod.boolean(),
+      signedBy: zod.string().optional(),
+      signedAt: zod.string().optional(),
+    }),
+  ),
+  permitItems: zod.array(
+    zod.object({
+      id: zod.string(),
+      name: zod.string(),
+      nameEs: zod.string(),
+      agency: zod.string(),
+      responsible: zod.string(),
+      state: zod.enum([
+        "not_submitted",
+        "submitted",
+        "in_review",
+        "revision_requested",
+        "approved",
+      ]),
+      lastUpdatedAt: zod.string().optional(),
+      revisionNote: zod.string().optional(),
+      revisionNoteEs: zod.string().optional(),
+      estimatedTime: zod.string(),
+      estimatedTimeEs: zod.string(),
+      notes: zod.string(),
+      notesEs: zod.string(),
+    }),
+  ),
+  milestones: zod.object({
+    authorization: zod.boolean(),
+    signatures: zod.boolean(),
+    submission: zod.boolean(),
+    review: zod.boolean(),
+    approval: zod.boolean(),
+  }),
+  canSubmitToOgpe: zod.boolean(),
+  stateOrder: zod
+    .array(
+      zod.enum([
+        "not_submitted",
+        "submitted",
+        "in_review",
+        "revision_requested",
+        "approved",
+      ]),
+    )
+    .optional(),
+});
+
+/**
+ * @summary Client authorizes the OGPE submission packet
+ */
+export const AuthorizePermitsParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const AuthorizePermitsResponse = zod.object({
+  projectId: zod.string(),
+  authorization: zod.object({
+    status: zod.enum(["none", "authorized"]),
+    authorizedBy: zod.string().optional(),
+    authorizedAt: zod.string().optional(),
+    summaryAccepted: zod.boolean(),
+  }),
+});
+
+/**
+ * @summary Client provides a typed-name signature on a required permit form
+ */
+export const SignPermitFormParams = zod.object({
+  id: zod.coerce.string(),
+  signatureId: zod.coerce.string(),
+});
+
+export const SignPermitFormBody = zod.object({
+  signatureName: zod.string(),
+});
+
+export const SignPermitFormResponse = zod.object({
+  projectId: zod.string(),
+  signature: zod.object({
+    id: zod.string(),
+    formName: zod.string(),
+    formNameEs: zod.string(),
+    required: zod.boolean(),
+    signedBy: zod.string().optional(),
+    signedAt: zod.string().optional(),
+  }),
+});
+
+/**
+ * @summary Admin/architect submits the permit packet to OGPE (transitions not_submitted → submitted)
+ */
+export const SubmitPermitsToOgpeParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const SubmitPermitsToOgpeResponse = zod.object({
+  projectId: zod.string(),
+  permitItems: zod.array(
+    zod.object({
+      id: zod.string(),
+      name: zod.string(),
+      nameEs: zod.string(),
+      agency: zod.string(),
+      responsible: zod.string(),
+      state: zod.enum([
+        "not_submitted",
+        "submitted",
+        "in_review",
+        "revision_requested",
+        "approved",
+      ]),
+      lastUpdatedAt: zod.string().optional(),
+      revisionNote: zod.string().optional(),
+      revisionNoteEs: zod.string().optional(),
+      estimatedTime: zod.string(),
+      estimatedTimeEs: zod.string(),
+      notes: zod.string(),
+      notesEs: zod.string(),
+    }),
+  ),
+  submittedCount: zod.number(),
+});
+
+/**
+ * @summary Admin/architect transitions a permit item state (with optional revision note)
+ */
+export const SetPermitItemStateParams = zod.object({
+  id: zod.coerce.string(),
+  itemId: zod.coerce.string(),
+});
+
+export const SetPermitItemStateBody = zod.object({
+  state: zod.enum([
+    "not_submitted",
+    "submitted",
+    "in_review",
+    "revision_requested",
+    "approved",
+  ]),
+  revisionNote: zod.string().optional(),
+  revisionNoteEs: zod.string().optional(),
+});
+
+export const SetPermitItemStateResponse = zod.object({
+  projectId: zod.string(),
+  permitItem: zod.object({
+    id: zod.string(),
+    name: zod.string(),
+    nameEs: zod.string(),
+    agency: zod.string(),
+    responsible: zod.string(),
+    state: zod.enum([
+      "not_submitted",
+      "submitted",
+      "in_review",
+      "revision_requested",
+      "approved",
+    ]),
+    lastUpdatedAt: zod.string().optional(),
+    revisionNote: zod.string().optional(),
+    revisionNoteEs: zod.string().optional(),
+    estimatedTime: zod.string(),
+    estimatedTimeEs: zod.string(),
+    notes: zod.string(),
+    notesEs: zod.string(),
+  }),
+  project: zod.object({
+    id: zod.string(),
+    name: zod.string(),
+    nameEs: zod.string().optional(),
+    clientName: zod.string(),
+    location: zod.string(),
+    city: zod.string(),
+    phase: zod.enum([
+      "discovery",
+      "consultation",
+      "pre_design",
+      "schematic_design",
+      "design_development",
+      "construction_documents",
+      "permits",
+      "construction",
+      "completed",
+    ]),
+    phaseLabel: zod.string(),
+    phaseLabelEs: zod.string(),
+    phaseNumber: zod.number(),
+    progressPercent: zod.number(),
+    budgetAllocated: zod.number(),
+    budgetUsed: zod.number(),
+    startDate: zod.string(),
+    estimatedEndDate: zod.string(),
+    description: zod.string().optional(),
+    coverImage: zod.string().optional(),
+    asanaGid: zod.string().optional(),
+    gammaReportUrl: zod.string().optional(),
+    teamMembers: zod.array(zod.string()).optional(),
+    status: zod.enum(["active", "on_hold", "completed"]),
+  }),
+  advancedToConstruction: zod.boolean(),
+});
+
+/**
  * @summary Export project report as PDF
  */
 export const ExportProjectPdfParams = zod.object({

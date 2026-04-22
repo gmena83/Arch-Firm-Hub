@@ -28,6 +28,8 @@ tags:
     description: Dashboard summaries
   - name: leads
     description: Lead intake & discovery
+  - name: permits
+    description: Phase 4 — Permit authorization & OGPE submission
 paths:
   /healthz:
     get:
@@ -463,6 +465,147 @@ paths:
                 properties:
                   projectId: { type: string }
                   changeOrder: { $ref: "#/components/schemas/ChangeOrder" }
+
+  /projects/{id}/permits:
+    get:
+      operationId: getProjectPermits
+      tags: [permits]
+      summary: Get Phase-4 permit authorization, signatures, items, and milestones
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Permits state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PermitsResponse"
+
+  /projects/{id}/authorize-permits:
+    post:
+      operationId: authorizePermits
+      tags: [permits]
+      summary: Client authorizes the OGPE submission packet
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Authorization recorded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  projectId: { type: string }
+                  authorization: { $ref: "#/components/schemas/PermitAuthorization" }
+                required: [projectId, authorization]
+
+  /projects/{id}/sign/{signatureId}:
+    post:
+      operationId: signPermitForm
+      tags: [permits]
+      summary: Client provides a typed-name signature on a required permit form
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+        - in: path
+          name: signatureId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [signatureName]
+              properties:
+                signatureName: { type: string }
+      responses:
+        "200":
+          description: Signed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  projectId: { type: string }
+                  signature: { $ref: "#/components/schemas/RequiredSignature" }
+                required: [projectId, signature]
+
+  /projects/{id}/permit-items/submit-to-ogpe:
+    post:
+      operationId: submitPermitsToOgpe
+      tags: [permits]
+      summary: Admin/architect submits the permit packet to OGPE (transitions not_submitted → submitted)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Submitted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  projectId: { type: string }
+                  permitItems:
+                    type: array
+                    items: { $ref: "#/components/schemas/PermitItem" }
+                  submittedCount: { type: integer }
+                required: [projectId, permitItems, submittedCount]
+
+  /projects/{id}/permit-items/{itemId}/state:
+    post:
+      operationId: setPermitItemState
+      tags: [permits]
+      summary: Admin/architect transitions a permit item state (with optional revision note)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+        - in: path
+          name: itemId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [state]
+              properties:
+                state:
+                  type: string
+                  enum: [not_submitted, submitted, in_review, revision_requested, approved]
+                revisionNote: { type: string }
+                revisionNoteEs: { type: string }
+      responses:
+        "200":
+          description: Updated permit item; project may auto-advance to construction
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  projectId: { type: string }
+                  permitItem: { $ref: "#/components/schemas/PermitItem" }
+                  project: { $ref: "#/components/schemas/Project" }
+                  advancedToConstruction: { type: boolean }
+                required: [projectId, permitItem, project, advancedToConstruction]
 
   /projects/{id}/pdf:
     post:
@@ -1439,3 +1582,73 @@ components:
             approvedDays: { type: number }
           required: [approvedDelta, pendingDelta, approvedDays]
       required: [projectId, changeOrders, totals]
+
+    PermitAuthorization:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [none, authorized]
+        authorizedBy: { type: string }
+        authorizedAt: { type: string }
+        summaryAccepted: { type: boolean }
+      required: [status, summaryAccepted]
+
+    RequiredSignature:
+      type: object
+      properties:
+        id: { type: string }
+        formName: { type: string }
+        formNameEs: { type: string }
+        required: { type: boolean }
+        signedBy: { type: string }
+        signedAt: { type: string }
+      required: [id, formName, formNameEs, required]
+
+    PermitItem:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        nameEs: { type: string }
+        agency: { type: string }
+        responsible: { type: string }
+        state:
+          type: string
+          enum: [not_submitted, submitted, in_review, revision_requested, approved]
+        lastUpdatedAt: { type: string }
+        revisionNote: { type: string }
+        revisionNoteEs: { type: string }
+        estimatedTime: { type: string }
+        estimatedTimeEs: { type: string }
+        notes: { type: string }
+        notesEs: { type: string }
+      required: [id, name, nameEs, agency, responsible, state, estimatedTime, estimatedTimeEs, notes, notesEs]
+
+    PermitsResponse:
+      type: object
+      properties:
+        projectId: { type: string }
+        authorization: { $ref: "#/components/schemas/PermitAuthorization" }
+        requiredSignatures:
+          type: array
+          items: { $ref: "#/components/schemas/RequiredSignature" }
+        permitItems:
+          type: array
+          items: { $ref: "#/components/schemas/PermitItem" }
+        milestones:
+          type: object
+          properties:
+            authorization: { type: boolean }
+            signatures: { type: boolean }
+            submission: { type: boolean }
+            review: { type: boolean }
+            approval: { type: boolean }
+          required: [authorization, signatures, submission, review, approval]
+        canSubmitToOgpe: { type: boolean }
+        stateOrder:
+          type: array
+          items:
+            type: string
+            enum: [not_submitted, submitted, in_review, revision_requested, approved]
+      required: [projectId, authorization, requiredSignatures, permitItems, milestones, canSubmitToOgpe]

@@ -20,6 +20,7 @@ import type {
   ActivityItem,
   AdvanceDesignSubPhase200,
   ApproveProposal200,
+  AuthorizePermits200,
   CalculatorSummary,
   ChangeOrderResponse,
   ChatRequest,
@@ -41,11 +42,17 @@ import type {
   LoginResponse,
   Material,
   MaterialPriceRefreshResponse,
+  PermitsResponse,
   Project,
   ProjectTask,
   RefreshMaterialPricesParams,
   SetChangeOrderStatus200,
   SetChangeOrderStatusBody,
+  SetPermitItemState200,
+  SetPermitItemStateBody,
+  SignPermitForm200,
+  SignPermitFormBody,
+  SubmitPermitsToOgpe200,
   UpdateChangeOrder200,
   UpdateChangeOrderBody,
   UpdateDesignDeliverableBody,
@@ -1681,6 +1688,440 @@ export const useSetChangeOrderStatus = <
   TContext
 > => {
   return useMutation(getSetChangeOrderStatusMutationOptions(options));
+};
+
+/**
+ * @summary Get Phase-4 permit authorization, signatures, items, and milestones
+ */
+export const getGetProjectPermitsUrl = (id: string) => {
+  return `/api/projects/${id}/permits`;
+};
+
+export const getProjectPermits = async (
+  id: string,
+  options?: RequestInit,
+): Promise<PermitsResponse> => {
+  return customFetch<PermitsResponse>(getGetProjectPermitsUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetProjectPermitsQueryKey = (id: string) => {
+  return [`/api/projects/${id}/permits`] as const;
+};
+
+export const getGetProjectPermitsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getProjectPermits>>,
+  TError = ErrorType<unknown>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getProjectPermits>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetProjectPermitsQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getProjectPermits>>
+  > = ({ signal }) => getProjectPermits(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getProjectPermits>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetProjectPermitsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getProjectPermits>>
+>;
+export type GetProjectPermitsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get Phase-4 permit authorization, signatures, items, and milestones
+ */
+
+export function useGetProjectPermits<
+  TData = Awaited<ReturnType<typeof getProjectPermits>>,
+  TError = ErrorType<unknown>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getProjectPermits>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetProjectPermitsQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Client authorizes the OGPE submission packet
+ */
+export const getAuthorizePermitsUrl = (id: string) => {
+  return `/api/projects/${id}/authorize-permits`;
+};
+
+export const authorizePermits = async (
+  id: string,
+  options?: RequestInit,
+): Promise<AuthorizePermits200> => {
+  return customFetch<AuthorizePermits200>(getAuthorizePermitsUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getAuthorizePermitsMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof authorizePermits>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof authorizePermits>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ["authorizePermits"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof authorizePermits>>,
+    { id: string }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return authorizePermits(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AuthorizePermitsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof authorizePermits>>
+>;
+
+export type AuthorizePermitsMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Client authorizes the OGPE submission packet
+ */
+export const useAuthorizePermits = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof authorizePermits>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof authorizePermits>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  return useMutation(getAuthorizePermitsMutationOptions(options));
+};
+
+/**
+ * @summary Client provides a typed-name signature on a required permit form
+ */
+export const getSignPermitFormUrl = (id: string, signatureId: string) => {
+  return `/api/projects/${id}/sign/${signatureId}`;
+};
+
+export const signPermitForm = async (
+  id: string,
+  signatureId: string,
+  signPermitFormBody: SignPermitFormBody,
+  options?: RequestInit,
+): Promise<SignPermitForm200> => {
+  return customFetch<SignPermitForm200>(getSignPermitFormUrl(id, signatureId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(signPermitFormBody),
+  });
+};
+
+export const getSignPermitFormMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof signPermitForm>>,
+    TError,
+    { id: string; signatureId: string; data: BodyType<SignPermitFormBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof signPermitForm>>,
+  TError,
+  { id: string; signatureId: string; data: BodyType<SignPermitFormBody> },
+  TContext
+> => {
+  const mutationKey = ["signPermitForm"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof signPermitForm>>,
+    { id: string; signatureId: string; data: BodyType<SignPermitFormBody> }
+  > = (props) => {
+    const { id, signatureId, data } = props ?? {};
+
+    return signPermitForm(id, signatureId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SignPermitFormMutationResult = NonNullable<
+  Awaited<ReturnType<typeof signPermitForm>>
+>;
+export type SignPermitFormMutationBody = BodyType<SignPermitFormBody>;
+export type SignPermitFormMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Client provides a typed-name signature on a required permit form
+ */
+export const useSignPermitForm = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof signPermitForm>>,
+    TError,
+    { id: string; signatureId: string; data: BodyType<SignPermitFormBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof signPermitForm>>,
+  TError,
+  { id: string; signatureId: string; data: BodyType<SignPermitFormBody> },
+  TContext
+> => {
+  return useMutation(getSignPermitFormMutationOptions(options));
+};
+
+/**
+ * @summary Admin/architect submits the permit packet to OGPE (transitions not_submitted → submitted)
+ */
+export const getSubmitPermitsToOgpeUrl = (id: string) => {
+  return `/api/projects/${id}/permit-items/submit-to-ogpe`;
+};
+
+export const submitPermitsToOgpe = async (
+  id: string,
+  options?: RequestInit,
+): Promise<SubmitPermitsToOgpe200> => {
+  return customFetch<SubmitPermitsToOgpe200>(getSubmitPermitsToOgpeUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getSubmitPermitsToOgpeMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof submitPermitsToOgpe>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof submitPermitsToOgpe>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ["submitPermitsToOgpe"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof submitPermitsToOgpe>>,
+    { id: string }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return submitPermitsToOgpe(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SubmitPermitsToOgpeMutationResult = NonNullable<
+  Awaited<ReturnType<typeof submitPermitsToOgpe>>
+>;
+
+export type SubmitPermitsToOgpeMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Admin/architect submits the permit packet to OGPE (transitions not_submitted → submitted)
+ */
+export const useSubmitPermitsToOgpe = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof submitPermitsToOgpe>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof submitPermitsToOgpe>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  return useMutation(getSubmitPermitsToOgpeMutationOptions(options));
+};
+
+/**
+ * @summary Admin/architect transitions a permit item state (with optional revision note)
+ */
+export const getSetPermitItemStateUrl = (id: string, itemId: string) => {
+  return `/api/projects/${id}/permit-items/${itemId}/state`;
+};
+
+export const setPermitItemState = async (
+  id: string,
+  itemId: string,
+  setPermitItemStateBody: SetPermitItemStateBody,
+  options?: RequestInit,
+): Promise<SetPermitItemState200> => {
+  return customFetch<SetPermitItemState200>(
+    getSetPermitItemStateUrl(id, itemId),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(setPermitItemStateBody),
+    },
+  );
+};
+
+export const getSetPermitItemStateMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setPermitItemState>>,
+    TError,
+    { id: string; itemId: string; data: BodyType<SetPermitItemStateBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof setPermitItemState>>,
+  TError,
+  { id: string; itemId: string; data: BodyType<SetPermitItemStateBody> },
+  TContext
+> => {
+  const mutationKey = ["setPermitItemState"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof setPermitItemState>>,
+    { id: string; itemId: string; data: BodyType<SetPermitItemStateBody> }
+  > = (props) => {
+    const { id, itemId, data } = props ?? {};
+
+    return setPermitItemState(id, itemId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SetPermitItemStateMutationResult = NonNullable<
+  Awaited<ReturnType<typeof setPermitItemState>>
+>;
+export type SetPermitItemStateMutationBody = BodyType<SetPermitItemStateBody>;
+export type SetPermitItemStateMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Admin/architect transitions a permit item state (with optional revision note)
+ */
+export const useSetPermitItemState = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setPermitItemState>>,
+    TError,
+    { id: string; itemId: string; data: BodyType<SetPermitItemStateBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof setPermitItemState>>,
+  TError,
+  { id: string; itemId: string; data: BodyType<SetPermitItemStateBody> },
+  TContext
+> => {
+  return useMutation(getSetPermitItemStateMutationOptions(options));
 };
 
 /**
