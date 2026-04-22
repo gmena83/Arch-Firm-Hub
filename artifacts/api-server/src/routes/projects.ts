@@ -54,12 +54,10 @@ const VALID_ZONING = /^[A-Z]{1,3}-[0-9]{1,2}$/;
 // The demo client account is associated with all three sample projects so
 // reviewers can exercise both the consultation gate and the in-flight project
 // views from a single login.
-const CLIENT_PROJECT_OWNERSHIP: Record<string, string[]> = {
-  "user-client-1": ["proj-1", "proj-2", "proj-3"],
-};
-
 function clientCanAccessProject(userId: string, projectId: string): boolean {
-  return (CLIENT_PROJECT_OWNERSHIP[userId] ?? []).includes(projectId);
+  const project = PROJECTS.find((p) => p.id === projectId) as { clientUserId?: string } | undefined;
+  if (!project || !project.clientUserId) return false;
+  return project.clientUserId === userId;
 }
 
 router.get("/projects", (_req, res) => {
