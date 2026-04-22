@@ -10,6 +10,7 @@ import { useLang } from "@/hooks/use-lang";
 import { WeatherBadge } from "@/components/weather-badge";
 import { useGetProjectWeather } from "@workspace/api-client-react";
 import { ArrowRight, TrendingUp, FolderOpen, FileText, Clock, Activity, BarChart3, CheckCircle } from "lucide-react";
+import { ConstructionStatusCard } from "@/components/construction-status-card";
 import { formatDistanceToNow } from "date-fns";
 import { es as dateEs } from "date-fns/locale";
 
@@ -205,6 +206,16 @@ function DashboardContent() {
           </div>
         ))}
       </div>
+
+      {/* Construction status — show for any active construction project visible to the user */}
+      {projects.filter((p) => p.phase === "construction").map((p) => (
+        <ConstructionStatusCard
+          key={`cs-${p.id}`}
+          projectId={p.id}
+          projectName={p.name}
+          progressPercent={p.progressPercent}
+        />
+      ))}
 
       {/* Projects grid */}
       <div>

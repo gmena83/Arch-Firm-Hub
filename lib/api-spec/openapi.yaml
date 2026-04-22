@@ -30,6 +30,10 @@ tags:
     description: Lead intake & discovery
   - name: permits
     description: Phase 4 — Permit authorization & OGPE submission
+  - name: construction
+    description: Phase 5 — Construction cost-plus, inspections, milestones
+  - name: engineers
+    description: Structural engineer directory
 paths:
   /healthz:
     get:
@@ -465,6 +469,226 @@ paths:
                 properties:
                   projectId: { type: string }
                   changeOrder: { $ref: "#/components/schemas/ChangeOrder" }
+
+  /structural-engineers:
+    get:
+      operationId: listStructuralEngineers
+      tags: [engineers]
+      summary: List structural engineers (directory)
+      responses:
+        "200":
+          description: List of engineers
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/StructuralEngineer" }
+
+  /projects/{id}/cost-plus:
+    get:
+      operationId: getProjectCostPlus
+      tags: [construction]
+      summary: Get the Cost-Plus budget breakdown for a project
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Cost-plus budget
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CostPlusBudget" }
+        "404": { description: Not found }
+
+  /projects/{id}/inspections:
+    get:
+      operationId: getProjectInspections
+      tags: [construction]
+      summary: List inspections for a project
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Inspections
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InspectionsResponse" }
+    post:
+      operationId: createInspection
+      tags: [construction]
+      summary: Schedule a new inspection (admin/architect)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type, title, titleEs, inspector, scheduledDate]
+              properties:
+                type:
+                  type: string
+                  enum: [foundation, framing, electrical, plumbing, final]
+                title: { type: string }
+                titleEs: { type: string }
+                inspector: { type: string }
+                scheduledDate: { type: string }
+                completedDate: { type: string }
+                status:
+                  type: string
+                  enum: [scheduled, passed, failed, re_inspect]
+                notes: { type: string }
+                notesEs: { type: string }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  projectId: { type: string }
+                  inspection: { $ref: "#/components/schemas/Inspection" }
+
+  /projects/{id}/inspections/{insId}:
+    patch:
+      operationId: updateInspection
+      tags: [construction]
+      summary: Update an inspection (admin/architect)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+        - in: path
+          name: insId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title: { type: string }
+                titleEs: { type: string }
+                inspector: { type: string }
+                scheduledDate: { type: string }
+                completedDate: { type: string }
+                status:
+                  type: string
+                  enum: [scheduled, passed, failed, re_inspect]
+                notes: { type: string }
+                notesEs: { type: string }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  projectId: { type: string }
+                  inspection: { $ref: "#/components/schemas/Inspection" }
+
+  /projects/{id}/inspections/{insId}/send-report:
+    post:
+      operationId: sendInspectionReport
+      tags: [construction]
+      summary: Send the inspection report to a structural engineer (admin/architect)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+        - in: path
+          name: insId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [engineerId]
+              properties:
+                engineerId: { type: string }
+                note: { type: string }
+      responses:
+        "200":
+          description: Report sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  projectId: { type: string }
+                  inspection: { $ref: "#/components/schemas/Inspection" }
+
+  /projects/{id}/milestones:
+    get:
+      operationId: getProjectMilestones
+      tags: [construction]
+      summary: Get the construction milestones timeline for a project
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Milestones
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MilestonesResponse" }
+
+  /projects/{id}/milestones/{milestoneId}:
+    patch:
+      operationId: updateMilestone
+      tags: [construction]
+      summary: Update a milestone status / dates (admin/architect)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+        - in: path
+          name: milestoneId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [completed, in_progress, upcoming]
+                startDate: { type: string }
+                endDate: { type: string }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  projectId: { type: string }
+                  milestone: { $ref: "#/components/schemas/Milestone" }
 
   /projects/{id}/permits:
     get:
@@ -1655,3 +1879,89 @@ components:
             type: string
             enum: [not_submitted, submitted, in_review, revision_requested, approved]
       required: [projectId, authorization, requiredSignatures, permitItems, milestones, canSubmitToOgpe]
+
+    StructuralEngineer:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        firm: { type: string }
+        email: { type: string }
+        phone: { type: string }
+        specialty: { type: string }
+        specialtyEs: { type: string }
+      required: [id, name, firm, email, phone, specialty, specialtyEs]
+
+    CostPlusBudget:
+      type: object
+      properties:
+        projectId: { type: string }
+        materialsCost: { type: number }
+        laborCost: { type: number }
+        subcontractorCost: { type: number }
+        subtotal: { type: number }
+        plusFeePercent: { type: number }
+        plusFeeAmount: { type: number }
+        finalTotal: { type: number }
+        notes: { type: string }
+        notesEs: { type: string }
+      required: [projectId, materialsCost, laborCost, subcontractorCost, subtotal, plusFeePercent, plusFeeAmount, finalTotal]
+
+    Inspection:
+      type: object
+      properties:
+        id: { type: string }
+        projectId: { type: string }
+        type:
+          type: string
+          enum: [foundation, framing, electrical, plumbing, final]
+        title: { type: string }
+        titleEs: { type: string }
+        inspector: { type: string }
+        scheduledDate: { type: string }
+        completedDate: { type: string }
+        status:
+          type: string
+          enum: [scheduled, passed, failed, re_inspect]
+        notes: { type: string }
+        notesEs: { type: string }
+        reportSentTo: { type: string }
+        reportSentToName: { type: string }
+        reportSentAt: { type: string }
+        reportSentNote: { type: string }
+      required: [id, projectId, type, title, titleEs, inspector, scheduledDate, status]
+
+    InspectionsResponse:
+      type: object
+      properties:
+        projectId: { type: string }
+        inspections:
+          type: array
+          items: { $ref: "#/components/schemas/Inspection" }
+      required: [projectId, inspections]
+
+    Milestone:
+      type: object
+      properties:
+        id: { type: string }
+        projectId: { type: string }
+        key:
+          type: string
+          enum: [foundation, framing, roofing, mep, finishes, final]
+        title: { type: string }
+        titleEs: { type: string }
+        startDate: { type: string }
+        endDate: { type: string }
+        status:
+          type: string
+          enum: [completed, in_progress, upcoming]
+      required: [id, projectId, key, title, titleEs, startDate, endDate, status]
+
+    MilestonesResponse:
+      type: object
+      properties:
+        projectId: { type: string }
+        milestones:
+          type: array
+          items: { $ref: "#/components/schemas/Milestone" }
+      required: [projectId, milestones]

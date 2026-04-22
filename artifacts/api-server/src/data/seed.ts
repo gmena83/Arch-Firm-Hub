@@ -1048,7 +1048,7 @@ export interface PreDesignChecklistItem {
 export interface ProjectActivity {
   id: string;
   timestamp: string;
-  type: "phase_change" | "checklist_toggle" | "gamma_generated" | "email_sent" | "invoice_sent" | "weekly_report" | "structured_variables" | "proposal_decision" | "change_order_created" | "change_order_decision" | "sub_phase_advanced" | "permit_authorization" | "permit_signature" | "permit_submitted" | "permit_state_change";
+  type: "phase_change" | "checklist_toggle" | "gamma_generated" | "email_sent" | "invoice_sent" | "weekly_report" | "structured_variables" | "proposal_decision" | "change_order_created" | "change_order_decision" | "sub_phase_advanced" | "permit_authorization" | "permit_signature" | "permit_submitted" | "permit_state_change" | "inspection_scheduled" | "inspection_status_change" | "inspection_report_sent" | "milestone_status_change";
   actor: string;
   description: string;
   descriptionEs: string;
@@ -1567,4 +1567,134 @@ export const PROJECT_PERMIT_ITEMS: Record<string, PermitItem[]> = {
   "proj-1": permitItemsTemplate({ state: "not_submitted" }),
   "proj-2": proj2Items,
   "proj-3": permitItemsTemplate({ state: "approved", lastUpdatedAt: "2025-05-30T15:00:00Z" }),
+};
+
+// ============================================================
+// Phase 5 — Construction: Cost-Plus, Inspections, Milestones
+// ============================================================
+
+export interface CostPlusBudget {
+  projectId: string;
+  materialsCost: number;
+  laborCost: number;
+  subcontractorCost: number;
+  subtotal: number;
+  plusFeePercent: number;
+  plusFeeAmount: number;
+  finalTotal: number;
+  notes?: string;
+  notesEs?: string;
+}
+
+function buildCostPlus(projectId: string, materials: number, labor: number, subcontractor: number, plusPct: number, notes?: string, notesEs?: string): CostPlusBudget {
+  const subtotal = materials + labor + subcontractor;
+  const plusFeeAmount = Math.round(subtotal * (plusPct / 100));
+  return {
+    projectId,
+    materialsCost: materials,
+    laborCost: labor,
+    subcontractorCost: subcontractor,
+    subtotal,
+    plusFeePercent: plusPct,
+    plusFeeAmount,
+    finalTotal: subtotal + plusFeeAmount,
+    notes,
+    notesEs,
+  };
+}
+
+export const PROJECT_COST_PLUS: Record<string, CostPlusBudget> = {
+  "proj-1": buildCostPlus("proj-1", 138000, 78000, 32000, 12, "Pre-construction estimate; locked at proposal signing.", "Estimado pre-construcción; fijado al firmar la propuesta."),
+  "proj-2": buildCostPlus("proj-2", 198000, 112000, 48000, 11, "In-flight construction; numbers update with approved change orders.", "Construcción en curso; los números se actualizan con órdenes de cambio aprobadas."),
+  "proj-3": buildCostPlus("proj-3", 84000, 46000, 21000, 10, "Final cost-plus reconciliation post-handover.", "Reconciliación final cost-plus tras entrega."),
+};
+
+export type InspectionType = "foundation" | "framing" | "electrical" | "plumbing" | "final";
+export type InspectionStatus = "scheduled" | "passed" | "failed" | "re_inspect";
+
+export interface Inspection {
+  id: string;
+  projectId: string;
+  type: InspectionType;
+  title: string;
+  titleEs: string;
+  inspector: string;
+  scheduledDate: string;
+  completedDate?: string;
+  status: InspectionStatus;
+  notes?: string;
+  notesEs?: string;
+  reportSentTo?: string;       // engineer id
+  reportSentToName?: string;
+  reportSentAt?: string;
+  reportSentNote?: string;
+}
+
+export const PROJECT_INSPECTIONS: Record<string, Inspection[]> = {
+  "proj-1": [],
+  "proj-2": [
+    { id: "ins-2-1", projectId: "proj-2", type: "foundation", title: "Foundation Inspection", titleEs: "Inspección de Cimientos", inspector: "Ing. Roberto Sánchez", scheduledDate: "2025-08-22", completedDate: "2025-08-23", status: "passed", notes: "Concrete cured per spec; no settlement observed.", notesEs: "Concreto curado según especificación; sin asentamiento observado.", reportSentTo: "eng-2", reportSentToName: "Ing. María Vázquez, P.E.", reportSentAt: "2025-08-25T16:30:00Z", reportSentNote: "Foundation report attached for structural sign-off." },
+    { id: "ins-2-2", projectId: "proj-2", type: "framing", title: "Framing Inspection", titleEs: "Inspección de Estructura", inspector: "Ing. María Vázquez", scheduledDate: "2025-10-14", completedDate: "2025-10-15", status: "passed", notes: "All container welds verified per AISC 360.", notesEs: "Todas las soldaduras de contenedores verificadas según AISC 360.", reportSentTo: "eng-1", reportSentToName: "Ing. Roberto Sánchez, P.E.", reportSentAt: "2025-10-17T14:00:00Z" },
+    { id: "ins-2-3", projectId: "proj-2", type: "electrical", title: "Electrical Rough-In", titleEs: "Inspección Eléctrica Inicial", inspector: "Ing. Roberto Sánchez", scheduledDate: "2026-01-20", completedDate: "2026-01-22", status: "re_inspect", notes: "GFCI requirement on 3 exterior outlets — re-inspection scheduled.", notesEs: "Requisito GFCI en 3 tomacorrientes exteriores — re-inspección programada." },
+    { id: "ins-2-4", projectId: "proj-2", type: "plumbing", title: "Plumbing Rough-In", titleEs: "Inspección de Plomería Inicial", inspector: "Ing. Carlos Rivera", scheduledDate: "2026-05-10", status: "scheduled" },
+    { id: "ins-2-5", projectId: "proj-2", type: "final", title: "Final Inspection", titleEs: "Inspección Final", inspector: "TBD", scheduledDate: "2026-08-30", status: "scheduled" },
+  ],
+  "proj-3": [
+    { id: "ins-3-1", projectId: "proj-3", type: "foundation", title: "Foundation Inspection", titleEs: "Inspección de Cimientos", inspector: "Ing. Patricia Méndez", scheduledDate: "2025-02-08", completedDate: "2025-02-09", status: "passed", reportSentTo: "eng-4", reportSentToName: "Ing. Patricia Méndez, P.E.", reportSentAt: "2025-02-10T12:00:00Z" },
+    { id: "ins-3-2", projectId: "proj-3", type: "framing", title: "Framing Inspection", titleEs: "Inspección de Estructura", inspector: "Ing. Roberto Sánchez", scheduledDate: "2025-04-22", completedDate: "2025-04-23", status: "passed", reportSentTo: "eng-1", reportSentToName: "Ing. Roberto Sánchez, P.E.", reportSentAt: "2025-04-24T10:30:00Z" },
+    { id: "ins-3-3", projectId: "proj-3", type: "electrical", title: "Electrical Inspection", titleEs: "Inspección Eléctrica", inspector: "Ing. Carlos Rivera", scheduledDate: "2025-08-18", completedDate: "2025-08-19", status: "passed" },
+    { id: "ins-3-4", projectId: "proj-3", type: "plumbing", title: "Plumbing Inspection", titleEs: "Inspección de Plomería", inspector: "Ing. Carlos Rivera", scheduledDate: "2025-08-25", completedDate: "2025-08-26", status: "passed" },
+    { id: "ins-3-5", projectId: "proj-3", type: "final", title: "Final Inspection — Certificate of Occupancy", titleEs: "Inspección Final — Certificado de Ocupación", inspector: "Ing. Patricia Méndez", scheduledDate: "2025-11-25", completedDate: "2025-11-26", status: "passed", notes: "C/O issued; project handed over to client.", notesEs: "C/O emitido; proyecto entregado al cliente.", reportSentTo: "eng-4", reportSentToName: "Ing. Patricia Méndez, P.E.", reportSentAt: "2025-11-28T09:00:00Z" },
+  ],
+};
+
+export interface StructuralEngineer {
+  id: string;
+  name: string;
+  firm: string;
+  email: string;
+  phone: string;
+  specialty: string;
+  specialtyEs: string;
+}
+
+export const STRUCTURAL_ENGINEERS: StructuralEngineer[] = [
+  { id: "eng-1", name: "Ing. Roberto Sánchez, P.E.", firm: "Sánchez Structural Engineering", email: "rsanchez@sanchezstructural.pr", phone: "+1-787-555-0142", specialty: "Container/steel structures", specialtyEs: "Estructuras de contenedores/acero" },
+  { id: "eng-2", name: "Ing. María Vázquez, P.E.", firm: "Vázquez & Associates", email: "mvazquez@vazquezpe.pr", phone: "+1-787-555-0188", specialty: "Concrete & foundations", specialtyEs: "Concreto y cimientos" },
+  { id: "eng-3", name: "Ing. Carlos Rivera, P.E.", firm: "Rivera Engineering Group", email: "crivera@regpr.com", phone: "+1-787-555-0211", specialty: "MEP & seismic design", specialtyEs: "MEP y diseño sísmico" },
+  { id: "eng-4", name: "Ing. Patricia Méndez, P.E.", firm: "Tropical Structures", email: "pmendez@tropicalstructures.pr", phone: "+1-787-555-0273", specialty: "Hurricane resilience", specialtyEs: "Resiliencia ante huracanes" },
+];
+
+export type MilestoneStatus = "completed" | "in_progress" | "upcoming";
+export type MilestoneKey = "foundation" | "framing" | "roofing" | "mep" | "finishes" | "final";
+
+export interface Milestone {
+  id: string;
+  projectId: string;
+  key: MilestoneKey;
+  title: string;
+  titleEs: string;
+  startDate: string;
+  endDate: string;
+  status: MilestoneStatus;
+}
+
+export const PROJECT_MILESTONES: Record<string, Milestone[]> = {
+  "proj-1": [],
+  "proj-2": [
+    { id: "m-2-1", projectId: "proj-2", key: "foundation", title: "Foundation", titleEs: "Cimientos", startDate: "2025-08-01", endDate: "2025-09-15", status: "completed" },
+    { id: "m-2-2", projectId: "proj-2", key: "framing", title: "Framing & Containers", titleEs: "Estructura y Contenedores", startDate: "2025-09-16", endDate: "2025-11-30", status: "completed" },
+    { id: "m-2-3", projectId: "proj-2", key: "roofing", title: "Roofing", titleEs: "Techado", startDate: "2025-12-01", endDate: "2026-01-15", status: "completed" },
+    { id: "m-2-4", projectId: "proj-2", key: "mep", title: "MEP Rough-In", titleEs: "MEP Inicial", startDate: "2026-01-16", endDate: "2026-04-30", status: "in_progress" },
+    { id: "m-2-5", projectId: "proj-2", key: "finishes", title: "Interior Finishes", titleEs: "Acabados Interiores", startDate: "2026-05-01", endDate: "2026-08-15", status: "upcoming" },
+    { id: "m-2-6", projectId: "proj-2", key: "final", title: "Final & Closeout", titleEs: "Cierre Final", startDate: "2026-08-16", endDate: "2026-09-15", status: "upcoming" },
+  ],
+  "proj-3": [
+    { id: "m-3-1", projectId: "proj-3", key: "foundation", title: "Foundation", titleEs: "Cimientos", startDate: "2025-01-15", endDate: "2025-02-15", status: "completed" },
+    { id: "m-3-2", projectId: "proj-3", key: "framing", title: "Framing & Containers", titleEs: "Estructura y Contenedores", startDate: "2025-02-16", endDate: "2025-04-30", status: "completed" },
+    { id: "m-3-3", projectId: "proj-3", key: "roofing", title: "Roofing & Pergola", titleEs: "Techado y Pérgola", startDate: "2025-05-01", endDate: "2025-06-15", status: "completed" },
+    { id: "m-3-4", projectId: "proj-3", key: "mep", title: "MEP Install", titleEs: "Instalación MEP", startDate: "2025-06-16", endDate: "2025-08-31", status: "completed" },
+    { id: "m-3-5", projectId: "proj-3", key: "finishes", title: "Interior Finishes", titleEs: "Acabados Interiores", startDate: "2025-09-01", endDate: "2025-10-31", status: "completed" },
+    { id: "m-3-6", projectId: "proj-3", key: "final", title: "Final & Opening", titleEs: "Cierre y Apertura", startDate: "2025-11-01", endDate: "2025-11-30", status: "completed" },
+  ],
 };

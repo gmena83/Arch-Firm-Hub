@@ -763,6 +763,254 @@ export const SetChangeOrderStatusResponse = zod.object({
 });
 
 /**
+ * @summary List structural engineers (directory)
+ */
+export const ListStructuralEngineersResponseItem = zod.object({
+  id: zod.string(),
+  name: zod.string(),
+  firm: zod.string(),
+  email: zod.string(),
+  phone: zod.string(),
+  specialty: zod.string(),
+  specialtyEs: zod.string(),
+});
+export const ListStructuralEngineersResponse = zod.array(
+  ListStructuralEngineersResponseItem,
+);
+
+/**
+ * @summary Get the Cost-Plus budget breakdown for a project
+ */
+export const GetProjectCostPlusParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const GetProjectCostPlusResponse = zod.object({
+  projectId: zod.string(),
+  materialsCost: zod.number(),
+  laborCost: zod.number(),
+  subcontractorCost: zod.number(),
+  subtotal: zod.number(),
+  plusFeePercent: zod.number(),
+  plusFeeAmount: zod.number(),
+  finalTotal: zod.number(),
+  notes: zod.string().optional(),
+  notesEs: zod.string().optional(),
+});
+
+/**
+ * @summary List inspections for a project
+ */
+export const GetProjectInspectionsParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const GetProjectInspectionsResponse = zod.object({
+  projectId: zod.string(),
+  inspections: zod.array(
+    zod.object({
+      id: zod.string(),
+      projectId: zod.string(),
+      type: zod.enum([
+        "foundation",
+        "framing",
+        "electrical",
+        "plumbing",
+        "final",
+      ]),
+      title: zod.string(),
+      titleEs: zod.string(),
+      inspector: zod.string(),
+      scheduledDate: zod.string(),
+      completedDate: zod.string().optional(),
+      status: zod.enum(["scheduled", "passed", "failed", "re_inspect"]),
+      notes: zod.string().optional(),
+      notesEs: zod.string().optional(),
+      reportSentTo: zod.string().optional(),
+      reportSentToName: zod.string().optional(),
+      reportSentAt: zod.string().optional(),
+      reportSentNote: zod.string().optional(),
+    }),
+  ),
+});
+
+/**
+ * @summary Schedule a new inspection (admin/architect)
+ */
+export const CreateInspectionParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const CreateInspectionBody = zod.object({
+  type: zod.enum(["foundation", "framing", "electrical", "plumbing", "final"]),
+  title: zod.string(),
+  titleEs: zod.string(),
+  inspector: zod.string(),
+  scheduledDate: zod.string(),
+  completedDate: zod.string().optional(),
+  status: zod.enum(["scheduled", "passed", "failed", "re_inspect"]).optional(),
+  notes: zod.string().optional(),
+  notesEs: zod.string().optional(),
+});
+
+/**
+ * @summary Update an inspection (admin/architect)
+ */
+export const UpdateInspectionParams = zod.object({
+  id: zod.coerce.string(),
+  insId: zod.coerce.string(),
+});
+
+export const UpdateInspectionBody = zod.object({
+  title: zod.string().optional(),
+  titleEs: zod.string().optional(),
+  inspector: zod.string().optional(),
+  scheduledDate: zod.string().optional(),
+  completedDate: zod.string().optional(),
+  status: zod.enum(["scheduled", "passed", "failed", "re_inspect"]).optional(),
+  notes: zod.string().optional(),
+  notesEs: zod.string().optional(),
+});
+
+export const UpdateInspectionResponse = zod.object({
+  projectId: zod.string().optional(),
+  inspection: zod
+    .object({
+      id: zod.string(),
+      projectId: zod.string(),
+      type: zod.enum([
+        "foundation",
+        "framing",
+        "electrical",
+        "plumbing",
+        "final",
+      ]),
+      title: zod.string(),
+      titleEs: zod.string(),
+      inspector: zod.string(),
+      scheduledDate: zod.string(),
+      completedDate: zod.string().optional(),
+      status: zod.enum(["scheduled", "passed", "failed", "re_inspect"]),
+      notes: zod.string().optional(),
+      notesEs: zod.string().optional(),
+      reportSentTo: zod.string().optional(),
+      reportSentToName: zod.string().optional(),
+      reportSentAt: zod.string().optional(),
+      reportSentNote: zod.string().optional(),
+    })
+    .optional(),
+});
+
+/**
+ * @summary Send the inspection report to a structural engineer (admin/architect)
+ */
+export const SendInspectionReportParams = zod.object({
+  id: zod.coerce.string(),
+  insId: zod.coerce.string(),
+});
+
+export const SendInspectionReportBody = zod.object({
+  engineerId: zod.string(),
+  note: zod.string().optional(),
+});
+
+export const SendInspectionReportResponse = zod.object({
+  projectId: zod.string().optional(),
+  inspection: zod
+    .object({
+      id: zod.string(),
+      projectId: zod.string(),
+      type: zod.enum([
+        "foundation",
+        "framing",
+        "electrical",
+        "plumbing",
+        "final",
+      ]),
+      title: zod.string(),
+      titleEs: zod.string(),
+      inspector: zod.string(),
+      scheduledDate: zod.string(),
+      completedDate: zod.string().optional(),
+      status: zod.enum(["scheduled", "passed", "failed", "re_inspect"]),
+      notes: zod.string().optional(),
+      notesEs: zod.string().optional(),
+      reportSentTo: zod.string().optional(),
+      reportSentToName: zod.string().optional(),
+      reportSentAt: zod.string().optional(),
+      reportSentNote: zod.string().optional(),
+    })
+    .optional(),
+});
+
+/**
+ * @summary Get the construction milestones timeline for a project
+ */
+export const GetProjectMilestonesParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const GetProjectMilestonesResponse = zod.object({
+  projectId: zod.string(),
+  milestones: zod.array(
+    zod.object({
+      id: zod.string(),
+      projectId: zod.string(),
+      key: zod.enum([
+        "foundation",
+        "framing",
+        "roofing",
+        "mep",
+        "finishes",
+        "final",
+      ]),
+      title: zod.string(),
+      titleEs: zod.string(),
+      startDate: zod.string(),
+      endDate: zod.string(),
+      status: zod.enum(["completed", "in_progress", "upcoming"]),
+    }),
+  ),
+});
+
+/**
+ * @summary Update a milestone status / dates (admin/architect)
+ */
+export const UpdateMilestoneParams = zod.object({
+  id: zod.coerce.string(),
+  milestoneId: zod.coerce.string(),
+});
+
+export const UpdateMilestoneBody = zod.object({
+  status: zod.enum(["completed", "in_progress", "upcoming"]).optional(),
+  startDate: zod.string().optional(),
+  endDate: zod.string().optional(),
+});
+
+export const UpdateMilestoneResponse = zod.object({
+  projectId: zod.string().optional(),
+  milestone: zod
+    .object({
+      id: zod.string(),
+      projectId: zod.string(),
+      key: zod.enum([
+        "foundation",
+        "framing",
+        "roofing",
+        "mep",
+        "finishes",
+        "final",
+      ]),
+      title: zod.string(),
+      titleEs: zod.string(),
+      startDate: zod.string(),
+      endDate: zod.string(),
+      status: zod.enum(["completed", "in_progress", "upcoming"]),
+    })
+    .optional(),
+});
+
+/**
  * @summary Get Phase-4 permit authorization, signatures, items, and milestones
  */
 export const GetProjectPermitsParams = zod.object({

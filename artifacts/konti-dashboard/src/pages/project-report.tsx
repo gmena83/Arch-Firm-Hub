@@ -3,8 +3,10 @@ import { useState } from "react";
 import {
   useGetProject, useGetProjectWeather, useGetProjectTasks,
   useGetProjectCalculations,
+  useGetProjectCostPlus, useGetProjectInspections, useGetProjectMilestones,
   getGetProjectQueryKey, getGetProjectWeatherQueryKey,
   getGetProjectTasksQueryKey, getGetProjectCalculationsQueryKey,
+  getGetProjectCostPlusQueryKey, getGetProjectInspectionsQueryKey, getGetProjectMilestonesQueryKey,
 } from "@workspace/api-client-react";
 import { RequireAuth } from "@/hooks/use-auth";
 import { useLang } from "@/hooks/use-lang";
@@ -31,6 +33,17 @@ function ReportContent({ projectId }: { projectId: string }) {
   const { data: calc } = useGetProjectCalculations(projectId, {
     query: { enabled: !!projectId, queryKey: getGetProjectCalculationsQueryKey(projectId) }
   });
+  const { data: costPlus } = useGetProjectCostPlus(projectId, {
+    query: { enabled: !!projectId, queryKey: getGetProjectCostPlusQueryKey(projectId) }
+  });
+  const { data: inspectionsData } = useGetProjectInspections(projectId, {
+    query: { enabled: !!projectId, queryKey: getGetProjectInspectionsQueryKey(projectId) }
+  });
+  const { data: milestonesData } = useGetProjectMilestones(projectId, {
+    query: { enabled: !!projectId, queryKey: getGetProjectMilestonesQueryKey(projectId) }
+  });
+  const inspections = inspectionsData?.inspections ?? [];
+  const milestones = milestonesData?.milestones ?? [];
 
   async function downloadPdf() {
     if (!project || isDownloading) return;
@@ -237,6 +250,97 @@ function ReportContent({ projectId }: { projectId: string }) {
             </ResponsiveContainer>
           </div>
         </section>
+
+        {/* Cost-Plus breakdown */}
+        {costPlus && (
+          <section data-testid="report-cost-plus">
+            <h2 className="text-white/40 text-xs font-semibold uppercase tracking-widest mb-4">
+              {t("Cost-Plus Budget", "Presupuesto Cost-Plus")}
+            </h2>
+            <div className="bg-white/5 rounded-xl border border-white/10 p-6 space-y-2">
+              {[
+                { label: t("Materials", "Materiales"), value: costPlus.materialsCost },
+                { label: t("Labor", "Mano de Obra"), value: costPlus.laborCost },
+                { label: t("Subcontractors", "Subcontratistas"), value: costPlus.subcontractorCost },
+              ].map((row) => (
+                <div key={row.label} className="flex justify-between text-sm text-white/70">
+                  <span>{row.label}</span>
+                  <span className="text-white">${row.value.toLocaleString()}</span>
+                </div>
+              ))}
+              <div className="flex justify-between border-t border-white/10 pt-2 text-sm">
+                <span className="text-white/60 font-medium">{t("Subtotal", "Subtotal")}</span>
+                <span className="font-semibold text-white">${costPlus.subtotal.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between bg-konti-olive/20 border border-konti-olive/40 rounded-md px-3 py-2 my-1">
+                <span className="text-konti-olive font-semibold">
+                  {t("Plus Management Fee", "Cargo de Administración Plus")} ({costPlus.plusFeePercent}%)
+                </span>
+                <span className="text-konti-olive font-bold">${costPlus.plusFeeAmount.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between border-t border-white/10 pt-3">
+                <span className="text-white font-bold">{t("Final Total", "Total Final")}</span>
+                <span className="text-white text-xl font-bold">${costPlus.finalTotal.toLocaleString()}</span>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* Construction milestones */}
+        {milestones.length > 0 && (
+          <section data-testid="report-milestones">
+            <h2 className="text-white/40 text-xs font-semibold uppercase tracking-widest mb-4">
+              {t("Construction Milestones", "Hitos de Construcción")}
+            </h2>
+            <div className="bg-white/5 rounded-xl border border-white/10 p-6 space-y-3">
+              {milestones.map((m) => {
+                const color = m.status === "completed" ? "bg-konti-olive" : m.status === "in_progress" ? "bg-amber-500" : "bg-white/10";
+                const label = m.status === "completed" ? t("Done", "Listo") : m.status === "in_progress" ? t("In Progress", "En Progreso") : t("Upcoming", "Próximo");
+                return (
+                  <div key={m.id} className="flex items-center gap-3">
+                    <div className={`w-2.5 h-2.5 rounded-full ${color} shrink-0`} />
+                    <div className="flex-1 flex items-center justify-between text-sm">
+                      <span className="text-white">{lang === "es" ? m.titleEs : m.title}</span>
+                      <span className="text-white/40 text-xs">{m.startDate} → {m.endDate} · {label}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* Inspections summary */}
+        {inspections.length > 0 && (
+          <section data-testid="report-inspections">
+            <h2 className="text-white/40 text-xs font-semibold uppercase tracking-widest mb-4">
+              {t("Inspections", "Inspecciones")}
+            </h2>
+            <div className="bg-white/5 rounded-xl border border-white/10 divide-y divide-white/5">
+              {inspections.map((insp) => {
+                const statusLabels: Record<string, string> = {
+                  scheduled: t("Scheduled", "Programada"),
+                  passed: t("Passed", "Aprobada"),
+                  failed: t("Failed", "Fallida"),
+                  re_inspect: t("Re-inspect", "Re-inspección"),
+                };
+                const statusColor = insp.status === "passed" ? "text-emerald-400" : insp.status === "failed" ? "text-red-400" : insp.status === "re_inspect" ? "text-amber-400" : "text-sky-400";
+                return (
+                  <div key={insp.id} className="px-5 py-3 flex items-center justify-between gap-3 text-sm">
+                    <div className="min-w-0">
+                      <p className="text-white font-medium truncate">{lang === "es" ? insp.titleEs : insp.title}</p>
+                      <p className="text-white/40 text-xs">{insp.inspector} · {insp.scheduledDate}{insp.completedDate ? ` → ${insp.completedDate}` : ""}</p>
+                      {insp.reportSentToName && (
+                        <p className="text-konti-olive text-xs mt-0.5">↳ {t("Report sent to", "Reporte enviado a")} {insp.reportSentToName}</p>
+                      )}
+                    </div>
+                    <span className={`text-xs font-bold ${statusColor} whitespace-nowrap`}>{statusLabels[insp.status]}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         {/* Weather */}
         {weather && (
