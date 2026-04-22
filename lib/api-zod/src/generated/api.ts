@@ -775,6 +775,12 @@ export const GetProjectPermitsResponse = zod.object({
     status: zod.enum(["none", "authorized"]),
     authorizedBy: zod.string().optional(),
     authorizedAt: zod.string().optional(),
+    authorizedIpMock: zod
+      .string()
+      .optional()
+      .describe(
+        "Captured (or mocked) IP address of the authorizing client for audit",
+      ),
     summaryAccepted: zod.boolean(),
   }),
   requiredSignatures: zod.array(
@@ -844,6 +850,12 @@ export const AuthorizePermitsResponse = zod.object({
     status: zod.enum(["none", "authorized"]),
     authorizedBy: zod.string().optional(),
     authorizedAt: zod.string().optional(),
+    authorizedIpMock: zod
+      .string()
+      .optional()
+      .describe(
+        "Captured (or mocked) IP address of the authorizing client for audit",
+      ),
     summaryAccepted: zod.boolean(),
   }),
 });

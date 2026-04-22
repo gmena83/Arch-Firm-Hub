@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { FileCheck, ExternalLink } from "lucide-react";
 import { AppLayout } from "@/components/layout/app-layout";
@@ -12,11 +12,14 @@ export default function PermitsPage() {
   useAuth();
   const { data: projects = [] } = useListProjects();
   const visible = projects;
-  const initial =
-    visible.find((p) => p.phase === "permits")?.id ??
-    visible[0]?.id ??
-    "";
-  const [projectId, setProjectId] = useState<string>(initial);
+  const [projectId, setProjectId] = useState<string>("");
+  useEffect(() => {
+    if (visible.length === 0) return;
+    if (projectId && visible.some((p) => p.id === projectId)) return;
+    const next =
+      visible.find((p) => p.phase === "permits")?.id ?? visible[0]!.id;
+    setProjectId(next);
+  }, [visible, projectId]);
   const project = visible.find((p) => p.id === projectId);
 
   return (

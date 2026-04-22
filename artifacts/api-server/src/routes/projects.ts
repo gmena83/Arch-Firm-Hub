@@ -897,6 +897,10 @@ router.post("/projects/:id/authorize-permits", requireRole(["client"]), (req, re
   auth.authorizedBy = user.name ?? "Client";
   auth.authorizedAt = new Date().toISOString();
   auth.summaryAccepted = true;
+  // Capture client IP for the audit trail. Demo data is in-memory, so we
+  // accept the proxied request IP and fall back to a mock placeholder.
+  const fwd = (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim();
+  auth.authorizedIpMock = fwd || req.ip || req.socket?.remoteAddress || "127.0.0.1 (mock)";
   appendActivity(project.id, {
     type: "permit_authorization",
     actor: user.name ?? "Client",
