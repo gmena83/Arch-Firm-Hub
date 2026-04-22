@@ -402,22 +402,23 @@ router.post("/projects/:id/structured-variables", requireRole(["admin", "superad
 router.post("/projects/:id/advance-phase", requireRole(["team", "client"]), (req, res) => {
   const project = PROJECTS.find((p) => p.id === req.params["id"]);
   if (!project) return res.status(404).json({ error: "not_found" });
+  const user = (req as { user?: { id: string; name?: string; role?: string } }).user;
+  const isClient = user?.role === "client";
+
+  // Ownership gate first — non-owning clients should get 403 regardless of
+  // project state, so we don't leak phase information to unauthorized callers.
+  if (isClient && (!user || !clientCanAccessProject(user.id, project.id))) {
+    return res.status(403).json({ error: "forbidden", message: "Client cannot advance this project" });
+  }
+
   const idx = PHASE_ORDER.indexOf(project.phase);
   if (idx === -1 || idx >= PHASE_ORDER.length - 1) {
     return res.status(400).json({ error: "cannot_advance", message: "Project is already in final phase" });
   }
-  const user = (req as { user?: { id: string; name?: string; role?: string } }).user;
-  const isClient = user?.role === "client";
 
-  // Client gate: clients may only approve the consultation → pre_design transition
-  // and only on projects they own.
-  if (isClient) {
-    if (!user || !clientCanAccessProject(user.id, project.id)) {
-      return res.status(403).json({ error: "forbidden", message: "Client cannot advance this project" });
-    }
-    if (project.phase !== "consultation") {
-      return res.status(400).json({ error: "client_gate_invalid", message: "Clients may only approve the consultation gate" });
-    }
+  // Client gate: clients may only approve the consultation → pre_design transition.
+  if (isClient && project.phase !== "consultation") {
+    return res.status(400).json({ error: "client_gate_invalid", message: "Clients may only approve the consultation gate" });
   }
 
   const nextPhase = PHASE_ORDER[idx + 1];
