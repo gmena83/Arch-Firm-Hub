@@ -543,9 +543,9 @@ router.put("/projects/:id/contractor-estimate/lines", requireRole(["team", "admi
     const lineTotal = Math.round(quantity * unitPrice * 100) / 100;
     return { id, category, description, descriptionEs, quantity, unit, unitPrice, lineTotal };
   });
-  const subtotalMaterials = updatedLines.filter((l) => l.category === "materials").reduce((a, b) => a + b.lineTotal, 0);
   const subtotalLabor = updatedLines.filter((l) => l.category === "labor").reduce((a, b) => a + b.lineTotal, 0);
   const subtotalSubcontractor = updatedLines.filter((l) => l.category === "subcontractor").reduce((a, b) => a + b.lineTotal, 0);
+  const subtotalMaterials = updatedLines.filter((l) => l.category !== "labor" && l.category !== "subcontractor").reduce((a, b) => a + b.lineTotal, 0);
   const baseSubtotal = subtotalMaterials + subtotalLabor + subtotalSubcontractor;
   const contingency = Math.round(baseSubtotal * (est.contingencyPercent / 100) * 100) / 100;
   const grandTotal = Math.round((baseSubtotal + contingency) * 100) / 100;

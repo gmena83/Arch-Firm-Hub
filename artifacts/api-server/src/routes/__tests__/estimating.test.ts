@@ -125,6 +125,25 @@ test("estimating end-to-end: import → contractor estimate → receipts → var
       const allMats = (await matsList.json()) as Array<{ id: string; item: string }>;
       assert.ok(allMats.some((m) => m.item === "Green Roof Membrane"), "imported material should appear in /api/materials");
 
+      // 5d. Edit contractor estimate lines — totals must include non-labor/sub categories
+      // (foundation/steel/finishes/etc. are materials buckets and must NOT be dropped from subtotal)
+      const editLines = est.lines.map((l, i) => i === 0 ? { ...l, quantity: (l as { quantity: number }).quantity, unitPrice: (l as { unitPrice: number }).unitPrice + 100 } : l);
+      const editRes = await fetch(`${baseUrl}/api/projects/proj-1/contractor-estimate/lines`, {
+        method: "PUT", headers: auth, body: JSON.stringify({ lines: editLines }),
+      });
+      assert.equal(editRes.status, 200);
+      const edited = (await editRes.json()) as {
+        lines: Array<{ category: string; lineTotal: number }>;
+        subtotalMaterials: number; subtotalLabor: number; subtotalSubcontractor: number;
+        contingency: number; grandTotal: number; contingencyPercent: number;
+      };
+      const sumAll = edited.lines.reduce((a, b) => a + b.lineTotal, 0);
+      const sumByBuckets = edited.subtotalMaterials + edited.subtotalLabor + edited.subtotalSubcontractor;
+      assert.ok(Math.abs(sumAll - sumByBuckets) < 0.05, `subtotals must include all categories (sumAll=${sumAll} buckets=${sumByBuckets})`);
+      const expectedGrand = Math.round((sumAll + sumAll * (edited.contingencyPercent / 100)) * 100) / 100;
+      assert.ok(Math.abs(edited.grandTotal - expectedGrand) < 0.05, `grandTotal should reflect all line categories: got ${edited.grandTotal}, expected ~${expectedGrand}`);
+      assert.ok(edited.subtotalMaterials > 0, "materials bucket must capture foundation/steel/etc. lines");
+
       // 6. Variance report
       const varRes = await fetch(`${baseUrl}/api/projects/proj-1/variance-report`, { headers: auth });
       assert.equal(varRes.status, 200);
