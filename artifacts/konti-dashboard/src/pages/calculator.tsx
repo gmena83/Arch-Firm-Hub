@@ -1,9 +1,14 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useListProjects, useGetProjectCalculations, useListMaterials, getGetProjectCalculationsQueryKey } from "@workspace/api-client-react";
+import { useSearch } from "wouter";
 import { AppLayout } from "@/components/layout/app-layout";
 import { RequireAuth } from "@/hooks/use-auth";
 import { useLang } from "@/hooks/use-lang";
 import { Calculator, Plus, X } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { ContractorCalculator } from "@/components/estimating/contractor-calculator";
+import { ImportsPanel } from "@/components/estimating/imports-panel";
+import { VarianceReportPanel } from "@/components/estimating/variance-report";
 
 const CAT_COLORS: Record<string, string> = {
   steel: "bg-slate-100 text-slate-700",
@@ -128,7 +133,19 @@ function makeEntry(item: string, category: string, unit: string, qty: number, ba
 export default function CalculatorPage() {
   const { t } = useLang();
   const { data: projects = [] } = useListProjects();
-  const [selectedProject, setSelectedProject] = useState<string>("");
+  const search = useSearch();
+  const params = new URLSearchParams(search);
+  const initialProject = params.get("projectId") ?? "";
+  const initialTab = params.get("tab") ?? "estimate";
+  const [selectedProject, setSelectedProject] = useState<string>(initialProject);
+  const [activeTab, setActiveTab] = useState<string>(initialTab);
+  useEffect(() => {
+    const p = new URLSearchParams(search);
+    const pid = p.get("projectId");
+    const tb = p.get("tab");
+    if (pid) setSelectedProject(pid);
+    if (tb) setActiveTab(tb);
+  }, [search]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [overrides, setOverrides] = useState<Record<number, string>>({});
   const [localEntries, setLocalEntries] = useState<LocalEntry[]>([]);
@@ -178,29 +195,39 @@ export default function CalculatorPage() {
                 {t("Manage material quantities and cost overrides.", "Gestiona cantidades de materiales y sobrescritura de precios.")}
               </p>
             </div>
-            <div className="flex items-center gap-3">
-              <select
-                value={selectedProject}
-                onChange={(e) => setSelectedProject(e.target.value)}
-                data-testid="project-selector"
-                className="px-3 py-2 rounded-md border border-input bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-              >
-                <option value="">{t("Select Project", "Seleccionar Proyecto")}</option>
-                {projects.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
-              <button
-                onClick={() => setShowAddModal(true)}
-                data-testid="btn-add-material"
-                className="flex items-center gap-1.5 px-4 py-2 bg-konti-olive hover:bg-konti-olive/90 text-white text-sm font-semibold rounded-md transition-colors"
-              >
-                <Plus className="w-4 h-4" /> {t("Add Material", "Agregar Material")}
-              </button>
             </div>
-          </div>
 
-          {isLoading ? (
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+            <TabsList data-testid="calculator-tabs" className="flex flex-wrap h-auto">
+              <TabsTrigger value="estimate" data-testid="tab-estimate">{t("Estimate", "Estimado")}</TabsTrigger>
+              <TabsTrigger value="contractor" data-testid="tab-contractor">{t("Contractor", "Contratista")}</TabsTrigger>
+              <TabsTrigger value="imports" data-testid="tab-imports">{t("Imports", "Importaciones")}</TabsTrigger>
+              <TabsTrigger value="variance" data-testid="tab-variance">{t("Variance", "Varianza")}</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="estimate" className="space-y-4">
+              <div className="flex items-center justify-end gap-3 flex-wrap">
+                <select
+                  value={selectedProject}
+                  onChange={(e) => setSelectedProject(e.target.value)}
+                  data-testid="project-selector"
+                  className="px-3 py-2 rounded-md border border-input bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                >
+                  <option value="">{t("Select Project", "Seleccionar Proyecto")}</option>
+                  {projects.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => setShowAddModal(true)}
+                  data-testid="btn-add-material"
+                  className="flex items-center gap-1.5 px-4 py-2 bg-konti-olive hover:bg-konti-olive/90 text-white text-sm font-semibold rounded-md transition-colors"
+                >
+                  <Plus className="w-4 h-4" /> {t("Add Material", "Agregar Material")}
+                </button>
+              </div>
+
+              {isLoading ? (
             <div className="h-64 bg-card rounded-xl border animate-pulse" />
           ) : (
             <>
@@ -291,6 +318,18 @@ export default function CalculatorPage() {
               </div>
             </>
           )}
+            </TabsContent>
+
+            <TabsContent value="contractor">
+              <ContractorCalculator defaultProjectId={selectedProject || projects[0]?.id} />
+            </TabsContent>
+            <TabsContent value="imports">
+              <ImportsPanel />
+            </TabsContent>
+            <TabsContent value="variance">
+              <VarianceReportPanel defaultProjectId={selectedProject || projects[0]?.id} />
+            </TabsContent>
+          </Tabs>
         </div>
 
         {showAddModal && (

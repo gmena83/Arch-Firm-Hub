@@ -798,6 +798,25 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
             </div>
           )}
 
+          {/* Estimated vs Actual snapshot */}
+          <div className="bg-card rounded-xl border border-card-border p-5 shadow-sm" data-testid="variance-snapshot-link">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="font-bold text-foreground">{t("Estimated vs Actual", "Estimado vs Real")}</h2>
+              <Link
+                href={`/calculator?projectId=${projectId}&tab=variance`}
+                className="text-xs text-konti-olive hover:text-konti-olive/80 font-medium transition-colors"
+              >
+                {t("Open Variance Report", "Abrir Reporte de Varianza")} →
+              </Link>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {t(
+                "Compare this project's contractor estimate (or calculator entries) against the cost-plus actuals.",
+                "Compara el estimado de contratista (o las entradas de calculadora) de este proyecto contra los costos reales del cost-plus."
+              )}
+            </p>
+          </div>
+
           {/* Material Cost Summary */}
           {calc && (
             <div className="bg-card rounded-xl border border-card-border p-5 shadow-sm" data-testid="material-cost-summary">
