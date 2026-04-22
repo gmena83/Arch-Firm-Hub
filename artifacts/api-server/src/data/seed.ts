@@ -1070,7 +1070,7 @@ export interface PreDesignChecklistItem {
 export interface ProjectActivity {
   id: string;
   timestamp: string;
-  type: "phase_change" | "checklist_toggle" | "gamma_generated" | "email_sent" | "invoice_sent" | "weekly_report" | "structured_variables" | "proposal_decision" | "change_order_created" | "change_order_decision" | "sub_phase_advanced" | "permit_authorization" | "permit_signature" | "permit_submitted" | "permit_state_change" | "inspection_scheduled" | "inspection_status_change" | "inspection_report_sent" | "milestone_status_change" | "receipts_upload" | "report_template_upload" | "contractor_estimate";
+  type: "phase_change" | "checklist_toggle" | "gamma_generated" | "email_sent" | "invoice_sent" | "weekly_report" | "structured_variables" | "proposal_decision" | "change_order_created" | "change_order_decision" | "sub_phase_advanced" | "permit_authorization" | "permit_signature" | "permit_submitted" | "permit_state_change" | "inspection_scheduled" | "inspection_status_change" | "inspection_report_sent" | "milestone_status_change" | "receipts_upload" | "report_template_upload" | "contractor_estimate" | "punchlist_change";
   actor: string;
   description: string;
   descriptionEs: string;
@@ -1722,3 +1722,53 @@ export const PROJECT_MILESTONES: Record<string, Milestone[]> = {
     { id: "m-3-6", projectId: "proj-3", key: "final", title: "Final & Opening", titleEs: "Cierre y Apertura", startDate: "2025-11-01", endDate: "2025-11-30", status: "completed" },
   ],
 };
+
+// ---------------------------------------------------------------------------
+// Phase Punchlist — phase advancement gate
+// ---------------------------------------------------------------------------
+
+export type PunchlistItemStatus = "open" | "in_progress" | "done" | "waived";
+export const PUNCHLIST_STATUSES: PunchlistItemStatus[] = ["open", "in_progress", "done", "waived"];
+
+export interface PunchlistItem {
+  id: string;
+  projectId: string;
+  phase: ProjectPhase;
+  label: string;
+  labelEs: string;
+  owner: string;
+  dueDate?: string;
+  status: PunchlistItemStatus;
+  waiverReason?: string;
+  completedAt?: string;
+  updatedAt: string;
+}
+
+export function punchlistKey(projectId: string, phase: string): string {
+  return `${projectId}:${phase}`;
+}
+
+export const PROJECT_PUNCHLIST: Record<string, PunchlistItem[]> = {
+  [punchlistKey("proj-2", "construction")]: [
+    { id: "pl-2c-1", projectId: "proj-2", phase: "construction", label: "Touch-up paint master suite", labelEs: "Retoque de pintura suite principal", owner: "Jorge Rosa", dueDate: "2026-04-25", status: "done", completedAt: "2026-04-15T16:00:00Z", updatedAt: "2026-04-15T16:00:00Z" },
+    { id: "pl-2c-2", projectId: "proj-2", phase: "construction", label: "Adjust kitchen cabinet alignment", labelEs: "Ajustar alineación de gabinetes de cocina", owner: "Andrea Camacho", dueDate: "2026-04-25", status: "done", completedAt: "2026-04-16T10:00:00Z", updatedAt: "2026-04-16T10:00:00Z" },
+    { id: "pl-2c-3", projectId: "proj-2", phase: "construction", label: "Final pool tile grout cleanup", labelEs: "Limpieza final de mortero de azulejos de la piscina", owner: "Jorge Rosa", dueDate: "2026-04-28", status: "in_progress", updatedAt: "2026-04-18T09:00:00Z" },
+    { id: "pl-2c-4", projectId: "proj-2", phase: "construction", label: "Install missing outlet covers — studio", labelEs: "Instalar tapas de tomacorrientes faltantes — estudio", owner: "Subcontractor — Eléctrico PR", dueDate: "2026-04-30", status: "open", updatedAt: "2026-04-10T09:00:00Z" },
+    { id: "pl-2c-5", projectId: "proj-2", phase: "construction", label: "Replace cracked terrace tile (NE corner)", labelEs: "Reemplazar azulejo roto en terraza (esquina NE)", owner: "Jorge Rosa", dueDate: "2026-05-02", status: "open", updatedAt: "2026-04-12T09:00:00Z" },
+    { id: "pl-2c-6", projectId: "proj-2", phase: "construction", label: "Re-seal master shower silicone", labelEs: "Resellar silicona de la ducha principal", owner: "Subcontractor — Plomería", dueDate: "2026-05-05", status: "open", updatedAt: "2026-04-14T09:00:00Z" },
+    { id: "pl-2c-7", projectId: "proj-2", phase: "construction", label: "Trim exterior landscaping near entry", labelEs: "Recortar paisajismo exterior junto a la entrada", owner: "Miranda Klopf", dueDate: "2026-05-08", status: "open", updatedAt: "2026-04-15T09:00:00Z" },
+  ],
+  [punchlistKey("proj-3", "completed")]: [
+    { id: "pl-3f-1", projectId: "proj-3", phase: "completed", label: "Final walkthrough touch-ups", labelEs: "Retoques del recorrido final", owner: "Jorge Rosa", dueDate: "2025-11-22", status: "done", completedAt: "2025-11-22T15:00:00Z", updatedAt: "2025-11-22T15:00:00Z" },
+    { id: "pl-3f-2", projectId: "proj-3", phase: "completed", label: "HVAC vent balance — back kitchen", labelEs: "Balanceo de ventilación HVAC — cocina trasera", owner: "Subcontractor — HVAC", dueDate: "2025-11-25", status: "done", completedAt: "2025-11-24T11:00:00Z", updatedAt: "2025-11-24T11:00:00Z" },
+    { id: "pl-3f-3", projectId: "proj-3", phase: "completed", label: "Replace dim bulb above pastry case", labelEs: "Reemplazar bombilla tenue sobre exhibidor de repostería", owner: "Andrea Camacho", dueDate: "2025-11-26", status: "waived", waiverReason: "Owner switching to LED retrofit post-opening", updatedAt: "2025-11-26T09:00:00Z" },
+  ],
+};
+
+export function getPunchlistForPhase(projectId: string, phase: string): PunchlistItem[] {
+  return PROJECT_PUNCHLIST[punchlistKey(projectId, phase)] ?? [];
+}
+
+export function countOpenPunchlistItems(projectId: string, phase: string): number {
+  return getPunchlistForPhase(projectId, phase).filter((i) => i.status !== "done" && i.status !== "waived").length;
+}

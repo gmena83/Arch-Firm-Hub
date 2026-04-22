@@ -37,6 +37,13 @@ import {
   type DesignDeliverableStatus,
   type ChangeOrder,
   type PermitItemState,
+  PROJECT_PUNCHLIST,
+  punchlistKey,
+  getPunchlistForPhase,
+  countOpenPunchlistItems,
+  PUNCHLIST_STATUSES,
+  type PunchlistItem,
+  type PunchlistItemStatus,
 } from "../data/seed";
 import { requireRole } from "../middlewares/require-role";
 import { EXTRA_MATERIALS, PROJECT_REPORT_TEMPLATE } from "./estimating";
@@ -508,6 +515,22 @@ router.post("/projects/:id/advance-phase", requireRole(["team", "client"]), (req
     return res.status(400).json({ error: "client_gate_invalid", message: "Clients may only approve the consultation gate" });
   }
 
+  // Punchlist gate: refuse if any non-done, non-waived items remain in the
+  // current phase. Returns a structured payload so the UI can render the
+  // bilingual reason and link to the open items.
+  const openItems = getPunchlistForPhase(project.id, project.phase).filter(
+    (i) => i.status !== "done" && i.status !== "waived",
+  );
+  if (openItems.length > 0) {
+    return res.status(400).json({
+      error: "punchlist_open",
+      message: `Phase has ${openItems.length} open punchlist item(s). Complete or waive them first.`,
+      messageEs: `La fase tiene ${openItems.length} ítem(s) de punchlist abiertos. Compleétalos o renúncialos primero.`,
+      openCount: openItems.length,
+      openItems: openItems.map((i) => ({ id: i.id, label: i.label, labelEs: i.labelEs, status: i.status })),
+    });
+  }
+
   const nextPhase = PHASE_ORDER[idx + 1];
   const labels = PHASE_LABELS[nextPhase];
   (project as { phase: typeof nextPhase }).phase = nextPhase;
@@ -565,6 +588,150 @@ router.post("/projects/:id/decline-phase", requireRole(["client"]), (req, res) =
     descriptionEs: "Equipo interno notificado del rechazo del cliente",
   });
   return res.json({ project, declinedAt: new Date().toISOString() });
+});
+
+// ---------------------------------------------------------------------------
+// Phase Punchlist — phase advancement gate
+// ---------------------------------------------------------------------------
+
+router.get("/projects/:id/punchlist", requireRole(["team", "client"]), (req, res) => {
+  const project = PROJECTS.find((p) => p.id === req.params["id"]);
+  if (!project) return res.status(404).json({ error: "not_found" });
+  if (!enforceClientOwnership(req, res, project.id)) return;
+  const phaseFilter = typeof req.query["phase"] === "string" ? (req.query["phase"] as string) : project.phase;
+  const items = getPunchlistForPhase(project.id, phaseFilter);
+  const openCount = items.filter((i) => i.status !== "done" && i.status !== "waived").length;
+  return res.json({
+    projectId: project.id,
+    phase: phaseFilter,
+    items,
+    openCount,
+    totalCount: items.length,
+    doneCount: items.filter((i) => i.status === "done").length,
+    waivedCount: items.filter((i) => i.status === "waived").length,
+  });
+});
+
+router.post("/projects/:id/punchlist", requireRole(["team", "admin", "superadmin"]), (req, res) => {
+  const project = PROJECTS.find((p) => p.id === req.params["id"]);
+  if (!project) return res.status(404).json({ error: "not_found" });
+  if (!enforceClientOwnership(req, res, project.id)) return;
+  const { label, labelEs, owner, dueDate, phase } = req.body ?? {};
+  if (typeof label !== "string" || label.trim().length === 0 || typeof labelEs !== "string" || labelEs.trim().length === 0) {
+    return res.status(400).json({ error: "invalid_payload", message: "label and labelEs are required" });
+  }
+  if (typeof owner !== "string" || owner.trim().length === 0) {
+    return res.status(400).json({ error: "invalid_payload", message: "owner is required" });
+  }
+  const targetPhase = typeof phase === "string" && phase.length > 0 ? phase : project.phase;
+  const key = punchlistKey(project.id, targetPhase);
+  const list = PROJECT_PUNCHLIST[key] ?? (PROJECT_PUNCHLIST[key] = []);
+  const item: PunchlistItem = {
+    id: `pl-${project.id}-${Date.now()}`,
+    projectId: project.id,
+    phase: targetPhase as PunchlistItem["phase"],
+    label: label.trim().slice(0, 200),
+    labelEs: labelEs.trim().slice(0, 200),
+    owner: owner.trim().slice(0, 100),
+    dueDate: typeof dueDate === "string" && dueDate.length > 0 ? dueDate : undefined,
+    status: "open",
+    updatedAt: new Date().toISOString(),
+  };
+  list.push(item);
+  const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
+  appendActivity(project.id, {
+    type: "punchlist_change",
+    actor,
+    description: `Punchlist item added: "${item.label}"`,
+    descriptionEs: `Ítem de punchlist agregado: "${item.labelEs}"`,
+  });
+  return res.status(201).json({ projectId: project.id, item });
+});
+
+router.patch("/projects/:id/punchlist/:itemId", requireRole(["team", "admin", "superadmin"]), (req, res) => {
+  const project = PROJECTS.find((p) => p.id === req.params["id"]);
+  if (!project) return res.status(404).json({ error: "not_found" });
+  if (!enforceClientOwnership(req, res, project.id)) return;
+  const itemId = req.params["itemId"];
+  let found: PunchlistItem | undefined;
+  for (const list of Object.values(PROJECT_PUNCHLIST)) {
+    found = list.find((i) => i.id === itemId && i.projectId === project.id);
+    if (found) break;
+  }
+  if (!found) return res.status(404).json({ error: "item_not_found" });
+  const { label, labelEs, owner, dueDate } = req.body ?? {};
+  if (typeof label === "string" && label.trim().length > 0) found.label = label.trim().slice(0, 200);
+  if (typeof labelEs === "string" && labelEs.trim().length > 0) found.labelEs = labelEs.trim().slice(0, 200);
+  if (typeof owner === "string" && owner.trim().length > 0) found.owner = owner.trim().slice(0, 100);
+  if (typeof dueDate === "string") found.dueDate = dueDate.length > 0 ? dueDate : undefined;
+  found.updatedAt = new Date().toISOString();
+  const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
+  appendActivity(project.id, {
+    type: "punchlist_change",
+    actor,
+    description: `Punchlist item edited: "${found.label}"`,
+    descriptionEs: `Ítem de punchlist editado: "${found.labelEs}"`,
+  });
+  return res.json({ projectId: project.id, item: found });
+});
+
+router.post("/projects/:id/punchlist/:itemId/status", requireRole(["team", "admin", "superadmin"]), (req, res) => {
+  const project = PROJECTS.find((p) => p.id === req.params["id"]);
+  if (!project) return res.status(404).json({ error: "not_found" });
+  if (!enforceClientOwnership(req, res, project.id)) return;
+  const { status, waiverReason } = req.body ?? {};
+  if (typeof status !== "string" || !PUNCHLIST_STATUSES.includes(status as PunchlistItemStatus)) {
+    return res.status(400).json({ error: "invalid_payload", message: `status must be one of ${PUNCHLIST_STATUSES.join("|")}` });
+  }
+  if (status === "waived" && (typeof waiverReason !== "string" || waiverReason.trim().length < 3)) {
+    return res.status(400).json({ error: "waiver_reason_required", message: "Waiving an item requires a justification (≥3 chars)" });
+  }
+  const itemId = req.params["itemId"];
+  let found: PunchlistItem | undefined;
+  for (const list of Object.values(PROJECT_PUNCHLIST)) {
+    found = list.find((i) => i.id === itemId && i.projectId === project.id);
+    if (found) break;
+  }
+  if (!found) return res.status(404).json({ error: "item_not_found" });
+  const prev = found.status;
+  found.status = status as PunchlistItemStatus;
+  found.updatedAt = new Date().toISOString();
+  if (status === "done") found.completedAt = new Date().toISOString();
+  else if (status !== "done") found.completedAt = undefined;
+  if (status === "waived") found.waiverReason = (waiverReason as string).trim().slice(0, 300);
+  else found.waiverReason = undefined;
+  const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
+  const justSuffix = status === "waived" ? `: ${found.waiverReason}` : "";
+  appendActivity(project.id, {
+    type: "punchlist_change",
+    actor,
+    description: `Punchlist "${found.label}" → ${status} (was ${prev})${justSuffix}`,
+    descriptionEs: `Punchlist "${found.labelEs}" → ${status} (antes ${prev})${justSuffix}`,
+  });
+  return res.json({ projectId: project.id, item: found });
+});
+
+router.delete("/projects/:id/punchlist/:itemId", requireRole(["team", "admin", "superadmin"]), (req, res) => {
+  const project = PROJECTS.find((p) => p.id === req.params["id"]);
+  if (!project) return res.status(404).json({ error: "not_found" });
+  if (!enforceClientOwnership(req, res, project.id)) return;
+  const itemId = req.params["itemId"];
+  for (const [key, list] of Object.entries(PROJECT_PUNCHLIST)) {
+    const idx = list.findIndex((i) => i.id === itemId && i.projectId === project.id);
+    if (idx !== -1) {
+      const [removed] = list.splice(idx, 1);
+      if (list.length === 0) delete PROJECT_PUNCHLIST[key];
+      const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
+      appendActivity(project.id, {
+        type: "punchlist_change",
+        actor,
+        description: `Punchlist item removed: "${removed!.label}"`,
+        descriptionEs: `Ítem de punchlist eliminado: "${removed!.labelEs}"`,
+      });
+      return res.json({ projectId: project.id, removedId: itemId });
+    }
+  }
+  return res.status(404).json({ error: "item_not_found" });
 });
 
 router.post("/projects/:id/gamma-report", requireRole(["team"]), (req, res) => {

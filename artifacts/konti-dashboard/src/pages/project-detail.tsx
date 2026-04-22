@@ -38,6 +38,7 @@ import { ChangeOrdersPanel } from "@/components/change-orders-panel";
 import PermitsPanel from "@/components/permits-panel";
 import { CostPlusBudget } from "@/components/cost-plus-budget";
 import { InspectionsSection } from "@/components/inspections-section";
+import { PunchlistPanel } from "@/components/punchlist-panel";
 import { MilestonesTimeline } from "@/components/milestones-timeline";
 import {
   MapPin, Users, FileText, Upload, Check, Clock, ChevronLeft,
@@ -888,6 +889,16 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
               <InspectionsSection projectId={projectId} />
             </>
           )}
+
+          {/* Phase Punchlist — gates phase advancement */}
+          <div id="punchlist">
+            <PunchlistPanel
+              projectId={projectId}
+              currentPhase={project.phase}
+              isClientView={isClientView}
+              onAdvanced={onProjectUpdated}
+            />
+          </div>
 
           {/* Weather widget */}
           {weather && (
