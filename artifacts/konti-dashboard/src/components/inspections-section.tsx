@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   useGetProjectInspections,
   useListStructuralEngineers,
+  getListStructuralEngineersQueryKey,
   getGetProjectInspectionsQueryKey,
   customFetch,
   type Inspection,
@@ -129,6 +130,93 @@ function CreateInspectionDialog({ projectId, onClose, onCreated }: { projectId: 
   );
 }
 
+function EditInspectionDialog({
+  projectId,
+  inspection,
+  onClose,
+  onSaved,
+}: {
+  projectId: string;
+  inspection: Inspection;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const { t } = useLang();
+  const { toast } = useToast();
+  const [inspector, setInspector] = useState(inspection.inspector);
+  const [scheduledDate, setScheduledDate] = useState(inspection.scheduledDate);
+  const [notes, setNotes] = useState(inspection.notes ?? "");
+  const [submitting, setSubmitting] = useState(false);
+
+  async function submit() {
+    setSubmitting(true);
+    try {
+      await customFetch(`/api/projects/${projectId}/inspections/${inspection.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ inspector, scheduledDate, notes }),
+      });
+      toast({ title: t("Inspection updated", "Inspección actualizada") });
+      onSaved();
+      onClose();
+    } catch {
+      toast({ title: t("Failed to update", "Error al actualizar"), variant: "destructive" });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" data-testid="edit-inspection-modal">
+      <div className="bg-card rounded-xl border border-card-border shadow-xl w-full max-w-md p-6">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-bold">{t("Edit Inspection", "Editar Inspección")}</h2>
+          <button onClick={onClose} data-testid="btn-close-edit-inspection"><X className="w-5 h-5" /></button>
+        </div>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-semibold mb-1.5 text-muted-foreground">{t("Inspector", "Inspector")}</label>
+            <input
+              data-testid="input-edit-inspector"
+              value={inspector}
+              onChange={(e) => setInspector(e.target.value)}
+              className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold mb-1.5 text-muted-foreground">{t("Scheduled Date", "Fecha Programada")}</label>
+            <input
+              data-testid="input-edit-date"
+              type="date"
+              value={scheduledDate}
+              onChange={(e) => setScheduledDate(e.target.value)}
+              className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold mb-1.5 text-muted-foreground">{t("Notes", "Notas")}</label>
+            <textarea
+              data-testid="input-edit-notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={3}
+              className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background"
+            />
+          </div>
+          <button
+            onClick={submit}
+            disabled={submitting}
+            data-testid="btn-save-inspection"
+            className="w-full mt-2 py-2.5 bg-konti-olive hover:bg-konti-olive/90 text-white text-sm font-semibold rounded-md disabled:opacity-50"
+          >
+            {submitting ? t("Saving…", "Guardando…") : t("Save Changes", "Guardar Cambios")}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SendReportDialog({
   projectId,
   inspection,
@@ -232,12 +320,15 @@ export function InspectionsSection({ projectId }: { projectId: string }) {
   const { data } = useGetProjectInspections(projectId, {
     query: { enabled: !!projectId, queryKey: getGetProjectInspectionsQueryKey(projectId) },
   });
-  const { data: engineers = [] } = useListStructuralEngineers();
+  const isStaff = user?.role === "admin" || user?.role === "architect" || user?.role === "superadmin";
+  const { data: engineers = [] } = useListStructuralEngineers({
+    query: { enabled: isStaff, queryKey: getListStructuralEngineersQueryKey() },
+  });
   const [showCreate, setShowCreate] = useState(false);
   const [reportFor, setReportFor] = useState<Inspection | null>(null);
+  const [editFor, setEditFor] = useState<Inspection | null>(null);
 
   const inspections = data?.inspections ?? [];
-  const isStaff = user?.role === "admin" || user?.role === "architect" || user?.role === "superadmin";
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: getGetProjectInspectionsQueryKey(projectId) });
 
@@ -330,15 +421,37 @@ export function InspectionsSection({ projectId }: { projectId: string }) {
                     ))}
                   </div>
                 )}
-                {isStaff && completed && !insp.reportSentTo && engineers.length > 0 && (
-                  <button
-                    onClick={() => setReportFor(insp)}
-                    data-testid={`btn-send-report-${insp.id}`}
-                    className="mt-2 text-xs flex items-center gap-1.5 px-2.5 py-1.5 border border-konti-olive/40 text-konti-olive hover:bg-konti-olive/10 font-semibold rounded-md transition-colors"
-                  >
-                    <Send className="w-3 h-3" /> {t("Send report to engineer", "Enviar reporte al ingeniero")}
-                  </button>
-                )}
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  {completed && (
+                    <a
+                      href={`/api/projects/${projectId}/inspections/${insp.id}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      data-testid={`link-inspection-report-${insp.id}`}
+                      className="text-xs text-konti-olive hover:underline font-medium"
+                    >
+                      {t("Report ↗", "Reporte ↗")}
+                    </a>
+                  )}
+                  {isStaff && (
+                    <button
+                      onClick={() => setEditFor(insp)}
+                      data-testid={`btn-edit-inspection-${insp.id}`}
+                      className="text-xs px-2 py-0.5 rounded border border-border hover:bg-muted font-medium"
+                    >
+                      {t("Edit", "Editar")}
+                    </button>
+                  )}
+                  {isStaff && completed && !insp.reportSentTo && engineers.length > 0 && (
+                    <button
+                      onClick={() => setReportFor(insp)}
+                      data-testid={`btn-send-report-${insp.id}`}
+                      className="text-xs flex items-center gap-1.5 px-2.5 py-1 border border-konti-olive/40 text-konti-olive hover:bg-konti-olive/10 font-semibold rounded-md transition-colors"
+                    >
+                      <Send className="w-3 h-3" /> {t("Send report to engineer", "Enviar reporte al ingeniero")}
+                    </button>
+                  )}
+                </div>
               </div>
             );
           })}
@@ -355,6 +468,14 @@ export function InspectionsSection({ projectId }: { projectId: string }) {
           engineers={engineers}
           onClose={() => setReportFor(null)}
           onSent={refresh}
+        />
+      )}
+      {editFor && (
+        <EditInspectionDialog
+          projectId={projectId}
+          inspection={editFor}
+          onClose={() => setEditFor(null)}
+          onSaved={refresh}
         />
       )}
     </div>

@@ -45,6 +45,17 @@ export function MilestonesTimeline({ projectId, compact = false }: { projectId: 
     );
   }
 
+  // Compute Gantt range
+  const allStarts = milestones.map((m) => new Date(m.startDate).getTime());
+  const allEnds = milestones.map((m) => new Date(m.endDate).getTime());
+  const minTs = Math.min(...allStarts);
+  const maxTs = Math.max(...allEnds);
+  const span = Math.max(1, maxTs - minTs);
+
+  function pct(ts: number) {
+    return ((ts - minTs) / span) * 100;
+  }
+
   return (
     <div className="bg-card rounded-xl border border-card-border p-5 shadow-sm" data-testid="milestones-timeline">
       <div className="flex items-center justify-between mb-4">
@@ -56,12 +67,23 @@ export function MilestonesTimeline({ projectId, compact = false }: { projectId: 
         </div>
       </div>
 
-      <div className="space-y-3">
+      <p className="text-[11px] text-muted-foreground mb-2">{t("Click a milestone to jump to its tasks", "Haz clic en un hito para ir a sus tareas")}</p>
+
+      <div className="space-y-2.5">
         {milestones.map((m) => {
           const s = statusStyle(m.status);
+          const startTs = new Date(m.startDate).getTime();
+          const endTs = new Date(m.endDate).getTime();
+          const left = pct(startTs);
+          const width = Math.max(2, pct(endTs) - left);
           return (
-            <div key={m.id} data-testid={`milestone-${m.key}`} className="flex items-center gap-3">
-              <div className={`shrink-0 w-7 h-7 rounded-full border-2 flex items-center justify-center ${s.dot}`}>
+            <a
+              key={m.id}
+              href="#tasks"
+              data-testid={`milestone-${m.key}`}
+              className="flex items-center gap-3 hover:bg-muted/40 rounded-md p-1.5 -mx-1.5 transition-colors cursor-pointer"
+            >
+              <div className={`shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center ${s.dot}`}>
                 {s.icon}
               </div>
               <div className="flex-1 min-w-0">
@@ -69,13 +91,22 @@ export function MilestonesTimeline({ projectId, compact = false }: { projectId: 
                   <p className="text-sm font-semibold text-foreground truncate">{lang === "es" ? m.titleEs : m.title}</p>
                   <span className="text-xs text-muted-foreground whitespace-nowrap">{m.startDate} → {m.endDate}</span>
                 </div>
-                <div className={`h-1.5 rounded-full ${m.status === "upcoming" ? "bg-slate-100" : "bg-muted"} overflow-hidden`}>
-                  <div className={`h-full ${s.bar}`} style={{ width: m.status === "completed" ? "100%" : m.status === "in_progress" ? "50%" : "0%" }} />
+                <div className="relative h-2 rounded-full bg-slate-100 overflow-visible" data-testid={`gantt-track-${m.key}`}>
+                  <div
+                    className={`absolute top-0 h-full rounded-full ${s.bar} ${m.status === "in_progress" ? "opacity-90" : ""}`}
+                    style={{ left: `${left}%`, width: `${width}%` }}
+                    data-testid={`gantt-bar-${m.key}`}
+                  />
                 </div>
               </div>
-            </div>
+            </a>
           );
         })}
+      </div>
+
+      <div className="flex justify-between text-[10px] text-muted-foreground mt-3 pl-9">
+        <span>{new Date(minTs).toISOString().slice(0, 10)}</span>
+        <span>{new Date(maxTs).toISOString().slice(0, 10)}</span>
       </div>
     </div>
   );

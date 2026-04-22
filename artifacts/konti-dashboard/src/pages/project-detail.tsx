@@ -650,7 +650,9 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
           <DesignPanel projectId={projectId} isClientView={isClientView} currentPhase={project.phase} />
 
           {/* Change Orders (Design phase onward, or anytime there are existing COs) */}
-          <ChangeOrdersPanel projectId={projectId} isClientView={isClientView} currentPhase={project.phase} />
+          <div id="change-orders">
+            <ChangeOrdersPanel projectId={projectId} isClientView={isClientView} currentPhase={project.phase} />
+          </div>
 
           {/* Phase 4 — Permits authorization workflow */}
           <PermitsPanel projectId={projectId} projectPhase={project.phase} onProjectUpdated={onProjectUpdated} />
@@ -712,7 +714,7 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
           )}
 
           {/* Tasks */}
-          <div className="bg-card rounded-xl border border-card-border p-5 shadow-sm">
+          <div id="tasks" className="bg-card rounded-xl border border-card-border p-5 shadow-sm scroll-mt-20">
             <h2 className="font-bold text-foreground mb-4">{t("Tasks", "Tareas")}</h2>
             <div className="space-y-2">
               {tasks.map((task) => {
