@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import { PROJECTS, DOCUMENTS, PROJECT_TASKS, RECENT_ACTIVITY } from "../data/seed";
+import { requireRole } from "../middlewares/require-role";
 
 const router: IRouter = Router();
 
@@ -31,12 +32,24 @@ router.get("/dashboard/summary", (_req, res) => {
   });
 });
 
-router.get("/dashboard/activity", (_req, res) => {
-  res.json(RECENT_ACTIVITY);
-});
-
-router.get("/notifications", (_req, res) => {
-  res.json(RECENT_ACTIVITY);
-});
+router.get(
+  "/dashboard/activity",
+  requireRole(["team", "admin", "superadmin", "architect", "client"]),
+  (req, res) => {
+    const user = (req as { user?: { id: string; role: string } }).user;
+    if (user?.role === "client") {
+      const owned = new Set(
+        PROJECTS
+          .filter((p) => (p as { clientUserId?: string }).clientUserId === user.id)
+          .map((p) => p.id),
+      );
+      res.json(
+        RECENT_ACTIVITY.filter((a) => owned.has(a.projectId) && !a.id.startsWith("act-q-")),
+      );
+      return;
+    }
+    res.json(RECENT_ACTIVITY);
+  },
+);
 
 export default router;

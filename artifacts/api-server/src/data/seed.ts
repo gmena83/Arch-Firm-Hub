@@ -785,7 +785,18 @@ export const CALCULATOR_ENTRIES = {
   ],
 };
 
-export const RECENT_ACTIVITY = [
+export interface RecentActivityItem {
+  id: string;
+  type: "document_upload" | "task_completed" | "phase_change" | "weather_alert" | "comment";
+  projectId: string;
+  projectName: string;
+  description: string;
+  descriptionEs: string;
+  actor: string;
+  timestamp: string;
+}
+
+export const RECENT_ACTIVITY: RecentActivityItem[] = [
   {
     id: "act-1",
     type: "document_upload" as const,

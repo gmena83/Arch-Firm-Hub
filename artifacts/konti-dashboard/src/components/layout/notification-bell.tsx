@@ -1,10 +1,17 @@
-import { useState, useEffect, useRef } from "react";
-import { Bell, Upload, CheckSquare, ArrowRight, CloudRain, MessageSquare, X } from "lucide-react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { useLocation } from "wouter";
+import { Bell, Upload, CheckSquare, ArrowRight, CloudRain, MessageSquare, HelpCircle, X } from "lucide-react";
 import { useLang } from "@/hooks/use-lang";
 
-type ActivityType = "document_upload" | "task_completed" | "phase_change" | "weather_alert" | "comment";
+type ActivityType =
+  | "document_upload"
+  | "task_completed"
+  | "phase_change"
+  | "weather_alert"
+  | "comment"
+  | "client_question";
 
-interface ActivityItem {
+interface NotificationItem {
   id: string;
   type: ActivityType;
   projectId: string;
@@ -13,6 +20,7 @@ interface ActivityItem {
   descriptionEs: string;
   actor: string;
   timestamp: string;
+  seen: boolean;
 }
 
 const ICON_MAP: Record<ActivityType, React.ReactNode> = {
@@ -21,6 +29,7 @@ const ICON_MAP: Record<ActivityType, React.ReactNode> = {
   phase_change: <ArrowRight className="w-3.5 h-3.5" />,
   weather_alert: <CloudRain className="w-3.5 h-3.5" />,
   comment: <MessageSquare className="w-3.5 h-3.5" />,
+  client_question: <HelpCircle className="w-3.5 h-3.5" />,
 };
 
 const COLOR_MAP: Record<ActivityType, string> = {
@@ -29,6 +38,7 @@ const COLOR_MAP: Record<ActivityType, string> = {
   phase_change: "bg-konti-olive/15 text-konti-olive",
   weather_alert: "bg-amber-100 text-amber-600",
   comment: "bg-purple-100 text-purple-600",
+  client_question: "bg-konti-olive/15 text-konti-olive",
 };
 
 function formatRelativeTime(iso: string, lang: string): string {
@@ -42,61 +52,77 @@ function formatRelativeTime(iso: string, lang: string): string {
   return lang === "es" ? `hace ${days}d` : `${days}d ago`;
 }
 
-const STORAGE_KEY = "konti_notif_read";
+function authHeader(): Record<string, string> {
+  try {
+    const raw = window.localStorage.getItem("konti_auth");
+    if (!raw) return {};
+    const tok = (JSON.parse(raw) as { token?: string }).token;
+    return tok ? { Authorization: `Bearer ${tok}` } : {};
+  } catch { return {}; }
+}
 
 export function NotificationBell() {
   const { t, lang } = useLang();
+  const [, setLocation] = useLocation();
   const [open, setOpen] = useState(false);
-  const [items, setItems] = useState<ActivityItem[]>([]);
-  const [readTimestamp, setReadTimestamp] = useState<number>(() =>
-    Number(localStorage.getItem(STORAGE_KEY) ?? "0")
-  );
+  const [items, setItems] = useState<NotificationItem[]>([]);
+  const [unread, setUnread] = useState(0);
   const panelRef = useRef<HTMLDivElement>(null);
 
-  const unread = items.filter(
-    (a) => new Date(a.timestamp).getTime() > readTimestamp
-  ).length;
-
-  useEffect(() => {
-    const base = (import.meta.env.BASE_URL ?? "/").replace(/\/$/, "");
-    fetch(`${base}/api/notifications`)
-      .then((r) => r.json())
-      .then((data: ActivityItem[]) => setItems(data))
+  const load = useCallback(() => {
+    fetch(`/api/notifications`, { headers: authHeader() })
+      .then((r) => r.ok ? r.json() : { items: [], unread: 0 })
+      .then((d: { items?: NotificationItem[]; unread?: number }) => {
+        setItems(d.items ?? []);
+        setUnread(d.unread ?? 0);
+      })
       .catch(() => {});
   }, []);
 
   useEffect(() => {
-    const syncHandler = (e: Event) => {
-      setReadTimestamp((e as CustomEvent<number>).detail);
-    };
-    window.addEventListener("konti-notif-read", syncHandler);
-    return () => window.removeEventListener("konti-notif-read", syncHandler);
-  }, []);
+    load();
+    const id = window.setInterval(load, 20000);
+    return () => window.clearInterval(id);
+  }, [load]);
 
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) setOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
-  const markAllRead = () => {
-    const maxTs = items.length > 0
-      ? Math.max(...items.map((a) => new Date(a.timestamp).getTime())) + 1000
-      : Date.now();
-    localStorage.setItem(STORAGE_KEY, maxTs.toString());
-    window.dispatchEvent(new CustomEvent("konti-notif-read", { detail: maxTs }));
+  const markSeen = async (id: string) => {
+    setItems((prev) => prev.map((it) => it.id === id ? { ...it, seen: true } : it));
+    setUnread((u) => Math.max(0, u - 1));
+    try {
+      await fetch(`/api/notifications/${id}/seen`, { method: "POST", headers: authHeader() });
+    } catch { /* best effort */ }
+  };
+
+  const markAllRead = async () => {
+    setItems((prev) => prev.map((it) => ({ ...it, seen: true })));
+    setUnread(0);
+    try {
+      await fetch(`/api/notifications/seen-all`, { method: "POST", headers: authHeader() });
+    } catch { /* best effort */ }
+  };
+
+  const handleClick = (item: NotificationItem) => {
+    if (!item.seen) void markSeen(item.id);
+    setOpen(false);
+    setLocation(`/projects/${item.projectId}`);
   };
 
   return (
     <div className="relative" ref={panelRef}>
       <button
+        type="button"
         onClick={() => setOpen((o) => !o)}
         data-testid="notification-bell"
+        aria-label={t("Notifications", "Notificaciones")}
         className="relative flex items-center justify-center w-7 h-7 rounded-md text-white/70 hover:text-white hover:bg-white/10 transition-colors"
         title={t("Notifications", "Notificaciones")}
       >
@@ -104,7 +130,7 @@ export function NotificationBell() {
         {unread > 0 && (
           <span
             data-testid="notification-badge"
-            className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center leading-none"
+            className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center leading-none"
           >
             {unread > 9 ? "9+" : unread}
           </span>
@@ -116,13 +142,14 @@ export function NotificationBell() {
           data-testid="notification-panel"
           onMouseDown={(e) => e.stopPropagation()}
           onPointerDown={(e) => e.stopPropagation()}
-          className="absolute right-0 top-9 w-80 bg-card border border-card-border rounded-xl shadow-xl z-50 overflow-hidden"
+          className="absolute right-0 top-9 w-80 max-w-[92vw] bg-card border border-card-border rounded-xl shadow-xl z-50 overflow-hidden"
         >
           <div className="flex items-center justify-between px-4 py-3 border-b border-border">
             <p className="text-sm font-semibold text-foreground">{t("Notifications", "Notificaciones")}</p>
             <div className="flex items-center gap-2">
               {unread > 0 && (
                 <button
+                  type="button"
                   onClick={markAllRead}
                   data-testid="mark-all-read"
                   className="text-xs text-konti-olive hover:text-konti-olive/80 font-medium transition-colors"
@@ -131,38 +158,43 @@ export function NotificationBell() {
                 </button>
               )}
               <button
+                type="button"
                 onClick={() => setOpen(false)}
                 className="text-muted-foreground hover:text-foreground transition-colors"
+                aria-label={t("Close", "Cerrar")}
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
           </div>
 
-          <div className="max-h-80 overflow-y-auto divide-y divide-border">
+          <div className="max-h-96 overflow-y-auto divide-y divide-border">
             {items.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-6">
                 {t("No notifications.", "Sin notificaciones.")}
               </p>
             ) : (
               items.map((item) => (
-                <div
+                <button
                   key={item.id}
+                  type="button"
+                  onClick={() => handleClick(item)}
                   data-testid={`notification-item-${item.id}`}
-                  className="flex items-start gap-3 px-4 py-3 hover:bg-muted/30 transition-colors"
+                  className={`w-full text-left flex items-start gap-3 px-4 py-3 hover:bg-muted/30 transition-colors ${item.seen ? "" : "bg-konti-olive/5"}`}
                 >
                   <span className={`mt-0.5 p-1.5 rounded-full shrink-0 ${COLOR_MAP[item.type]}`}>
                     {ICON_MAP[item.type]}
                   </span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs text-foreground leading-snug">
+                    <p className={`text-xs leading-snug ${item.seen ? "text-muted-foreground" : "text-foreground font-medium"}`}>
                       {lang === "es" ? item.descriptionEs : item.description}
                     </p>
                     <p className="text-[11px] text-muted-foreground mt-1">
                       {item.projectName} · {formatRelativeTime(item.timestamp, lang)}
                     </p>
                   </div>
-                </div>
+                  {!item.seen && <span className="mt-1.5 w-2 h-2 rounded-full bg-konti-olive shrink-0" aria-hidden="true" />}
+                </button>
               ))
             )}
           </div>

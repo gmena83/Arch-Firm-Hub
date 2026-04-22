@@ -6,6 +6,7 @@ import dashboardRouter from "./dashboard";
 import aiRouter from "./ai";
 import leadsRouter from "./leads";
 import estimatingRouter from "./estimating";
+import notificationsRouter from "./notifications";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,6 @@ router.use(dashboardRouter);
 router.use(aiRouter);
 router.use(leadsRouter);
 router.use(estimatingRouter);
+router.use(notificationsRouter);
 
 export default router;

@@ -26,7 +26,7 @@ export function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const isClient = user?.role === "client";
-  const showNotifications = !isClient;
+  const showNotifications = true;
   const navItems = ALL_NAV_ITEMS.filter((item) => !isClient || item.clientVisible);
 
   const { data: leads = [] } = useListLeads({

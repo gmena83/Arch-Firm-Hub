@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, Link } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { customFetch } from "@workspace/api-client-react";
@@ -499,88 +499,223 @@ function DocCard({ doc, isClientView }: { doc: Document; isClientView: boolean }
   );
 }
 
+interface NoteReply { id: string; by: string; text: string; lang: string; createdAt: string; }
+interface PanelNote {
+  id: string;
+  type: string;
+  text: string;
+  lang: string;
+  createdAt: string;
+  createdBy: string;
+  status?: "open" | "answered";
+  replies?: NoteReply[];
+}
+
+function authH(): Record<string, string> {
+  try {
+    const raw = window.localStorage.getItem("konti_auth");
+    if (!raw) return {};
+    const tok = (JSON.parse(raw) as { token?: string }).token;
+    return tok ? { Authorization: `Bearer ${tok}` } : {};
+  } catch { return {}; }
+}
+
 function ClientQuestionsPanel({ projectId, isClientView }: { projectId: string; isClientView: boolean }) {
   const { t, lang } = useLang();
   const { toast } = useToast();
-  const [notes, setNotes] = useState<Array<{ id: string; type: string; text: string; lang: string; createdAt: string; createdBy: string }>>([]);
+  const [notes, setNotes] = useState<PanelNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [newNote, setNewNote] = useState("");
+  const [tab, setTab] = useState<"notes" | "questions">(isClientView ? "notes" : "questions");
+  const [replyTextById, setReplyTextById] = useState<Record<string, string>>({});
 
-  const authH = (): Record<string, string> => {
-    try {
-      const raw = window.localStorage.getItem("konti_auth");
-      if (!raw) return {};
-      const tok = (JSON.parse(raw) as { token?: string }).token;
-      return tok ? { Authorization: `Bearer ${tok}` } : {};
-    } catch { return {}; }
-  };
-
-  const load = () => {
+  const load = useCallback(() => {
     setLoading(true);
     fetch(`/api/projects/${projectId}/notes`, { headers: authH() })
       .then((r) => r.ok ? r.json() : { notes: [] })
-      .then((d: { notes?: typeof notes }) => setNotes(d.notes ?? []))
+      .then((d: { notes?: PanelNote[] }) => setNotes(d.notes ?? []))
       .finally(() => setLoading(false));
-  };
-  useEffect(load, [projectId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [projectId]);
+
+  useEffect(() => { load(); }, [load]);
 
   const add = async () => {
     if (!newNote.trim()) return;
+    const noteType = isClientView
+      ? (tab === "questions" ? "client_question" : "voice_note")
+      : "general";
     const r = await fetch(`/api/projects/${projectId}/notes`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...authH() },
-      body: JSON.stringify({ text: newNote, type: isClientView ? "client_question" : "general", lang, source: "manual" }),
+      body: JSON.stringify({ text: newNote, type: noteType, lang, source: "manual" }),
     });
-    if (r.ok) { setNewNote(""); toast({ title: t("Note added", "Nota agregada") }); load(); }
-    else toast({ title: t("Could not save", "No se pudo guardar"), variant: "destructive" });
+    if (r.ok) {
+      setNewNote("");
+      toast({ title: noteType === "client_question" ? t("Question sent", "Pregunta enviada") : t("Note added", "Nota agregada") });
+      load();
+    } else {
+      toast({ title: t("Could not save", "No se pudo guardar"), variant: "destructive" });
+    }
+  };
+
+  const sendReply = async (noteId: string) => {
+    const text = (replyTextById[noteId] ?? "").trim();
+    if (!text) return;
+    const r = await fetch(`/api/projects/${projectId}/notes/${noteId}/reply`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authH() },
+      body: JSON.stringify({ text, lang }),
+    });
+    if (r.ok) {
+      setReplyTextById((m) => ({ ...m, [noteId]: "" }));
+      toast({ title: t("Reply sent", "Respuesta enviada") });
+      load();
+    } else {
+      toast({ title: t("Could not send reply", "No se pudo enviar la respuesta"), variant: "destructive" });
+    }
   };
 
   const questions = notes.filter((n) => n.type === "client_question");
-  const voice = notes.filter((n) => n.type === "voice_note" || n.type === "general");
+  const myNotes = notes.filter((n) => n.type === "voice_note" || n.type === "general");
+  const openCount = questions.filter((q) => q.status !== "answered").length;
+
+  const list = tab === "questions" ? questions : myNotes;
+  const sortedList = [...list].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  const placeholder = isClientView
+    ? (tab === "questions" ? t("Ask a question for the team…", "Haz una pregunta para el equipo…") : t("Add a private note…", "Agregar una nota privada…"))
+    : t("Add an internal note…", "Agregar una nota interna…");
+
+  const submitLabel = isClientView && tab === "questions" ? t("Ask", "Preguntar") : t("Add", "Agregar");
+
+  const TabBtn = ({ id, label, count }: { id: "notes" | "questions"; label: string; count: number }) => (
+    <button
+      type="button"
+      onClick={() => setTab(id)}
+      data-testid={`tab-${id}`}
+      className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors flex items-center gap-1.5 ${tab === id ? "bg-konti-olive text-white" : "bg-muted/40 text-foreground hover:bg-muted"}`}
+    >
+      <span>{label}</span>
+      <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${tab === id ? "bg-white/20" : "bg-muted-foreground/15"}`}>{count}</span>
+    </button>
+  );
 
   return (
     <div className="bg-card border border-card-border rounded-xl p-5" data-testid="client-questions-panel">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-base font-bold text-foreground">{t("Client Questions & Notes", "Preguntas y Notas del Cliente")}</h2>
-        <span className="text-xs text-muted-foreground">{loading ? t("Loading…", "Cargando…") : t("{n} item(s)", "{n} elemento(s)").replace("{n}", String(notes.length))}</span>
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <h2 className="text-base font-bold text-foreground">
+          {isClientView ? t("My Notes & Questions", "Mis Notas y Preguntas") : t("Client Notes & Questions", "Notas y Preguntas del Cliente")}
+        </h2>
+        {openCount > 0 && !isClientView && (
+          <span data-testid="open-questions-badge" className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-konti-olive/15 text-konti-olive">
+            {t("{n} open", "{n} abiertas").replace("{n}", String(openCount))}
+          </span>
+        )}
       </div>
 
-      {questions.length > 0 && (
-        <div className="mb-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-konti-olive mb-2">{t("Auto-collected questions", "Preguntas recopiladas")}</p>
-          <ul className="space-y-2">
-            {questions.slice(-6).reverse().map((n) => (
-              <li key={n.id} className="bg-konti-olive/5 border border-konti-olive/20 rounded-md p-2.5 text-sm" data-testid={`question-${n.id}`}>
-                <p className="text-foreground">{n.text}</p>
-                <p className="text-[10px] text-muted-foreground mt-1">{n.createdBy} · {new Date(n.createdAt).toLocaleString()}</p>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {voice.length > 0 && (
-        <div className="mb-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">{t("Voice & manual notes", "Notas de voz y manuales")}</p>
-          <ul className="space-y-2">
-            {voice.slice(-6).reverse().map((n) => (
-              <li key={n.id} className="bg-muted/40 rounded-md p-2.5 text-sm" data-testid={`note-${n.id}`}>
-                <p className="text-foreground">{n.text}</p>
-                <p className="text-[10px] text-muted-foreground mt-1">{n.createdBy} · {new Date(n.createdAt).toLocaleString()}</p>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {notes.length === 0 && !loading && (
-        <p className="text-xs text-muted-foreground italic mb-3">{t("No notes yet. Use the AI Assistant — questions are saved here automatically.", "Aún no hay notas. Usa el Asistente IA — las preguntas se guardan aquí automáticamente.")}</p>
-      )}
-
-      <div className="flex gap-2">
-        <input value={newNote} onChange={(e) => setNewNote(e.target.value)} onKeyDown={(e) => e.key === "Enter" && add()} placeholder={t("Add a note…", "Agregar una nota…")} data-testid="input-add-note" className="flex-1 px-3 py-1.5 rounded-md border border-input bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
-        <button onClick={add} disabled={!newNote.trim()} data-testid="btn-add-note" className="px-3 py-1.5 bg-konti-olive text-white text-sm rounded-md hover:bg-konti-olive/90 disabled:opacity-40">{t("Add", "Agregar")}</button>
+      <div className="flex gap-2 mb-4">
+        <TabBtn id="notes" label={isClientView ? t("My Notes", "Mis Notas") : t("Notes", "Notas")} count={myNotes.length} />
+        <TabBtn id="questions" label={isClientView ? t("My Questions", "Mis Preguntas") : t("Open Questions", "Preguntas Abiertas")} count={tab === "questions" && !isClientView ? openCount : questions.length} />
       </div>
+
+      {loading ? (
+        <p className="text-xs text-muted-foreground italic mb-3">{t("Loading…", "Cargando…")}</p>
+      ) : sortedList.length === 0 ? (
+        <p className="text-xs text-muted-foreground italic mb-3" data-testid="empty-state">
+          {tab === "questions"
+            ? (isClientView
+                ? t("No questions yet. Ask anything below or use the AI Assistant — questions are saved here.", "Aún no hay preguntas. Pregunta abajo o usa el Asistente IA — las preguntas se guardan aquí.")
+                : t("No client questions yet.", "Aún no hay preguntas del cliente."))
+            : t("No notes yet.", "Aún no hay notas.")}
+        </p>
+      ) : (
+        <ul className="space-y-2 mb-4 max-h-[28rem] overflow-y-auto pr-1">
+          {sortedList.map((n) => {
+            const isQuestion = n.type === "client_question";
+            const isOpen = isQuestion && n.status !== "answered";
+            return (
+              <li
+                key={n.id}
+                data-testid={`note-${n.id}`}
+                className={`rounded-md p-3 text-sm border ${isOpen ? "bg-konti-olive/5 border-konti-olive/20" : "bg-muted/40 border-transparent"}`}
+              >
+                <div className="flex items-start justify-between gap-2 mb-1">
+                  <p className="text-foreground flex-1 whitespace-pre-wrap">{n.text}</p>
+                  {isQuestion && (
+                    <span
+                      data-testid={`status-${n.id}`}
+                      className={`text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full shrink-0 ${isOpen ? "bg-amber-100 text-amber-700" : "bg-green-100 text-green-700"}`}
+                    >
+                      {isOpen ? t("Open", "Abierta") : t("Answered", "Respondida")}
+                    </span>
+                  )}
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  {n.createdBy} · {new Date(n.createdAt).toLocaleString()}
+                </p>
+
+                {n.replies && n.replies.length > 0 && (
+                  <div className="mt-2 pl-3 border-l-2 border-konti-olive/40 space-y-2">
+                    {n.replies.map((r) => (
+                      <div key={r.id} data-testid={`reply-${r.id}`} className="text-xs">
+                        <p className="text-foreground whitespace-pre-wrap">{r.text}</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          <span className="font-medium">{r.by}</span> · {new Date(r.createdAt).toLocaleString()}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {!isClientView && isQuestion && (
+                  <div className="mt-2 flex gap-2">
+                    <input
+                      type="text"
+                      value={replyTextById[n.id] ?? ""}
+                      onChange={(e) => setReplyTextById((m) => ({ ...m, [n.id]: e.target.value }))}
+                      onKeyDown={(e) => { if (e.key === "Enter") void sendReply(n.id); }}
+                      placeholder={t("Write a reply…", "Escribe una respuesta…")}
+                      data-testid={`input-reply-${n.id}`}
+                      className="flex-1 px-2 py-1 rounded-md border border-input bg-card text-xs focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void sendReply(n.id)}
+                      disabled={!(replyTextById[n.id] ?? "").trim()}
+                      data-testid={`btn-reply-${n.id}`}
+                      className="px-2.5 py-1 bg-konti-olive text-white text-xs rounded-md hover:bg-konti-olive/90 disabled:opacity-40"
+                    >
+                      {t("Reply", "Responder")}
+                    </button>
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      {(isClientView || tab === "notes") && (
+        <div className="flex gap-2">
+          <input
+            value={newNote}
+            onChange={(e) => setNewNote(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && void add()}
+            placeholder={placeholder}
+            data-testid="input-add-note"
+            className="flex-1 px-3 py-1.5 rounded-md border border-input bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+          />
+          <button
+            type="button"
+            onClick={() => void add()}
+            disabled={!newNote.trim()}
+            data-testid="btn-add-note"
+            className="px-3 py-1.5 bg-konti-olive text-white text-sm rounded-md hover:bg-konti-olive/90 disabled:opacity-40"
+          >
+            {submitLabel}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
