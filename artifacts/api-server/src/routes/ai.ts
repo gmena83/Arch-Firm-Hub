@@ -1,14 +1,26 @@
 import { Router, type IRouter } from "express";
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
-import { PROJECTS, PROJECT_TASKS, DOCUMENTS, WEATHER_DATA } from "../data/seed";
+import { PROJECTS, PROJECT_TASKS, DOCUMENTS, WEATHER_DATA, RECENT_ACTIVITY } from "../data/seed";
 import { requireRole } from "../middlewares/require-role";
 
 const router: IRouter = Router();
 
 // In-memory per-project notes/questions/spec-events for the demo session.
-interface ProjectNote { id: string; type: "voice_note" | "client_question" | "general"; text: string; lang: "en" | "es"; createdAt: string; createdBy: string; source: string; }
-const PROJECT_NOTES: Record<string, ProjectNote[]> = {};
+export interface NoteReply { id: string; by: string; text: string; lang: "en" | "es"; createdAt: string; }
+export interface ProjectNote {
+  id: string;
+  type: "voice_note" | "client_question" | "general";
+  text: string;
+  lang: "en" | "es";
+  createdAt: string;
+  createdBy: string;
+  createdByUserId?: string;
+  source: string;
+  status?: "open" | "answered";
+  replies?: NoteReply[];
+}
+export const PROJECT_NOTES: Record<string, ProjectNote[]> = {};
 
 interface SpecEvent { id: string; projectId: string; kind: "added" | "resolved" | "opened"; title: string; createdAt: string; }
 const SPEC_EVENTS: SpecEvent[] = [
@@ -131,9 +143,18 @@ WORKFLOW PHASES:
 5. Construction (cost-plus model)
 6. Completed`;
 
+function clientOwnsProject(userId: string | undefined, projectId: string): boolean {
+  const p = PROJECTS.find((x) => x.id === projectId) as { clientUserId?: string } | undefined;
+  return !!(userId && p?.clientUserId === userId);
+}
+
 // GET project notes (voice notes + auto-collected client questions).
 router.get("/projects/:id/notes", requireRole(["team", "admin", "superadmin", "architect", "client"]), (req, res) => {
   const id = req.params["id"] as string;
+  const user = (req as { user?: { id: string; role: string } }).user;
+  if (user?.role === "client" && !clientOwnsProject(user.id, id)) {
+    res.status(403).json({ error: "forbidden", message: "Client cannot access this project" }); return;
+  }
   res.json({ projectId: id, notes: PROJECT_NOTES[id] ?? [] });
 });
 
@@ -141,20 +162,77 @@ router.get("/projects/:id/notes", requireRole(["team", "admin", "superadmin", "a
 router.post("/projects/:id/notes", requireRole(["team", "admin", "superadmin", "architect", "client"]), (req, res) => {
   const id = req.params["id"] as string;
   if (!PROJECTS.find((p) => p.id === id)) { res.status(404).json({ error: "not_found" }); return; }
+  const user = (req as { user?: { id: string; role: string; name?: string } }).user;
+  if (user?.role === "client" && !clientOwnsProject(user.id, id)) {
+    res.status(403).json({ error: "forbidden", message: "Client cannot access this project" }); return;
+  }
   const body = (req.body ?? {}) as { text?: string; type?: string; lang?: string; source?: string };
   const text = (body.text ?? "").trim();
   if (!text) { res.status(400).json({ error: "empty_note" }); return; }
+  const noteType = (body.type === "voice_note" || body.type === "client_question") ? body.type : "general";
   const note: ProjectNote = {
     id: `note-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-    type: (body.type === "voice_note" || body.type === "client_question") ? body.type : "general",
+    type: noteType,
     text,
     lang: body.lang === "es" ? "es" : "en",
     createdAt: new Date().toISOString(),
-    createdBy: (req as { user?: { name?: string } }).user?.name ?? "User",
+    createdBy: user?.name ?? "User",
+    createdByUserId: user?.id,
     source: body.source ?? "manual",
+    ...(noteType === "client_question" ? { status: "open" as const, replies: [] } : {}),
   };
   if (!PROJECT_NOTES[id]) PROJECT_NOTES[id] = [];
   PROJECT_NOTES[id].push(note);
+
+  // Surface new client questions in the activity feed so the team gets notified.
+  if (noteType === "client_question") {
+    const project = PROJECTS.find((p) => p.id === id);
+    RECENT_ACTIVITY.unshift({
+      id: `act-q-${note.id}`,
+      type: "comment" as const,
+      projectId: id,
+      projectName: project?.name ?? id,
+      description: `${note.createdBy} asked: "${text.slice(0, 80)}${text.length > 80 ? "…" : ""}"`,
+      descriptionEs: `${note.createdBy} preguntó: "${text.slice(0, 80)}${text.length > 80 ? "…" : ""}"`,
+      actor: note.createdBy,
+      timestamp: note.createdAt,
+    });
+  }
+  res.json(note);
+});
+
+// POST reply to a client question (team only). Marks question answered + posts activity.
+router.post("/projects/:id/notes/:noteId/reply", requireRole(["team", "admin", "superadmin", "architect"]), (req, res) => {
+  const id = req.params["id"] as string;
+  const noteId = req.params["noteId"] as string;
+  const list = PROJECT_NOTES[id];
+  const note = list?.find((n) => n.id === noteId);
+  if (!note) { res.status(404).json({ error: "not_found" }); return; }
+  const body = (req.body ?? {}) as { text?: string; lang?: string };
+  const text = (body.text ?? "").trim();
+  if (!text) { res.status(400).json({ error: "empty_reply" }); return; }
+  const user = (req as { user?: { id: string; name?: string } }).user;
+  const reply: NoteReply = {
+    id: `rep-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    by: user?.name ?? "Team",
+    text,
+    lang: body.lang === "es" ? "es" : "en",
+    createdAt: new Date().toISOString(),
+  };
+  note.replies = [...(note.replies ?? []), reply];
+  note.status = "answered";
+
+  const project = PROJECTS.find((p) => p.id === id);
+  RECENT_ACTIVITY.unshift({
+    id: `act-r-${reply.id}`,
+    type: "comment" as const,
+    projectId: id,
+    projectName: project?.name ?? id,
+    description: `${reply.by} replied to your question: "${text.slice(0, 80)}${text.length > 80 ? "…" : ""}"`,
+    descriptionEs: `${reply.by} respondió a tu pregunta: "${text.slice(0, 80)}${text.length > 80 ? "…" : ""}"`,
+    actor: reply.by,
+    timestamp: reply.createdAt,
+  });
   res.json(note);
 });
 
@@ -292,6 +370,13 @@ router.post("/ai/chat", requireRole(["team", "admin", "superadmin", "architect",
     conversationHistory?: Array<{ role: "user" | "assistant"; content: string }>;
   };
 
+  // Prevent IDOR: client callers may only chat about projects they own.
+  const callerUser = (req as { user?: { id: string; role: string } }).user;
+  if (callerUser?.role === "client" && projectId && !clientOwnsProject(callerUser.id, projectId)) {
+    res.status(403).json({ error: "forbidden", message: "Client cannot access this project" });
+    return;
+  }
+
   const systemPrompt =
     mode === "client_assistant"
       ? buildClientPrompt(projectId)
@@ -300,14 +385,31 @@ router.post("/ai/chat", requireRole(["team", "admin", "superadmin", "architect",
   // Auto-collect: if the client asked a question, append it to the per-project Client Questions note list.
   if (mode === "client_assistant" && projectId && detectClientQuestion(message)) {
     if (!PROJECT_NOTES[projectId]) PROJECT_NOTES[projectId] = [];
-    PROJECT_NOTES[projectId].push({
+    const u = (req as { user?: { id?: string; name?: string } }).user;
+    const noteText = message.trim().slice(0, 500);
+    const newQ: ProjectNote = {
       id: `note-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       type: "client_question",
-      text: message.trim().slice(0, 500),
+      text: noteText,
       lang: looksLikeSpanish(message),
       createdAt: new Date().toISOString(),
-      createdBy: (req as { user?: { name?: string } }).user?.name ?? "Client",
+      createdBy: u?.name ?? "Client",
+      createdByUserId: u?.id,
       source: "ai_chat",
+      status: "open",
+      replies: [],
+    };
+    PROJECT_NOTES[projectId].push(newQ);
+    const project = PROJECTS.find((p) => p.id === projectId);
+    RECENT_ACTIVITY.unshift({
+      id: `act-q-${newQ.id}`,
+      type: "comment" as const,
+      projectId,
+      projectName: project?.name ?? projectId,
+      description: `${newQ.createdBy} asked: "${noteText.slice(0, 80)}${noteText.length > 80 ? "…" : ""}"`,
+      descriptionEs: `${newQ.createdBy} preguntó: "${noteText.slice(0, 80)}${noteText.length > 80 ? "…" : ""}"`,
+      actor: newQ.createdBy,
+      timestamp: newQ.createdAt,
     });
   }
 
