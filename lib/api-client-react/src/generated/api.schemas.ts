@@ -320,6 +320,148 @@ export interface MaterialPriceRefreshResponse {
   cached: boolean;
 }
 
+export type LeadBookingType =
+  (typeof LeadBookingType)[keyof typeof LeadBookingType];
+
+export const LeadBookingType = {
+  consultation_30min: "consultation_30min",
+  weekly_seminar: "weekly_seminar",
+} as const;
+
+export interface LeadBooking {
+  type: LeadBookingType;
+  slot: string;
+  label: string;
+}
+
+export type LeadSource = (typeof LeadSource)[keyof typeof LeadSource];
+
+export const LeadSource = {
+  website: "website",
+  social: "social",
+  referral: "referral",
+  media: "media",
+  events: "events",
+} as const;
+
+export type LeadProjectType =
+  (typeof LeadProjectType)[keyof typeof LeadProjectType];
+
+export const LeadProjectType = {
+  residencial: "residencial",
+  comercial: "comercial",
+  mixto: "mixto",
+  contenedor: "contenedor",
+} as const;
+
+export type LeadBudgetRange =
+  (typeof LeadBudgetRange)[keyof typeof LeadBudgetRange];
+
+export const LeadBudgetRange = {
+  under_150k: "under_150k",
+  "150k_300k": "150k_300k",
+  "300k_500k": "300k_500k",
+  "500k_1m": "500k_1m",
+  over_1m: "over_1m",
+} as const;
+
+export type LeadTerrainStatus =
+  (typeof LeadTerrainStatus)[keyof typeof LeadTerrainStatus];
+
+export const LeadTerrainStatus = {
+  no_terrain: "no_terrain",
+  with_terrain: "with_terrain",
+  with_plans: "with_plans",
+} as const;
+
+export type LeadStatus = (typeof LeadStatus)[keyof typeof LeadStatus];
+
+export const LeadStatus = {
+  new: "new",
+  contacted: "contacted",
+  accepted: "accepted",
+  rejected: "rejected",
+} as const;
+
+export interface Lead {
+  id: string;
+  source: LeadSource;
+  projectType: LeadProjectType;
+  location: string;
+  budgetRange: LeadBudgetRange;
+  terrainStatus: LeadTerrainStatus;
+  contactName: string;
+  email: string;
+  phone: string;
+  notes?: string;
+  createdAt: string;
+  score: number;
+  status: LeadStatus;
+  booking?: LeadBooking;
+  asanaGid?: string;
+}
+
+export type LeadCreateRequestSource =
+  (typeof LeadCreateRequestSource)[keyof typeof LeadCreateRequestSource];
+
+export const LeadCreateRequestSource = {
+  website: "website",
+  social: "social",
+  referral: "referral",
+  media: "media",
+  events: "events",
+} as const;
+
+export type LeadCreateRequestProjectType =
+  (typeof LeadCreateRequestProjectType)[keyof typeof LeadCreateRequestProjectType];
+
+export const LeadCreateRequestProjectType = {
+  residencial: "residencial",
+  comercial: "comercial",
+  mixto: "mixto",
+  contenedor: "contenedor",
+} as const;
+
+export type LeadCreateRequestBudgetRange =
+  (typeof LeadCreateRequestBudgetRange)[keyof typeof LeadCreateRequestBudgetRange];
+
+export const LeadCreateRequestBudgetRange = {
+  under_150k: "under_150k",
+  "150k_300k": "150k_300k",
+  "300k_500k": "300k_500k",
+  "500k_1m": "500k_1m",
+  over_1m: "over_1m",
+} as const;
+
+export type LeadCreateRequestTerrainStatus =
+  (typeof LeadCreateRequestTerrainStatus)[keyof typeof LeadCreateRequestTerrainStatus];
+
+export const LeadCreateRequestTerrainStatus = {
+  no_terrain: "no_terrain",
+  with_terrain: "with_terrain",
+  with_plans: "with_plans",
+} as const;
+
+export interface LeadCreateRequest {
+  source: LeadCreateRequestSource;
+  projectType: LeadCreateRequestProjectType;
+  location: string;
+  budgetRange: LeadCreateRequestBudgetRange;
+  terrainStatus: LeadCreateRequestTerrainStatus;
+  contactName: string;
+  email: string;
+  phone: string;
+  notes?: string;
+  booking?: LeadBooking;
+}
+
+export interface LeadAcceptResponse {
+  lead: Lead;
+  project: Project;
+  asanaGid: string;
+  asanaMessage: string;
+}
+
 export type GetProjectDocumentsParams = {
   clientVisible?: boolean;
 };

@@ -1,6 +1,7 @@
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, FolderOpen, Calculator, Package, MessageSquare, LogOut, Menu, X, Users, FileCheck, Settings } from "lucide-react";
+import { LayoutDashboard, FolderOpen, Calculator, Package, MessageSquare, LogOut, Menu, X, Users, FileCheck, Settings, Inbox } from "lucide-react";
 import { useState } from "react";
+import { useListLeads } from "@workspace/api-client-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useLang } from "@/hooks/use-lang";
 import { NotificationBell } from "./notification-bell";
@@ -15,6 +16,7 @@ const ALL_NAV_ITEMS = [
   { href: "/ai", icon: MessageSquare, label: "AI Assistant", labelEs: "Asistente IA", clientVisible: true },
   { href: "/team", icon: Users, label: "Team", labelEs: "Equipo", clientVisible: false },
   { href: "/permits", icon: FileCheck, label: "Permits", labelEs: "Permisos", clientVisible: false },
+  { href: "/leads", icon: Inbox, label: "Leads", labelEs: "Leads", clientVisible: false },
 ];
 
 export function Sidebar() {
@@ -26,6 +28,9 @@ export function Sidebar() {
   const isClient = user?.role === "client";
   const showNotifications = !isClient;
   const navItems = ALL_NAV_ITEMS.filter((item) => !isClient || item.clientVisible);
+
+  const { data: leads = [] } = useListLeads({ query: { enabled: !isClient } });
+  const newLeadsCount = leads.filter((l) => l.status === "new").length;
 
   const LangToggle = ({ testId = "lang-toggle" }: { testId?: string }) => (
     <button
@@ -69,7 +74,17 @@ export function Sidebar() {
               }`}
             >
               <item.icon className="w-4 h-4 shrink-0" />
-              {label}
+              <span className="flex-1">{label}</span>
+              {item.href === "/leads" && newLeadsCount > 0 && (
+                <span
+                  data-testid="leads-badge"
+                  className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                    isActive ? "bg-white/25 text-white" : "bg-konti-olive text-white"
+                  }`}
+                >
+                  {newLeadsCount}
+                </span>
+              )}
             </Link>
           );
         })}

@@ -796,3 +796,196 @@ export const RECENT_ACTIVITY = [
     timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
   },
 ];
+
+// ============================================================
+// Phase 1 — Lead Intake & Discovery
+// ============================================================
+
+export type LeadProjectType = "residencial" | "comercial" | "mixto" | "contenedor";
+export type LeadTerrain = "no_terrain" | "with_terrain" | "with_plans";
+export type LeadSource = "website" | "social" | "referral" | "media" | "events";
+export type LeadBudget = "under_150k" | "150k_300k" | "300k_500k" | "500k_1m" | "over_1m";
+export type LeadStatus = "new" | "contacted" | "accepted" | "rejected";
+export type BookingType = "consultation_30min" | "weekly_seminar";
+
+export interface LeadBooking {
+  type: BookingType;
+  slot: string; // ISO datetime
+  label: string;
+}
+
+export interface Lead {
+  id: string;
+  source: LeadSource;
+  projectType: LeadProjectType;
+  location: string;
+  budgetRange: LeadBudget;
+  terrainStatus: LeadTerrain;
+  contactName: string;
+  email: string;
+  phone: string;
+  notes?: string;
+  createdAt: string;
+  score: number;
+  status: LeadStatus;
+  booking?: LeadBooking;
+  asanaGid?: string;
+}
+
+export function computeLeadScore(input: {
+  projectType: LeadProjectType;
+  budgetRange: LeadBudget;
+  location: string;
+  terrainStatus: LeadTerrain;
+}): number {
+  // Project type weighting (containers are KONTi's specialty)
+  const typeScore: Record<LeadProjectType, number> = {
+    contenedor: 35,
+    mixto: 28,
+    residencial: 24,
+    comercial: 22,
+  };
+  // Budget weighting
+  const budgetScore: Record<LeadBudget, number> = {
+    under_150k: 8,
+    "150k_300k": 18,
+    "300k_500k": 26,
+    "500k_1m": 32,
+    over_1m: 35,
+  };
+  // Terrain readiness
+  const terrainScore: Record<LeadTerrain, number> = {
+    no_terrain: 6,
+    with_terrain: 14,
+    with_plans: 18,
+  };
+  // Location bonus — PR coastal/metro favored
+  const loc = input.location.toLowerCase();
+  let locationScore = 4;
+  if (/(rinc[oó]n|isabela|aguadilla|cabo rojo|fajardo|culebra|vieques|loiza|loíza|dorado)/.test(loc)) {
+    locationScore = 12;
+  } else if (/(san juan|santurce|condado|miramar|guaynabo|bayam[oó]n|carolina|caguas|ponce|mayag[uü]ez)/.test(loc)) {
+    locationScore = 10;
+  } else if (/puerto rico|pr\b/.test(loc)) {
+    locationScore = 7;
+  }
+
+  const total =
+    typeScore[input.projectType] +
+    budgetScore[input.budgetRange] +
+    terrainScore[input.terrainStatus] +
+    locationScore;
+
+  return Math.min(100, Math.max(0, Math.round(total)));
+}
+
+const seedLeadInputs: Array<Omit<Lead, "score" | "createdAt"> & { hoursAgo: number }> = [
+  {
+    id: "lead-1",
+    source: "referral",
+    projectType: "contenedor",
+    location: "Isabela, Puerto Rico",
+    budgetRange: "500k_1m",
+    terrainStatus: "with_plans",
+    contactName: "María Rivera Quiñones",
+    email: "maria.rivera@example.com",
+    phone: "+1 787-555-0142",
+    notes: "Referida por cliente de Casa Solar Rincón. Busca casa de playa modular.",
+    status: "new",
+    hoursAgo: 4,
+  },
+  {
+    id: "lead-2",
+    source: "website",
+    projectType: "residencial",
+    location: "Caguas, Puerto Rico",
+    budgetRange: "300k_500k",
+    terrainStatus: "with_terrain",
+    contactName: "Luis Hernández",
+    email: "lhernandez@example.com",
+    phone: "+1 787-555-0188",
+    notes: "Familia de 5 — busca diseño bioclimático.",
+    status: "new",
+    hoursAgo: 22,
+  },
+  {
+    id: "lead-3",
+    source: "social",
+    projectType: "comercial",
+    location: "Santurce, San Juan, PR",
+    budgetRange: "150k_300k",
+    terrainStatus: "with_terrain",
+    contactName: "Sofia Marrero",
+    email: "sofia@cafemarrero.pr",
+    phone: "+1 787-555-0123",
+    notes: "Quiere abrir café-galería en Santurce.",
+    status: "contacted",
+    booking: {
+      type: "consultation_30min",
+      slot: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
+      label: "1:1 — 30min",
+    },
+    hoursAgo: 50,
+  },
+  {
+    id: "lead-4",
+    source: "events",
+    projectType: "mixto",
+    location: "Dorado, Puerto Rico",
+    budgetRange: "over_1m",
+    terrainStatus: "with_plans",
+    contactName: "Roberto Vega Cintrón",
+    email: "rvega@vegaholdings.com",
+    phone: "+1 787-555-0211",
+    notes: "Conoció a Carla en Foro Caribe Sostenible 2026.",
+    status: "new",
+    booking: {
+      type: "weekly_seminar",
+      slot: new Date(Date.now() + 6 * 24 * 60 * 60 * 1000).toISOString(),
+      label: "Seminario semanal Sat 10am",
+    },
+    hoursAgo: 8,
+  },
+  {
+    id: "lead-5",
+    source: "media",
+    projectType: "residencial",
+    location: "Mayagüez, PR",
+    budgetRange: "under_150k",
+    terrainStatus: "no_terrain",
+    contactName: "Pedro Colón",
+    email: "pcolon@example.com",
+    phone: "+1 787-555-0177",
+    notes: "Vio entrevista en El Nuevo Día.",
+    status: "new",
+    hoursAgo: 75,
+  },
+  {
+    id: "lead-6",
+    source: "referral",
+    projectType: "contenedor",
+    location: "Fajardo, Puerto Rico",
+    budgetRange: "300k_500k",
+    terrainStatus: "with_terrain",
+    contactName: "Ana Beatriz Soto",
+    email: "absoto@example.com",
+    phone: "+1 787-555-0190",
+    notes: "Eco-resort de 4 unidades.",
+    status: "new",
+    hoursAgo: 12,
+  },
+];
+
+export const LEADS: Lead[] = seedLeadInputs.map((l) => {
+  const { hoursAgo, ...rest } = l;
+  return {
+    ...rest,
+    createdAt: new Date(Date.now() - hoursAgo * 60 * 60 * 1000).toISOString(),
+    score: computeLeadScore({
+      projectType: rest.projectType,
+      budgetRange: rest.budgetRange,
+      location: rest.location,
+      terrainStatus: rest.terrainStatus,
+    }),
+  };
+});

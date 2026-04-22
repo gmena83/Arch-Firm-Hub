@@ -26,6 +26,8 @@ tags:
     description: AI assistant
   - name: dashboard
     description: Dashboard summaries
+  - name: leads
+    description: Lead intake & discovery
 paths:
   /healthz:
     get:
@@ -294,6 +296,69 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/ActivityItem"
+
+  /leads:
+    get:
+      operationId: listLeads
+      tags: [leads]
+      summary: List all leads (sorted by score desc)
+      responses:
+        "200":
+          description: List of leads
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Lead"
+    post:
+      operationId: createLead
+      tags: [leads]
+      summary: Submit a new public lead from the intake form
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LeadCreateRequest"
+      responses:
+        "201":
+          description: Lead created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lead"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /leads/{id}/accept:
+    post:
+      operationId: acceptLead
+      tags: [leads]
+      summary: Accept a lead and create a Discovery-phase project
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Lead accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeadAcceptResponse"
+        "404":
+          description: Lead not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /ai/chat:
     post:
@@ -849,3 +914,121 @@ components:
         - refreshedAt
         - source
         - cached
+
+    LeadBooking:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [consultation_30min, weekly_seminar]
+        slot:
+          type: string
+        label:
+          type: string
+      required: [type, slot, label]
+
+    Lead:
+      type: object
+      properties:
+        id:
+          type: string
+        source:
+          type: string
+          enum: [website, social, referral, media, events]
+        projectType:
+          type: string
+          enum: [residencial, comercial, mixto, contenedor]
+        location:
+          type: string
+        budgetRange:
+          type: string
+          enum: [under_150k, 150k_300k, 300k_500k, 500k_1m, over_1m]
+        terrainStatus:
+          type: string
+          enum: [no_terrain, with_terrain, with_plans]
+        contactName:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        notes:
+          type: string
+        createdAt:
+          type: string
+        score:
+          type: integer
+        status:
+          type: string
+          enum: [new, contacted, accepted, rejected]
+        booking:
+          $ref: "#/components/schemas/LeadBooking"
+        asanaGid:
+          type: string
+      required:
+        - id
+        - source
+        - projectType
+        - location
+        - budgetRange
+        - terrainStatus
+        - contactName
+        - email
+        - phone
+        - createdAt
+        - score
+        - status
+
+    LeadCreateRequest:
+      type: object
+      properties:
+        source:
+          type: string
+          enum: [website, social, referral, media, events]
+        projectType:
+          type: string
+          enum: [residencial, comercial, mixto, contenedor]
+        location:
+          type: string
+        budgetRange:
+          type: string
+          enum: [under_150k, 150k_300k, 300k_500k, 500k_1m, over_1m]
+        terrainStatus:
+          type: string
+          enum: [no_terrain, with_terrain, with_plans]
+        contactName:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        notes:
+          type: string
+        booking:
+          $ref: "#/components/schemas/LeadBooking"
+      required:
+        - source
+        - projectType
+        - location
+        - budgetRange
+        - terrainStatus
+        - contactName
+        - email
+        - phone
+
+    LeadAcceptResponse:
+      type: object
+      properties:
+        lead:
+          $ref: "#/components/schemas/Lead"
+        project:
+          $ref: "#/components/schemas/Project"
+        asanaGid:
+          type: string
+        asanaMessage:
+          type: string
+      required:
+        - lead
+        - project
+        - asanaGid
+        - asanaMessage
