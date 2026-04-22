@@ -30,6 +30,9 @@ import { RequireAuth, useAuth } from "@/hooks/use-auth";
 import { useLang } from "@/hooks/use-lang";
 import { WeatherBadge } from "@/components/weather-badge";
 import { PreDesignPanel } from "@/components/pre-design-panel";
+import { DesignPanel } from "@/components/design-panel";
+import { ProposalsPanel } from "@/components/proposals-panel";
+import { ChangeOrdersPanel } from "@/components/change-orders-panel";
 import {
   MapPin, Users, FileText, Upload, Check, Clock, ChevronLeft,
   Wind, Droplets, Thermometer, Eye, EyeOff, ArrowRight, X,
@@ -579,6 +582,15 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
 
           {/* Pre-Design & Viability Panel */}
           <PreDesignPanel projectId={projectId} isClientView={isClientView} currentPhase={project.phase} />
+
+          {/* Proposals (Pre-Design → onward) */}
+          <ProposalsPanel projectId={projectId} isClientView={isClientView} currentPhase={project.phase} />
+
+          {/* Design sub-phases (Design phase onward) */}
+          <DesignPanel projectId={projectId} isClientView={isClientView} currentPhase={project.phase} />
+
+          {/* Change Orders (Design phase onward, or anytime there are existing COs) */}
+          <ChangeOrdersPanel projectId={projectId} isClientView={isClientView} currentPhase={project.phase} />
 
           {/* Weather widget */}
           {weather && (

@@ -14,7 +14,15 @@ import {
   PHASE_ORDER,
   appendActivity,
   computeAssistedBudget,
+  PROJECT_DESIGN_STATE,
+  DESIGN_SUB_PHASE_ORDER,
+  DESIGN_SUB_PHASE_LABELS,
+  PROJECT_PROPOSALS,
+  PROJECT_CHANGE_ORDERS,
   type ChecklistStatus,
+  type DesignSubPhase,
+  type DesignDeliverableStatus,
+  type ChangeOrder,
 } from "../data/seed";
 import { requireRole } from "../middlewares/require-role";
 
@@ -314,7 +322,7 @@ router.post("/projects/:id/pdf", async (req, res) => {
 // ---------------------------------------------------------------------------
 
 router.get("/projects/:id/pre-design", requireRole(["team", "client"]), (req, res) => {
-  const project = PROJECTS.find((p) => p.id === req.params.id);
+  const project = PROJECTS.find((p) => p.id === req.params["id"]);
   if (!project) return res.status(404).json({ error: "not_found" });
   const user = (req as { user?: { id: string; role: string } }).user;
   if (user?.role === "client" && !clientCanAccessProject(user.id, project.id)) {
@@ -335,7 +343,7 @@ router.post("/projects/:id/checklist-toggle", requireRole(["team", "admin", "sup
   if (typeof itemId !== "string" || !VALID_CHECKLIST_STATUS.includes(status)) {
     return res.status(400).json({ error: "invalid_payload", message: "itemId (string) and status (pending|in_progress|done) required" });
   }
-  const project = PROJECTS.find((p) => p.id === req.params.id);
+  const project = PROJECTS.find((p) => p.id === req.params["id"]);
   if (!project) return res.status(404).json({ error: "not_found" });
   const list = PRE_DESIGN_CHECKLISTS[project.id];
   if (!list) return res.status(404).json({ error: "no_checklist" });
@@ -363,7 +371,7 @@ router.post("/projects/:id/structured-variables", requireRole(["admin", "superad
   if (!VALID_PROJECT_TYPES.includes(projectType)) {
     return res.status(400).json({ error: "invalid_project_type" });
   }
-  const project = PROJECTS.find((p) => p.id === req.params.id);
+  const project = PROJECTS.find((p) => p.id === req.params["id"]);
   if (!project) return res.status(404).json({ error: "not_found" });
 
   const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
@@ -387,7 +395,7 @@ router.post("/projects/:id/structured-variables", requireRole(["admin", "superad
 });
 
 router.post("/projects/:id/advance-phase", requireRole(["team", "client"]), (req, res) => {
-  const project = PROJECTS.find((p) => p.id === req.params.id);
+  const project = PROJECTS.find((p) => p.id === req.params["id"]);
   if (!project) return res.status(404).json({ error: "not_found" });
   const idx = PHASE_ORDER.indexOf(project.phase);
   if (idx === -1 || idx >= PHASE_ORDER.length - 1) {
@@ -442,7 +450,7 @@ router.post("/projects/:id/advance-phase", requireRole(["team", "client"]), (req
 });
 
 router.post("/projects/:id/decline-phase", requireRole(["client"]), (req, res) => {
-  const project = PROJECTS.find((p) => p.id === req.params.id);
+  const project = PROJECTS.find((p) => p.id === req.params["id"]);
   if (!project) return res.status(404).json({ error: "not_found" });
   const { reason } = req.body ?? {};
   const user = (req as { user?: { id: string; name?: string } }).user;
@@ -469,7 +477,7 @@ router.post("/projects/:id/decline-phase", requireRole(["client"]), (req, res) =
 });
 
 router.post("/projects/:id/gamma-report", requireRole(["team"]), (req, res) => {
-  const project = PROJECTS.find((p) => p.id === req.params.id);
+  const project = PROJECTS.find((p) => p.id === req.params["id"]);
   if (!project) return res.status(404).json({ error: "not_found" });
   const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
   const reportId = `gamma-${project.id}-${Date.now()}`;
@@ -490,6 +498,245 @@ router.post("/projects/:id/gamma-report", requireRole(["team"]), (req, res) => {
     generatedBy: "GAMMA",
     pages: 12,
   });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 3 — Design sub-phases, Proposals & Change Orders
+// ---------------------------------------------------------------------------
+
+const VALID_DELIVERABLE_STATUS: DesignDeliverableStatus[] = ["pending", "in_progress", "done"];
+
+function getProjectOr404(id: string, res: import("express").Response) {
+  const project = PROJECTS.find((p) => p.id === id);
+  if (!project) {
+    res.status(404).json({ error: "not_found" });
+    return null;
+  }
+  return project;
+}
+
+function clientCanReadOrForbid(req: import("express").Request, res: import("express").Response, projectId: string): boolean {
+  const user = (req as { user?: { id: string; role: string } }).user;
+  if (user?.role === "client" && !clientCanAccessProject(user.id, projectId)) {
+    res.status(403).json({ error: "forbidden", message: "Client cannot access this project" });
+    return false;
+  }
+  return true;
+}
+
+router.get("/projects/:id/design", requireRole(["team", "client"]), (req, res) => {
+  const project = getProjectOr404(String(req.params["id"]), res);
+  if (!project) return;
+  if (!clientCanReadOrForbid(req, res, project.id)) return;
+  const state = PROJECT_DESIGN_STATE[project.id];
+  return res.json({
+    projectId: project.id,
+    available: !!state,
+    isProjectInDesign: project.phase === "design",
+    state: state ?? null,
+    subPhaseOrder: DESIGN_SUB_PHASE_ORDER,
+    subPhaseLabels: DESIGN_SUB_PHASE_LABELS,
+  });
+});
+
+router.post("/projects/:id/design/deliverable", requireRole(["team", "admin", "superadmin"]), (req, res) => {
+  const project = getProjectOr404(String(req.params["id"]), res);
+  if (!project) return;
+  const { subPhase, deliverableId, status } = req.body ?? {};
+  if (!DESIGN_SUB_PHASE_ORDER.includes(subPhase)) return res.status(400).json({ error: "invalid_sub_phase" });
+  if (!VALID_DELIVERABLE_STATUS.includes(status)) return res.status(400).json({ error: "invalid_status" });
+  const state = PROJECT_DESIGN_STATE[project.id];
+  if (!state) return res.status(404).json({ error: "no_design_state" });
+  const sp = state.subPhases[subPhase as DesignSubPhase];
+  const item = sp.deliverables.find((d) => d.id === deliverableId);
+  if (!item) return res.status(404).json({ error: "deliverable_not_found" });
+  item.status = status;
+  item.completedAt = status === "done" ? new Date().toISOString() : undefined;
+  return res.json({ projectId: project.id, subPhase, item });
+});
+
+router.post("/projects/:id/design/advance-sub-phase", requireRole(["team", "admin", "superadmin"]), (req, res) => {
+  const project = getProjectOr404(String(req.params["id"]), res);
+  if (!project) return;
+  const state = PROJECT_DESIGN_STATE[project.id];
+  if (!state) return res.status(404).json({ error: "no_design_state" });
+  if (state.currentSubPhase === "complete") {
+    return res.status(400).json({ error: "already_complete", message: "Design phase is already complete" });
+  }
+  const idx = DESIGN_SUB_PHASE_ORDER.indexOf(state.currentSubPhase);
+  const current = state.subPhases[state.currentSubPhase];
+  const allDone = current.deliverables.every((d) => d.status === "done");
+  if (!allDone) {
+    return res.status(400).json({ error: "deliverables_incomplete", message: "All deliverables must be marked done before advancing" });
+  }
+  const now = new Date().toISOString();
+  current.completedAt = now;
+  const completedLabel = DESIGN_SUB_PHASE_LABELS[state.currentSubPhase];
+  if (idx === DESIGN_SUB_PHASE_ORDER.length - 1) {
+    state.currentSubPhase = "complete";
+    appendActivity(project.id, {
+      type: "sub_phase_advanced",
+      actor: (req as { user?: { name?: string } }).user?.name ?? "Team",
+      description: `Design phase complete — ${completedLabel.en} signed off`,
+      descriptionEs: `Fase de Diseño completa — ${completedLabel.es} aprobado`,
+    });
+  } else {
+    const next = DESIGN_SUB_PHASE_ORDER[idx + 1];
+    state.currentSubPhase = next;
+    state.subPhases[next].startedAt = now;
+    const nextLabel = DESIGN_SUB_PHASE_LABELS[next];
+    appendActivity(project.id, {
+      type: "sub_phase_advanced",
+      actor: (req as { user?: { name?: string } }).user?.name ?? "Team",
+      description: `Advanced to ${nextLabel.en} (${completedLabel.en} complete)`,
+      descriptionEs: `Avanzado a ${nextLabel.es} (${completedLabel.es} completado)`,
+    });
+  }
+  return res.json({ projectId: project.id, state });
+});
+
+router.get("/projects/:id/proposals", requireRole(["team", "client"]), (req, res) => {
+  const project = getProjectOr404(String(req.params["id"]), res);
+  if (!project) return;
+  if (!clientCanReadOrForbid(req, res, project.id)) return;
+  return res.json({ projectId: project.id, proposals: PROJECT_PROPOSALS[project.id] ?? [] });
+});
+
+router.post("/projects/:id/proposals/:proposalId/approve", requireRole(["client"]), (req, res) => {
+  const project = getProjectOr404(String(req.params["id"]), res);
+  if (!project) return;
+  const user = (req as { user?: { id: string; name?: string } }).user;
+  if (!user || !clientCanAccessProject(user.id, project.id)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+  const list = PROJECT_PROPOSALS[project.id] ?? [];
+  const target = list.find((p) => p.id === String(req.params["proposalId"]));
+  if (!target) return res.status(404).json({ error: "proposal_not_found" });
+  if (list.some((p) => p.status === "approved")) {
+    return res.status(400).json({ error: "already_approved", message: "A proposal has already been approved for this project" });
+  }
+  const now = new Date().toISOString();
+  for (const p of list) {
+    if (p.id === target.id) {
+      p.status = "approved";
+      p.decidedAt = now;
+      p.decidedBy = user.name ?? "Client";
+    } else if (p.status === "pending") {
+      p.status = "rejected";
+      p.decidedAt = now;
+      p.decidedBy = user.name ?? "Client";
+    }
+  }
+  appendActivity(project.id, {
+    type: "proposal_decision",
+    actor: user.name ?? "Client",
+    description: `Client approved "${target.title}" ($${target.totalCost.toLocaleString()})`,
+    descriptionEs: `Cliente aprobó "${target.titleEs}" ($${target.totalCost.toLocaleString()})`,
+  });
+  appendActivity(project.id, {
+    type: "email_sent",
+    actor: "System",
+    description: "Proposal acceptance receipt and contract draft sent",
+    descriptionEs: "Recibo de aceptación de propuesta y borrador de contrato enviados",
+  });
+  return res.json({ projectId: project.id, proposals: list, approved: target });
+});
+
+router.get("/projects/:id/change-orders", requireRole(["team", "client"]), (req, res) => {
+  const project = getProjectOr404(String(req.params["id"]), res);
+  if (!project) return;
+  if (!clientCanReadOrForbid(req, res, project.id)) return;
+  const orders = PROJECT_CHANGE_ORDERS[project.id] ?? [];
+  const totals = {
+    approvedDelta: orders.filter((o) => o.status === "approved").reduce((s, o) => s + o.amountDelta, 0),
+    pendingDelta: orders.filter((o) => o.status === "pending").reduce((s, o) => s + o.amountDelta, 0),
+    approvedDays: orders.filter((o) => o.status === "approved").reduce((s, o) => s + o.scheduleImpactDays, 0),
+  };
+  return res.json({ projectId: project.id, changeOrders: orders, totals });
+});
+
+router.post("/projects/:id/change-orders", requireRole(["team", "admin", "superadmin"]), (req, res) => {
+  const project = getProjectOr404(String(req.params["id"]), res);
+  if (!project) return;
+  const { title, titleEs, description, descriptionEs, amountDelta, scheduleImpactDays, reason, reasonEs } = req.body ?? {};
+  if (typeof title !== "string" || title.trim().length < 3) return res.status(400).json({ error: "invalid_title" });
+  if (typeof amountDelta !== "number" || !isFinite(amountDelta)) return res.status(400).json({ error: "invalid_amount" });
+  if (typeof scheduleImpactDays !== "number" || !isFinite(scheduleImpactDays) || scheduleImpactDays < 0) {
+    return res.status(400).json({ error: "invalid_schedule" });
+  }
+  const list = PROJECT_CHANGE_ORDERS[project.id] ?? (PROJECT_CHANGE_ORDERS[project.id] = []);
+  const number = `CO-${String(list.length + 1).padStart(3, "0")}`;
+  const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
+  const co: ChangeOrder = {
+    id: `co-${project.id}-${Date.now()}`,
+    projectId: project.id,
+    number,
+    title: title.trim(),
+    titleEs: typeof titleEs === "string" && titleEs.trim() ? titleEs.trim() : title.trim(),
+    description: typeof description === "string" ? description : "",
+    descriptionEs: typeof descriptionEs === "string" ? descriptionEs : (typeof description === "string" ? description : ""),
+    amountDelta,
+    scheduleImpactDays,
+    reason: typeof reason === "string" ? reason : "",
+    reasonEs: typeof reasonEs === "string" ? reasonEs : (typeof reason === "string" ? reason : ""),
+    requestedBy: actor,
+    requestedAt: new Date().toISOString(),
+    status: "pending",
+  };
+  list.push(co);
+  appendActivity(project.id, {
+    type: "change_order_created",
+    actor,
+    description: `${number} created: ${co.title} (${amountDelta >= 0 ? "+" : "−"}$${Math.abs(amountDelta).toLocaleString()})`,
+    descriptionEs: `${number} creada: ${co.titleEs} (${amountDelta >= 0 ? "+" : "−"}$${Math.abs(amountDelta).toLocaleString()})`,
+  });
+  return res.status(201).json({ projectId: project.id, changeOrder: co });
+});
+
+router.delete("/projects/:id/change-orders/:coId", requireRole(["team", "admin", "superadmin"]), (req, res) => {
+  const project = getProjectOr404(String(req.params["id"]), res);
+  if (!project) return;
+  const list = PROJECT_CHANGE_ORDERS[project.id] ?? [];
+  const idx = list.findIndex((o) => o.id === String(req.params["coId"]));
+  if (idx === -1) return res.status(404).json({ error: "change_order_not_found" });
+  const co = list[idx];
+  if (co.status !== "pending") {
+    return res.status(400).json({ error: "cannot_delete_decided", message: "Only pending change orders can be deleted" });
+  }
+  list.splice(idx, 1);
+  appendActivity(project.id, {
+    type: "change_order_decision",
+    actor: (req as { user?: { name?: string } }).user?.name ?? "Team",
+    description: `${co.number} withdrawn before decision`,
+    descriptionEs: `${co.number} retirada antes de la decisión`,
+  });
+  return res.json({ projectId: project.id, deleted: co.id });
+});
+
+router.post("/projects/:id/change-orders/:coId/decision", requireRole(["client"]), (req, res) => {
+  const project = getProjectOr404(String(req.params["id"]), res);
+  if (!project) return;
+  const user = (req as { user?: { id: string; name?: string } }).user;
+  if (!user || !clientCanAccessProject(user.id, project.id)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+  const { decision, note } = req.body ?? {};
+  if (decision !== "approved" && decision !== "rejected") return res.status(400).json({ error: "invalid_decision" });
+  const list = PROJECT_CHANGE_ORDERS[project.id] ?? [];
+  const co = list.find((o) => o.id === String(req.params["coId"]));
+  if (!co) return res.status(404).json({ error: "change_order_not_found" });
+  if (co.status !== "pending") return res.status(400).json({ error: "already_decided" });
+  co.status = decision;
+  co.decidedAt = new Date().toISOString();
+  co.decidedBy = user.name ?? "Client";
+  if (typeof note === "string" && note.trim()) co.decisionNote = note.trim().slice(0, 300);
+  appendActivity(project.id, {
+    type: "change_order_decision",
+    actor: user.name ?? "Client",
+    description: `${co.number} ${decision} by client${co.decisionNote ? `: ${co.decisionNote}` : ""}`,
+    descriptionEs: `${co.number} ${decision === "approved" ? "aprobada" : "rechazada"} por el cliente${co.decisionNote ? `: ${co.decisionNote}` : ""}`,
+  });
+  return res.json({ projectId: project.id, changeOrder: co });
 });
 
 export default router;
