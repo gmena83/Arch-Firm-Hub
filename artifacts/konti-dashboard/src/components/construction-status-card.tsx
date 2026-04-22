@@ -8,6 +8,7 @@ import {
   getGetProjectChangeOrdersQueryKey,
 } from "@workspace/api-client-react";
 import { useLang } from "@/hooks/use-lang";
+import { MilestonesTimeline } from "@/components/milestones-timeline";
 import { HardHat, ClipboardCheck, FileSpreadsheet, ArrowRight, CheckCircle2, AlertTriangle, RotateCcw } from "lucide-react";
 
 export function ConstructionStatusCard({
@@ -96,6 +97,11 @@ export function ConstructionStatusCard({
             {lastInspection ? (lang === "es" ? lastInspection.titleEs : lastInspection.title) : "—"}
           </p>
         </div>
+      </div>
+
+      <div className="mt-4 pt-4 border-t border-border" data-testid="status-milestones-strip">
+        <p className="text-xs font-semibold text-muted-foreground mb-2">{t("Milestone Timeline", "Línea de Hitos")}</p>
+        <MilestonesTimeline projectId={projectId} compact />
       </div>
 
       {approvedDelta !== 0 && (

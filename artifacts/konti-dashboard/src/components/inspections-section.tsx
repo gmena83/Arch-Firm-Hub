@@ -422,15 +422,15 @@ export function InspectionsSection({ projectId }: { projectId: string }) {
                   </div>
                 )}
                 <div className="mt-2 flex flex-wrap items-center gap-2">
-                  {completed && (
+                  {completed && insp.reportDocumentUrl && (
                     <a
-                      href={`/api/projects/${projectId}/inspections/${insp.id}`}
-                      target="_blank"
-                      rel="noreferrer"
+                      href={insp.reportDocumentUrl}
                       data-testid={`link-inspection-report-${insp.id}`}
-                      className="text-xs text-konti-olive hover:underline font-medium"
+                      title={insp.reportDocumentName ?? "Inspection report"}
+                      className="text-xs text-konti-olive hover:underline font-medium flex items-center gap-1"
                     >
-                      {t("Report ↗", "Reporte ↗")}
+                      <ClipboardCheck className="w-3 h-3" />
+                      {insp.reportDocumentName ?? t("Report", "Reporte")}
                     </a>
                   )}
                   {isStaff && (

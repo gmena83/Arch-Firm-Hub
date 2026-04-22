@@ -326,7 +326,7 @@ function ReportContent({ projectId }: { projectId: string }) {
                 };
                 const statusColor = insp.status === "passed" ? "text-emerald-400" : insp.status === "failed" ? "text-red-400" : insp.status === "re_inspect" ? "text-amber-400" : "text-sky-400";
                 return (
-                  <div key={insp.id} className="px-5 py-3 flex items-center justify-between gap-3 text-sm">
+                  <div key={insp.id} id={`inspection-${insp.id}`} className="px-5 py-3 flex items-center justify-between gap-3 text-sm scroll-mt-20">
                     <div className="min-w-0">
                       <p className="text-white font-medium truncate">{lang === "es" ? insp.titleEs : insp.title}</p>
                       <p className="text-white/40 text-xs">{insp.inspector} · {insp.scheduledDate}{insp.completedDate ? ` → ${insp.completedDate}` : ""}</p>

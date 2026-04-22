@@ -47,6 +47,7 @@ export * from "./documentDesignSubPhase";
 export * from "./documentType";
 export * from "./documentVersion";
 export * from "./errorResponse";
+export * from "./getInspection200";
 export * from "./getProjectDocumentsParams";
 export * from "./getProjectProposals200";
 export * from "./healthStatus";
