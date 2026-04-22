@@ -99,12 +99,17 @@ export function ConstructionStatusCard({
       </div>
 
       {approvedDelta !== 0 && (
-        <div data-testid="status-co-total" className="mt-3 pt-3 border-t border-border flex items-center justify-between text-xs">
+        <Link
+          href={`/projects/${projectId}#change-orders`}
+          data-testid="status-co-total"
+          className="mt-3 pt-3 border-t border-border flex items-center justify-between text-xs hover:bg-muted/40 -mx-2 px-2 py-2 rounded-md"
+        >
           <span className="text-muted-foreground flex items-center gap-1.5"><FileSpreadsheet className="w-3.5 h-3.5" />{t("Approved Change Orders", "Órdenes de Cambio Aprobadas")}</span>
-          <span className={`font-semibold ${approvedDelta >= 0 ? "text-amber-700" : "text-emerald-700"}`}>
+          <span className={`font-semibold ${approvedDelta >= 0 ? "text-amber-700" : "text-emerald-700"} flex items-center gap-1`}>
             {approvedDelta >= 0 ? "+" : "−"}${Math.abs(approvedDelta).toLocaleString()}
+            <ArrowRight className="w-3 h-3" />
           </span>
-        </div>
+        </Link>
       )}
     </div>
   );
