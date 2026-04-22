@@ -35,6 +35,17 @@ export async function getJson<T>(path: string): Promise<T> {
 }
 
 export async function readFileAsText(file: File): Promise<string> {
+  const lower = file.name.toLowerCase();
+  if (lower.endsWith(".xlsx") || lower.endsWith(".xls")) {
+    const XLSX = await import("xlsx");
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: "array" });
+    const firstSheet = wb.SheetNames[0];
+    if (!firstSheet) throw new Error("empty_workbook");
+    const sheet = wb.Sheets[firstSheet];
+    if (!sheet) throw new Error("empty_sheet");
+    return XLSX.utils.sheet_to_csv(sheet);
+  }
   return await new Promise((resolve, reject) => {
     const r = new FileReader();
     r.onload = () => resolve(String(r.result ?? ""));
