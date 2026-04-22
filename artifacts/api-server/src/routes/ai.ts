@@ -130,8 +130,7 @@ TEAM:
 - Carla Gautier — CEO and Founder
 - Michelle Telon Sosa — Lead Designer
 - Jorge Rosa — Chief Operations Officer
-- Andrea Camacho — Environmental Construction Manager
-- Miranda Klopf — Sales, Marketing and Design
+- Nainoshka — Environmental Construction Manager
 
 DOCUMENT CATEGORIES: client_review (client-visible), internal, permits, construction, design
 
