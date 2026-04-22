@@ -46,6 +46,8 @@ import type {
   RefreshMaterialPricesParams,
   SetChangeOrderStatus200,
   SetChangeOrderStatusBody,
+  UpdateChangeOrder200,
+  UpdateChangeOrderBody,
   UpdateDesignDeliverableBody,
   WeatherStatus,
 } from "./api.schemas";
@@ -1399,6 +1401,97 @@ export const useCreateChangeOrder = <
   TContext
 > => {
   return useMutation(getCreateChangeOrderMutationOptions(options));
+};
+
+/**
+ * @summary Edit a pending change order's fields (team / admin)
+ */
+export const getUpdateChangeOrderUrl = (projectId: string, coId: string) => {
+  return `/api/projects/${projectId}/change-orders/${coId}`;
+};
+
+export const updateChangeOrder = async (
+  projectId: string,
+  coId: string,
+  updateChangeOrderBody: UpdateChangeOrderBody,
+  options?: RequestInit,
+): Promise<UpdateChangeOrder200> => {
+  return customFetch<UpdateChangeOrder200>(
+    getUpdateChangeOrderUrl(projectId, coId),
+    {
+      ...options,
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(updateChangeOrderBody),
+    },
+  );
+};
+
+export const getUpdateChangeOrderMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateChangeOrder>>,
+    TError,
+    { projectId: string; coId: string; data: BodyType<UpdateChangeOrderBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateChangeOrder>>,
+  TError,
+  { projectId: string; coId: string; data: BodyType<UpdateChangeOrderBody> },
+  TContext
+> => {
+  const mutationKey = ["updateChangeOrder"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateChangeOrder>>,
+    { projectId: string; coId: string; data: BodyType<UpdateChangeOrderBody> }
+  > = (props) => {
+    const { projectId, coId, data } = props ?? {};
+
+    return updateChangeOrder(projectId, coId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateChangeOrderMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateChangeOrder>>
+>;
+export type UpdateChangeOrderMutationBody = BodyType<UpdateChangeOrderBody>;
+export type UpdateChangeOrderMutationError = ErrorType<void>;
+
+/**
+ * @summary Edit a pending change order's fields (team / admin)
+ */
+export const useUpdateChangeOrder = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateChangeOrder>>,
+    TError,
+    { projectId: string; coId: string; data: BodyType<UpdateChangeOrderBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateChangeOrder>>,
+  TError,
+  { projectId: string; coId: string; data: BodyType<UpdateChangeOrderBody> },
+  TContext
+> => {
+  return useMutation(getUpdateChangeOrderMutationOptions(options));
 };
 
 /**
