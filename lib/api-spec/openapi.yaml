@@ -1273,6 +1273,7 @@ components:
         id: { type: string }
         label: { type: string }
         labelEs: { type: string }
+        owner: { type: string }
         status:
           type: string
           enum: [pending, in_progress, done]
@@ -1341,7 +1342,7 @@ components:
         summary: { type: string }
         summaryEs: { type: string }
         totalCost: { type: number }
-        timelineWeeks: { type: number }
+        durationWeeks: { type: number }
         highlights:
           type: array
           items: { type: string }

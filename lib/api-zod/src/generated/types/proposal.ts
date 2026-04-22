@@ -17,7 +17,7 @@ export interface Proposal {
   summary?: string;
   summaryEs?: string;
   totalCost: number;
-  timelineWeeks?: number;
+  durationWeeks?: number;
   highlights?: string[];
   highlightsEs?: string[];
   status: ProposalStatus;
