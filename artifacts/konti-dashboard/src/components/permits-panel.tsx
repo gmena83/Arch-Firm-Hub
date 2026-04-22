@@ -99,6 +99,7 @@ export default function PermitsPanel({ projectId, projectPhase, onProjectUpdated
   const isClient = user?.role === "client";
   const isStaff = !!user?.role && (["admin", "superadmin", "architect"] as const).includes(user.role as "admin" | "superadmin" | "architect");
   const inPermitsPhase = projectPhase === "permits";
+  const isAuthorized = data?.authorization.status === "authorized";
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -279,6 +280,12 @@ export default function PermitsPanel({ projectId, projectPhase, onProjectUpdated
         <h3 className="font-semibold text-slate-900 flex items-center gap-2 mb-3">
           <FileSignature className="w-4 h-4" /> {t("Required Signatures", "Firmas Requeridas")}
         </h3>
+        {!isAuthorized && (
+          <div className="mb-3 px-3 py-2 text-xs rounded-md bg-amber-50 border border-amber-200 text-amber-800 flex items-center gap-2">
+            <AlertTriangle className="w-3 h-3" />
+            {t("Authorize the OGPE submission packet above before signing forms.", "Autoriza el paquete de sometimiento OGPE antes de firmar los formularios.")}
+          </div>
+        )}
         <div className="space-y-2">
           {requiredSignatures.map((sig) => {
             const signed = !!sig.signedAt;
@@ -297,7 +304,7 @@ export default function PermitsPanel({ projectId, projectPhase, onProjectUpdated
                       {sig.signedAt && ` · ${new Date(sig.signedAt).toLocaleDateString()}`}
                     </div>
                   ) : (
-                    isClient && inPermitsPhase && (
+                    isClient && inPermitsPhase && isAuthorized && (
                       <div className="flex gap-2 mt-2">
                         <input
                           type="text"

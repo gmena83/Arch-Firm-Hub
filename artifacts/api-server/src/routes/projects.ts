@@ -920,6 +920,11 @@ router.post("/projects/:id/sign/:signatureId", requireRole(["client"]), (req, re
   if (project.phase !== "permits") {
     return res.status(400).json({ error: "invalid_phase", message: "Signatures only accepted during the permits phase" });
   }
+  // Sequencing: client must authorize the OGPE packet before signing forms.
+  const auth = PROJECT_PERMIT_AUTHORIZATIONS[project.id];
+  if (!auth || auth.status !== "authorized") {
+    return res.status(400).json({ error: "not_authorized", message: "Authorize the OGPE submission packet before signing forms" });
+  }
   const { signatureName } = req.body ?? {};
   if (typeof signatureName !== "string" || signatureName.trim().length < 2) {
     return res.status(400).json({ error: "invalid_signature_name", message: "Signature name must be at least 2 characters" });
@@ -939,7 +944,7 @@ router.post("/projects/:id/sign/:signatureId", requireRole(["client"]), (req, re
   return res.json({ projectId: project.id, signature: sig });
 });
 
-router.post("/projects/:id/permit-items/submit-to-ogpe", requireRole(["team", "admin", "superadmin"]), (req, res) => {
+router.post("/projects/:id/permit-items/submit-to-ogpe", requireRole(["admin", "architect", "superadmin"]), (req, res) => {
   const project = getProjectOr404(String(req.params["id"]), res);
   if (!project) return;
   const auth = PROJECT_PERMIT_AUTHORIZATIONS[project.id];
@@ -973,7 +978,7 @@ router.post("/projects/:id/permit-items/submit-to-ogpe", requireRole(["team", "a
   return res.json({ projectId: project.id, permitItems: items, submittedCount: count });
 });
 
-router.post("/projects/:id/permit-items/:itemId/state", requireRole(["team", "admin", "superadmin"]), (req, res) => {
+router.post("/projects/:id/permit-items/:itemId/state", requireRole(["admin", "architect", "superadmin"]), (req, res) => {
   const project = getProjectOr404(String(req.params["id"]), res);
   if (!project) return;
   const { state, revisionNote, revisionNoteEs } = req.body ?? {};
