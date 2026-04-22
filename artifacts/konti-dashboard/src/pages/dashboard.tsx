@@ -22,6 +22,7 @@ function ProjectCard({ project, isClientUser }: {
 
   const phaseColors: Record<string, string> = {
     discovery: "bg-sky-100 text-sky-800",
+    consultation: "bg-konti-olive/15 text-konti-olive border border-konti-olive/30",
     pre_design: "bg-purple-100 text-purple-800",
     design: "bg-indigo-100 text-indigo-800",
     permits: "bg-amber-100 text-amber-800",
