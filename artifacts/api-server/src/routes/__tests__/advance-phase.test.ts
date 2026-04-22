@@ -61,15 +61,26 @@ test("owning client can advance their own consultation project (allowed case)", 
   await withServer(async (baseUrl) => {
     const token = await login(baseUrl, "client@konti.com");
     const proj1 = PROJECTS.find((p) => p.id === "proj-1")!;
-    const startingPhase = proj1.phase;
+    const snapshot = { ...(proj1 as Record<string, unknown>) };
     try {
       const res = await advance(baseUrl, token, "proj-1");
       assert.equal(res.status, 200, "owning client should be allowed to advance proj-1");
       const body = (await res.json()) as { project: { phase: string } };
       assert.equal(body.project.phase, "pre_design");
     } finally {
-      (proj1 as { phase: typeof startingPhase }).phase = startingPhase;
+      Object.assign(proj1, snapshot);
     }
+  });
+});
+
+test("owning client cannot skip ahead past consultation (client_gate_invalid)", async () => {
+  await withServer(async (baseUrl) => {
+    const token = await login(baseUrl, "client@konti.com");
+    // proj-2 is in "construction" — owned by user-client-1 but past consultation.
+    const res = await advance(baseUrl, token, "proj-2");
+    assert.equal(res.status, 400);
+    const body = (await res.json()) as { error?: string };
+    assert.equal(body.error, "client_gate_invalid");
   });
 });
 
