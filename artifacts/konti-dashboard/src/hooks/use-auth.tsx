@@ -1,5 +1,6 @@
 import { useState, useEffect, createContext, useContext } from "react";
 import { useLocation } from "wouter";
+import { setAuthTokenGetter } from "@workspace/api-client-react";
 
 interface AuthUser {
   id: string;
@@ -23,6 +24,19 @@ interface AuthContextType extends AuthState {
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
+
+// Register a token getter that reads the persisted token from localStorage
+// so generated API client requests carry an Authorization header.
+setAuthTokenGetter(() => {
+  try {
+    const stored = localStorage.getItem("konti_auth");
+    if (!stored) return null;
+    const parsed = JSON.parse(stored) as { token?: string | null };
+    return parsed.token ?? null;
+  } catch {
+    return null;
+  }
+});
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [, setLocation] = useLocation();

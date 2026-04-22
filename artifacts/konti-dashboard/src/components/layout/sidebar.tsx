@@ -29,8 +29,13 @@ export function Sidebar() {
   const showNotifications = !isClient;
   const navItems = ALL_NAV_ITEMS.filter((item) => !isClient || item.clientVisible);
 
-  const { data: leads = [] } = useListLeads({ query: { enabled: !isClient } });
-  const newLeadsCount = leads.filter((l) => l.status === "new").length;
+  const { data: leads = [] } = useListLeads({
+    query: {
+      enabled: !isClient,
+      queryKey: ["/api/leads"],
+    },
+  });
+  const newLeadsCount = isClient ? 0 : leads.filter((l) => l.status === "new").length;
 
   const LangToggle = ({ testId = "lang-toggle" }: { testId?: string }) => (
     <button
