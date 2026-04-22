@@ -171,7 +171,7 @@ function DashboardContent() {
   const summaryStats = isClientUser
     ? [
         { label: t("Overall Progress", "Progreso General"), value: projects[0] ? `${projects[0].progressPercent}%` : "—", icon: TrendingUp },
-        { label: t("Current Phase", "Fase Actual"), value: projects[0] ? `${projects[0].phaseNumber}/6` : "—", icon: FolderOpen },
+        { label: t("Current Phase", "Fase Actual"), value: projects[0] ? `${projects[0].phaseNumber}/7` : "—", icon: FolderOpen },
         { label: t("Pending Tasks", "Tareas Pendientes"), value: clientTasks.length > 0 ? clientPendingTasks : "—", icon: Clock },
         { label: t("Documents", "Documentos"), value: clientDocs.length > 0 ? clientVisibleDocs : "—", icon: FileText },
       ]

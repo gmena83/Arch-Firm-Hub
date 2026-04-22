@@ -29,6 +29,7 @@ import { AppLayout } from "@/components/layout/app-layout";
 import { RequireAuth, useAuth } from "@/hooks/use-auth";
 import { useLang } from "@/hooks/use-lang";
 import { WeatherBadge } from "@/components/weather-badge";
+import { PreDesignPanel } from "@/components/pre-design-panel";
 import {
   MapPin, Users, FileText, Upload, Check, Clock, ChevronLeft,
   Wind, Droplets, Thermometer, Eye, EyeOff, ArrowRight, X,
@@ -474,11 +475,12 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
 
   const phases = [
     { key: "discovery", label: t("Discovery", "Descubrimiento"), num: 1 },
-    { key: "pre_design", label: t("Pre-Design", "Pre-Diseño"), num: 2 },
-    { key: "design", label: t("Design", "Diseño"), num: 3 },
-    { key: "permits", label: t("Permits", "Permisos"), num: 4 },
-    { key: "construction", label: t("Construction", "Construcción"), num: 5 },
-    { key: "completed", label: t("Completed", "Completado"), num: 6 },
+    { key: "consultation", label: t("Consultation", "Consulta"), num: 2 },
+    { key: "pre_design", label: t("Pre-Design", "Pre-Diseño"), num: 3 },
+    { key: "design", label: t("Design", "Diseño"), num: 4 },
+    { key: "permits", label: t("Permits", "Permisos"), num: 5 },
+    { key: "construction", label: t("Construction", "Construcción"), num: 6 },
+    { key: "completed", label: t("Completed", "Completado"), num: 7 },
   ];
 
   const priorityColors: Record<string, string> = {
@@ -574,6 +576,9 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
               })}
             </div>
           </div>
+
+          {/* Pre-Design & Viability Panel */}
+          <PreDesignPanel projectId={projectId} isClientView={isClientView} currentPhase={project.phase} />
 
           {/* Weather widget */}
           {weather && (

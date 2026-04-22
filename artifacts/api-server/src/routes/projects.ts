@@ -6,12 +6,37 @@ import {
   DOCUMENTS,
   CALCULATOR_ENTRIES,
   MATERIALS,
+  PRE_DESIGN_CHECKLISTS,
+  PROJECT_ACTIVITIES,
+  PROJECT_STRUCTURED_VARS,
+  PROJECT_ASSISTED_BUDGETS,
+  WEEKLY_REPORTS,
+  PHASE_ORDER,
+  appendActivity,
+  computeAssistedBudget,
+  type ChecklistStatus,
 } from "../data/seed";
+import { requireRole } from "../middlewares/require-role";
 
 const router: IRouter = Router();
 
+// Phase labels for UI sync
+const PHASE_LABELS: Record<string, { en: string; es: string }> = {
+  discovery: { en: "Discovery", es: "Descubrimiento" },
+  consultation: { en: "Consultation", es: "Consulta Inicial" },
+  pre_design: { en: "Pre-Design & Viability", es: "Pre-Diseño y Viabilidad" },
+  design: { en: "Design", es: "Diseño" },
+  permits: { en: "Permits", es: "Permisos" },
+  construction: { en: "Construction", es: "Construcción" },
+  completed: { en: "Completed", es: "Completado" },
+};
+
+const VALID_CHECKLIST_STATUS: ChecklistStatus[] = ["pending", "in_progress", "done"];
+const VALID_PROJECT_TYPES = ["residencial", "comercial", "mixto", "contenedor"] as const;
+const VALID_ZONING = /^[A-Z]{1,3}-[0-9]{1,2}$/;
+
 router.get("/projects", (_req, res) => {
-  res.json(PROJECTS);
+  return res.json(PROJECTS);
 });
 
 router.get("/projects/:projectId", (req, res) => {
@@ -20,12 +45,12 @@ router.get("/projects/:projectId", (req, res) => {
     res.status(404).json({ error: "not_found", message: "Project not found" });
     return;
   }
-  res.json(project);
+  return res.json(project);
 });
 
 router.get("/projects/:projectId/tasks", (req, res) => {
   const tasks = PROJECT_TASKS[req.params["projectId"] as keyof typeof PROJECT_TASKS] ?? [];
-  res.json(tasks);
+  return res.json(tasks);
 });
 
 router.get("/projects/:projectId/weather", (req, res) => {
@@ -34,7 +59,7 @@ router.get("/projects/:projectId/weather", (req, res) => {
     res.status(404).json({ error: "not_found", message: "Weather data not found for project" });
     return;
   }
-  res.json({ ...weather, lastUpdated: new Date().toISOString() });
+  return res.json({ ...weather, lastUpdated: new Date().toISOString() });
 });
 
 router.get("/projects/:projectId/documents", (req, res) => {
@@ -51,7 +76,7 @@ router.get("/projects/:projectId/documents", (req, res) => {
     docs = docs.filter((d) => !d.isClientVisible);
   }
 
-  res.json(docs);
+  return res.json(docs);
 });
 
 router.get("/projects/:projectId/calculations", (req, res) => {
@@ -66,7 +91,7 @@ router.get("/projects/:projectId/calculations", (req, res) => {
     grandTotal += entry.lineTotal;
   }
 
-  res.json({ projectId, entries, subtotalByCategory, grandTotal });
+  return res.json({ projectId, entries, subtotalByCategory, grandTotal });
 });
 
 router.get("/materials", (req, res) => {
@@ -74,7 +99,7 @@ router.get("/materials", (req, res) => {
   const materials = category
     ? MATERIALS.filter((m) => m.category === category)
     : MATERIALS;
-  res.json(materials);
+  return res.json(materials);
 });
 
 let cachedPrices: { prices: Array<{ id: string; item: string; suggestedPrice: number; source: string }>; refreshedAt: string; source: string; cached: boolean } | null = null;
@@ -270,6 +295,124 @@ router.post("/projects/:id/pdf", async (req, res) => {
     req.log.error({ err }, "PDF export error");
     res.status(500).json({ error: "pdf_error", message: "PDF generation failed" });
   }
+});
+
+// ---------------------------------------------------------------------------
+// Phase 2 — Pre-Design & Viability endpoints
+// ---------------------------------------------------------------------------
+
+router.get("/projects/:id/pre-design", requireRole(["team", "client"]), (req, res) => {
+  const project = PROJECTS.find((p) => p.id === req.params.id);
+  if (!project) return res.status(404).json({ error: "not_found" });
+  return res.json({
+    projectId: project.id,
+    checklist: PRE_DESIGN_CHECKLISTS[project.id] ?? [],
+    structuredVariables: PROJECT_STRUCTURED_VARS[project.id] ?? null,
+    assistedBudgetRange: PROJECT_ASSISTED_BUDGETS[project.id] ?? null,
+    weeklyReports: WEEKLY_REPORTS[project.id] ?? [],
+    activities: PROJECT_ACTIVITIES[project.id] ?? [],
+  });
+});
+
+router.post("/projects/:id/checklist-toggle", requireRole(["team", "admin", "superadmin"]), (req, res) => {
+  const { itemId, status } = req.body ?? {};
+  if (typeof itemId !== "string" || !VALID_CHECKLIST_STATUS.includes(status)) {
+    return res.status(400).json({ error: "invalid_payload", message: "itemId (string) and status (pending|in_progress|done) required" });
+  }
+  const project = PROJECTS.find((p) => p.id === req.params.id);
+  if (!project) return res.status(404).json({ error: "not_found" });
+  const list = PRE_DESIGN_CHECKLISTS[project.id];
+  if (!list) return res.status(404).json({ error: "no_checklist" });
+  const item = list.find((c) => c.id === itemId);
+  if (!item) return res.status(404).json({ error: "item_not_found" });
+  item.status = status;
+  item.completedAt = status === "done" ? new Date().toISOString() : undefined;
+  appendActivity(project.id, {
+    type: "checklist_toggle",
+    actor: (req as { user?: { name?: string } }).user?.name ?? "Team",
+    description: `Checklist item "${item.label}" → ${status}`,
+    descriptionEs: `Tarea "${item.labelEs}" → ${status}`,
+  });
+  return res.json({ projectId: project.id, item });
+});
+
+router.post("/projects/:id/structured-variables", requireRole(["team", "admin", "superadmin"]), (req, res) => {
+  const { squareMeters, zoningCode, projectType } = req.body ?? {};
+  if (typeof squareMeters !== "number" || squareMeters <= 0 || squareMeters > 100000) {
+    return res.status(400).json({ error: "invalid_square_meters" });
+  }
+  if (typeof zoningCode !== "string" || !VALID_ZONING.test(zoningCode)) {
+    return res.status(400).json({ error: "invalid_zoning_code", message: "Format: R-3, C-2, etc." });
+  }
+  if (!VALID_PROJECT_TYPES.includes(projectType)) {
+    return res.status(400).json({ error: "invalid_project_type" });
+  }
+  const project = PROJECTS.find((p) => p.id === req.params.id);
+  if (!project) return res.status(404).json({ error: "not_found" });
+
+  const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
+  const vars = {
+    squareMeters,
+    zoningCode,
+    projectType,
+    submittedAt: new Date().toISOString(),
+    submittedBy: actor,
+  };
+  PROJECT_STRUCTURED_VARS[project.id] = vars;
+  const budget = computeAssistedBudget(vars);
+  PROJECT_ASSISTED_BUDGETS[project.id] = budget;
+  appendActivity(project.id, {
+    type: "structured_variables",
+    actor,
+    description: `Structured variables saved: ${squareMeters} m², ${zoningCode}, ${projectType}`,
+    descriptionEs: `Variables estructuradas guardadas: ${squareMeters} m², ${zoningCode}, ${projectType}`,
+  });
+  return res.json({ projectId: project.id, structuredVariables: vars, assistedBudgetRange: budget });
+});
+
+router.post("/projects/:id/advance-phase", requireRole(["team", "admin", "superadmin", "client"]), (req, res) => {
+  const project = PROJECTS.find((p) => p.id === req.params.id);
+  if (!project) return res.status(404).json({ error: "not_found" });
+  const idx = PHASE_ORDER.indexOf(project.phase);
+  if (idx === -1 || idx >= PHASE_ORDER.length - 1) {
+    return res.status(400).json({ error: "cannot_advance", message: "Project is already in final phase" });
+  }
+  const nextPhase = PHASE_ORDER[idx + 1];
+  const labels = PHASE_LABELS[nextPhase];
+  // mutate (demo state)
+  (project as { phase: typeof nextPhase }).phase = nextPhase;
+  (project as { phaseLabel: string }).phaseLabel = labels.en;
+  (project as { phaseLabelEs: string }).phaseLabelEs = labels.es;
+  (project as { phaseNumber: number }).phaseNumber = idx + 2;
+  const actor = (req as { user?: { name?: string; role?: string } }).user;
+  appendActivity(project.id, {
+    type: "phase_change",
+    actor: actor?.name ?? "Client",
+    description: `Phase advanced to ${labels.en}${actor?.role === "client" ? " (client decision)" : ""}`,
+    descriptionEs: `Fase avanzada a ${labels.es}${actor?.role === "client" ? " (decisión del cliente)" : ""}`,
+  });
+  return res.json({ project, advancedTo: nextPhase });
+});
+
+router.post("/projects/:id/gamma-report", requireRole(["team", "admin", "superadmin"]), (req, res) => {
+  const project = PROJECTS.find((p) => p.id === req.params.id);
+  if (!project) return res.status(404).json({ error: "not_found" });
+  const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
+  const reportId = `gamma-${project.id}-${Date.now()}`;
+  appendActivity(project.id, {
+    type: "gamma_generated",
+    actor: `${actor} via GAMMA`,
+    description: "GAMMA presentation generated for client review",
+    descriptionEs: "Presentación GAMMA generada para revisión del cliente",
+  });
+  return res.json({
+    projectId: project.id,
+    reportId,
+    url: `/projects/${project.id}/report`,
+    generatedAt: new Date().toISOString(),
+    generatedBy: "GAMMA",
+    pages: 12,
+  });
 });
 
 export default router;
