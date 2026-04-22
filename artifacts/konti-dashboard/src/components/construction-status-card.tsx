@@ -55,6 +55,20 @@ export function ConstructionStatusCard({
       : lastInspection?.status === "re_inspect"
         ? <RotateCcw className="w-3.5 h-3.5 text-amber-600" />
         : null;
+  const lastStatusLabel = lastInspection?.status === "passed"
+    ? t("Passed", "Aprobada")
+    : lastInspection?.status === "failed"
+      ? t("Failed", "Fallida")
+      : lastInspection?.status === "re_inspect"
+        ? t("Re-inspect", "Re-inspección")
+        : "";
+  const lastStatusColor = lastInspection?.status === "passed"
+    ? "text-emerald-700"
+    : lastInspection?.status === "failed"
+      ? "text-red-700"
+      : lastInspection?.status === "re_inspect"
+        ? "text-amber-700"
+        : "text-muted-foreground";
 
   return (
     <div data-testid="construction-status-card" className="bg-card rounded-xl border border-card-border shadow-sm p-5">
@@ -94,8 +108,13 @@ export function ConstructionStatusCard({
           <p className="text-xs text-muted-foreground mb-1">{t("Last Inspection", "Última Inspección")}</p>
           <p className="text-sm font-semibold text-foreground flex items-center gap-1.5" data-testid="status-last-inspection">
             {lastIcon}
-            {lastInspection ? (lang === "es" ? lastInspection.titleEs : lastInspection.title) : "—"}
+            <span className="truncate">{lastInspection ? (lang === "es" ? lastInspection.titleEs : lastInspection.title) : "—"}</span>
           </p>
+          {lastInspection && (
+            <p className={`text-xs font-semibold ${lastStatusColor}`} data-testid="status-last-inspection-result">
+              {lastStatusLabel}
+            </p>
+          )}
         </div>
       </div>
 
@@ -104,19 +123,17 @@ export function ConstructionStatusCard({
         <MilestonesTimeline projectId={projectId} compact />
       </div>
 
-      {approvedDelta !== 0 && (
-        <Link
-          href={`/projects/${projectId}#change-orders`}
-          data-testid="status-co-total"
-          className="mt-3 pt-3 border-t border-border flex items-center justify-between text-xs hover:bg-muted/40 -mx-2 px-2 py-2 rounded-md"
-        >
-          <span className="text-muted-foreground flex items-center gap-1.5"><FileSpreadsheet className="w-3.5 h-3.5" />{t("Approved Change Orders", "Órdenes de Cambio Aprobadas")}</span>
-          <span className={`font-semibold ${approvedDelta >= 0 ? "text-amber-700" : "text-emerald-700"} flex items-center gap-1`}>
-            {approvedDelta >= 0 ? "+" : "−"}${Math.abs(approvedDelta).toLocaleString()}
-            <ArrowRight className="w-3 h-3" />
-          </span>
-        </Link>
-      )}
+      <Link
+        href={`/projects/${projectId}#change-orders`}
+        data-testid="status-co-total"
+        className="mt-3 pt-3 border-t border-border flex items-center justify-between text-xs hover:bg-muted/40 -mx-2 px-2 py-2 rounded-md"
+      >
+        <span className="text-muted-foreground flex items-center gap-1.5"><FileSpreadsheet className="w-3.5 h-3.5" />{t("Approved Change Orders", "Órdenes de Cambio Aprobadas")}</span>
+        <span className={`font-semibold ${approvedDelta > 0 ? "text-amber-700" : approvedDelta < 0 ? "text-emerald-700" : "text-muted-foreground"} flex items-center gap-1`}>
+          {approvedDelta > 0 ? "+" : approvedDelta < 0 ? "−" : ""}${Math.abs(approvedDelta).toLocaleString()}
+          <ArrowRight className="w-3 h-3" />
+        </span>
+      </Link>
     </div>
   );
 }

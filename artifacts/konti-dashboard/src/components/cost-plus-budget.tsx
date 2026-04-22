@@ -28,8 +28,14 @@ export function CostPlusBudget({ projectId, isClientView = false }: { projectId:
 
       {isClientView ? (
         <div className="space-y-2 text-sm">
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">{t("Direct Costs Subtotal", "Subtotal Costos Directos")}</span>
+          {lines.map((l) => (
+            <div key={l.label} className="flex justify-between text-xs">
+              <span className="text-muted-foreground">{l.label}</span>
+              <span className="font-medium text-foreground">{fmt(l.value)}</span>
+            </div>
+          ))}
+          <div className="flex justify-between border-t border-border pt-1.5 mt-1.5">
+            <span className="text-muted-foreground font-medium">{t("Direct Costs Subtotal", "Subtotal Costos Directos")}</span>
             <span className="font-semibold text-foreground">{fmt(cp.subtotal)}</span>
           </div>
           <div className="flex justify-between bg-konti-olive/10 border border-konti-olive/30 rounded-md px-3 py-2 my-2">
