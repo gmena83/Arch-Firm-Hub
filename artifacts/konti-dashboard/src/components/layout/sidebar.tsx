@@ -145,13 +145,13 @@ export function Sidebar() {
       </aside>
 
       {/* Mobile header */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-sidebar text-sidebar-foreground px-4 py-3 flex items-center justify-between">
-        <img src={logoWhite} alt="KONTi" className="h-6 w-auto" />
-        <div className="flex items-center gap-2">
+      <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-sidebar text-sidebar-foreground px-3 py-3 flex items-center justify-between gap-2 overflow-visible">
+        <img src={logoWhite} alt="KONTi" className="h-6 w-auto max-w-[7rem] object-contain min-w-0 shrink" />
+        <div className="flex items-center gap-2 shrink-0">
           {showNotifications && <NotificationBell />}
           <LangToggle testId="lang-toggle-mobile" />
           <div className="w-px h-4 bg-white/20" />
-          <button onClick={() => setMobileOpen(!mobileOpen)} data-testid="mobile-menu-toggle">
+          <button onClick={() => setMobileOpen(!mobileOpen)} data-testid="mobile-menu-toggle" className="shrink-0">
             {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
         </div>
