@@ -460,7 +460,7 @@ components:
           type: string
         phase:
           type: string
-          enum: [discovery, pre_design, design, permits, construction, completed]
+          enum: [discovery, consultation, pre_design, design, permits, construction, completed]
         phaseLabel:
           type: string
         phaseLabelEs:

@@ -51,10 +51,10 @@ export const PROJECTS = [
     clientName: "Rafael Medina Torres",
     location: "Rincón, Puerto Rico",
     city: "Rincón",
-    phase: "discovery" as const,
-    phaseLabel: "Discovery & Pre-Design",
-    phaseLabelEs: "Descubrimiento y Pre-Diseño",
-    phaseNumber: 1,
+    phase: "consultation" as "discovery" | "consultation" | "pre_design" | "design" | "permits" | "construction" | "completed",
+    phaseLabel: "Consultation",
+    phaseLabelEs: "Consulta Inicial",
+    phaseNumber: 2,
     progressPercent: 18,
     budgetAllocated: 280000,
     budgetUsed: 12500,
@@ -76,9 +76,9 @@ export const PROJECTS = [
     location: "Vega Alta, Puerto Rico",
     city: "Vega Alta",
     phase: "construction" as const,
-    phaseLabel: "Phase 5 — Construction",
-    phaseLabelEs: "Fase 5 — Construcción",
-    phaseNumber: 5,
+    phaseLabel: "Construction",
+    phaseLabelEs: "Construcción",
+    phaseNumber: 6,
     progressPercent: 67,
     budgetAllocated: 400000,
     budgetUsed: 178235,
@@ -102,7 +102,7 @@ export const PROJECTS = [
     phase: "completed" as const,
     phaseLabel: "Completed",
     phaseLabelEs: "Completado",
-    phaseNumber: 6,
+    phaseNumber: 7,
     progressPercent: 100,
     budgetAllocated: 165000,
     budgetUsed: 158900,
@@ -989,3 +989,154 @@ export const LEADS: Lead[] = seedLeadInputs.map((l) => {
     }),
   };
 });
+
+// ---------------------------------------------------------------------------
+// Phase 2 — Pre-Design & Viability Study additions
+// ---------------------------------------------------------------------------
+
+export type ChecklistStatus = "pending" | "in_progress" | "done";
+
+export interface PreDesignChecklistItem {
+  id: string;
+  label: string;
+  labelEs: string;
+  status: ChecklistStatus;
+  assignee: string;
+  completedAt?: string;
+}
+
+export interface ProjectActivity {
+  id: string;
+  timestamp: string;
+  type: "phase_change" | "checklist_toggle" | "gamma_generated" | "email_sent" | "invoice_sent" | "weekly_report" | "structured_variables";
+  actor: string;
+  description: string;
+  descriptionEs: string;
+}
+
+export interface StructuredVariables {
+  squareMeters: number;
+  zoningCode: string;
+  projectType: "residencial" | "comercial" | "mixto" | "contenedor";
+  submittedAt: string;
+  submittedBy: string;
+}
+
+export interface AssistedBudgetRange {
+  low: number;
+  mid: number;
+  high: number;
+  currency: "USD";
+  perSqMeterMid: number;
+}
+
+export interface WeeklyReport {
+  id: string;
+  weekStart: string;
+  weekEnd: string;
+  title: string;
+  titleEs: string;
+  url: string;
+}
+
+const defaultChecklist = (): PreDesignChecklistItem[] => [
+  { id: "ck-1", label: "Site coordination meeting", labelEs: "Reunión de coordinación en sitio", status: "done", assignee: "Carla Gautier", completedAt: "2026-04-02T10:00:00Z" },
+  { id: "ck-2", label: "Site survey", labelEs: "Levantamiento del sitio", status: "done", assignee: "Jorge Rosa", completedAt: "2026-04-05T13:30:00Z" },
+  { id: "ck-3", label: "Measurements & dimensions", labelEs: "Medidas y dimensiones", status: "in_progress", assignee: "Jorge Rosa" },
+  { id: "ck-4", label: "360° photographs", labelEs: "Fotografías 360°", status: "in_progress", assignee: "Miranda Klopf" },
+  { id: "ck-5", label: "Terrain conditions assessment", labelEs: "Evaluación de condiciones del terreno", status: "pending", assignee: "Andrea Camacho" },
+  { id: "ck-6", label: "Three layout options", labelEs: "Tres opciones de layout", status: "pending", assignee: "Michelle Telon Sosa" },
+  { id: "ck-7", label: "Three budget scenarios", labelEs: "Tres escenarios de presupuesto", status: "pending", assignee: "Carla Gautier" },
+  { id: "ck-8", label: "Prefeasibility / zoning analysis", labelEs: "Prefactibilidad y análisis de zonificación", status: "pending", assignee: "Andrea Camacho" },
+  { id: "ck-9", label: "Architecture, engineering & permits proposal", labelEs: "Propuesta de arquitectura, ingeniería y permisos", status: "pending", assignee: "Carla Gautier" },
+  { id: "ck-10", label: "Pre-Design & Viability Study invoice", labelEs: "Factura del estudio de prefactibilidad", status: "pending", assignee: "Carla Gautier" },
+];
+
+export const PRE_DESIGN_CHECKLISTS: Record<string, PreDesignChecklistItem[]> = {
+  "proj-1": defaultChecklist(),
+  "proj-2": defaultChecklist().map((c) => ({ ...c, status: "done" as const, completedAt: "2025-09-15T12:00:00Z" })),
+  "proj-3": defaultChecklist().map((c) => ({ ...c, status: "done" as const, completedAt: "2025-02-01T12:00:00Z" })),
+};
+
+export const PROJECT_ACTIVITIES: Record<string, ProjectActivity[]> = {
+  "proj-1": [
+    { id: "act-1-1", timestamp: "2026-04-02T10:00:00Z", type: "phase_change", actor: "System", description: "Project created from accepted lead", descriptionEs: "Proyecto creado desde lead aceptado" },
+    { id: "act-1-2", timestamp: "2026-04-02T10:05:00Z", type: "email_sent", actor: "System", description: "Welcome email sent to client", descriptionEs: "Correo de bienvenida enviado al cliente" },
+    { id: "act-1-3", timestamp: "2026-04-02T11:00:00Z", type: "checklist_toggle", actor: "Carla Gautier", description: "Site coordination meeting completed", descriptionEs: "Reunión de coordinación en sitio completada" },
+    { id: "act-1-4", timestamp: "2026-04-05T14:00:00Z", type: "checklist_toggle", actor: "Jorge Rosa", description: "Site survey completed", descriptionEs: "Levantamiento del sitio completado" },
+    { id: "act-1-5", timestamp: "2026-04-10T09:00:00Z", type: "weekly_report", actor: "GAMMA", description: "Week-of Apr 6 progress report generated", descriptionEs: "Reporte semanal del 6 de abril generado" },
+    { id: "act-1-6", timestamp: "2026-04-17T09:00:00Z", type: "weekly_report", actor: "GAMMA", description: "Week-of Apr 13 progress report generated", descriptionEs: "Reporte semanal del 13 de abril generado" },
+  ],
+  "proj-2": [
+    { id: "act-2-1", timestamp: "2025-08-01T10:00:00Z", type: "phase_change", actor: "System", description: "Project advanced to Construction", descriptionEs: "Proyecto avanzado a Construcción" },
+    { id: "act-2-2", timestamp: "2026-04-14T16:00:00Z", type: "weekly_report", actor: "Miranda Klopf", description: "Weekly construction report sent to client", descriptionEs: "Reporte semanal de construcción enviado al cliente" },
+  ],
+  "proj-3": [
+    { id: "act-3-1", timestamp: "2025-11-30T16:00:00Z", type: "phase_change", actor: "Carla Gautier", description: "Project marked as completed", descriptionEs: "Proyecto marcado como completado" },
+  ],
+};
+
+export const PROJECT_STRUCTURED_VARS: Record<string, StructuredVariables | undefined> = {
+  "proj-1": undefined,
+  "proj-2": { squareMeters: 320, zoningCode: "R-3", projectType: "residencial", submittedAt: "2025-08-05T09:00:00Z", submittedBy: "Carla Gautier" },
+  "proj-3": { squareMeters: 95, zoningCode: "C-2", projectType: "comercial", submittedAt: "2025-01-20T11:00:00Z", submittedBy: "Carla Gautier" },
+};
+
+const PER_M2_BY_TYPE: Record<string, number> = {
+  residencial: 1850,
+  comercial: 2100,
+  mixto: 2300,
+  contenedor: 1500,
+};
+
+export function computeAssistedBudget(vars: StructuredVariables): AssistedBudgetRange {
+  const perM2 = PER_M2_BY_TYPE[vars.projectType] ?? 1800;
+  const mid = Math.round(vars.squareMeters * perM2);
+  return {
+    low: Math.round(mid * 0.85),
+    mid,
+    high: Math.round(mid * 1.2),
+    currency: "USD",
+    perSqMeterMid: perM2,
+  };
+}
+
+export const PROJECT_ASSISTED_BUDGETS: Record<string, AssistedBudgetRange | undefined> = {
+  "proj-1": undefined,
+  "proj-2": PROJECT_STRUCTURED_VARS["proj-2"] ? computeAssistedBudget(PROJECT_STRUCTURED_VARS["proj-2"]!) : undefined,
+  "proj-3": PROJECT_STRUCTURED_VARS["proj-3"] ? computeAssistedBudget(PROJECT_STRUCTURED_VARS["proj-3"]!) : undefined,
+};
+
+const weekly = (id: string, weekStart: string, weekEnd: string, title: string, titleEs: string, url: string): WeeklyReport => ({ id, weekStart, weekEnd, title, titleEs, url });
+
+export const WEEKLY_REPORTS: Record<string, WeeklyReport[]> = {
+  "proj-1": [
+    weekly("wr-1-1", "2026-03-30", "2026-04-05", "Site coordination & initial survey", "Coordinación del sitio y levantamiento inicial", "/projects/proj-1/report"),
+    weekly("wr-1-2", "2026-04-06", "2026-04-12", "Topographic data collection", "Recolección de datos topográficos", "/projects/proj-1/report"),
+    weekly("wr-1-3", "2026-04-13", "2026-04-19", "Zoning consultation with municipality", "Consulta de zonificación con el municipio", "/projects/proj-1/report"),
+    weekly("wr-1-4", "2026-04-20", "2026-04-26", "Layout option drafts in progress", "Borradores de opciones de layout en progreso", "/projects/proj-1/report"),
+  ],
+  "proj-2": [
+    weekly("wr-2-1", "2026-04-06", "2026-04-12", "Roofing installation - Container 2", "Instalación de techo — Contenedor 2", "/projects/proj-2/report"),
+    weekly("wr-2-2", "2026-04-13", "2026-04-19", "Bathroom tiling and electrical rough-in", "Azulejos del baño e instalación eléctrica preliminar", "/projects/proj-2/report"),
+  ],
+  "proj-3": [
+    weekly("wr-3-1", "2025-11-17", "2025-11-23", "Final walkthrough & punch list", "Recorrido final y punch list", "/projects/proj-3/report"),
+    weekly("wr-3-2", "2025-11-24", "2025-11-30", "Project closeout & certificate of occupancy", "Cierre de proyecto y certificado de ocupación", "/projects/proj-3/report"),
+  ],
+};
+
+export function appendActivity(projectId: string, activity: Omit<ProjectActivity, "id" | "timestamp">): ProjectActivity {
+  const list = PROJECT_ACTIVITIES[projectId] ?? (PROJECT_ACTIVITIES[projectId] = []);
+  const entry: ProjectActivity = {
+    id: `act-${projectId}-${Date.now()}`,
+    timestamp: new Date().toISOString(),
+    ...activity,
+  };
+  list.unshift(entry);
+  return entry;
+}
+
+export const PHASE_ORDER: Array<"discovery" | "consultation" | "pre_design" | "design" | "permits" | "construction" | "completed"> = [
+  "discovery", "consultation", "pre_design", "design", "permits", "construction", "completed",
+];

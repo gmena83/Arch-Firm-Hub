@@ -67,11 +67,12 @@ function ReportContent({ projectId }: { projectId: string }) {
 
   const phases = [
     { key: "discovery", label: t("Discovery", "Descubrimiento"), num: 1 },
-    { key: "pre_design", label: t("Pre-Design", "Pre-Diseño"), num: 2 },
-    { key: "design", label: t("Design", "Diseño"), num: 3 },
-    { key: "permits", label: t("Permits", "Permisos"), num: 4 },
-    { key: "construction", label: t("Construction", "Construcción"), num: 5 },
-    { key: "completed", label: t("Completed", "Completado"), num: 6 },
+    { key: "consultation", label: t("Consultation", "Consulta"), num: 2 },
+    { key: "pre_design", label: t("Pre-Design", "Pre-Diseño"), num: 3 },
+    { key: "design", label: t("Design", "Diseño"), num: 4 },
+    { key: "permits", label: t("Permits", "Permisos"), num: 5 },
+    { key: "construction", label: t("Construction", "Construcción"), num: 6 },
+    { key: "completed", label: t("Completed", "Completado"), num: 7 },
   ];
 
   const chartData = calc?.subtotalByCategory
@@ -120,7 +121,7 @@ function ReportContent({ projectId }: { projectId: string }) {
         {/* Hero section */}
         <section className="text-center space-y-4">
           <div className="inline-block bg-konti-olive/20 text-konti-olive text-xs font-semibold px-4 py-1.5 rounded-full border border-konti-olive/30">
-            {phaseLabel} — {t("Phase", "Fase")} {project.phaseNumber} / 6
+            {phaseLabel} — {t("Phase", "Fase")} {project.phaseNumber} / 7
           </div>
           <h1 className="font-display text-4xl md:text-6xl font-bold text-white leading-tight">
             {project.name}
