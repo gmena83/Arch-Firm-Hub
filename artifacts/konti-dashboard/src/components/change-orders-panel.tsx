@@ -3,7 +3,7 @@ import { customFetch } from "@workspace/api-client-react";
 import { useLang } from "@/hooks/use-lang";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { ClipboardList, Plus, X, CheckCircle, XCircle, Clock, ChevronDown, ChevronUp } from "lucide-react";
+import { ClipboardList, Plus, X, CheckCircle, XCircle, Clock, ChevronDown, ChevronUp, Pencil } from "lucide-react";
 
 type COStatus = "pending" | "approved" | "rejected";
 
@@ -165,6 +165,95 @@ function CreateCOModal({ projectId, onClose, onCreated }: { projectId: string; o
   );
 }
 
+function EditCOModal({ projectId, co, onClose, onSaved }: { projectId: string; co: ChangeOrder; onClose: () => void; onSaved: () => void }) {
+  const { t } = useLang();
+  const { toast } = useToast();
+  const [title, setTitle] = useState(co.title);
+  const [amount, setAmount] = useState(String(co.amountDelta));
+  const [days, setDays] = useState(String(co.scheduleImpactDays));
+  const [reason, setReason] = useState(co.reason ?? "");
+  const [outsideOfScope, setOutsideOfScope] = useState(!!co.outsideOfScope);
+  const [busy, setBusy] = useState(false);
+
+  const submit = async () => {
+    const amt = Number(amount);
+    const d = Number(days || "0");
+    if (!title.trim() || !isFinite(amt)) {
+      toast({ title: t("Invalid input", "Entrada inválida"), variant: "destructive" });
+      return;
+    }
+    setBusy(true);
+    try {
+      await customFetch(`/api/projects/${projectId}/change-orders/${co.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          title: title.trim(),
+          titleEs: title.trim(),
+          description: reason.trim(),
+          descriptionEs: reason.trim(),
+          amountDelta: amt,
+          scheduleImpactDays: d,
+          reason: reason.trim(),
+          reasonEs: reason.trim(),
+          outsideOfScope,
+        }),
+      });
+      toast({ title: t("Change order updated", "Orden de cambio actualizada") });
+      onSaved();
+      onClose();
+    } catch {
+      toast({ title: t("Could not update", "No se pudo actualizar"), variant: "destructive" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" data-testid="co-edit-modal">
+      <div className="bg-card rounded-xl border border-card-border shadow-xl w-full max-w-md p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold">{t("Edit Change Order", "Editar Orden de Cambio")} — {co.number}</h2>
+          <button onClick={onClose} data-testid="btn-close-co-edit"><X className="w-5 h-5" /></button>
+        </div>
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs font-semibold text-muted-foreground">{t("Title", "Título")}</label>
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              data-testid="input-edit-co-title"
+              className="w-full mt-1 px-3 py-2 border border-border rounded-md text-sm bg-background"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground">{t("Amount Δ ($)", "Monto Δ ($)")}</label>
+              <input value={amount} onChange={(e) => setAmount(e.target.value)} data-testid="input-edit-co-amount" type="number" className="w-full mt-1 px-3 py-2 border border-border rounded-md text-sm bg-background" />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground">{t("Days impact", "Días de impacto")}</label>
+              <input value={days} onChange={(e) => setDays(e.target.value)} data-testid="input-edit-co-days" type="number" min="0" className="w-full mt-1 px-3 py-2 border border-border rounded-md text-sm bg-background" />
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-muted-foreground">{t("Reason", "Razón")}</label>
+            <textarea value={reason} onChange={(e) => setReason(e.target.value)} data-testid="input-edit-co-reason" rows={3} className="w-full mt-1 px-3 py-2 border border-border rounded-md text-sm bg-background" />
+          </div>
+          <label className="flex items-start gap-2 cursor-pointer">
+            <input type="checkbox" checked={outsideOfScope} onChange={(e) => setOutsideOfScope(e.target.checked)} data-testid="input-edit-co-outside-scope" className="mt-0.5" />
+            <span className="text-xs text-foreground">
+              <strong>{t("Outside of original scope", "Fuera del alcance original")}</strong>
+            </span>
+          </label>
+          <button onClick={submit} disabled={busy} data-testid="btn-save-co-edit" className="w-full py-2.5 bg-konti-olive hover:bg-konti-olive/90 disabled:opacity-50 text-white text-sm font-semibold rounded-md transition-colors">
+            {t("Save Changes", "Guardar Cambios")}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function ChangeOrdersPanel({ projectId, isClientView, currentPhase }: { projectId: string; isClientView: boolean; currentPhase: string }) {
   const { t, lang } = useLang();
   const { user } = useAuth();
@@ -172,6 +261,7 @@ export function ChangeOrdersPanel({ projectId, isClientView, currentPhase }: { p
   const [data, setData] = useState<COResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
+  const [editingCO, setEditingCO] = useState<ChangeOrder | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -302,7 +392,7 @@ export function ChangeOrdersPanel({ projectId, isClientView, currentPhase }: { p
                       </p>
                     )}
                     {canManage && (
-                      <div className="flex items-center gap-2 pt-2">
+                      <div className="flex items-center gap-2 pt-2 flex-wrap">
                         <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{t("Set status", "Cambiar estado")}:</span>
                         <select
                           value={co.status}
@@ -315,6 +405,15 @@ export function ChangeOrdersPanel({ projectId, isClientView, currentPhase }: { p
                           <option value="approved">{t("Approved", "Aprobada")}</option>
                           <option value="rejected">{t("Rejected", "Rechazada")}</option>
                         </select>
+                        {co.status === "pending" && (
+                          <button
+                            onClick={() => setEditingCO(co)}
+                            data-testid={`btn-edit-co-${co.number}`}
+                            className="ml-auto inline-flex items-center gap-1 text-[11px] font-semibold text-konti-olive hover:text-konti-olive/80"
+                          >
+                            <Pencil className="w-3 h-3" /> {t("Edit", "Editar")}
+                          </button>
+                        )}
                       </div>
                     )}
                     {!canManage && co.status === "pending" && (
@@ -329,6 +428,7 @@ export function ChangeOrdersPanel({ projectId, isClientView, currentPhase }: { p
       )}
 
       {showCreate && <CreateCOModal projectId={projectId} onClose={() => setShowCreate(false)} onCreated={refresh} />}
+      {editingCO && <EditCOModal projectId={projectId} co={editingCO} onClose={() => setEditingCO(null)} onSaved={refresh} />}
     </div>
   );
 }

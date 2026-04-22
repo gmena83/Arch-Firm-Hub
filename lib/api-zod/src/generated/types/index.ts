@@ -77,6 +77,8 @@ export * from "./refreshMaterialPricesParams";
 export * from "./setChangeOrderStatus200";
 export * from "./setChangeOrderStatusBody";
 export * from "./setChangeOrderStatusBodyStatus";
+export * from "./updateChangeOrder200";
+export * from "./updateChangeOrderBody";
 export * from "./updateDesignDeliverableBody";
 export * from "./updateDesignDeliverableBodyStatus";
 export * from "./updateDesignDeliverableBodySubPhase";

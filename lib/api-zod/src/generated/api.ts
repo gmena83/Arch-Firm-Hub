@@ -691,6 +691,57 @@ export const CreateChangeOrderResponse = zod.object({
 });
 
 /**
+ * @summary Edit a pending change order's fields (team / admin)
+ */
+export const UpdateChangeOrderParams = zod.object({
+  projectId: zod.coerce.string(),
+  coId: zod.coerce.string(),
+});
+
+export const UpdateChangeOrderBody = zod.object({
+  title: zod.string().optional(),
+  titleEs: zod.string().optional(),
+  description: zod.string().optional(),
+  descriptionEs: zod.string().optional(),
+  amountDelta: zod.number().optional(),
+  scheduleImpactDays: zod.number().optional(),
+  reason: zod.string().optional(),
+  reasonEs: zod.string().optional(),
+  outsideOfScope: zod.boolean().optional(),
+});
+
+export const UpdateChangeOrderResponse = zod.object({
+  projectId: zod.string().optional(),
+  changeOrder: zod
+    .object({
+      id: zod.string(),
+      projectId: zod.string(),
+      number: zod.string(),
+      title: zod.string(),
+      titleEs: zod.string().optional(),
+      description: zod.string().optional(),
+      descriptionEs: zod.string().optional(),
+      amountDelta: zod.number(),
+      scheduleImpactDays: zod.number(),
+      reason: zod.string().optional(),
+      reasonEs: zod.string().optional(),
+      requestedBy: zod.string().optional(),
+      requestedAt: zod.string().optional(),
+      status: zod.enum(["pending", "approved", "rejected"]),
+      decidedBy: zod.string().optional(),
+      decidedAt: zod.string().optional(),
+      decisionNote: zod.string().optional(),
+      outsideOfScope: zod
+        .boolean()
+        .optional()
+        .describe(
+          "True if the change adds work beyond the signed proposal scope.",
+        ),
+    })
+    .optional(),
+});
+
+/**
  * @summary Delete a pending change order (team / admin)
  */
 export const DeleteChangeOrderParams = zod.object({

@@ -694,6 +694,23 @@ export type CreateChangeOrder200 = {
   changeOrder?: ChangeOrder;
 };
 
+export type UpdateChangeOrderBody = {
+  title?: string;
+  titleEs?: string;
+  description?: string;
+  descriptionEs?: string;
+  amountDelta?: number;
+  scheduleImpactDays?: number;
+  reason?: string;
+  reasonEs?: string;
+  outsideOfScope?: boolean;
+};
+
+export type UpdateChangeOrder200 = {
+  projectId?: string;
+  changeOrder?: ChangeOrder;
+};
+
 export type SetChangeOrderStatusBodyStatus =
   (typeof SetChangeOrderStatusBodyStatus)[keyof typeof SetChangeOrderStatusBodyStatus];
 

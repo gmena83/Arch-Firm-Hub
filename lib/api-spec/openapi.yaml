@@ -370,6 +370,47 @@ paths:
                   changeOrder: { $ref: "#/components/schemas/ChangeOrder" }
 
   /projects/{projectId}/change-orders/{coId}:
+    patch:
+      operationId: updateChangeOrder
+      tags: [change-orders]
+      summary: Edit a pending change order's fields (team / admin)
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: coId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title: { type: string }
+                titleEs: { type: string }
+                description: { type: string }
+                descriptionEs: { type: string }
+                amountDelta: { type: number }
+                scheduleImpactDays: { type: number }
+                reason: { type: string }
+                reasonEs: { type: string }
+                outsideOfScope: { type: boolean }
+      responses:
+        "200":
+          description: Updated change order
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  projectId: { type: string }
+                  changeOrder: { $ref: "#/components/schemas/ChangeOrder" }
+        "400": { description: Cannot edit a decided CO or no changes provided }
+        "404": { description: CO not found }
     delete:
       operationId: deleteChangeOrder
       tags: [change-orders]

@@ -724,6 +724,57 @@ router.post("/projects/:id/change-orders", requireRole(["team", "admin", "supera
   return res.status(201).json({ projectId: project.id, changeOrder: co });
 });
 
+router.patch("/projects/:id/change-orders/:coId", requireRole(["team", "admin", "superadmin"]), (req, res) => {
+  const project = getProjectOr404(String(req.params["id"]), res);
+  if (!project) return;
+  const list = PROJECT_CHANGE_ORDERS[project.id] ?? [];
+  const co = list.find((o) => o.id === String(req.params["coId"]));
+  if (!co) return res.status(404).json({ error: "change_order_not_found" });
+  if (co.status !== "pending") {
+    return res.status(400).json({ error: "cannot_edit_decided", message: "Only pending change orders can be edited" });
+  }
+  const body = (req.body ?? {}) as Partial<ChangeOrder>;
+  const changes: string[] = [];
+  if (typeof body.title === "string" && body.title.trim().length >= 3 && body.title.trim() !== co.title) {
+    co.title = body.title.trim(); changes.push("title");
+  }
+  if (typeof body.titleEs === "string" && body.titleEs.trim() && body.titleEs.trim() !== co.titleEs) {
+    co.titleEs = body.titleEs.trim(); changes.push("titleEs");
+  }
+  if (typeof body.description === "string" && body.description !== co.description) {
+    co.description = body.description; changes.push("description");
+  }
+  if (typeof body.descriptionEs === "string" && body.descriptionEs !== co.descriptionEs) {
+    co.descriptionEs = body.descriptionEs; changes.push("descriptionEs");
+  }
+  if (typeof body.reason === "string" && body.reason !== co.reason) {
+    co.reason = body.reason; changes.push("reason");
+  }
+  if (typeof body.reasonEs === "string" && body.reasonEs !== co.reasonEs) {
+    co.reasonEs = body.reasonEs; changes.push("reasonEs");
+  }
+  if (typeof body.amountDelta === "number" && isFinite(body.amountDelta) && body.amountDelta !== co.amountDelta) {
+    co.amountDelta = body.amountDelta; changes.push("amount");
+  }
+  if (typeof body.scheduleImpactDays === "number" && isFinite(body.scheduleImpactDays) && body.scheduleImpactDays >= 0 && body.scheduleImpactDays !== co.scheduleImpactDays) {
+    co.scheduleImpactDays = body.scheduleImpactDays; changes.push("schedule");
+  }
+  if (typeof body.outsideOfScope === "boolean" && body.outsideOfScope !== co.outsideOfScope) {
+    co.outsideOfScope = body.outsideOfScope; changes.push("outsideOfScope");
+  }
+  if (changes.length === 0) {
+    return res.status(400).json({ error: "no_changes" });
+  }
+  const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
+  appendActivity(project.id, {
+    type: "change_order_created",
+    actor,
+    description: `${co.number} edited (${changes.join(", ")})`,
+    descriptionEs: `${co.number} editada (${changes.join(", ")})`,
+  });
+  return res.json({ projectId: project.id, changeOrder: co });
+});
+
 router.delete("/projects/:id/change-orders/:coId", requireRole(["team", "admin", "superadmin"]), (req, res) => {
   const project = getProjectOr404(String(req.params["id"]), res);
   if (!project) return;
