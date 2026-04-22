@@ -122,11 +122,12 @@ export function PreDesignPanel({
     try {
       // Simulated loading delay before opening the GAMMA presentation in a new tab.
       const res = await customFetch<{ gammaReportUrl: string }>(`/api/projects/${projectId}/gamma-report`, { method: "POST" });
-      toast({ title: t("GAMMA report ready", "Reporte GAMMA listo"), description: t("Opening presentation in a new tab.", "Abriendo presentación en una pestaña nueva.") });
+      toast({ title: t("GAMMA presentation ready", "Presentación GAMMA lista"), description: t("Opening presentation in a new tab.", "Abriendo presentación en una pestaña nueva.") });
       await refresh();
+      // Mock GAMMA loading delay before launching the presentation.
       setTimeout(() => {
         window.open(res.gammaReportUrl, "_blank", "noopener,noreferrer");
-      }, 600);
+      }, 1500);
     } catch {
       toast({ title: t("GAMMA failed", "GAMMA falló"), variant: "destructive" });
     } finally {
@@ -277,7 +278,7 @@ export function PreDesignPanel({
                 className="flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-semibold bg-konti-olive text-white hover:bg-konti-olive/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {busyAction === "gamma" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-                {t("Generate GAMMA Report", "Generar Reporte GAMMA")}
+                {t("Generate GAMMA Presentation", "Generar Presentación GAMMA")}
               </button>
               {!checklistComplete && (
                 <span className="text-xs text-muted-foreground self-center">
