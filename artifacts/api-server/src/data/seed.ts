@@ -1546,8 +1546,25 @@ export const PROJECT_REQUIRED_SIGNATURES: Record<string, RequiredSignature[]> = 
   "proj-3": standardSignatures().map((s) => ({ ...s, signedBy: "Sofia Marrero", signedAt: "2025-04-21T11:00:00Z" })),
 };
 
+// Mixed mid-flow demo states for proj-2 (showcases all UI paths).
+const proj2Items = (() => {
+  const items = permitItemsTemplate({ state: "approved", lastUpdatedAt: "2025-10-30T15:00:00Z" });
+  // perm-arpe-use → in_review
+  const arpe = items.find((i) => i.id === "perm-arpe-use");
+  if (arpe) { arpe.state = "in_review"; arpe.lastUpdatedAt = "2025-11-12T10:30:00Z"; }
+  // perm-environmental → revision_requested with note
+  const env = items.find((i) => i.id === "perm-environmental");
+  if (env) {
+    env.state = "revision_requested";
+    env.lastUpdatedAt = "2025-11-18T09:00:00Z";
+    env.revisionNote = "JCA requested an updated stormwater management plan and additional soil samples.";
+    env.revisionNoteEs = "JCA solicitó plan actualizado de manejo pluvial y muestras de suelo adicionales.";
+  }
+  return items;
+})();
+
 export const PROJECT_PERMIT_ITEMS: Record<string, PermitItem[]> = {
   "proj-1": permitItemsTemplate({ state: "not_submitted" }),
-  "proj-2": permitItemsTemplate({ state: "approved", lastUpdatedAt: "2025-10-30T15:00:00Z" }),
+  "proj-2": proj2Items,
   "proj-3": permitItemsTemplate({ state: "approved", lastUpdatedAt: "2025-05-30T15:00:00Z" }),
 };
