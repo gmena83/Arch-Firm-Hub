@@ -630,6 +630,86 @@ export interface ChangeOrderResponse {
   totals: ChangeOrderResponseTotals;
 }
 
+export type PermitAuthorizationStatus =
+  (typeof PermitAuthorizationStatus)[keyof typeof PermitAuthorizationStatus];
+
+export const PermitAuthorizationStatus = {
+  none: "none",
+  authorized: "authorized",
+} as const;
+
+export interface PermitAuthorization {
+  status: PermitAuthorizationStatus;
+  authorizedBy?: string;
+  authorizedAt?: string;
+  summaryAccepted: boolean;
+}
+
+export interface RequiredSignature {
+  id: string;
+  formName: string;
+  formNameEs: string;
+  required: boolean;
+  signedBy?: string;
+  signedAt?: string;
+}
+
+export type PermitItemState =
+  (typeof PermitItemState)[keyof typeof PermitItemState];
+
+export const PermitItemState = {
+  not_submitted: "not_submitted",
+  submitted: "submitted",
+  in_review: "in_review",
+  revision_requested: "revision_requested",
+  approved: "approved",
+} as const;
+
+export interface PermitItem {
+  id: string;
+  name: string;
+  nameEs: string;
+  agency: string;
+  responsible: string;
+  state: PermitItemState;
+  lastUpdatedAt?: string;
+  revisionNote?: string;
+  revisionNoteEs?: string;
+  estimatedTime: string;
+  estimatedTimeEs: string;
+  notes: string;
+  notesEs: string;
+}
+
+export type PermitsResponseMilestones = {
+  authorization: boolean;
+  signatures: boolean;
+  submission: boolean;
+  review: boolean;
+  approval: boolean;
+};
+
+export type PermitsResponseStateOrderItem =
+  (typeof PermitsResponseStateOrderItem)[keyof typeof PermitsResponseStateOrderItem];
+
+export const PermitsResponseStateOrderItem = {
+  not_submitted: "not_submitted",
+  submitted: "submitted",
+  in_review: "in_review",
+  revision_requested: "revision_requested",
+  approved: "approved",
+} as const;
+
+export interface PermitsResponse {
+  projectId: string;
+  authorization: PermitAuthorization;
+  requiredSignatures: RequiredSignature[];
+  permitItems: PermitItem[];
+  milestones: PermitsResponseMilestones;
+  canSubmitToOgpe: boolean;
+  stateOrder?: PermitsResponseStateOrderItem[];
+}
+
 export type GetProjectDocumentsParams = {
   clientVisible?: boolean;
 };
@@ -728,6 +808,50 @@ export type SetChangeOrderStatusBody = {
 export type SetChangeOrderStatus200 = {
   projectId?: string;
   changeOrder?: ChangeOrder;
+};
+
+export type AuthorizePermits200 = {
+  projectId: string;
+  authorization: PermitAuthorization;
+};
+
+export type SignPermitFormBody = {
+  signatureName: string;
+};
+
+export type SignPermitForm200 = {
+  projectId: string;
+  signature: RequiredSignature;
+};
+
+export type SubmitPermitsToOgpe200 = {
+  projectId: string;
+  permitItems: PermitItem[];
+  submittedCount: number;
+};
+
+export type SetPermitItemStateBodyState =
+  (typeof SetPermitItemStateBodyState)[keyof typeof SetPermitItemStateBodyState];
+
+export const SetPermitItemStateBodyState = {
+  not_submitted: "not_submitted",
+  submitted: "submitted",
+  in_review: "in_review",
+  revision_requested: "revision_requested",
+  approved: "approved",
+} as const;
+
+export type SetPermitItemStateBody = {
+  state: SetPermitItemStateBodyState;
+  revisionNote?: string;
+  revisionNoteEs?: string;
+};
+
+export type SetPermitItemState200 = {
+  projectId: string;
+  permitItem: PermitItem;
+  project: Project;
+  advancedToConstruction: boolean;
 };
 
 export type ListMaterialsParams = {

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "wouter";
+import { useQueryClient } from "@tanstack/react-query";
 import { customFetch } from "@workspace/api-client-react";
 import {
   useGetProject,
@@ -34,6 +35,7 @@ import { PreDesignPanel } from "@/components/pre-design-panel";
 import { DesignPanel } from "@/components/design-panel";
 import { ProposalsPanel } from "@/components/proposals-panel";
 import { ChangeOrdersPanel } from "@/components/change-orders-panel";
+import PermitsPanel from "@/components/permits-panel";
 import {
   MapPin, Users, FileText, Upload, Check, Clock, ChevronLeft,
   Wind, Droplets, Thermometer, Eye, EyeOff, ArrowRight, X,
@@ -499,6 +501,10 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
   const { viewRole, setViewRole, user } = useAuth();
   const [showUpload, setShowUpload] = useState(false);
 
+  const queryClient = useQueryClient();
+  const onProjectUpdated = () => {
+    queryClient.invalidateQueries({ queryKey: getGetProjectQueryKey(projectId) });
+  };
   const { data: project, isLoading: projectLoading } = useGetProject(projectId, {
     query: { enabled: !!projectId, queryKey: getGetProjectQueryKey(projectId) }
   });
@@ -642,6 +648,9 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
 
           {/* Change Orders (Design phase onward, or anytime there are existing COs) */}
           <ChangeOrdersPanel projectId={projectId} isClientView={isClientView} currentPhase={project.phase} />
+
+          {/* Phase 4 — Permits authorization workflow */}
+          <PermitsPanel projectId={projectId} projectPhase={project.phase} onProjectUpdated={onProjectUpdated} />
 
           {/* Weather widget */}
           {weather && (
