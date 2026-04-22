@@ -73,6 +73,18 @@ export const ListProjectsResponseItem = zod.object({
 export const ListProjectsResponse = zod.array(ListProjectsResponseItem);
 
 /**
+ * @summary Create a new project (team/admin/superadmin)
+ */
+export const CreateProjectBody = zod.object({
+  name: zod.string(),
+  clientName: zod.string(),
+  location: zod.string(),
+  budgetAllocated: zod.number(),
+  description: zod.string().optional(),
+  clientUserId: zod.string().optional(),
+});
+
+/**
  * @summary Get a single project
  */
 export const GetProjectParams = zod.object({

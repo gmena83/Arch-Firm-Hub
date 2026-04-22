@@ -90,6 +90,41 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Project"
+    post:
+      operationId: createProject
+      tags: [projects]
+      summary: Create a new project (team/admin/superadmin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectCreateRequest"
+      responses:
+        "201":
+          description: Project created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "400":
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /projects/{projectId}:
     get:
@@ -1337,6 +1372,27 @@ components:
         - name
         - email
         - role
+
+    ProjectCreateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        clientName:
+          type: string
+        location:
+          type: string
+        budgetAllocated:
+          type: number
+        description:
+          type: string
+        clientUserId:
+          type: string
+      required:
+        - name
+        - clientName
+        - location
+        - budgetAllocated
 
     Project:
       type: object

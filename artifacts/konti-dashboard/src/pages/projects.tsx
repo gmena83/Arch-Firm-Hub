@@ -1,14 +1,190 @@
+import { useState } from "react";
 import { Link } from "wouter";
-import { useListProjects } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  useListProjects,
+  useCreateProject,
+  getListProjectsQueryKey,
+  ApiError,
+} from "@workspace/api-client-react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { RequireAuth, useAuth } from "@/hooks/use-auth";
 import { useLang } from "@/hooks/use-lang";
-import { ArrowRight, MapPin } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { ArrowRight, MapPin, Plus, X } from "lucide-react";
+
+function NewProjectDialog({ onClose }: { onClose: () => void }) {
+  const { t, lang } = useLang();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [name, setName] = useState("");
+  const [clientName, setClientName] = useState("");
+  const [location, setLocation] = useState("");
+  const [budgetAllocated, setBudgetAllocated] = useState("");
+  const [description, setDescription] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const createProject = useCreateProject({
+    mutation: {
+      onSuccess: async (project) => {
+        await queryClient.invalidateQueries({ queryKey: getListProjectsQueryKey() });
+        toast({
+          title: t("Project created", "Proyecto creado"),
+          description: project.name,
+        });
+        onClose();
+      },
+      onError: (err: unknown) => {
+        const fallback = t("Could not create project. Please try again.", "No se pudo crear el proyecto. Intenta de nuevo.");
+        if (err instanceof ApiError) {
+          const data = err.data as { fields?: Record<string, string>; message?: string; messageEs?: string } | undefined;
+          if (data?.fields) {
+            setFieldErrors(data.fields);
+          }
+          const localized = lang === "es" ? data?.messageEs ?? data?.message : data?.message;
+          setSubmitError(localized ?? fallback);
+          return;
+        }
+        setSubmitError(fallback);
+      },
+    },
+  });
+
+  function submit() {
+    setFieldErrors({});
+    setSubmitError(null);
+    const errors: Record<string, string> = {};
+    if (!name.trim()) errors["name"] = t("Required", "Requerido");
+    if (!clientName.trim()) errors["clientName"] = t("Required", "Requerido");
+    if (!location.trim()) errors["location"] = t("Required", "Requerido");
+    const budgetNum = Number(budgetAllocated);
+    if (!budgetAllocated || !isFinite(budgetNum) || budgetNum < 0) {
+      errors["budgetAllocated"] = t("Must be a non-negative number", "Debe ser un número no negativo");
+    }
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      return;
+    }
+    createProject.mutate({
+      data: {
+        name: name.trim(),
+        clientName: clientName.trim(),
+        location: location.trim(),
+        budgetAllocated: budgetNum,
+        description: description.trim() || undefined,
+      },
+    });
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      data-testid="new-project-modal"
+    >
+      <div className="bg-card rounded-xl border border-card-border shadow-xl w-full max-w-md p-6">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-bold">{t("New Project", "Nuevo Proyecto")}</h2>
+          <button onClick={onClose} data-testid="btn-close-new-project" aria-label="close">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-semibold mb-1.5 text-muted-foreground">
+              {t("Project Name", "Nombre del Proyecto")}
+            </label>
+            <input
+              data-testid="input-project-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background"
+            />
+            {fieldErrors["name"] && (
+              <p className="text-xs text-red-500 mt-1">{fieldErrors["name"]}</p>
+            )}
+          </div>
+          <div>
+            <label className="block text-xs font-semibold mb-1.5 text-muted-foreground">
+              {t("Client Name", "Nombre del Cliente")}
+            </label>
+            <input
+              data-testid="input-client-name"
+              value={clientName}
+              onChange={(e) => setClientName(e.target.value)}
+              className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background"
+            />
+            {fieldErrors["clientName"] && (
+              <p className="text-xs text-red-500 mt-1">{fieldErrors["clientName"]}</p>
+            )}
+          </div>
+          <div>
+            <label className="block text-xs font-semibold mb-1.5 text-muted-foreground">
+              {t("Location", "Ubicación")}
+            </label>
+            <input
+              data-testid="input-location"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              placeholder={t("Rincón, Puerto Rico", "Rincón, Puerto Rico")}
+              className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background"
+            />
+            {fieldErrors["location"] && (
+              <p className="text-xs text-red-500 mt-1">{fieldErrors["location"]}</p>
+            )}
+          </div>
+          <div>
+            <label className="block text-xs font-semibold mb-1.5 text-muted-foreground">
+              {t("Budget (USD)", "Presupuesto (USD)")}
+            </label>
+            <input
+              data-testid="input-budget"
+              type="number"
+              min={0}
+              value={budgetAllocated}
+              onChange={(e) => setBudgetAllocated(e.target.value)}
+              className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background"
+            />
+            {fieldErrors["budgetAllocated"] && (
+              <p className="text-xs text-red-500 mt-1">{fieldErrors["budgetAllocated"]}</p>
+            )}
+          </div>
+          <div>
+            <label className="block text-xs font-semibold mb-1.5 text-muted-foreground">
+              {t("Description (optional)", "Descripción (opcional)")}
+            </label>
+            <textarea
+              data-testid="input-description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3}
+              className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background"
+            />
+          </div>
+          {submitError && (
+            <p className="text-sm text-red-500" data-testid="text-submit-error">{submitError}</p>
+          )}
+          <button
+            onClick={submit}
+            disabled={createProject.isPending}
+            data-testid="btn-submit-new-project"
+            className="w-full mt-2 py-2.5 bg-konti-olive hover:bg-konti-olive/90 text-white text-sm font-semibold rounded-md disabled:opacity-50"
+          >
+            {createProject.isPending
+              ? t("Creating…", "Creando…")
+              : t("Create Project", "Crear Proyecto")}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function ProjectsPage() {
   const { t, lang } = useLang();
   const { user } = useAuth();
   const { data: allProjects = [], isLoading } = useListProjects();
+  const [showNew, setShowNew] = useState(false);
 
   const isClientUser = user?.role === "client";
 
@@ -32,16 +208,28 @@ export default function ProjectsPage() {
     <RequireAuth>
       <AppLayout>
         <div className="space-y-6" data-testid="projects-page">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">
-              {isClientUser ? t("My Project", "Mi Proyecto") : t("Projects", "Proyectos")}
-            </h1>
-            <p className="text-muted-foreground text-sm mt-1">
-              {isClientUser
-                ? t("Your current project overview.", "Resumen de tu proyecto actual.")
-                : t("All active and completed projects.", "Todos los proyectos activos y completados.")}
-            </p>
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">
+                {isClientUser ? t("My Project", "Mi Proyecto") : t("Projects", "Proyectos")}
+              </h1>
+              <p className="text-muted-foreground text-sm mt-1">
+                {isClientUser
+                  ? t("Your current project overview.", "Resumen de tu proyecto actual.")
+                  : t("All active and completed projects.", "Todos los proyectos activos y completados.")}
+              </p>
+            </div>
+            {!isClientUser && (
+              <button
+                onClick={() => setShowNew(true)}
+                data-testid="btn-new-project"
+                className="flex items-center gap-1.5 py-2 px-4 bg-konti-olive hover:bg-konti-olive/90 text-white text-sm font-semibold rounded-md transition-colors"
+              >
+                <Plus className="w-4 h-4" /> {t("New Project", "Nuevo Proyecto")}
+              </button>
+            )}
           </div>
+          {showNew && <NewProjectDialog onClose={() => setShowNew(false)} />}
 
           {isLoading ? (
             <div className="space-y-4">
