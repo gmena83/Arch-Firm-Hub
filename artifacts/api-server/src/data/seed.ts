@@ -51,7 +51,7 @@ export const PROJECTS = [
     clientName: "Rafael Medina Torres",
     location: "Rincón, Puerto Rico",
     city: "Rincón",
-    phase: "consultation" as "discovery" | "consultation" | "pre_design" | "design" | "permits" | "construction" | "completed",
+    phase: "consultation" as "discovery" | "consultation" | "pre_design" | "schematic_design" | "design_development" | "construction_documents" | "permits" | "construction" | "completed",
     phaseLabel: "Consultation",
     phaseLabelEs: "Consulta Inicial",
     phaseNumber: 2,
@@ -78,7 +78,7 @@ export const PROJECTS = [
     phase: "construction" as const,
     phaseLabel: "Construction",
     phaseLabelEs: "Construcción",
-    phaseNumber: 6,
+    phaseNumber: 8,
     progressPercent: 67,
     budgetAllocated: 400000,
     budgetUsed: 178235,
@@ -102,7 +102,7 @@ export const PROJECTS = [
     phase: "completed" as const,
     phaseLabel: "Completed",
     phaseLabelEs: "Completado",
-    phaseNumber: 7,
+    phaseNumber: 9,
     progressPercent: 100,
     budgetAllocated: 165000,
     budgetUsed: 158900,
@@ -459,6 +459,7 @@ export const DOCUMENTS = {
       name: "Construction Estimate — Martínez Ocasio",
       type: "excel" as const,
       category: "client_review" as const,
+      designSubPhase: "construction_documents" as const,
       isClientVisible: true,
       uploadedBy: "Carla Gautier",
       uploadedAt: "2025-10-15T09:00:00Z",
@@ -528,6 +529,7 @@ export const DOCUMENTS = {
       name: "Structural Engineering Specs — Steel Frame",
       type: "pdf" as const,
       category: "design" as const,
+      designSubPhase: "design_development" as const,
       isClientVisible: false,
       uploadedBy: "Michelle Telon Sosa",
       uploadedAt: "2025-10-20T11:00:00Z",
@@ -1137,9 +1139,40 @@ export function appendActivity(projectId: string, activity: Omit<ProjectActivity
   return entry;
 }
 
-export const PHASE_ORDER: Array<"discovery" | "consultation" | "pre_design" | "design" | "permits" | "construction" | "completed"> = [
-  "discovery", "consultation", "pre_design", "design", "permits", "construction", "completed",
+export type ProjectPhase =
+  | "discovery"
+  | "consultation"
+  | "pre_design"
+  | "schematic_design"
+  | "design_development"
+  | "construction_documents"
+  | "permits"
+  | "construction"
+  | "completed";
+
+export const PHASE_ORDER: ProjectPhase[] = [
+  "discovery",
+  "consultation",
+  "pre_design",
+  "schematic_design",
+  "design_development",
+  "construction_documents",
+  "permits",
+  "construction",
+  "completed",
 ];
+
+export const PHASE_LABELS_MAP: Record<ProjectPhase, { en: string; es: string }> = {
+  discovery: { en: "Discovery", es: "Descubrimiento" },
+  consultation: { en: "Consultation", es: "Consulta Inicial" },
+  pre_design: { en: "Pre-Design & Viability", es: "Pre-Diseño y Viabilidad" },
+  schematic_design: { en: "Schematic Design", es: "Diseño Esquemático" },
+  design_development: { en: "Design Development", es: "Desarrollo de Diseño" },
+  construction_documents: { en: "Construction Documents", es: "Documentos de Construcción" },
+  permits: { en: "Permits", es: "Permisos" },
+  construction: { en: "Construction", es: "Construcción" },
+  completed: { en: "Completed", es: "Completado" },
+};
 
 // ---------------------------------------------------------------------------
 // Phase 3 — Design sub-phases, Proposals & Change Orders
@@ -1334,6 +1367,7 @@ export interface ChangeOrder {
   decidedBy?: string;
   decidedAt?: string;
   decisionNote?: string;
+  outsideOfScope: boolean;
 }
 
 export const PROJECT_CHANGE_ORDERS: Record<string, ChangeOrder[]> = {
@@ -1353,6 +1387,7 @@ export const PROJECT_CHANGE_ORDERS: Record<string, ChangeOrder[]> = {
       status: "approved",
       decidedBy: "Andrés Martínez", decidedAt: "2026-02-14T11:00:00Z",
       decisionNote: "Approved — owner accepts schedule slip.",
+      outsideOfScope: false,
     },
     {
       id: "co-2-2", projectId: "proj-2", number: "CO-002",
@@ -1366,6 +1401,7 @@ export const PROJECT_CHANGE_ORDERS: Record<string, ChangeOrder[]> = {
       requestedBy: "Jorge Rosa",
       requestedAt: "2026-04-15T14:30:00Z",
       status: "pending",
+      outsideOfScope: true,
     },
   ],
   "proj-3": [
@@ -1382,6 +1418,7 @@ export const PROJECT_CHANGE_ORDERS: Record<string, ChangeOrder[]> = {
       requestedAt: "2025-09-10T10:00:00Z",
       status: "approved",
       decidedBy: "Sofia Marrero", decidedAt: "2025-09-12T09:00:00Z",
+      outsideOfScope: true,
     },
   ],
 };

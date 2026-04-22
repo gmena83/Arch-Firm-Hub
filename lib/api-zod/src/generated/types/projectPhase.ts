@@ -10,8 +10,11 @@ export type ProjectPhase = (typeof ProjectPhase)[keyof typeof ProjectPhase];
 
 export const ProjectPhase = {
   discovery: "discovery",
+  consultation: "consultation",
   pre_design: "pre_design",
-  design: "design",
+  schematic_design: "schematic_design",
+  design_development: "design_development",
+  construction_documents: "construction_documents",
   permits: "permits",
   construction: "construction",
   completed: "completed",

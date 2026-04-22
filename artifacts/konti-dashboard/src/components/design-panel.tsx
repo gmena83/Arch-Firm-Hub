@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
-import { customFetch } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { customFetch, getGetProjectQueryKey } from "@workspace/api-client-react";
 import { useLang } from "@/hooks/use-lang";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -44,7 +45,9 @@ const STATUS_CYCLE: Record<DeliverableStatus, DeliverableStatus> = {
   done: "pending",
 };
 
+const SUB_PHASES: DesignSubPhase[] = ["schematic_design", "design_development", "construction_documents"];
 export function DesignPanel({ projectId, isClientView, currentPhase }: { projectId: string; isClientView: boolean; currentPhase: string }) {
+  const queryClient = useQueryClient();
   const { t, lang } = useLang();
   const { user } = useAuth();
   const { toast } = useToast();
@@ -74,8 +77,12 @@ export function DesignPanel({ projectId, isClientView, currentPhase }: { project
   const state = data.state;
   const order = data.subPhaseOrder;
   const labels = data.subPhaseLabels;
-  const isComplete = state.currentSubPhase === "complete";
-  const showInDesign = currentPhase === "design" || currentPhase === "permits" || currentPhase === "construction" || currentPhase === "completed";
+  // Derive current sub-phase from canonical project phase
+  const inSubPhase = SUB_PHASES.includes(currentPhase as DesignSubPhase);
+  const pastDesign = ["permits", "construction", "completed"].includes(currentPhase);
+  const derivedSub: DesignSubPhase | "complete" = inSubPhase ? (currentPhase as DesignSubPhase) : "complete";
+  const isComplete = !inSubPhase;
+  const showInDesign = inSubPhase || pastDesign;
   if (!showInDesign) return null;
 
   const cycleStatus = async (subPhase: DesignSubPhase, d: Deliverable) => {
@@ -100,7 +107,7 @@ export function DesignPanel({ projectId, isClientView, currentPhase }: { project
     try {
       await customFetch(`/api/projects/${projectId}/design/advance-sub-phase`, { method: "POST" });
       toast({ title: t("Sub-phase advanced", "Sub-fase avanzada") });
-      await refresh();
+      await Promise.all([refresh(), queryClient.invalidateQueries({ queryKey: getGetProjectQueryKey(projectId) })]);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "";
       toast({
@@ -113,7 +120,7 @@ export function DesignPanel({ projectId, isClientView, currentPhase }: { project
     }
   };
 
-  const currentSP = isComplete ? null : state.subPhases[state.currentSubPhase as DesignSubPhase];
+  const currentSP = isComplete ? null : state.subPhases[derivedSub as DesignSubPhase];
   const allDone = currentSP ? currentSP.deliverables.every((d) => d.status === "done") : false;
 
   return (
@@ -135,8 +142,8 @@ export function DesignPanel({ projectId, isClientView, currentPhase }: { project
         {order.map((sp, i) => {
           const sub = state.subPhases[sp];
           const idx = order.indexOf(sp);
-          const currentIdx = isComplete ? order.length : order.indexOf(state.currentSubPhase as DesignSubPhase);
-          const isStepCurrent = !isComplete && state.currentSubPhase === sp;
+          const currentIdx = isComplete ? order.length : order.indexOf(derivedSub as DesignSubPhase);
+          const isStepCurrent = !isComplete && derivedSub === sp;
           const isStepDone = isComplete || idx < currentIdx;
           const label = lang === "es" ? labels[sp].es : labels[sp].en;
           return (
@@ -164,7 +171,7 @@ export function DesignPanel({ projectId, isClientView, currentPhase }: { project
         <div className="border-t border-border pt-4">
           <div className="flex items-center justify-between mb-3">
             <p className="text-sm font-semibold text-foreground">
-              {t("Active Deliverables", "Entregables Activos")} — {lang === "es" ? labels[state.currentSubPhase as DesignSubPhase].es : labels[state.currentSubPhase as DesignSubPhase].en}
+              {t("Active Deliverables", "Entregables Activos")} — {lang === "es" ? labels[derivedSub as DesignSubPhase].es : labels[derivedSub as DesignSubPhase].en}
             </p>
             <span className="text-xs text-muted-foreground">
               {currentSP.deliverables.filter((d) => d.status === "done").length}/{currentSP.deliverables.length} {t("done", "completos")}
@@ -182,7 +189,7 @@ export function DesignPanel({ projectId, isClientView, currentPhase }: { project
               return (
                 <button
                   key={d.id}
-                  onClick={() => cycleStatus(state.currentSubPhase as DesignSubPhase, d)}
+                  onClick={() => cycleStatus(derivedSub as DesignSubPhase, d)}
                   disabled={!canEdit || busy}
                   data-testid={`deliverable-${d.id}`}
                   className={`w-full text-left flex items-center gap-3 p-2.5 rounded-lg ${ui.bg} ${canEdit ? "hover:opacity-80 cursor-pointer" : "cursor-default"}`}

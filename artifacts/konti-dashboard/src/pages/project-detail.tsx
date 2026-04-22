@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Link } from "wouter";
+import { customFetch } from "@workspace/api-client-react";
 import {
   useGetProject,
   useGetProjectTasks,
@@ -347,6 +348,41 @@ function DocPreviewModal({ doc, onClose }: { doc: Document; onClose: () => void 
   );
 }
 
+function ChangeOrderDelta({ projectId }: { projectId: string }) {
+  const { t } = useLang();
+  const [totals, setTotals] = useState<{ approvedDelta: number; pendingDelta: number; approvedDays: number } | null>(null);
+  useEffect(() => {
+    let alive = true;
+    customFetch<{ totals: { approvedDelta: number; pendingDelta: number; approvedDays: number } }>(`/api/projects/${projectId}/change-orders`)
+      .then((d) => { if (alive) setTotals(d.totals); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [projectId]);
+  if (!totals) return null;
+  const { approvedDelta, pendingDelta } = totals;
+  if (approvedDelta === 0 && pendingDelta === 0) return null;
+  return (
+    <div data-testid="budget-co-delta" className="mt-3 pt-3 border-t border-border space-y-1">
+      {approvedDelta !== 0 && (
+        <p className="text-xs flex items-center justify-between">
+          <span className="text-muted-foreground">{t("Approved Change Orders", "Órdenes de Cambio Aprobadas")}</span>
+          <span className={`font-semibold ${approvedDelta >= 0 ? "text-amber-700" : "text-emerald-700"}`}>
+            {approvedDelta >= 0 ? "+" : "−"}${Math.abs(approvedDelta).toLocaleString()}
+          </span>
+        </p>
+      )}
+      {pendingDelta !== 0 && (
+        <p className="text-xs flex items-center justify-between">
+          <span className="text-muted-foreground">{t("Pending Change Orders", "Órdenes Pendientes")}</span>
+          <span className="font-semibold text-amber-600">
+            {pendingDelta >= 0 ? "+" : "−"}${Math.abs(pendingDelta).toLocaleString()}
+          </span>
+        </p>
+      )}
+    </div>
+  );
+}
+
 function DocCard({ doc, isClientView }: { doc: Document; isClientView: boolean }) {
   const { t, lang } = useLang();
   const [showVersions, setShowVersions] = useState(false);
@@ -359,6 +395,14 @@ function DocCard({ doc, isClientView }: { doc: Document; isClientView: boolean }
     construction: "bg-orange-100 text-orange-800",
     design: "bg-indigo-100 text-indigo-800",
   };
+
+  const subPhaseLabels: Record<string, { en: string; es: string }> = {
+    schematic_design: { en: "SD", es: "DE" },
+    design_development: { en: "DD", es: "DD" },
+    construction_documents: { en: "CD", es: "DC" },
+  };
+  const subPhase = (doc as Document & { designSubPhase?: string }).designSubPhase;
+  const subBadge = subPhase ? subPhaseLabels[subPhase] : null;
 
   const typeColors: Record<string, string> = {
     pdf: "text-red-600 bg-red-50",
@@ -391,6 +435,11 @@ function DocCard({ doc, isClientView }: { doc: Document; isClientView: boolean }
                 <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${catColors[doc.category] ?? "bg-gray-100 text-gray-700"}`}>
                   {doc.category === "client_review" ? t("Client", "Cliente") : doc.category}
                 </span>
+                {subBadge && (
+                  <span data-testid={`doc-sub-phase-${doc.id}`} className="text-xs px-1.5 py-0.5 rounded font-semibold bg-konti-olive/15 text-konti-olive border border-konti-olive/30">
+                    {lang === "es" ? subBadge.es : subBadge.en}
+                  </span>
+                )}
                 <span className="text-xs text-muted-foreground">{doc.fileSize}</span>
                 {hasVersions && (
                   <span className="text-xs bg-konti-olive/10 text-konti-olive border border-konti-olive/30 px-1.5 py-0.5 rounded font-semibold">
@@ -480,10 +529,12 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
     { key: "discovery", label: t("Discovery", "Descubrimiento"), num: 1 },
     { key: "consultation", label: t("Consultation", "Consulta"), num: 2 },
     { key: "pre_design", label: t("Pre-Design", "Pre-Diseño"), num: 3 },
-    { key: "design", label: t("Design", "Diseño"), num: 4 },
-    { key: "permits", label: t("Permits", "Permisos"), num: 5 },
-    { key: "construction", label: t("Construction", "Construcción"), num: 6 },
-    { key: "completed", label: t("Completed", "Completado"), num: 7 },
+    { key: "schematic_design", label: t("SD", "DE"), num: 4 },
+    { key: "design_development", label: t("DD", "DD"), num: 5 },
+    { key: "construction_documents", label: t("CD", "DC"), num: 6 },
+    { key: "permits", label: t("Permits", "Permisos"), num: 7 },
+    { key: "construction", label: t("Construction", "Construcción"), num: 8 },
+    { key: "completed", label: t("Completed", "Completado"), num: 9 },
   ];
 
   const priorityColors: Record<string, string> = {
@@ -698,6 +749,7 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
               <div className={`h-full rounded-full ${spendPct > 90 ? "bg-red-500" : spendPct > 70 ? "bg-amber-500" : "bg-konti-olive"}`} style={{ width: `${Math.min(spendPct, 100)}%` }} />
             </div>
             <p className="text-xs text-muted-foreground">{spendPct}% {t("used", "utilizado")}</p>
+            <ChangeOrderDelta projectId={projectId} />
           </div>
 
           {/* Team */}
