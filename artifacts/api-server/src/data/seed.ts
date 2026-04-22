@@ -26,6 +26,14 @@ export const USERS = [
     password: "konti2026",
   },
   {
+    id: "user-client-2",
+    name: "Isabel Rivera (Demo Client #2)",
+    email: "client2@konti.com",
+    role: "client" as const,
+    avatar: "IR",
+    password: "konti2026",
+  },
+  {
     id: "user-super-1",
     name: "Tatiana",
     email: "tatiana@menatech.cloud",
@@ -67,6 +75,7 @@ export const PROJECTS = [
     gammaReportUrl: "/projects/proj-1/report",
     teamMembers: ["Carla Gautier", "Michelle Telon Sosa", "Jorge Rosa"],
     status: "active" as const,
+    clientUserId: "user-client-1",
   },
   {
     id: "proj-2",
@@ -91,6 +100,7 @@ export const PROJECTS = [
     gammaReportUrl: "/projects/proj-2/report",
     teamMembers: ["Carla Gautier", "Michelle Telon Sosa", "Andrea Camacho", "Jorge Rosa"],
     status: "active" as const,
+    clientUserId: "user-client-1",
   },
   {
     id: "proj-3",
@@ -115,6 +125,7 @@ export const PROJECTS = [
     gammaReportUrl: "/projects/proj-3/report",
     teamMembers: ["Carla Gautier", "Michelle Telon Sosa", "Miranda Klopf"],
     status: "completed" as const,
+    clientUserId: "user-client-1",
   },
 ];
 

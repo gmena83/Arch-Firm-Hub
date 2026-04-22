@@ -177,6 +177,7 @@ router.post("/leads/:id/accept", requireRole("admin", "architect", "superadmin")
     gammaReportUrl: `/projects/${projectId}/report`,
     teamMembers: ["Carla Gautier"],
     status: "active" as const,
+    clientUserId: "user-client-1",
   };
   PROJECTS.push(newProject);
   ACCEPTED_LEAD_PROJECTS.set(lead.id, projectId);
