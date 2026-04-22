@@ -61,6 +61,23 @@ function clientCanAccessProject(userId: string, projectId: string): boolean {
   return project.clientUserId === userId;
 }
 
+// Shared ownership gate for every client-callable endpoint. When the caller is
+// a client, they must own the project or the request is rejected with 403.
+// Team/admin/superadmin callers bypass the ownership check (their role gate is
+// already enforced by requireRole). Returns true when the request may proceed.
+function enforceClientOwnership(
+  req: import("express").Request,
+  res: import("express").Response,
+  projectId: string,
+): boolean {
+  const user = (req as { user?: { id: string; role: string } }).user;
+  if (user?.role === "client" && !clientCanAccessProject(user.id, projectId)) {
+    res.status(403).json({ error: "forbidden", message: "Client cannot access this project" });
+    return false;
+  }
+  return true;
+}
+
 router.get("/projects", (_req, res) => {
   return res.json(PROJECTS);
 });
@@ -479,9 +496,7 @@ router.post("/projects/:id/advance-phase", requireRole(["team", "client"]), (req
 
   // Ownership gate first — non-owning clients should get 403 regardless of
   // project state, so we don't leak phase information to unauthorized callers.
-  if (isClient && (!user || !clientCanAccessProject(user.id, project.id))) {
-    return res.status(403).json({ error: "forbidden", message: "Client cannot advance this project" });
-  }
+  if (!enforceClientOwnership(req, res, project.id)) return;
 
   const idx = PHASE_ORDER.indexOf(project.phase);
   if (idx === -1 || idx >= PHASE_ORDER.length - 1) {
@@ -532,16 +547,14 @@ router.post("/projects/:id/decline-phase", requireRole(["client"]), (req, res) =
   if (!project) return res.status(404).json({ error: "not_found" });
   const { reason } = req.body ?? {};
   const user = (req as { user?: { id: string; name?: string } }).user;
-  if (!user || !clientCanAccessProject(user.id, project.id)) {
-    return res.status(403).json({ error: "forbidden", message: "Client cannot decline this project" });
-  }
+  if (!enforceClientOwnership(req, res, project.id)) return;
   if (project.phase !== "consultation") {
     return res.status(400).json({ error: "client_gate_invalid", message: "Decline only available at the consultation gate" });
   }
   const note = typeof reason === "string" && reason.trim().length > 0 ? `: ${reason.trim().slice(0, 200)}` : "";
   appendActivity(project.id, {
     type: "phase_change",
-    actor: user.name ?? "Client",
+    actor: user?.name ?? "Client",
     description: `Client declined to advance to Pre-Design${note}`,
     descriptionEs: `El cliente no aprobó avanzar a Pre-Diseño${note}`,
   });
@@ -593,14 +606,9 @@ function getProjectOr404(id: string, res: import("express").Response) {
   return project;
 }
 
-function clientCanReadOrForbid(req: import("express").Request, res: import("express").Response, projectId: string): boolean {
-  const user = (req as { user?: { id: string; role: string } }).user;
-  if (user?.role === "client" && !clientCanAccessProject(user.id, projectId)) {
-    res.status(403).json({ error: "forbidden", message: "Client cannot access this project" });
-    return false;
-  }
-  return true;
-}
+// Backwards-compatible alias — read endpoints still use this name. New code
+// should call enforceClientOwnership directly.
+const clientCanReadOrForbid = enforceClientOwnership;
 
 router.get("/projects/:id/design", requireRole(["team", "client"]), (req, res) => {
   const project = getProjectOr404(String(req.params["id"]), res);
@@ -708,10 +716,8 @@ router.get("/projects/:id/proposals", requireRole(["team", "client"]), (req, res
 router.post("/projects/:id/proposals/:proposalId/approve", requireRole(["client"]), (req, res) => {
   const project = getProjectOr404(String(req.params["id"]), res);
   if (!project) return;
+  if (!enforceClientOwnership(req, res, project.id)) return;
   const user = (req as { user?: { id: string; name?: string } }).user;
-  if (!user || !clientCanAccessProject(user.id, project.id)) {
-    return res.status(403).json({ error: "forbidden" });
-  }
   const list = PROJECT_PROPOSALS[project.id] ?? [];
   const target = list.find((p) => p.id === String(req.params["proposalId"]));
   if (!target) return res.status(404).json({ error: "proposal_not_found" });
@@ -731,16 +737,16 @@ router.post("/projects/:id/proposals/:proposalId/approve", requireRole(["client"
     if (p.id === target.id) {
       p.status = "approved";
       p.decidedAt = now;
-      p.decidedBy = user.name ?? "Client";
+      p.decidedBy = user?.name ?? "Client";
     } else if (p.status === "pending") {
       p.status = "rejected";
       p.decidedAt = now;
-      p.decidedBy = user.name ?? "Client";
+      p.decidedBy = user?.name ?? "Client";
     }
   }
   appendActivity(project.id, {
     type: "proposal_decision",
-    actor: user.name ?? "Client",
+    actor: user?.name ?? "Client",
     description: `Client approved "${target.title}" ($${target.totalCost.toLocaleString()})`,
     descriptionEs: `Cliente aprobó "${target.titleEs}" ($${target.totalCost.toLocaleString()})`,
   });
@@ -962,10 +968,8 @@ router.get("/projects/:id/permits", requireRole(["team", "client"]), (req, res) 
 router.post("/projects/:id/authorize-permits", requireRole(["client"]), (req, res) => {
   const project = getProjectOr404(String(req.params["id"]), res);
   if (!project) return;
+  if (!enforceClientOwnership(req, res, project.id)) return;
   const user = (req as { user?: { id: string; name?: string } }).user;
-  if (!user || !clientCanAccessProject(user.id, project.id)) {
-    return res.status(403).json({ error: "forbidden" });
-  }
   if (project.phase !== "permits") {
     return res.status(400).json({ error: "invalid_phase", message: "Project is not in the permits phase" });
   }
@@ -974,7 +978,7 @@ router.post("/projects/:id/authorize-permits", requireRole(["client"]), (req, re
     return res.status(400).json({ error: "already_authorized" });
   }
   auth.status = "authorized";
-  auth.authorizedBy = user.name ?? "Client";
+  auth.authorizedBy = user?.name ?? "Client";
   auth.authorizedAt = new Date().toISOString();
   auth.summaryAccepted = true;
   // Capture client IP for the audit trail. Demo data is in-memory, so we
@@ -983,7 +987,7 @@ router.post("/projects/:id/authorize-permits", requireRole(["client"]), (req, re
   auth.authorizedIpMock = fwd || req.ip || req.socket?.remoteAddress || "127.0.0.1 (mock)";
   appendActivity(project.id, {
     type: "permit_authorization",
-    actor: user.name ?? "Client",
+    actor: user?.name ?? "Client",
     description: "Client authorized OGPE submission packet",
     descriptionEs: "Cliente autorizó el paquete de sometimiento a OGPE",
   });
@@ -993,10 +997,7 @@ router.post("/projects/:id/authorize-permits", requireRole(["client"]), (req, re
 router.post("/projects/:id/sign/:signatureId", requireRole(["client"]), (req, res) => {
   const project = getProjectOr404(String(req.params["id"]), res);
   if (!project) return;
-  const user = (req as { user?: { id: string; name?: string } }).user;
-  if (!user || !clientCanAccessProject(user.id, project.id)) {
-    return res.status(403).json({ error: "forbidden" });
-  }
+  if (!enforceClientOwnership(req, res, project.id)) return;
   if (project.phase !== "permits") {
     return res.status(400).json({ error: "invalid_phase", message: "Signatures only accepted during the permits phase" });
   }
