@@ -1008,7 +1008,7 @@ export interface PreDesignChecklistItem {
 export interface ProjectActivity {
   id: string;
   timestamp: string;
-  type: "phase_change" | "checklist_toggle" | "gamma_generated" | "email_sent" | "invoice_sent" | "weekly_report" | "structured_variables";
+  type: "phase_change" | "checklist_toggle" | "gamma_generated" | "email_sent" | "invoice_sent" | "weekly_report" | "structured_variables" | "proposal_decision" | "change_order_created" | "change_order_decision" | "sub_phase_advanced";
   actor: string;
   description: string;
   descriptionEs: string;
@@ -1140,3 +1140,255 @@ export function appendActivity(projectId: string, activity: Omit<ProjectActivity
 export const PHASE_ORDER: Array<"discovery" | "consultation" | "pre_design" | "design" | "permits" | "construction" | "completed"> = [
   "discovery", "consultation", "pre_design", "design", "permits", "construction", "completed",
 ];
+
+// ---------------------------------------------------------------------------
+// Phase 3 — Design sub-phases, Proposals & Change Orders
+// ---------------------------------------------------------------------------
+
+export type DesignSubPhase = "schematic_design" | "design_development" | "construction_documents";
+export const DESIGN_SUB_PHASE_ORDER: DesignSubPhase[] = ["schematic_design", "design_development", "construction_documents"];
+
+export const DESIGN_SUB_PHASE_LABELS: Record<DesignSubPhase, { en: string; es: string }> = {
+  schematic_design: { en: "Schematic Design", es: "Diseño Esquemático" },
+  design_development: { en: "Design Development", es: "Desarrollo de Diseño" },
+  construction_documents: { en: "Construction Documents", es: "Documentos de Construcción" },
+};
+
+export type DesignDeliverableStatus = "pending" | "in_progress" | "done";
+
+export interface DesignDeliverable {
+  id: string;
+  label: string;
+  labelEs: string;
+  owner: string;
+  status: DesignDeliverableStatus;
+  completedAt?: string;
+}
+
+export interface DesignSubPhaseState {
+  startedAt?: string;
+  completedAt?: string;
+  deliverables: DesignDeliverable[];
+}
+
+export interface ProjectDesignState {
+  projectId: string;
+  currentSubPhase: DesignSubPhase | "complete";
+  subPhases: Record<DesignSubPhase, DesignSubPhaseState>;
+}
+
+const buildDeliverables = (sub: DesignSubPhase, status: DesignDeliverableStatus): DesignDeliverable[] => {
+  const sets: Record<DesignSubPhase, Array<[string, string, string]>> = {
+    schematic_design: [
+      ["Concept floor plans", "Plantas conceptuales", "Michelle Telon Sosa"],
+      ["Massing & site studies", "Estudios de masas y sitio", "Michelle Telon Sosa"],
+      ["Bioclimatic strategy memo", "Memoria de estrategia bioclimática", "Carla Gautier"],
+      ["Sustainability targets review", "Revisión de metas de sostenibilidad", "Carla Gautier"],
+    ],
+    design_development: [
+      ["Refined floor plans & elevations", "Plantas y elevaciones refinadas", "Michelle Telon Sosa"],
+      ["Structural coordination set", "Conjunto de coordinación estructural", "Jorge Rosa"],
+      ["MEP narrative", "Narrativa MEP", "Jorge Rosa"],
+      ["Material & finish schedule", "Cronograma de materiales y acabados", "Miranda Klopf"],
+      ["Cost estimate update", "Actualización de estimado de costos", "Carla Gautier"],
+    ],
+    construction_documents: [
+      ["Stamped architectural set", "Set arquitectónico sellado", "Carla Gautier"],
+      ["Structural & engineering CDs", "CDs estructurales y de ingeniería", "Jorge Rosa"],
+      ["Specifications book", "Libro de especificaciones", "Andrea Camacho"],
+      ["Bid package & GC pricing", "Paquete de licitación y costeo del GC", "Carla Gautier"],
+    ],
+  };
+  return sets[sub].map(([en, es, owner], i) => ({
+    id: `${sub}-d${i + 1}`,
+    label: en,
+    labelEs: es,
+    owner,
+    status,
+    completedAt: status === "done" ? "2025-09-01T12:00:00Z" : undefined,
+  }));
+};
+
+const designStateNotStarted = (projectId: string): ProjectDesignState => ({
+  projectId,
+  currentSubPhase: "schematic_design",
+  subPhases: {
+    schematic_design: { deliverables: buildDeliverables("schematic_design", "pending") },
+    design_development: { deliverables: buildDeliverables("design_development", "pending") },
+    construction_documents: { deliverables: buildDeliverables("construction_documents", "pending") },
+  },
+});
+
+const designStateComplete = (projectId: string, completedAt: string): ProjectDesignState => ({
+  projectId,
+  currentSubPhase: "complete",
+  subPhases: {
+    schematic_design: { startedAt: completedAt, completedAt, deliverables: buildDeliverables("schematic_design", "done") },
+    design_development: { startedAt: completedAt, completedAt, deliverables: buildDeliverables("design_development", "done") },
+    construction_documents: { startedAt: completedAt, completedAt, deliverables: buildDeliverables("construction_documents", "done") },
+  },
+});
+
+export const PROJECT_DESIGN_STATE: Record<string, ProjectDesignState> = {
+  "proj-1": designStateNotStarted("proj-1"),
+  "proj-2": designStateComplete("proj-2", "2025-09-30T17:00:00Z"),
+  "proj-3": designStateComplete("proj-3", "2025-04-30T17:00:00Z"),
+};
+
+// --- Proposals (3 budget scenarios coming out of Pre-Design) ----------------
+
+export type ProposalScenario = "economy" | "standard" | "premium";
+export type ProposalStatus = "pending" | "approved" | "rejected";
+
+export interface Proposal {
+  id: string;
+  projectId: string;
+  scenario: ProposalScenario;
+  title: string;
+  titleEs: string;
+  summary: string;
+  summaryEs: string;
+  totalCost: number;
+  durationWeeks: number;
+  highlights: string[];
+  highlightsEs: string[];
+  status: ProposalStatus;
+  decidedAt?: string;
+  decidedBy?: string;
+}
+
+const proj1Proposals: Proposal[] = [
+  {
+    id: "prop-1-economy", projectId: "proj-1", scenario: "economy",
+    title: "Economy — Single container core",
+    titleEs: "Económica — Núcleo de un contenedor",
+    summary: "One 40ft container, off-grid solar starter kit, prefab finishes.",
+    summaryEs: "Un contenedor de 40ft, kit solar inicial fuera de red, acabados prefabricados.",
+    totalCost: 185000, durationWeeks: 22,
+    highlights: ["1 × 40ft container", "3 kW solar starter", "Standard impact windows", "Concrete pier foundation"],
+    highlightsEs: ["1 contenedor 40ft", "Solar 3 kW inicial", "Ventanas de impacto estándar", "Cimentación de pilotes"],
+    status: "pending",
+  },
+  {
+    id: "prop-1-standard", projectId: "proj-1", scenario: "standard",
+    title: "Standard — Coastal eco-home",
+    titleEs: "Estándar — Eco-casa costera",
+    summary: "Two 40ft containers, full solar + battery, custom millwork.",
+    summaryEs: "Dos contenedores de 40ft, solar completo con batería, ebanistería a medida.",
+    totalCost: 245000, durationWeeks: 28,
+    highlights: ["2 × 40ft containers", "8 kW solar + 13 kWh battery", "Whole-house impact glazing", "Cistern + greywater reuse"],
+    highlightsEs: ["2 contenedores 40ft", "Solar 8 kW + batería 13 kWh", "Vidrio de impacto en toda la casa", "Cisterna y reúso de aguas grises"],
+    status: "pending",
+  },
+  {
+    id: "prop-1-premium", projectId: "proj-1", scenario: "premium",
+    title: "Premium — Luxury beach retreat",
+    titleEs: "Premium — Retiro de playa de lujo",
+    summary: "Three containers with lap pool, premium finishes, smart-home stack.",
+    summaryEs: "Tres contenedores con piscina lap, acabados premium, paquete domótico.",
+    totalCost: 325000, durationWeeks: 34,
+    highlights: ["3 × containers + steel canopy", "12 kW solar + 26 kWh battery", "Lap pool & outdoor kitchen", "Full smart-home automation"],
+    highlightsEs: ["3 contenedores + canopy de acero", "Solar 12 kW + batería 26 kWh", "Piscina lap y cocina exterior", "Automatización domótica completa"],
+    status: "pending",
+  },
+];
+
+export const PROJECT_PROPOSALS: Record<string, Proposal[]> = {
+  "proj-1": proj1Proposals,
+  "proj-2": [
+    {
+      id: "prop-2-standard", projectId: "proj-2", scenario: "standard",
+      title: "Standard — Family residence (approved)",
+      titleEs: "Estándar — Residencia familiar (aprobada)",
+      summary: "Three-container family home with full solar package.",
+      summaryEs: "Casa familiar de tres contenedores con paquete solar completo.",
+      totalCost: 320000, durationWeeks: 30,
+      highlights: ["3 × 40ft containers", "10 kW solar + battery", "Premium impact glazing"],
+      highlightsEs: ["3 contenedores 40ft", "Solar 10 kW + batería", "Vidrio de impacto premium"],
+      status: "approved",
+      decidedAt: "2025-08-01T15:00:00Z", decidedBy: "Andrés Martínez",
+    },
+  ],
+  "proj-3": [],
+};
+
+// --- Change Orders ----------------------------------------------------------
+
+export type ChangeOrderStatus = "pending" | "approved" | "rejected";
+
+export interface ChangeOrder {
+  id: string;
+  projectId: string;
+  number: string; // CO-001, CO-002…
+  title: string;
+  titleEs: string;
+  description: string;
+  descriptionEs: string;
+  amountDelta: number; // signed USD
+  scheduleImpactDays: number;
+  reason: string;
+  reasonEs: string;
+  requestedBy: string;
+  requestedAt: string;
+  status: ChangeOrderStatus;
+  decidedBy?: string;
+  decidedAt?: string;
+  decisionNote?: string;
+}
+
+export const PROJECT_CHANGE_ORDERS: Record<string, ChangeOrder[]> = {
+  "proj-1": [],
+  "proj-2": [
+    {
+      id: "co-2-1", projectId: "proj-2", number: "CO-001",
+      title: "Upgrade to standing-seam metal roof",
+      titleEs: "Cambio a techo metálico de costura alzada",
+      description: "Owner-requested upgrade from asphalt shingles to standing-seam metal roof on both containers.",
+      descriptionEs: "Cambio solicitado por el propietario de tejas asfálticas a techo metálico de costura alzada en ambos contenedores.",
+      amountDelta: 8400, scheduleImpactDays: 5,
+      reason: "Hurricane resilience and lifetime warranty.",
+      reasonEs: "Resiliencia ante huracanes y garantía de por vida.",
+      requestedBy: "Carla Gautier",
+      requestedAt: "2026-02-12T15:00:00Z",
+      status: "approved",
+      decidedBy: "Andrés Martínez", decidedAt: "2026-02-14T11:00:00Z",
+      decisionNote: "Approved — owner accepts schedule slip.",
+    },
+    {
+      id: "co-2-2", projectId: "proj-2", number: "CO-002",
+      title: "Extra outdoor concrete patio",
+      titleEs: "Patio de concreto exterior adicional",
+      description: "Add 320 sq ft poured concrete patio off the master suite.",
+      descriptionEs: "Agregar 320 pies² de patio de concreto vertido junto a la suite principal.",
+      amountDelta: 3850, scheduleImpactDays: 3,
+      reason: "Owner change after framing review.",
+      reasonEs: "Cambio del propietario tras revisión de estructura.",
+      requestedBy: "Jorge Rosa",
+      requestedAt: "2026-04-15T14:30:00Z",
+      status: "pending",
+    },
+  ],
+  "proj-3": [
+    {
+      id: "co-3-1", projectId: "proj-3", number: "CO-001",
+      title: "Bar millwork upgrade",
+      titleEs: "Mejora de ebanistería del bar",
+      description: "Upgrade bar countertop to live-edge mango wood with steel base.",
+      descriptionEs: "Mejora del mostrador del bar a madera de mango con base de acero.",
+      amountDelta: 2100, scheduleImpactDays: 0,
+      reason: "Brand-fit per Sofia Marrero.",
+      reasonEs: "Ajuste de marca según Sofia Marrero.",
+      requestedBy: "Michelle Telon Sosa",
+      requestedAt: "2025-09-10T10:00:00Z",
+      status: "approved",
+      decidedBy: "Sofia Marrero", decidedAt: "2025-09-12T09:00:00Z",
+    },
+  ],
+};
+
+let changeOrderSeq = 100;
+export function nextChangeOrderNumber(projectId: string): string {
+  const list = PROJECT_CHANGE_ORDERS[projectId] ?? (PROJECT_CHANGE_ORDERS[projectId] = []);
+  const n = list.length + 1 + (changeOrderSeq++ % 1); // simple count
+  return `CO-${String(n).padStart(3, "0")}`;
+}
