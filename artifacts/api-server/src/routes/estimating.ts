@@ -353,7 +353,9 @@ router.post("/projects/:id/report-template", requireRole(["team", "admin", "supe
 });
 
 router.get("/projects/:id/report-template", requireRole(["team","admin","superadmin","architect","client"]), (req, res) => {
-  res.json({ projectId: req.params["id"], template: PROJECT_REPORT_TEMPLATE[req.params["id"] as string] ?? null });
+  const tpl = PROJECT_REPORT_TEMPLATE[req.params["id"] as string];
+  if (!tpl) { res.status(404).json({ error: "not_found", message: "No template saved" }); return; }
+  res.json(tpl);
 });
 
 // POST contractor estimate (from preliminary doc).

@@ -1,5 +1,5 @@
 import { useParams, Link } from "wouter";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   useGetProject, useGetProjectWeather, useGetProjectTasks,
   useGetProjectCalculations,
@@ -17,9 +17,25 @@ import logoWhite from "@assets/Horizontal02_WhitePNG_1776258303461.png";
 
 const CHART_COLORS = ["#4F5E2A", "#778894", "#1C1814", "#a3b38c", "#9fb0ba"];
 
+interface ReportTemplate { name: string; columns: string[]; headerLines: string[]; footer: string }
+
 function ReportContent({ projectId }: { projectId: string }) {
   const { t, lang } = useLang();
   const [isDownloading, setIsDownloading] = useState(false);
+  const [template, setTemplate] = useState<ReportTemplate | null>(null);
+
+  useEffect(() => {
+    if (!projectId) return;
+    let cancel = false;
+    const raw = typeof window !== "undefined" ? window.localStorage.getItem("konti_auth") : null;
+    let token: string | undefined;
+    try { token = raw ? (JSON.parse(raw).token as string) : undefined; } catch { /* ignore */ }
+    fetch(`/api/projects/${projectId}/report-template`, { headers: token ? { Authorization: `Bearer ${token}` } : undefined })
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => { if (!cancel && d) setTemplate(d as ReportTemplate); })
+      .catch(() => undefined);
+    return () => { cancel = true; };
+  }, [projectId]);
 
   const { data: project } = useGetProject(projectId, {
     query: { enabled: !!projectId, queryKey: getGetProjectQueryKey(projectId) }
@@ -133,6 +149,14 @@ function ReportContent({ projectId }: { projectId: string }) {
       </div>
 
       <div className="max-w-5xl mx-auto px-6 md:px-12 py-12 space-y-16">
+        {template && template.headerLines.length > 0 && (
+          <div className="border border-konti-olive/40 bg-konti-olive/5 rounded-lg p-4 text-center" data-testid="report-template-header">
+            <p className="text-[10px] uppercase tracking-widest text-konti-olive/80 mb-2">{t("Template", "Plantilla")}: {template.name}</p>
+            {template.headerLines.map((line, i) => (
+              <p key={i} className="text-white/80 text-sm">{line}</p>
+            ))}
+          </div>
+        )}
         {/* Hero section */}
         <section className="text-center space-y-4">
           <div className="inline-block bg-konti-olive/20 text-konti-olive text-xs font-semibold px-4 py-1.5 rounded-full border border-konti-olive/30">
@@ -423,7 +447,11 @@ function ReportContent({ projectId }: { projectId: string }) {
       {/* Footer */}
       <footer className="border-t border-white/10 px-12 py-6 flex items-center justify-between mt-12">
         <img src={logoWhite} alt="KONTi" className="h-6 w-auto opacity-50" />
-        <p className="text-white/20 text-xs">{t("Powered by KONTi Design | Build Studio", "Desarrollado por KONTi Design | Build Studio")} · {t("Sustainable architecture for Puerto Rico", "Arquitectura sostenible para Puerto Rico")}</p>
+        <p className="text-white/20 text-xs" data-testid="report-template-footer">
+          {template?.footer
+            ? template.footer
+            : t("Powered by KONTi Design | Build Studio", "Desarrollado por KONTi Design | Build Studio") + " · " + t("Sustainable architecture for Puerto Rico", "Arquitectura sostenible para Puerto Rico")}
+        </p>
       </footer>
     </div>
   );

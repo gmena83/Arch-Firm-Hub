@@ -101,7 +101,7 @@ export function ImportsPanel() {
       <Section
         icon={<Upload className="w-4 h-4 text-konti-olive" />}
         title={t("Import Materials & Categories", "Importar Materiales y Categorías")}
-        description={t("Paste a CSV with columns item, item_es, category, unit, base_price. Excel users: Save As → CSV.", "Pega un CSV con columnas item, item_es, category, unit, base_price. En Excel: Guardar como → CSV.")}
+        description={t("Paste a CSV with columns item, item_es, category, unit, base_price. Excel files (.xlsx) and CSV both work — first sheet is used.", "Pega un CSV con columnas item, item_es, category, unit, base_price. Soporta Excel (.xlsx) o CSV — usa la primera hoja.")}
         onFile={(f) => handleFileSelect(f, setMatCsv)}
         textValue={matCsv} setText={setMatCsv}
         onImport={importMaterials} busy={busy === "mat"} result={matResult} testid="import-materials"
@@ -228,7 +228,7 @@ function Section({
       <div className="flex items-center gap-2 mb-2">
         <input
           type="file"
-          accept=".csv,text/csv,text/plain"
+          accept=".csv,.xlsx,.xls,text/csv,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
           onChange={(e) => onFile(e.target.files?.[0])}
           className="text-xs"
           data-testid={`${testid}-file`}

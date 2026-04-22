@@ -39,6 +39,7 @@ import {
   type PermitItemState,
 } from "../data/seed";
 import { requireRole } from "../middlewares/require-role";
+import { EXTRA_MATERIALS, PROJECT_REPORT_TEMPLATE } from "./estimating";
 
 const router: IRouter = Router();
 
@@ -193,9 +194,8 @@ router.get("/projects/:projectId/calculations", (req, res) => {
 
 router.get("/materials", (req, res) => {
   const category = req.query["category"] as string | undefined;
-  const materials = category
-    ? MATERIALS.filter((m) => m.category === category)
-    : MATERIALS;
+  const all = [...MATERIALS, ...EXTRA_MATERIALS];
+  const materials = category ? all.filter((m) => m.category === category) : all;
   return res.json(materials);
 });
 

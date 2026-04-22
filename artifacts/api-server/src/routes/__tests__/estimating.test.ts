@@ -106,9 +106,24 @@ test("estimating end-to-end: import → contractor estimate → receipts → var
       // 5. Report template
       const tplRes = await fetch(`${baseUrl}/api/projects/proj-1/report-template`, {
         method: "POST", headers: auth,
-        body: JSON.stringify({ name: "KONTi Standard v2", columns: ["Category", "Item", "Qty", "Total"], headerLines: ["KONTi", "Casa Solar Rincón"] }),
+        body: JSON.stringify({ name: "KONTi Standard v2", columns: ["Category", "Item", "Qty", "Total"], headerLines: ["KONTi", "Casa Solar Rincón"], footer: "© KONTi 2026 Confidential" }),
       });
       assert.equal(tplRes.status, 200);
+
+      // 5b. Report template is retrievable for the PDF/report rendering pipeline
+      const tplGet = await fetch(`${baseUrl}/api/projects/proj-1/report-template`, { headers: auth });
+      assert.equal(tplGet.status, 200);
+      const tplBody = (await tplGet.json()) as { name: string; footer: string; headerLines: string[]; columns: string[] };
+      assert.equal(tplBody.name, "KONTi Standard v2");
+      assert.equal(tplBody.footer, "© KONTi 2026 Confidential");
+      assert.ok(tplBody.headerLines.includes("Casa Solar Rincón"));
+      assert.ok(tplBody.columns.includes("Total"));
+
+      // 5c. Imported materials are visible from the unified /api/materials catalog
+      const matsList = await fetch(`${baseUrl}/api/materials`, { headers: auth });
+      assert.equal(matsList.status, 200);
+      const allMats = (await matsList.json()) as Array<{ id: string; item: string }>;
+      assert.ok(allMats.some((m) => m.item === "Green Roof Membrane"), "imported material should appear in /api/materials");
 
       // 6. Variance report
       const varRes = await fetch(`${baseUrl}/api/projects/proj-1/variance-report`, { headers: auth });
