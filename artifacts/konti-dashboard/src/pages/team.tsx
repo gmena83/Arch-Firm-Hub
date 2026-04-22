@@ -35,24 +35,14 @@ const TEAM = [
     color: "bg-amber-700",
   },
   {
-    name: "Andrea Camacho",
+    name: "Nainoshka",
     title: "Environmental Construction Manager",
     titleEs: "Gerente de Construcción Ambiental",
-    email: "andrea@konti.com",
+    email: "nainoshka@konti.com",
     specialty: "Environmental Compliance & Permitting",
     specialtyEs: "Cumplimiento Ambiental y Permisos OGPE",
-    initials: "AC",
+    initials: "N",
     color: "bg-teal-700",
-  },
-  {
-    name: "Miranda Klopf",
-    title: "Sales, Marketing & Design",
-    titleEs: "Ventas, Mercadeo y Diseño",
-    email: "miranda@konti.com",
-    specialty: "Client Relations & Brand Communications",
-    specialtyEs: "Relaciones con Clientes y Comunicaciones de Marca",
-    initials: "MK",
-    color: "bg-purple-700",
   },
 ];
 

@@ -52,9 +52,9 @@ export function Sidebar() {
 
   const NavContent = () => (
     <div className="flex flex-col h-full">
-      <div className="px-6 py-5 border-b border-sidebar-border flex items-center justify-between">
-        <img src={logoWhite} alt="KONTi" className="h-7 w-auto" />
-        <div className="flex items-center gap-1">
+      <div className="px-4 py-5 border-b border-sidebar-border flex items-center justify-between gap-2">
+        <img src={logoWhite} alt="KONTi" className="h-6 w-auto max-w-[7.5rem] object-contain min-w-0" />
+        <div className="flex items-center gap-1 shrink-0">
           {showNotifications && <NotificationBell />}
           <LangToggle testId="lang-toggle-sidebar" />
         </div>
