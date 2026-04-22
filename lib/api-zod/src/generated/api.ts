@@ -196,6 +196,10 @@ export const GetProjectDocumentsResponseItem = zod.object({
     "construction",
     "design",
   ]),
+  designSubPhase: zod
+    .enum(["schematic_design", "design_development", "construction_documents"])
+    .optional()
+    .describe("Optional Phase-3 sub-phase tag (SD\/DD\/CD)."),
   isClientVisible: zod.boolean(),
   uploadedBy: zod.string(),
   uploadedAt: zod.string(),
@@ -246,6 +250,490 @@ export const GetProjectCalculationsResponse = zod.object({
   ),
   subtotalByCategory: zod.record(zod.string(), zod.number()),
   grandTotal: zod.number(),
+});
+
+/**
+ * @summary Get Phase-3 design state for a project (sub-phases, deliverables)
+ */
+export const GetProjectDesignParams = zod.object({
+  projectId: zod.coerce.string(),
+});
+
+export const GetProjectDesignResponse = zod.object({
+  projectId: zod.string(),
+  available: zod.boolean(),
+  isProjectInDesign: zod.boolean(),
+  state: zod
+    .union([
+      zod
+        .object({
+          currentSubPhase: zod.enum([
+            "schematic_design",
+            "design_development",
+            "construction_documents",
+            "complete",
+          ]),
+          subPhases: zod.object({
+            schematic_design: zod
+              .object({
+                deliverables: zod.array(
+                  zod.object({
+                    id: zod.string(),
+                    label: zod.string(),
+                    labelEs: zod.string(),
+                    status: zod.enum(["pending", "in_progress", "done"]),
+                    completedAt: zod.string().optional(),
+                  }),
+                ),
+                startedAt: zod.string().optional(),
+                completedAt: zod.string().optional(),
+              })
+              .optional(),
+            design_development: zod
+              .object({
+                deliverables: zod.array(
+                  zod.object({
+                    id: zod.string(),
+                    label: zod.string(),
+                    labelEs: zod.string(),
+                    status: zod.enum(["pending", "in_progress", "done"]),
+                    completedAt: zod.string().optional(),
+                  }),
+                ),
+                startedAt: zod.string().optional(),
+                completedAt: zod.string().optional(),
+              })
+              .optional(),
+            construction_documents: zod
+              .object({
+                deliverables: zod.array(
+                  zod.object({
+                    id: zod.string(),
+                    label: zod.string(),
+                    labelEs: zod.string(),
+                    status: zod.enum(["pending", "in_progress", "done"]),
+                    completedAt: zod.string().optional(),
+                  }),
+                ),
+                startedAt: zod.string().optional(),
+                completedAt: zod.string().optional(),
+              })
+              .optional(),
+          }),
+        })
+        .describe(
+          "Phase-3 design model. `subPhases` is the deliverables map keyed by sub-phase.",
+        ),
+      zod.null(),
+    ])
+    .optional(),
+  subPhaseOrder: zod
+    .array(
+      zod.enum([
+        "schematic_design",
+        "design_development",
+        "construction_documents",
+      ]),
+    )
+    .optional(),
+  subPhaseLabels: zod
+    .record(
+      zod.string(),
+      zod.object({
+        en: zod.string().optional(),
+        es: zod.string().optional(),
+      }),
+    )
+    .optional(),
+});
+
+/**
+ * @summary Update status of a single design deliverable
+ */
+export const UpdateDesignDeliverableParams = zod.object({
+  projectId: zod.coerce.string(),
+});
+
+export const UpdateDesignDeliverableBody = zod.object({
+  subPhase: zod.enum([
+    "schematic_design",
+    "design_development",
+    "construction_documents",
+  ]),
+  deliverableId: zod.string(),
+  status: zod.enum(["pending", "in_progress", "done"]),
+});
+
+/**
+ * @summary Advance project to the next design sub-phase (or to permits if CD complete)
+ */
+export const AdvanceDesignSubPhaseParams = zod.object({
+  projectId: zod.coerce.string(),
+});
+
+export const AdvanceDesignSubPhaseResponse = zod.object({
+  projectId: zod.string().optional(),
+  state: zod
+    .object({
+      currentSubPhase: zod.enum([
+        "schematic_design",
+        "design_development",
+        "construction_documents",
+        "complete",
+      ]),
+      subPhases: zod.object({
+        schematic_design: zod
+          .object({
+            deliverables: zod.array(
+              zod.object({
+                id: zod.string(),
+                label: zod.string(),
+                labelEs: zod.string(),
+                status: zod.enum(["pending", "in_progress", "done"]),
+                completedAt: zod.string().optional(),
+              }),
+            ),
+            startedAt: zod.string().optional(),
+            completedAt: zod.string().optional(),
+          })
+          .optional(),
+        design_development: zod
+          .object({
+            deliverables: zod.array(
+              zod.object({
+                id: zod.string(),
+                label: zod.string(),
+                labelEs: zod.string(),
+                status: zod.enum(["pending", "in_progress", "done"]),
+                completedAt: zod.string().optional(),
+              }),
+            ),
+            startedAt: zod.string().optional(),
+            completedAt: zod.string().optional(),
+          })
+          .optional(),
+        construction_documents: zod
+          .object({
+            deliverables: zod.array(
+              zod.object({
+                id: zod.string(),
+                label: zod.string(),
+                labelEs: zod.string(),
+                status: zod.enum(["pending", "in_progress", "done"]),
+                completedAt: zod.string().optional(),
+              }),
+            ),
+            startedAt: zod.string().optional(),
+            completedAt: zod.string().optional(),
+          })
+          .optional(),
+      }),
+    })
+    .optional()
+    .describe(
+      "Phase-3 design model. `subPhases` is the deliverables map keyed by sub-phase.",
+    ),
+  project: zod
+    .object({
+      id: zod.string(),
+      name: zod.string(),
+      nameEs: zod.string().optional(),
+      clientName: zod.string(),
+      location: zod.string(),
+      city: zod.string(),
+      phase: zod.enum([
+        "discovery",
+        "consultation",
+        "pre_design",
+        "schematic_design",
+        "design_development",
+        "construction_documents",
+        "permits",
+        "construction",
+        "completed",
+      ]),
+      phaseLabel: zod.string(),
+      phaseLabelEs: zod.string(),
+      phaseNumber: zod.number(),
+      progressPercent: zod.number(),
+      budgetAllocated: zod.number(),
+      budgetUsed: zod.number(),
+      startDate: zod.string(),
+      estimatedEndDate: zod.string(),
+      description: zod.string().optional(),
+      coverImage: zod.string().optional(),
+      asanaGid: zod.string().optional(),
+      gammaReportUrl: zod.string().optional(),
+      teamMembers: zod.array(zod.string()).optional(),
+      status: zod.enum(["active", "on_hold", "completed"]),
+    })
+    .optional(),
+});
+
+/**
+ * @summary List comparison-view proposals for a project
+ */
+export const GetProjectProposalsParams = zod.object({
+  projectId: zod.coerce.string(),
+});
+
+export const GetProjectProposalsResponse = zod.object({
+  projectId: zod.string().optional(),
+  proposals: zod
+    .array(
+      zod.object({
+        id: zod.string(),
+        projectId: zod.string(),
+        scenario: zod.enum(["economy", "standard", "premium"]),
+        title: zod.string(),
+        titleEs: zod.string().optional(),
+        summary: zod.string().optional(),
+        summaryEs: zod.string().optional(),
+        totalCost: zod.number(),
+        timelineWeeks: zod.number().optional(),
+        highlights: zod.array(zod.string()).optional(),
+        highlightsEs: zod.array(zod.string()).optional(),
+        status: zod.enum(["pending", "approved", "rejected"]),
+        decidedBy: zod.string().optional(),
+        decidedAt: zod.string().optional(),
+      }),
+    )
+    .optional(),
+});
+
+/**
+ * @summary Client approves a proposal — auto-advances project to Permits
+ */
+export const ApproveProposalParams = zod.object({
+  projectId: zod.coerce.string(),
+  proposalId: zod.coerce.string(),
+});
+
+export const ApproveProposalResponse = zod.object({
+  projectId: zod.string().optional(),
+  proposals: zod
+    .array(
+      zod.object({
+        id: zod.string(),
+        projectId: zod.string(),
+        scenario: zod.enum(["economy", "standard", "premium"]),
+        title: zod.string(),
+        titleEs: zod.string().optional(),
+        summary: zod.string().optional(),
+        summaryEs: zod.string().optional(),
+        totalCost: zod.number(),
+        timelineWeeks: zod.number().optional(),
+        highlights: zod.array(zod.string()).optional(),
+        highlightsEs: zod.array(zod.string()).optional(),
+        status: zod.enum(["pending", "approved", "rejected"]),
+        decidedBy: zod.string().optional(),
+        decidedAt: zod.string().optional(),
+      }),
+    )
+    .optional(),
+  approved: zod
+    .object({
+      id: zod.string(),
+      projectId: zod.string(),
+      scenario: zod.enum(["economy", "standard", "premium"]),
+      title: zod.string(),
+      titleEs: zod.string().optional(),
+      summary: zod.string().optional(),
+      summaryEs: zod.string().optional(),
+      totalCost: zod.number(),
+      timelineWeeks: zod.number().optional(),
+      highlights: zod.array(zod.string()).optional(),
+      highlightsEs: zod.array(zod.string()).optional(),
+      status: zod.enum(["pending", "approved", "rejected"]),
+      decidedBy: zod.string().optional(),
+      decidedAt: zod.string().optional(),
+    })
+    .optional(),
+  project: zod
+    .object({
+      id: zod.string(),
+      name: zod.string(),
+      nameEs: zod.string().optional(),
+      clientName: zod.string(),
+      location: zod.string(),
+      city: zod.string(),
+      phase: zod.enum([
+        "discovery",
+        "consultation",
+        "pre_design",
+        "schematic_design",
+        "design_development",
+        "construction_documents",
+        "permits",
+        "construction",
+        "completed",
+      ]),
+      phaseLabel: zod.string(),
+      phaseLabelEs: zod.string(),
+      phaseNumber: zod.number(),
+      progressPercent: zod.number(),
+      budgetAllocated: zod.number(),
+      budgetUsed: zod.number(),
+      startDate: zod.string(),
+      estimatedEndDate: zod.string(),
+      description: zod.string().optional(),
+      coverImage: zod.string().optional(),
+      asanaGid: zod.string().optional(),
+      gammaReportUrl: zod.string().optional(),
+      teamMembers: zod.array(zod.string()).optional(),
+      status: zod.enum(["active", "on_hold", "completed"]),
+    })
+    .optional(),
+});
+
+/**
+ * @summary List change orders + totals
+ */
+export const GetProjectChangeOrdersParams = zod.object({
+  projectId: zod.coerce.string(),
+});
+
+export const GetProjectChangeOrdersResponse = zod.object({
+  projectId: zod.string(),
+  changeOrders: zod.array(
+    zod.object({
+      id: zod.string(),
+      projectId: zod.string(),
+      number: zod.string(),
+      title: zod.string(),
+      titleEs: zod.string().optional(),
+      description: zod.string().optional(),
+      descriptionEs: zod.string().optional(),
+      amountDelta: zod.number(),
+      scheduleImpactDays: zod.number(),
+      reason: zod.string().optional(),
+      reasonEs: zod.string().optional(),
+      requestedBy: zod.string().optional(),
+      requestedAt: zod.string().optional(),
+      status: zod.enum(["pending", "approved", "rejected"]),
+      decidedBy: zod.string().optional(),
+      decidedAt: zod.string().optional(),
+      decisionNote: zod.string().optional(),
+      outsideOfScope: zod
+        .boolean()
+        .optional()
+        .describe(
+          "True if the change adds work beyond the signed proposal scope.",
+        ),
+    }),
+  ),
+  totals: zod.object({
+    approvedDelta: zod.number(),
+    pendingDelta: zod.number(),
+    approvedDays: zod.number(),
+  }),
+});
+
+/**
+ * @summary Create a new change order (team / admin)
+ */
+export const CreateChangeOrderParams = zod.object({
+  projectId: zod.coerce.string(),
+});
+
+export const CreateChangeOrderBody = zod.object({
+  title: zod.string(),
+  titleEs: zod.string().optional(),
+  description: zod.string().optional(),
+  descriptionEs: zod.string().optional(),
+  amountDelta: zod.number(),
+  scheduleImpactDays: zod.number(),
+  reason: zod.string().optional(),
+  reasonEs: zod.string().optional(),
+  outsideOfScope: zod
+    .boolean()
+    .optional()
+    .describe(
+      "Flag indicating the work falls outside the signed proposal scope.",
+    ),
+});
+
+export const CreateChangeOrderResponse = zod.object({
+  projectId: zod.string().optional(),
+  changeOrder: zod
+    .object({
+      id: zod.string(),
+      projectId: zod.string(),
+      number: zod.string(),
+      title: zod.string(),
+      titleEs: zod.string().optional(),
+      description: zod.string().optional(),
+      descriptionEs: zod.string().optional(),
+      amountDelta: zod.number(),
+      scheduleImpactDays: zod.number(),
+      reason: zod.string().optional(),
+      reasonEs: zod.string().optional(),
+      requestedBy: zod.string().optional(),
+      requestedAt: zod.string().optional(),
+      status: zod.enum(["pending", "approved", "rejected"]),
+      decidedBy: zod.string().optional(),
+      decidedAt: zod.string().optional(),
+      decisionNote: zod.string().optional(),
+      outsideOfScope: zod
+        .boolean()
+        .optional()
+        .describe(
+          "True if the change adds work beyond the signed proposal scope.",
+        ),
+    })
+    .optional(),
+});
+
+/**
+ * @summary Delete a pending change order (team / admin)
+ */
+export const DeleteChangeOrderParams = zod.object({
+  projectId: zod.coerce.string(),
+  coId: zod.coerce.string(),
+});
+
+/**
+ * @summary Architect / admin sets the change-order status (team-only)
+ */
+export const SetChangeOrderStatusParams = zod.object({
+  projectId: zod.coerce.string(),
+  coId: zod.coerce.string(),
+});
+
+export const SetChangeOrderStatusBody = zod.object({
+  status: zod.enum(["pending", "approved", "rejected"]),
+  note: zod.string().optional(),
+});
+
+export const SetChangeOrderStatusResponse = zod.object({
+  projectId: zod.string().optional(),
+  changeOrder: zod
+    .object({
+      id: zod.string(),
+      projectId: zod.string(),
+      number: zod.string(),
+      title: zod.string(),
+      titleEs: zod.string().optional(),
+      description: zod.string().optional(),
+      descriptionEs: zod.string().optional(),
+      amountDelta: zod.number(),
+      scheduleImpactDays: zod.number(),
+      reason: zod.string().optional(),
+      reasonEs: zod.string().optional(),
+      requestedBy: zod.string().optional(),
+      requestedAt: zod.string().optional(),
+      status: zod.enum(["pending", "approved", "rejected"]),
+      decidedBy: zod.string().optional(),
+      decidedAt: zod.string().optional(),
+      decisionNote: zod.string().optional(),
+      outsideOfScope: zod
+        .boolean()
+        .optional()
+        .describe(
+          "True if the change adds work beyond the signed proposal scope.",
+        ),
+    })
+    .optional(),
 });
 
 /**

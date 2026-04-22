@@ -18,13 +18,20 @@ import type {
 
 import type {
   ActivityItem,
+  AdvanceDesignSubPhase200,
+  ApproveProposal200,
   CalculatorSummary,
+  ChangeOrderResponse,
   ChatRequest,
   ChatResponse,
+  CreateChangeOrder200,
+  CreateChangeOrderBody,
   DashboardSummary,
+  DesignStateResponse,
   Document,
   ErrorResponse,
   GetProjectDocumentsParams,
+  GetProjectProposals200,
   HealthStatus,
   Lead,
   LeadAcceptResponse,
@@ -37,6 +44,9 @@ import type {
   Project,
   ProjectTask,
   RefreshMaterialPricesParams,
+  SetChangeOrderStatus200,
+  SetChangeOrderStatusBody,
+  UpdateDesignDeliverableBody,
   WeatherStatus,
 } from "./api.schemas";
 
@@ -761,6 +771,824 @@ export function useGetProjectCalculations<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Get Phase-3 design state for a project (sub-phases, deliverables)
+ */
+export const getGetProjectDesignUrl = (projectId: string) => {
+  return `/api/projects/${projectId}/design`;
+};
+
+export const getProjectDesign = async (
+  projectId: string,
+  options?: RequestInit,
+): Promise<DesignStateResponse> => {
+  return customFetch<DesignStateResponse>(getGetProjectDesignUrl(projectId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetProjectDesignQueryKey = (projectId: string) => {
+  return [`/api/projects/${projectId}/design`] as const;
+};
+
+export const getGetProjectDesignQueryOptions = <
+  TData = Awaited<ReturnType<typeof getProjectDesign>>,
+  TError = ErrorType<unknown>,
+>(
+  projectId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getProjectDesign>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetProjectDesignQueryKey(projectId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getProjectDesign>>
+  > = ({ signal }) =>
+    getProjectDesign(projectId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!projectId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getProjectDesign>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetProjectDesignQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getProjectDesign>>
+>;
+export type GetProjectDesignQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get Phase-3 design state for a project (sub-phases, deliverables)
+ */
+
+export function useGetProjectDesign<
+  TData = Awaited<ReturnType<typeof getProjectDesign>>,
+  TError = ErrorType<unknown>,
+>(
+  projectId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getProjectDesign>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetProjectDesignQueryOptions(projectId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Update status of a single design deliverable
+ */
+export const getUpdateDesignDeliverableUrl = (projectId: string) => {
+  return `/api/projects/${projectId}/design/deliverable`;
+};
+
+export const updateDesignDeliverable = async (
+  projectId: string,
+  updateDesignDeliverableBody: UpdateDesignDeliverableBody,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getUpdateDesignDeliverableUrl(projectId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateDesignDeliverableBody),
+  });
+};
+
+export const getUpdateDesignDeliverableMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateDesignDeliverable>>,
+    TError,
+    { projectId: string; data: BodyType<UpdateDesignDeliverableBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateDesignDeliverable>>,
+  TError,
+  { projectId: string; data: BodyType<UpdateDesignDeliverableBody> },
+  TContext
+> => {
+  const mutationKey = ["updateDesignDeliverable"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateDesignDeliverable>>,
+    { projectId: string; data: BodyType<UpdateDesignDeliverableBody> }
+  > = (props) => {
+    const { projectId, data } = props ?? {};
+
+    return updateDesignDeliverable(projectId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateDesignDeliverableMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateDesignDeliverable>>
+>;
+export type UpdateDesignDeliverableMutationBody =
+  BodyType<UpdateDesignDeliverableBody>;
+export type UpdateDesignDeliverableMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Update status of a single design deliverable
+ */
+export const useUpdateDesignDeliverable = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateDesignDeliverable>>,
+    TError,
+    { projectId: string; data: BodyType<UpdateDesignDeliverableBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateDesignDeliverable>>,
+  TError,
+  { projectId: string; data: BodyType<UpdateDesignDeliverableBody> },
+  TContext
+> => {
+  return useMutation(getUpdateDesignDeliverableMutationOptions(options));
+};
+
+/**
+ * @summary Advance project to the next design sub-phase (or to permits if CD complete)
+ */
+export const getAdvanceDesignSubPhaseUrl = (projectId: string) => {
+  return `/api/projects/${projectId}/design/advance-sub-phase`;
+};
+
+export const advanceDesignSubPhase = async (
+  projectId: string,
+  options?: RequestInit,
+): Promise<AdvanceDesignSubPhase200> => {
+  return customFetch<AdvanceDesignSubPhase200>(
+    getAdvanceDesignSubPhaseUrl(projectId),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+};
+
+export const getAdvanceDesignSubPhaseMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof advanceDesignSubPhase>>,
+    TError,
+    { projectId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof advanceDesignSubPhase>>,
+  TError,
+  { projectId: string },
+  TContext
+> => {
+  const mutationKey = ["advanceDesignSubPhase"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof advanceDesignSubPhase>>,
+    { projectId: string }
+  > = (props) => {
+    const { projectId } = props ?? {};
+
+    return advanceDesignSubPhase(projectId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AdvanceDesignSubPhaseMutationResult = NonNullable<
+  Awaited<ReturnType<typeof advanceDesignSubPhase>>
+>;
+
+export type AdvanceDesignSubPhaseMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Advance project to the next design sub-phase (or to permits if CD complete)
+ */
+export const useAdvanceDesignSubPhase = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof advanceDesignSubPhase>>,
+    TError,
+    { projectId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof advanceDesignSubPhase>>,
+  TError,
+  { projectId: string },
+  TContext
+> => {
+  return useMutation(getAdvanceDesignSubPhaseMutationOptions(options));
+};
+
+/**
+ * @summary List comparison-view proposals for a project
+ */
+export const getGetProjectProposalsUrl = (projectId: string) => {
+  return `/api/projects/${projectId}/proposals`;
+};
+
+export const getProjectProposals = async (
+  projectId: string,
+  options?: RequestInit,
+): Promise<GetProjectProposals200> => {
+  return customFetch<GetProjectProposals200>(
+    getGetProjectProposalsUrl(projectId),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetProjectProposalsQueryKey = (projectId: string) => {
+  return [`/api/projects/${projectId}/proposals`] as const;
+};
+
+export const getGetProjectProposalsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getProjectProposals>>,
+  TError = ErrorType<unknown>,
+>(
+  projectId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getProjectProposals>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetProjectProposalsQueryKey(projectId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getProjectProposals>>
+  > = ({ signal }) =>
+    getProjectProposals(projectId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!projectId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getProjectProposals>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetProjectProposalsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getProjectProposals>>
+>;
+export type GetProjectProposalsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List comparison-view proposals for a project
+ */
+
+export function useGetProjectProposals<
+  TData = Awaited<ReturnType<typeof getProjectProposals>>,
+  TError = ErrorType<unknown>,
+>(
+  projectId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getProjectProposals>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetProjectProposalsQueryOptions(projectId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Client approves a proposal — auto-advances project to Permits
+ */
+export const getApproveProposalUrl = (
+  projectId: string,
+  proposalId: string,
+) => {
+  return `/api/projects/${projectId}/proposals/${proposalId}/approve`;
+};
+
+export const approveProposal = async (
+  projectId: string,
+  proposalId: string,
+  options?: RequestInit,
+): Promise<ApproveProposal200> => {
+  return customFetch<ApproveProposal200>(
+    getApproveProposalUrl(projectId, proposalId),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+};
+
+export const getApproveProposalMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof approveProposal>>,
+    TError,
+    { projectId: string; proposalId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof approveProposal>>,
+  TError,
+  { projectId: string; proposalId: string },
+  TContext
+> => {
+  const mutationKey = ["approveProposal"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof approveProposal>>,
+    { projectId: string; proposalId: string }
+  > = (props) => {
+    const { projectId, proposalId } = props ?? {};
+
+    return approveProposal(projectId, proposalId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ApproveProposalMutationResult = NonNullable<
+  Awaited<ReturnType<typeof approveProposal>>
+>;
+
+export type ApproveProposalMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Client approves a proposal — auto-advances project to Permits
+ */
+export const useApproveProposal = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof approveProposal>>,
+    TError,
+    { projectId: string; proposalId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof approveProposal>>,
+  TError,
+  { projectId: string; proposalId: string },
+  TContext
+> => {
+  return useMutation(getApproveProposalMutationOptions(options));
+};
+
+/**
+ * @summary List change orders + totals
+ */
+export const getGetProjectChangeOrdersUrl = (projectId: string) => {
+  return `/api/projects/${projectId}/change-orders`;
+};
+
+export const getProjectChangeOrders = async (
+  projectId: string,
+  options?: RequestInit,
+): Promise<ChangeOrderResponse> => {
+  return customFetch<ChangeOrderResponse>(
+    getGetProjectChangeOrdersUrl(projectId),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetProjectChangeOrdersQueryKey = (projectId: string) => {
+  return [`/api/projects/${projectId}/change-orders`] as const;
+};
+
+export const getGetProjectChangeOrdersQueryOptions = <
+  TData = Awaited<ReturnType<typeof getProjectChangeOrders>>,
+  TError = ErrorType<unknown>,
+>(
+  projectId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getProjectChangeOrders>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetProjectChangeOrdersQueryKey(projectId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getProjectChangeOrders>>
+  > = ({ signal }) =>
+    getProjectChangeOrders(projectId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!projectId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getProjectChangeOrders>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetProjectChangeOrdersQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getProjectChangeOrders>>
+>;
+export type GetProjectChangeOrdersQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List change orders + totals
+ */
+
+export function useGetProjectChangeOrders<
+  TData = Awaited<ReturnType<typeof getProjectChangeOrders>>,
+  TError = ErrorType<unknown>,
+>(
+  projectId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getProjectChangeOrders>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetProjectChangeOrdersQueryOptions(
+    projectId,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a new change order (team / admin)
+ */
+export const getCreateChangeOrderUrl = (projectId: string) => {
+  return `/api/projects/${projectId}/change-orders`;
+};
+
+export const createChangeOrder = async (
+  projectId: string,
+  createChangeOrderBody: CreateChangeOrderBody,
+  options?: RequestInit,
+): Promise<CreateChangeOrder200> => {
+  return customFetch<CreateChangeOrder200>(getCreateChangeOrderUrl(projectId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createChangeOrderBody),
+  });
+};
+
+export const getCreateChangeOrderMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createChangeOrder>>,
+    TError,
+    { projectId: string; data: BodyType<CreateChangeOrderBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createChangeOrder>>,
+  TError,
+  { projectId: string; data: BodyType<CreateChangeOrderBody> },
+  TContext
+> => {
+  const mutationKey = ["createChangeOrder"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createChangeOrder>>,
+    { projectId: string; data: BodyType<CreateChangeOrderBody> }
+  > = (props) => {
+    const { projectId, data } = props ?? {};
+
+    return createChangeOrder(projectId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateChangeOrderMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createChangeOrder>>
+>;
+export type CreateChangeOrderMutationBody = BodyType<CreateChangeOrderBody>;
+export type CreateChangeOrderMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Create a new change order (team / admin)
+ */
+export const useCreateChangeOrder = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createChangeOrder>>,
+    TError,
+    { projectId: string; data: BodyType<CreateChangeOrderBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createChangeOrder>>,
+  TError,
+  { projectId: string; data: BodyType<CreateChangeOrderBody> },
+  TContext
+> => {
+  return useMutation(getCreateChangeOrderMutationOptions(options));
+};
+
+/**
+ * @summary Delete a pending change order (team / admin)
+ */
+export const getDeleteChangeOrderUrl = (projectId: string, coId: string) => {
+  return `/api/projects/${projectId}/change-orders/${coId}`;
+};
+
+export const deleteChangeOrder = async (
+  projectId: string,
+  coId: string,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteChangeOrderUrl(projectId, coId), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteChangeOrderMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteChangeOrder>>,
+    TError,
+    { projectId: string; coId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteChangeOrder>>,
+  TError,
+  { projectId: string; coId: string },
+  TContext
+> => {
+  const mutationKey = ["deleteChangeOrder"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteChangeOrder>>,
+    { projectId: string; coId: string }
+  > = (props) => {
+    const { projectId, coId } = props ?? {};
+
+    return deleteChangeOrder(projectId, coId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteChangeOrderMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteChangeOrder>>
+>;
+
+export type DeleteChangeOrderMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Delete a pending change order (team / admin)
+ */
+export const useDeleteChangeOrder = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteChangeOrder>>,
+    TError,
+    { projectId: string; coId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteChangeOrder>>,
+  TError,
+  { projectId: string; coId: string },
+  TContext
+> => {
+  return useMutation(getDeleteChangeOrderMutationOptions(options));
+};
+
+/**
+ * @summary Architect / admin sets the change-order status (team-only)
+ */
+export const getSetChangeOrderStatusUrl = (projectId: string, coId: string) => {
+  return `/api/projects/${projectId}/change-orders/${coId}/status`;
+};
+
+export const setChangeOrderStatus = async (
+  projectId: string,
+  coId: string,
+  setChangeOrderStatusBody: SetChangeOrderStatusBody,
+  options?: RequestInit,
+): Promise<SetChangeOrderStatus200> => {
+  return customFetch<SetChangeOrderStatus200>(
+    getSetChangeOrderStatusUrl(projectId, coId),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(setChangeOrderStatusBody),
+    },
+  );
+};
+
+export const getSetChangeOrderStatusMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setChangeOrderStatus>>,
+    TError,
+    {
+      projectId: string;
+      coId: string;
+      data: BodyType<SetChangeOrderStatusBody>;
+    },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof setChangeOrderStatus>>,
+  TError,
+  { projectId: string; coId: string; data: BodyType<SetChangeOrderStatusBody> },
+  TContext
+> => {
+  const mutationKey = ["setChangeOrderStatus"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof setChangeOrderStatus>>,
+    {
+      projectId: string;
+      coId: string;
+      data: BodyType<SetChangeOrderStatusBody>;
+    }
+  > = (props) => {
+    const { projectId, coId, data } = props ?? {};
+
+    return setChangeOrderStatus(projectId, coId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SetChangeOrderStatusMutationResult = NonNullable<
+  Awaited<ReturnType<typeof setChangeOrderStatus>>
+>;
+export type SetChangeOrderStatusMutationBody =
+  BodyType<SetChangeOrderStatusBody>;
+export type SetChangeOrderStatusMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Architect / admin sets the change-order status (team-only)
+ */
+export const useSetChangeOrderStatus = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setChangeOrderStatus>>,
+    TError,
+    {
+      projectId: string;
+      coId: string;
+      data: BodyType<SetChangeOrderStatusBody>;
+    },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof setChangeOrderStatus>>,
+  TError,
+  { projectId: string; coId: string; data: BodyType<SetChangeOrderStatusBody> },
+  TContext
+> => {
+  return useMutation(getSetChangeOrderStatusMutationOptions(options));
+};
 
 /**
  * @summary Export project report as PDF

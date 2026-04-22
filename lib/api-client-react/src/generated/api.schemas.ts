@@ -178,12 +178,26 @@ export const DocumentCategory = {
   design: "design",
 } as const;
 
+/**
+ * Optional Phase-3 sub-phase tag (SD/DD/CD).
+ */
+export type DocumentDesignSubPhase =
+  (typeof DocumentDesignSubPhase)[keyof typeof DocumentDesignSubPhase];
+
+export const DocumentDesignSubPhase = {
+  schematic_design: "schematic_design",
+  design_development: "design_development",
+  construction_documents: "construction_documents",
+} as const;
+
 export interface Document {
   id: string;
   projectId: string;
   name: string;
   type: DocumentType;
   category: DocumentCategory;
+  /** Optional Phase-3 sub-phase tag (SD/DD/CD). */
+  designSubPhase?: DocumentDesignSubPhase;
   isClientVisible: boolean;
   uploadedBy: string;
   uploadedAt: string;
@@ -465,8 +479,237 @@ export interface LeadAcceptResponse {
   asanaMessage: string;
 }
 
+export type DeliverableStatus =
+  (typeof DeliverableStatus)[keyof typeof DeliverableStatus];
+
+export const DeliverableStatus = {
+  pending: "pending",
+  in_progress: "in_progress",
+  done: "done",
+} as const;
+
+export interface Deliverable {
+  id: string;
+  label: string;
+  labelEs: string;
+  status: DeliverableStatus;
+  completedAt?: string;
+}
+
+export interface DesignSubPhaseState {
+  deliverables: Deliverable[];
+  startedAt?: string;
+  completedAt?: string;
+}
+
+export type DesignStateCurrentSubPhase =
+  (typeof DesignStateCurrentSubPhase)[keyof typeof DesignStateCurrentSubPhase];
+
+export const DesignStateCurrentSubPhase = {
+  schematic_design: "schematic_design",
+  design_development: "design_development",
+  construction_documents: "construction_documents",
+  complete: "complete",
+} as const;
+
+export type DesignStateSubPhases = {
+  schematic_design?: DesignSubPhaseState;
+  design_development?: DesignSubPhaseState;
+  construction_documents?: DesignSubPhaseState;
+};
+
+/**
+ * Phase-3 design model. `subPhases` is the deliverables map keyed by sub-phase.
+ */
+export interface DesignState {
+  currentSubPhase: DesignStateCurrentSubPhase;
+  subPhases: DesignStateSubPhases;
+}
+
+export type DesignStateResponseSubPhaseOrderItem =
+  (typeof DesignStateResponseSubPhaseOrderItem)[keyof typeof DesignStateResponseSubPhaseOrderItem];
+
+export const DesignStateResponseSubPhaseOrderItem = {
+  schematic_design: "schematic_design",
+  design_development: "design_development",
+  construction_documents: "construction_documents",
+} as const;
+
+export type DesignStateResponseSubPhaseLabels = {
+  [key: string]: {
+    en?: string;
+    es?: string;
+  };
+};
+
+export interface DesignStateResponse {
+  projectId: string;
+  available: boolean;
+  isProjectInDesign: boolean;
+  state?: DesignState | null;
+  subPhaseOrder?: DesignStateResponseSubPhaseOrderItem[];
+  subPhaseLabels?: DesignStateResponseSubPhaseLabels;
+}
+
+export type ProposalScenario =
+  (typeof ProposalScenario)[keyof typeof ProposalScenario];
+
+export const ProposalScenario = {
+  economy: "economy",
+  standard: "standard",
+  premium: "premium",
+} as const;
+
+export type ProposalStatus =
+  (typeof ProposalStatus)[keyof typeof ProposalStatus];
+
+export const ProposalStatus = {
+  pending: "pending",
+  approved: "approved",
+  rejected: "rejected",
+} as const;
+
+export interface Proposal {
+  id: string;
+  projectId: string;
+  scenario: ProposalScenario;
+  title: string;
+  titleEs?: string;
+  summary?: string;
+  summaryEs?: string;
+  totalCost: number;
+  timelineWeeks?: number;
+  highlights?: string[];
+  highlightsEs?: string[];
+  status: ProposalStatus;
+  decidedBy?: string;
+  decidedAt?: string;
+}
+
+export type ChangeOrderStatus =
+  (typeof ChangeOrderStatus)[keyof typeof ChangeOrderStatus];
+
+export const ChangeOrderStatus = {
+  pending: "pending",
+  approved: "approved",
+  rejected: "rejected",
+} as const;
+
+export interface ChangeOrder {
+  id: string;
+  projectId: string;
+  number: string;
+  title: string;
+  titleEs?: string;
+  description?: string;
+  descriptionEs?: string;
+  amountDelta: number;
+  scheduleImpactDays: number;
+  reason?: string;
+  reasonEs?: string;
+  requestedBy?: string;
+  requestedAt?: string;
+  status: ChangeOrderStatus;
+  decidedBy?: string;
+  decidedAt?: string;
+  decisionNote?: string;
+  /** True if the change adds work beyond the signed proposal scope. */
+  outsideOfScope?: boolean;
+}
+
+export type ChangeOrderResponseTotals = {
+  approvedDelta: number;
+  pendingDelta: number;
+  approvedDays: number;
+};
+
+export interface ChangeOrderResponse {
+  projectId: string;
+  changeOrders: ChangeOrder[];
+  totals: ChangeOrderResponseTotals;
+}
+
 export type GetProjectDocumentsParams = {
   clientVisible?: boolean;
+};
+
+export type UpdateDesignDeliverableBodySubPhase =
+  (typeof UpdateDesignDeliverableBodySubPhase)[keyof typeof UpdateDesignDeliverableBodySubPhase];
+
+export const UpdateDesignDeliverableBodySubPhase = {
+  schematic_design: "schematic_design",
+  design_development: "design_development",
+  construction_documents: "construction_documents",
+} as const;
+
+export type UpdateDesignDeliverableBodyStatus =
+  (typeof UpdateDesignDeliverableBodyStatus)[keyof typeof UpdateDesignDeliverableBodyStatus];
+
+export const UpdateDesignDeliverableBodyStatus = {
+  pending: "pending",
+  in_progress: "in_progress",
+  done: "done",
+} as const;
+
+export type UpdateDesignDeliverableBody = {
+  subPhase: UpdateDesignDeliverableBodySubPhase;
+  deliverableId: string;
+  status: UpdateDesignDeliverableBodyStatus;
+};
+
+export type AdvanceDesignSubPhase200 = {
+  projectId?: string;
+  state?: DesignState;
+  project?: Project;
+};
+
+export type GetProjectProposals200 = {
+  projectId?: string;
+  proposals?: Proposal[];
+};
+
+export type ApproveProposal200 = {
+  projectId?: string;
+  proposals?: Proposal[];
+  approved?: Proposal;
+  project?: Project;
+};
+
+export type CreateChangeOrderBody = {
+  title: string;
+  titleEs?: string;
+  description?: string;
+  descriptionEs?: string;
+  amountDelta: number;
+  scheduleImpactDays: number;
+  reason?: string;
+  reasonEs?: string;
+  /** Flag indicating the work falls outside the signed proposal scope. */
+  outsideOfScope?: boolean;
+};
+
+export type CreateChangeOrder200 = {
+  projectId?: string;
+  changeOrder?: ChangeOrder;
+};
+
+export type SetChangeOrderStatusBodyStatus =
+  (typeof SetChangeOrderStatusBodyStatus)[keyof typeof SetChangeOrderStatusBodyStatus];
+
+export const SetChangeOrderStatusBodyStatus = {
+  pending: "pending",
+  approved: "approved",
+  rejected: "rejected",
+} as const;
+
+export type SetChangeOrderStatusBody = {
+  status: SetChangeOrderStatusBodyStatus;
+  note?: string;
+};
+
+export type SetChangeOrderStatus200 = {
+  projectId?: string;
+  changeOrder?: ChangeOrder;
 };
 
 export type ListMaterialsParams = {
