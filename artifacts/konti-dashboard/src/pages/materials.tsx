@@ -113,7 +113,7 @@ export default function MaterialsPage() {
 
             <div className="flex items-center gap-2 shrink-0">
             <Link
-              href="/calculator"
+              href="/calculator?tab=imports"
               data-testid="btn-import-materials"
               className="flex items-center gap-2 px-4 py-2 bg-card hover:bg-muted text-foreground border border-card-border text-sm font-semibold rounded-md transition-colors"
             >
