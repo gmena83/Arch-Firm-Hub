@@ -64,6 +64,78 @@ router.get("/projects", (_req, res) => {
   return res.json(PROJECTS);
 });
 
+router.post("/projects", requireRole(["team", "admin", "superadmin"]), (req, res) => {
+  const body = (req.body ?? {}) as Record<string, unknown>;
+
+  const name = typeof body["name"] === "string" ? body["name"].trim() : "";
+  const clientName = typeof body["clientName"] === "string" ? body["clientName"].trim() : "";
+  const location = typeof body["location"] === "string" ? body["location"].trim() : "";
+  const description = typeof body["description"] === "string" ? body["description"].trim() : "";
+  const budgetAllocatedRaw = body["budgetAllocated"];
+  const budgetAllocated = typeof budgetAllocatedRaw === "number" ? budgetAllocatedRaw : 0;
+  const clientUserIdRaw = body["clientUserId"];
+  const clientUserId = typeof clientUserIdRaw === "string" && clientUserIdRaw.length > 0 ? clientUserIdRaw : undefined;
+
+  const fieldErrors: Record<string, string> = {};
+  if (!name) fieldErrors["name"] = "required";
+  if (!clientName) fieldErrors["clientName"] = "required";
+  if (!location) fieldErrors["location"] = "required";
+  if (typeof budgetAllocatedRaw !== "number" || !isFinite(budgetAllocated) || budgetAllocated < 0) {
+    fieldErrors["budgetAllocated"] = "must be a non-negative number";
+  }
+  if (Object.keys(fieldErrors).length > 0) {
+    return res.status(400).json({
+      error: "invalid_payload",
+      message: "Missing or invalid fields",
+      messageEs: "Faltan campos requeridos o son inválidos",
+      fields: fieldErrors,
+    });
+  }
+
+  // Default new projects to "discovery" phase, mirroring the lead → project synthesis path.
+  const phase = "discovery" as const;
+  const labels = PHASE_LABELS[phase];
+  const projectId = `proj-${Date.now()}`;
+  const today = new Date().toISOString().slice(0, 10);
+  const oneYearOut = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+  const newProject = {
+    id: projectId,
+    name,
+    nameEs: name,
+    clientName,
+    location,
+    city: location.split(",")[0]?.trim() ?? location,
+    phase,
+    phaseLabel: labels.en,
+    phaseLabelEs: labels.es,
+    phaseNumber: 1,
+    progressPercent: 0,
+    budgetAllocated,
+    budgetUsed: 0,
+    startDate: today,
+    estimatedEndDate: oneYearOut,
+    description: description || `New project for ${clientName}.`,
+    coverImage: "https://images.unsplash.com/photo-1503387762-592deb58ef4e?w=800&auto=format&fit=crop",
+    asanaGid: `auto-${Date.now()}`,
+    gammaReportUrl: `/projects/${projectId}/report`,
+    teamMembers: [(req as { user?: { name?: string } }).user?.name ?? "Team"],
+    status: "active" as const,
+    ...(clientUserId ? { clientUserId } : {}),
+  };
+
+  (PROJECTS as Array<typeof newProject>).push(newProject);
+
+  appendActivity(projectId, {
+    type: "phase_change",
+    actor: (req as { user?: { name?: string } }).user?.name ?? "Team",
+    description: `Project "${name}" created in Discovery phase`,
+    descriptionEs: `Proyecto "${name}" creado en fase Descubrimiento`,
+  });
+
+  return res.status(201).json(newProject);
+});
+
 router.get("/projects/:projectId", (req, res) => {
   const project = PROJECTS.find((p) => p.id === req.params["projectId"]);
   if (!project) {

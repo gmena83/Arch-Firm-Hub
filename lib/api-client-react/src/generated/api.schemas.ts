@@ -41,6 +41,15 @@ export interface LoginResponse {
   user: User;
 }
 
+export interface ProjectCreateRequest {
+  name: string;
+  clientName: string;
+  location: string;
+  budgetAllocated: number;
+  description?: string;
+  clientUserId?: string;
+}
+
 export type ProjectPhase = (typeof ProjectPhase)[keyof typeof ProjectPhase];
 
 export const ProjectPhase = {
