@@ -95,6 +95,7 @@ export default function PermitsPanel({ projectId, projectPhase, onProjectUpdated
   const [busyId, setBusyId] = useState<string | null>(null);
   const [signatureDraft, setSignatureDraft] = useState<Record<string, string>>({});
   const [revNote, setRevNote] = useState<Record<string, string>>({});
+  const [signDialogFor, setSignDialogFor] = useState<Signature | null>(null);
 
   const isClient = user?.role === "client";
   const isStaff = !!user?.role && (["admin", "superadmin", "architect"] as const).includes(user.role as "admin" | "superadmin" | "architect");
@@ -239,10 +240,16 @@ export default function PermitsPanel({ projectId, projectPhase, onProjectUpdated
             </h3>
             <p className="text-sm text-slate-600 mt-1">
               {t(
-                "By authorizing, you confirm the design is final and authorize KONTi to submit the permit packet to OGPE on your behalf.",
-                "Al autorizar, confirmas que el diseño es final y autorizas a KONTi a someter el paquete de permisos a OGPE en tu nombre.",
+                "By authorizing, you confirm the design is final and authorize KONTi to submit the OGPE permit packet on your behalf. The packet includes:",
+                "Al autorizar, confirmas que el diseño es final y autorizas a KONTi a someter el paquete de permisos a OGPE en tu nombre. El paquete incluye:",
               )}
             </p>
+            <ul className="text-xs text-slate-600 mt-1.5 ml-5 list-disc space-y-0.5">
+              <li>{t("Stamped construction plans and structural drawings", "Planos de construcción sellados y dibujos estructurales")}</li>
+              <li>{t("MEP drawings (electrical, plumbing, mechanical)", "Dibujos MEP (eléctrico, plomería, mecánico)")}</li>
+              <li>{t("Signed Owner's Affidavit, ARPE & OGPE applications, PE stamp authorization", "Affidavit del Dueño, solicitudes ARPE y OGPE, autorización de sello PE — firmados")}</li>
+              <li>{t("Site survey, zoning analysis, and project specifications", "Levantamiento del sitio, análisis de zonificación y especificaciones del proyecto")}</li>
+            </ul>
             {authorization.status === "authorized" ? (
               <div className="mt-2 space-y-1">
                 <div className="inline-flex items-center gap-2 px-3 py-1 text-xs rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
@@ -305,23 +312,13 @@ export default function PermitsPanel({ projectId, projectPhase, onProjectUpdated
                     </div>
                   ) : (
                     isClient && inPermitsPhase && isAuthorized && (
-                      <div className="flex gap-2 mt-2">
-                        <input
-                          type="text"
-                          placeholder={t("Type full name to sign", "Escribe tu nombre para firmar")}
-                          value={signatureDraft[sig.id] ?? ""}
-                          onChange={(e) => setSignatureDraft((d) => ({ ...d, [sig.id]: e.target.value }))}
-                          className="flex-1 text-sm px-3 py-1.5 border border-slate-300 rounded-md focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                        />
-                        <button
-                          onClick={() => sign(sig.id)}
-                          disabled={busyId === `sig-${sig.id}`}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-md bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
-                        >
-                          {busyId === `sig-${sig.id}` ? <Loader2 className="w-3 h-3 animate-spin" /> : <PenLine className="w-3 h-3" />}
-                          {t("Sign", "Firmar")}
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => setSignDialogFor(sig)}
+                        className="mt-2 inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-md bg-emerald-600 text-white hover:bg-emerald-700"
+                      >
+                        <PenLine className="w-3 h-3" />
+                        {t("Sign", "Firmar")}
+                      </button>
                     )
                   )}
                 </div>
@@ -405,6 +402,54 @@ export default function PermitsPanel({ projectId, projectPhase, onProjectUpdated
           })}
         </div>
       </div>
+
+      {signDialogFor && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setSignDialogFor(null)}>
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+              <FileSignature className="w-5 h-5 text-emerald-700" />
+              {t("Sign Form", "Firmar Formulario")}
+            </h3>
+            <p className="text-sm text-slate-700 mt-2">
+              <strong>{lang === "es" ? signDialogFor.formNameEs : signDialogFor.formName}</strong>
+            </p>
+            <p className="text-xs text-slate-600 mt-2">
+              {t(
+                "By typing your full legal name below, you electronically sign this form and agree it has the same legal effect as a handwritten signature.",
+                "Al escribir tu nombre legal completo abajo, firmas electrónicamente este formulario y aceptas que tiene el mismo efecto legal que una firma manuscrita.",
+              )}
+            </p>
+            <input
+              type="text"
+              autoFocus
+              placeholder={t("Type your full legal name", "Escribe tu nombre legal completo")}
+              value={signatureDraft[signDialogFor.id] ?? ""}
+              onChange={(e) => setSignatureDraft((d) => ({ ...d, [signDialogFor.id]: e.target.value }))}
+              className="mt-3 w-full text-sm px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+            />
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                onClick={() => setSignDialogFor(null)}
+                className="px-3 py-1.5 text-sm rounded-md border border-slate-300 text-slate-700 hover:bg-slate-50"
+              >
+                {t("Cancel", "Cancelar")}
+              </button>
+              <button
+                onClick={async () => {
+                  const id = signDialogFor.id;
+                  await sign(id);
+                  setSignDialogFor(null);
+                }}
+                disabled={busyId === `sig-${signDialogFor.id}` || (signatureDraft[signDialogFor.id] ?? "").trim().length < 2}
+                className="px-3 py-1.5 text-sm font-medium rounded-md bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 inline-flex items-center gap-1"
+              >
+                {busyId === `sig-${signDialogFor.id}` ? <Loader2 className="w-3 h-3 animate-spin" /> : <PenLine className="w-3 h-3" />}
+                {t("Sign", "Firmar")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
