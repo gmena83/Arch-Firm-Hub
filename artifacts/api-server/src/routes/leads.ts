@@ -10,10 +10,13 @@ import {
   type LeadSource,
   type BookingType,
 } from "../data/seed";
+import { requireRole } from "../middlewares/require-role";
+
+type ProjectRecord = (typeof PROJECTS)[number];
 
 const router: IRouter = Router();
 
-router.get("/leads", (_req, res) => {
+router.get("/leads", requireRole("admin", "architect", "superadmin"), (_req, res) => {
   // Sort newest first when equal score
   const sorted = [...LEADS].sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score;
@@ -122,7 +125,7 @@ router.post("/leads", (req, res) => {
 // Track lead -> project for idempotency
 const ACCEPTED_LEAD_PROJECTS = new Map<string, string>();
 
-router.post("/leads/:id/accept", (req, res) => {
+router.post("/leads/:id/accept", requireRole("admin", "architect", "superadmin"), (req, res) => {
   const lead = LEADS.find((l) => l.id === req.params["id"]);
   if (!lead) {
     res.status(404).json({ error: "not_found", message: "Lead not found" });
@@ -152,7 +155,7 @@ router.post("/leads/:id/accept", (req, res) => {
 
   // Synthesize a discovery-phase project (in-memory only)
   const projectId = `proj-${Date.now()}`;
-  const newProject = {
+  const newProject: ProjectRecord = {
     id: projectId,
     name: `Discovery — ${lead.contactName}`,
     nameEs: `Descubrimiento — ${lead.contactName}`,
@@ -175,8 +178,7 @@ router.post("/leads/:id/accept", (req, res) => {
     teamMembers: ["Carla Gautier"],
     status: "active" as const,
   };
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (PROJECTS as any[]).push(newProject);
+  PROJECTS.push(newProject);
   ACCEPTED_LEAD_PROJECTS.set(lead.id, projectId);
 
   res.json({
