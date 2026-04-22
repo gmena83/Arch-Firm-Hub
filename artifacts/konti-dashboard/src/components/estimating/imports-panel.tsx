@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useLang } from "@/hooks/use-lang";
 import { useToast } from "@/hooks/use-toast";
 import { useListProjects } from "@workspace/api-client-react";
-import { Upload, Receipt, FileText, Loader2 } from "lucide-react";
+import { Upload, Receipt, FileText, Loader2, Eye, Check } from "lucide-react";
 import { getJson, postJson, readFileAsText, type LaborRate } from "./estimating-helpers";
 
 const SAMPLE_MATERIALS = `item,item_es,category,unit,base_price
@@ -206,6 +206,15 @@ export function ImportsPanel() {
   );
 }
 
+function parseCsvPreview(csv: string): { headers: string[]; rows: string[][] } {
+  const lines = csv.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  if (lines.length === 0) return { headers: [], rows: [] };
+  const split = (l: string) => l.split(",").map((c) => c.trim());
+  const headers = split(lines[0] ?? "");
+  const rows = lines.slice(1).map(split);
+  return { headers, rows };
+}
+
 function Section({
   icon, title, description, onFile, textValue, setText, onImport, busy, result, testid,
 }: {
@@ -221,6 +230,9 @@ function Section({
   testid: string;
 }) {
   const { t } = useLang();
+  const [preview, setPreview] = useState<{ headers: string[]; rows: string[][] } | null>(null);
+  const showPreview = () => setPreview(parseCsvPreview(textValue));
+  const confirmImport = () => { onImport(); setPreview(null); };
   return (
     <div className="bg-card rounded-xl border border-card-border p-5 shadow-sm" data-testid={testid}>
       <div className="flex items-center gap-2 mb-2">{icon}<h3 className="font-bold text-sm">{title}</h3></div>
@@ -229,18 +241,54 @@ function Section({
         <input
           type="file"
           accept=".csv,.xlsx,.xls,text/csv,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-          onChange={(e) => onFile(e.target.files?.[0])}
+          onChange={(e) => { onFile(e.target.files?.[0]); setPreview(null); }}
           className="text-xs"
           data-testid={`${testid}-file`}
         />
         <span className="text-[10px] text-muted-foreground">{t("or paste below", "o pega abajo")}</span>
       </div>
-      <textarea value={textValue} onChange={(e) => setText(e.target.value)} rows={5} className="w-full font-mono text-xs px-3 py-2 rounded border border-input bg-background" data-testid={`${testid}-textarea`} />
-      <div className="flex items-center gap-3 mt-3">
-        <button onClick={onImport} disabled={busy} data-testid={`${testid}-btn`} className="inline-flex items-center gap-2 px-3 py-1.5 bg-konti-olive hover:bg-konti-olive/90 text-white text-xs font-semibold rounded-md disabled:opacity-50">
-          {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-          {t("Import", "Importar")}
-        </button>
+      <textarea value={textValue} onChange={(e) => { setText(e.target.value); setPreview(null); }} rows={5} className="w-full font-mono text-xs px-3 py-2 rounded border border-input bg-background" data-testid={`${testid}-textarea`} />
+
+      {preview && preview.headers.length > 0 && (
+        <div className="mt-3 border border-konti-olive/30 bg-konti-olive/5 rounded-md p-3" data-testid={`${testid}-preview`}>
+          <p className="text-xs font-semibold text-foreground mb-2">
+            {t(`Preview — ${preview.rows.length} row(s) ready to import`, `Vista previa — ${preview.rows.length} fila(s) lista(s) para importar`)}
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-[11px] min-w-[400px]">
+              <thead className="bg-muted/60">
+                <tr>{preview.headers.map((h, i) => <th key={i} className="text-left px-2 py-1 font-semibold">{h}</th>)}</tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {preview.rows.slice(0, 10).map((row, i) => (
+                  <tr key={i}>{preview.headers.map((_, j) => <td key={j} className="px-2 py-1">{row[j] ?? ""}</td>)}</tr>
+                ))}
+                {preview.rows.length > 10 && (
+                  <tr><td colSpan={preview.headers.length} className="px-2 py-1 italic text-muted-foreground">{t(`…and ${preview.rows.length - 10} more rows`, `…y ${preview.rows.length - 10} filas más`)}</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-center gap-3 mt-3 flex-wrap">
+        {!preview ? (
+          <button onClick={showPreview} disabled={!textValue.trim()} data-testid={`${testid}-preview-btn`} className="inline-flex items-center gap-2 px-3 py-1.5 border border-konti-olive text-konti-olive hover:bg-konti-olive/10 text-xs font-semibold rounded-md disabled:opacity-50">
+            <Eye className="w-3.5 h-3.5" />
+            {t("Preview", "Vista Previa")}
+          </button>
+        ) : (
+          <>
+            <button onClick={() => setPreview(null)} className="inline-flex items-center gap-2 px-3 py-1.5 border border-border text-xs font-semibold rounded-md hover:bg-muted">
+              {t("Edit", "Editar")}
+            </button>
+            <button onClick={confirmImport} disabled={busy} data-testid={`${testid}-btn`} className="inline-flex items-center gap-2 px-3 py-1.5 bg-konti-olive hover:bg-konti-olive/90 text-white text-xs font-semibold rounded-md disabled:opacity-50">
+              {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+              {t("Confirm Import", "Confirmar Importación")}
+            </button>
+          </>
+        )}
         {result && <span className={`text-xs ${result.ok ? "text-konti-olive" : "text-destructive"}`}>{result.message}{result.details ? ` · ${result.details}` : ""}</span>}
       </div>
     </div>

@@ -520,6 +520,52 @@ router.get("/projects/:id/contractor-estimate", requireRole(["team","admin","sup
   res.json(est);
 });
 
+// PUT — update editable contractor estimate lines (description, quantity, unit, unitPrice).
+router.put("/projects/:id/contractor-estimate/lines", requireRole(["team", "admin", "superadmin"]), (req, res) => {
+  const id = req.params["id"] as string;
+  const project = PROJECTS.find((p) => p.id === id);
+  if (!project) { res.status(404).json({ error: "not_found" }); return; }
+  const est = PROJECT_CONTRACTOR_ESTIMATE[id];
+  if (!est) { res.status(404).json({ error: "no_estimate", message: "Generate an estimate first." }); return; }
+  const body = (req.body ?? {}) as { lines?: Array<Record<string, unknown>> };
+  if (!Array.isArray(body.lines) || body.lines.length === 0) {
+    res.status(400).json({ error: "invalid_lines" }); return;
+  }
+  const updatedLines = body.lines.map((raw, i) => {
+    const existing = est.lines[i];
+    const id = typeof raw["id"] === "string" ? (raw["id"] as string) : existing?.id ?? `line-${i + 1}`;
+    const category = typeof raw["category"] === "string" ? (raw["category"] as string) : existing?.category ?? "materials";
+    const description = typeof raw["description"] === "string" ? (raw["description"] as string) : existing?.description ?? "Line";
+    const descriptionEs = typeof raw["descriptionEs"] === "string" ? (raw["descriptionEs"] as string) : existing?.descriptionEs ?? description;
+    const quantity = Number(raw["quantity"] ?? existing?.quantity ?? 0);
+    const unit = typeof raw["unit"] === "string" ? (raw["unit"] as string) : existing?.unit ?? "unit";
+    const unitPrice = Number(raw["unitPrice"] ?? existing?.unitPrice ?? 0);
+    const lineTotal = Math.round(quantity * unitPrice * 100) / 100;
+    return { id, category, description, descriptionEs, quantity, unit, unitPrice, lineTotal };
+  });
+  const subtotalMaterials = updatedLines.filter((l) => l.category === "materials").reduce((a, b) => a + b.lineTotal, 0);
+  const subtotalLabor = updatedLines.filter((l) => l.category === "labor").reduce((a, b) => a + b.lineTotal, 0);
+  const subtotalSubcontractor = updatedLines.filter((l) => l.category === "subcontractor").reduce((a, b) => a + b.lineTotal, 0);
+  const baseSubtotal = subtotalMaterials + subtotalLabor + subtotalSubcontractor;
+  const contingency = Math.round(baseSubtotal * (est.contingencyPercent / 100) * 100) / 100;
+  const grandTotal = Math.round((baseSubtotal + contingency) * 100) / 100;
+  const updated = {
+    ...est,
+    lines: updatedLines,
+    subtotalMaterials, subtotalLabor, subtotalSubcontractor,
+    contingency, grandTotal,
+    generatedAt: new Date().toISOString(),
+  };
+  PROJECT_CONTRACTOR_ESTIMATE[id] = updated;
+  appendActivity(id, {
+    type: "contractor_estimate",
+    actor: (req as { user?: { name?: string } }).user?.name ?? "Team",
+    description: `Contractor estimate edited: ${updatedLines.length} lines · $${grandTotal.toLocaleString()}`,
+    descriptionEs: `Estimado de contratista editado: ${updatedLines.length} líneas · $${grandTotal.toLocaleString()}`,
+  });
+  res.json(updated);
+});
+
 // GET variance report — estimated vs actual for a project.
 router.get("/projects/:id/variance-report", requireRole(["team","admin","superadmin","architect","client"]), (req, res) => {
   const project = PROJECTS.find((p) => p.id === req.params["id"]);

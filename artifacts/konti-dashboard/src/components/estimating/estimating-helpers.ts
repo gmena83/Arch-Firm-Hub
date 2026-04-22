@@ -16,8 +16,16 @@ export function getAuthHeader(): Record<string, string> {
 }
 
 export async function postJson<T>(path: string, body: unknown): Promise<T> {
+  return await sendJson<T>("POST", path, body);
+}
+
+export async function putJson<T>(path: string, body: unknown): Promise<T> {
+  return await sendJson<T>("PUT", path, body);
+}
+
+async function sendJson<T>(method: "POST" | "PUT", path: string, body: unknown): Promise<T> {
   const res = await fetch(`${apiBase()}${path}`, {
-    method: "POST",
+    method,
     headers: { "Content-Type": "application/json", ...getAuthHeader() },
     body: JSON.stringify(body),
   });
