@@ -830,6 +830,8 @@ export const GetProjectInspectionsResponse = zod.object({
       reportSentToName: zod.string().optional(),
       reportSentAt: zod.string().optional(),
       reportSentNote: zod.string().optional(),
+      reportDocumentUrl: zod.string().optional(),
+      reportDocumentName: zod.string().optional(),
     }),
   ),
 });
@@ -854,6 +856,45 @@ export const CreateInspectionBody = zod.object({
 });
 
 /**
+ * @summary Get a single inspection with its report metadata
+ */
+export const GetInspectionParams = zod.object({
+  id: zod.coerce.string(),
+  insId: zod.coerce.string(),
+});
+
+export const GetInspectionResponse = zod.object({
+  projectId: zod.string().optional(),
+  inspection: zod
+    .object({
+      id: zod.string(),
+      projectId: zod.string(),
+      type: zod.enum([
+        "foundation",
+        "framing",
+        "electrical",
+        "plumbing",
+        "final",
+      ]),
+      title: zod.string(),
+      titleEs: zod.string(),
+      inspector: zod.string(),
+      scheduledDate: zod.string(),
+      completedDate: zod.string().optional(),
+      status: zod.enum(["scheduled", "passed", "failed", "re_inspect"]),
+      notes: zod.string().optional(),
+      notesEs: zod.string().optional(),
+      reportSentTo: zod.string().optional(),
+      reportSentToName: zod.string().optional(),
+      reportSentAt: zod.string().optional(),
+      reportSentNote: zod.string().optional(),
+      reportDocumentUrl: zod.string().optional(),
+      reportDocumentName: zod.string().optional(),
+    })
+    .optional(),
+});
+
+/**
  * @summary Update an inspection (admin/architect)
  */
 export const UpdateInspectionParams = zod.object({
@@ -870,6 +911,8 @@ export const UpdateInspectionBody = zod.object({
   status: zod.enum(["scheduled", "passed", "failed", "re_inspect"]).optional(),
   notes: zod.string().optional(),
   notesEs: zod.string().optional(),
+  reportDocumentUrl: zod.string().optional(),
+  reportDocumentName: zod.string().optional(),
 });
 
 export const UpdateInspectionResponse = zod.object({
@@ -897,6 +940,8 @@ export const UpdateInspectionResponse = zod.object({
       reportSentToName: zod.string().optional(),
       reportSentAt: zod.string().optional(),
       reportSentNote: zod.string().optional(),
+      reportDocumentUrl: zod.string().optional(),
+      reportDocumentName: zod.string().optional(),
     })
     .optional(),
 });
@@ -939,6 +984,8 @@ export const SendInspectionReportResponse = zod.object({
       reportSentToName: zod.string().optional(),
       reportSentAt: zod.string().optional(),
       reportSentNote: zod.string().optional(),
+      reportDocumentUrl: zod.string().optional(),
+      reportDocumentName: zod.string().optional(),
     })
     .optional(),
 });

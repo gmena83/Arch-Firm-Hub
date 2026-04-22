@@ -16,4 +16,6 @@ export type UpdateInspectionBody = {
   status?: UpdateInspectionBodyStatus;
   notes?: string;
   notesEs?: string;
+  reportDocumentUrl?: string;
+  reportDocumentName?: string;
 };

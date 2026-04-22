@@ -1060,6 +1060,14 @@ router.get("/projects/:id/inspections", (req, res) => {
   return res.json({ projectId: project.id, inspections: list });
 });
 
+router.get("/projects/:id/inspections/:insId", (req, res) => {
+  const project = PROJECTS.find((p) => p.id === req.params["id"]);
+  if (!project) return res.status(404).json({ error: "not_found", message: "Project not found" });
+  const insp = (PROJECT_INSPECTIONS[project.id] ?? []).find((i) => i.id === req.params["insId"]);
+  if (!insp) return res.status(404).json({ error: "not_found", message: "Inspection not found" });
+  return res.json({ projectId: project.id, inspection: insp });
+});
+
 router.post("/projects/:id/inspections", requireRole(["admin", "architect", "superadmin"]), (req, res) => {
   const project = PROJECTS.find((p) => p.id === req.params["id"]);
   if (!project) return res.status(404).json({ error: "not_found", message: "Project not found" });
@@ -1120,6 +1128,8 @@ router.patch("/projects/:id/inspections/:insId", requireRole(["admin", "architec
   if (body.notesEs !== undefined) insp.notesEs = body.notesEs;
   if (body.title !== undefined) insp.title = body.title;
   if (body.titleEs !== undefined) insp.titleEs = body.titleEs;
+  if (body.reportDocumentUrl !== undefined) insp.reportDocumentUrl = body.reportDocumentUrl;
+  if (body.reportDocumentName !== undefined) insp.reportDocumentName = body.reportDocumentName;
   const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
   if (body.status !== undefined && body.status !== prevStatus) {
     appendActivity(project.id, {

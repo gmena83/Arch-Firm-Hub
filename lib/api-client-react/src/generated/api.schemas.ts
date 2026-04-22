@@ -772,6 +772,8 @@ export interface Inspection {
   reportSentToName?: string;
   reportSentAt?: string;
   reportSentNote?: string;
+  reportDocumentUrl?: string;
+  reportDocumentName?: string;
 }
 
 export interface InspectionsResponse {
@@ -953,6 +955,11 @@ export type CreateInspection201 = {
   inspection?: Inspection;
 };
 
+export type GetInspection200 = {
+  projectId?: string;
+  inspection?: Inspection;
+};
+
 export type UpdateInspectionBodyStatus =
   (typeof UpdateInspectionBodyStatus)[keyof typeof UpdateInspectionBodyStatus];
 
@@ -972,6 +979,8 @@ export type UpdateInspectionBody = {
   status?: UpdateInspectionBodyStatus;
   notes?: string;
   notesEs?: string;
+  reportDocumentUrl?: string;
+  reportDocumentName?: string;
 };
 
 export type UpdateInspection200 = {

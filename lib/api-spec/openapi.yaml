@@ -560,6 +560,29 @@ paths:
                   inspection: { $ref: "#/components/schemas/Inspection" }
 
   /projects/{id}/inspections/{insId}:
+    get:
+      operationId: getInspection
+      tags: [construction]
+      summary: Get a single inspection with its report metadata
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+        - in: path
+          name: insId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Inspection
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  projectId: { type: string }
+                  inspection: { $ref: "#/components/schemas/Inspection" }
     patch:
       operationId: updateInspection
       tags: [construction]
@@ -590,6 +613,8 @@ paths:
                   enum: [scheduled, passed, failed, re_inspect]
                 notes: { type: string }
                 notesEs: { type: string }
+                reportDocumentUrl: { type: string }
+                reportDocumentName: { type: string }
       responses:
         "200":
           description: Updated
@@ -1929,6 +1954,8 @@ components:
         reportSentToName: { type: string }
         reportSentAt: { type: string }
         reportSentNote: { type: string }
+        reportDocumentUrl: { type: string }
+        reportDocumentName: { type: string }
       required: [id, projectId, type, title, titleEs, inspector, scheduledDate, status]
 
     InspectionsResponse:

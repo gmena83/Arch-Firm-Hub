@@ -34,6 +34,7 @@ import type {
   DesignStateResponse,
   Document,
   ErrorResponse,
+  GetInspection200,
   GetProjectDocumentsParams,
   GetProjectProposals200,
   HealthStatus,
@@ -2039,6 +2040,97 @@ export const useCreateInspection = <
 > => {
   return useMutation(getCreateInspectionMutationOptions(options));
 };
+
+/**
+ * @summary Get a single inspection with its report metadata
+ */
+export const getGetInspectionUrl = (id: string, insId: string) => {
+  return `/api/projects/${id}/inspections/${insId}`;
+};
+
+export const getInspection = async (
+  id: string,
+  insId: string,
+  options?: RequestInit,
+): Promise<GetInspection200> => {
+  return customFetch<GetInspection200>(getGetInspectionUrl(id, insId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetInspectionQueryKey = (id: string, insId: string) => {
+  return [`/api/projects/${id}/inspections/${insId}`] as const;
+};
+
+export const getGetInspectionQueryOptions = <
+  TData = Awaited<ReturnType<typeof getInspection>>,
+  TError = ErrorType<unknown>,
+>(
+  id: string,
+  insId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getInspection>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetInspectionQueryKey(id, insId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getInspection>>> = ({
+    signal,
+  }) => getInspection(id, insId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!(id && insId),
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getInspection>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetInspectionQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getInspection>>
+>;
+export type GetInspectionQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get a single inspection with its report metadata
+ */
+
+export function useGetInspection<
+  TData = Awaited<ReturnType<typeof getInspection>>,
+  TError = ErrorType<unknown>,
+>(
+  id: string,
+  insId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getInspection>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetInspectionQueryOptions(id, insId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary Update an inspection (admin/architect)

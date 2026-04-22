@@ -24,4 +24,6 @@ export interface Inspection {
   reportSentToName?: string;
   reportSentAt?: string;
   reportSentNote?: string;
+  reportDocumentUrl?: string;
+  reportDocumentName?: string;
 }
