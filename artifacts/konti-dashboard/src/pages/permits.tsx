@@ -6,6 +6,7 @@ import { RequireRole, useAuth } from "@/hooks/use-auth";
 import { useLang } from "@/hooks/use-lang";
 import { useListProjects } from "@workspace/api-client-react";
 import PermitsPanel from "@/components/permits-panel";
+import { PermitsDesignSection } from "@/components/permits-design-section";
 
 export default function PermitsPage() {
   const { t, lang } = useLang();
@@ -63,7 +64,10 @@ export default function PermitsPage() {
           </div>
 
           {project ? (
-            <PermitsPanel projectId={project.id} projectPhase={project.phase} />
+            <>
+              <PermitsPanel projectId={project.id} projectPhase={project.phase} />
+              <PermitsDesignSection projectId={project.id} />
+            </>
           ) : (
             <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-slate-500">
               {t("No projects available.", "No hay proyectos disponibles.")}
