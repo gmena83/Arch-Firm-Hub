@@ -25,6 +25,7 @@ interface ChangeOrder {
   decidedBy?: string;
   decidedAt?: string;
   decisionNote?: string;
+  outsideOfScope?: boolean;
 }
 
 interface COResponse {
@@ -46,6 +47,7 @@ function CreateCOModal({ projectId, onClose, onCreated }: { projectId: string; o
   const [amount, setAmount] = useState("");
   const [days, setDays] = useState("");
   const [reason, setReason] = useState("");
+  const [outsideOfScope, setOutsideOfScope] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const submit = async () => {
@@ -69,6 +71,7 @@ function CreateCOModal({ projectId, onClose, onCreated }: { projectId: string; o
           scheduleImpactDays: d,
           reason: reason.trim(),
           reasonEs: reason.trim(),
+          outsideOfScope,
         }),
       });
       toast({ title: t("Change order created", "Orden de cambio creada") });
@@ -135,6 +138,19 @@ function CreateCOModal({ projectId, onClose, onCreated }: { projectId: string; o
               placeholder={t("Brief justification…", "Justificación breve…")}
             />
           </div>
+          <label className="flex items-start gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={outsideOfScope}
+              onChange={(e) => setOutsideOfScope(e.target.checked)}
+              data-testid="input-co-outside-scope"
+              className="mt-0.5"
+            />
+            <span className="text-xs text-foreground">
+              <strong>{t("Outside of original scope", "Fuera del alcance original")}</strong>
+              <span className="block text-muted-foreground">{t("Flag this if work falls outside the signed proposal.", "Marca si el trabajo queda fuera de la propuesta firmada.")}</span>
+            </span>
+          </label>
           <button
             onClick={submit}
             disabled={busy || !title.trim() || !amount.trim()}
@@ -175,23 +191,22 @@ export function ChangeOrdersPanel({ projectId, isClientView, currentPhase }: { p
   if (loading) return null;
   if (!data) return null;
 
-  // Show panel from design phase onward (CO's are most relevant once a contract exists)
-  const visiblePhases = ["design", "permits", "construction", "completed"];
+  // Visible from schematic_design onward (CO's are most relevant once a contract or design baseline exists)
+  const visiblePhases = ["schematic_design", "design_development", "construction_documents", "permits", "construction", "completed"];
   if (!visiblePhases.includes(currentPhase) && data.changeOrders.length === 0) return null;
 
-  const isClient = user?.role === "client" && isClientView;
   const isTeamUser = user?.role !== "client";
-  const canCreate = isTeamUser && !isClientView;
+  const canManage = isTeamUser && !isClientView;
 
-  const decide = async (coId: string, decision: "approved" | "rejected") => {
-    if (!isClient || busy) return;
+  const setStatus = async (coId: string, status: "approved" | "rejected" | "pending", note?: string) => {
+    if (!canManage || busy) return;
     setBusy(true);
     try {
-      await customFetch(`/api/projects/${projectId}/change-orders/${coId}/decision`, {
+      await customFetch(`/api/projects/${projectId}/change-orders/${coId}/status`, {
         method: "POST",
-        body: JSON.stringify({ decision }),
+        body: JSON.stringify({ status, note }),
       });
-      toast({ title: decision === "approved" ? t("Change order approved", "Orden aprobada") : t("Change order rejected", "Orden rechazada") });
+      toast({ title: t("Status updated", "Estado actualizado") });
       await refresh();
     } catch {
       toast({ title: t("Action failed", "Acción fallida"), variant: "destructive" });
@@ -207,7 +222,7 @@ export function ChangeOrdersPanel({ projectId, isClientView, currentPhase }: { p
           <ClipboardList className="w-4 h-4 text-konti-olive" />
           {t("Change Orders", "Órdenes de Cambio")}
         </h2>
-        {canCreate && (
+        {canManage && (
           <button
             onClick={() => setShowCreate(true)}
             data-testid="btn-create-co"
@@ -251,7 +266,14 @@ export function ChangeOrdersPanel({ projectId, isClientView, currentPhase }: { p
                   data-testid={`btn-toggle-co-${co.number}`}
                 >
                   <span className="text-xs font-bold text-konti-olive shrink-0">{co.number}</span>
-                  <span className="flex-1 text-sm font-medium truncate">{title}</span>
+                  <span className="flex-1 text-sm font-medium truncate flex items-center gap-2">
+                    {title}
+                    {co.outsideOfScope && (
+                      <span data-testid={`co-outside-scope-${co.number}`} className="shrink-0 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded border border-amber-300 bg-amber-50 text-amber-800">
+                        {t("Out of Scope", "Fuera de Alcance")}
+                      </span>
+                    )}
+                  </span>
                   <span className={`text-xs font-semibold ${co.amountDelta >= 0 ? "text-foreground" : "text-emerald-700"}`}>
                     {co.amountDelta >= 0 ? "+" : "−"}${Math.abs(co.amountDelta).toLocaleString()}
                   </span>
@@ -262,6 +284,11 @@ export function ChangeOrdersPanel({ projectId, isClientView, currentPhase }: { p
                 </button>
                 {expanded && (
                   <div className="border-t border-border px-3 py-3 space-y-2 bg-muted/10">
+                    {co.outsideOfScope && (
+                      <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded px-2 py-1.5">
+                        <strong>{t("Out of original scope.", "Fuera del alcance original.")}</strong> {t("This change adds work beyond the signed proposal.", "Este cambio agrega trabajo más allá de la propuesta firmada.")}
+                      </p>
+                    )}
                     {reason && <p className="text-xs text-foreground"><span className="font-semibold">{t("Reason", "Razón")}:</span> {reason}</p>}
                     <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
                       <span>{t("Schedule impact", "Impacto en plazo")}: <strong className="text-foreground">+{co.scheduleImpactDays}d</strong></span>
@@ -274,25 +301,24 @@ export function ChangeOrdersPanel({ projectId, isClientView, currentPhase }: { p
                         {co.decisionNote && <> — “{co.decisionNote}”</>}
                       </p>
                     )}
-                    {isClient && co.status === "pending" && (
-                      <div className="flex gap-2 pt-2">
-                        <button
-                          onClick={() => decide(co.id, "approved")}
+                    {canManage && (
+                      <div className="flex items-center gap-2 pt-2">
+                        <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{t("Set status", "Cambiar estado")}:</span>
+                        <select
+                          value={co.status}
+                          onChange={(e) => setStatus(co.id, e.target.value as "approved" | "rejected" | "pending")}
                           disabled={busy}
-                          data-testid={`btn-approve-co-${co.number}`}
-                          className="flex-1 py-2 px-3 bg-konti-olive hover:bg-konti-olive/90 disabled:opacity-50 text-white text-xs font-semibold rounded-md"
+                          data-testid={`select-co-status-${co.number}`}
+                          className="text-xs px-2 py-1 border border-border rounded-md bg-background"
                         >
-                          {t("Approve", "Aprobar")}
-                        </button>
-                        <button
-                          onClick={() => decide(co.id, "rejected")}
-                          disabled={busy}
-                          data-testid={`btn-reject-co-${co.number}`}
-                          className="flex-1 py-2 px-3 border border-border hover:bg-muted text-foreground disabled:opacity-50 text-xs font-semibold rounded-md"
-                        >
-                          {t("Reject", "Rechazar")}
-                        </button>
+                          <option value="pending">{t("Pending", "Pendiente")}</option>
+                          <option value="approved">{t("Approved", "Aprobada")}</option>
+                          <option value="rejected">{t("Rejected", "Rechazada")}</option>
+                        </select>
                       </div>
+                    )}
+                    {!canManage && co.status === "pending" && (
+                      <p className="text-[11px] italic text-muted-foreground">{t("Pending architect / admin review.", "Pendiente de revisión del arquitecto / administrador.")}</p>
                     )}
                   </div>
                 )}

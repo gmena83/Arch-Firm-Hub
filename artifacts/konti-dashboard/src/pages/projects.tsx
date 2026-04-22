@@ -18,8 +18,11 @@ export default function ProjectsPage() {
 
   const phaseColors: Record<string, string> = {
     discovery: "bg-sky-100 text-sky-800",
+    consultation: "bg-konti-olive/15 text-konti-olive border border-konti-olive/30",
     pre_design: "bg-purple-100 text-purple-800",
-    design: "bg-indigo-100 text-indigo-800",
+    schematic_design: "bg-indigo-100 text-indigo-800",
+    design_development: "bg-indigo-200 text-indigo-900",
+    construction_documents: "bg-fuchsia-100 text-fuchsia-800",
     permits: "bg-amber-100 text-amber-800",
     construction: "bg-orange-100 text-orange-800",
     completed: "bg-emerald-100 text-emerald-800",

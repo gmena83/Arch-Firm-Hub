@@ -23,7 +23,7 @@ function buildClientPrompt(projectId?: string): string {
 - Name: ${project.name}
 - Client: ${project.clientName}
 - Location: ${project.location}
-- Phase: ${project.phaseLabel} (Phase ${project.phaseNumber} of 7)
+- Phase: ${project.phaseLabel} (Phase ${project.phaseNumber} of 9)
 - Progress: ${project.progressPercent}% complete
 - Budget Allocated: $${project.budgetAllocated.toLocaleString()}
 - Timeline: ${project.startDate} → ${project.estimatedEndDate}

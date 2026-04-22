@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
-import { customFetch } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { customFetch, getGetProjectQueryKey } from "@workspace/api-client-react";
 import { useLang } from "@/hooks/use-lang";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -35,6 +36,7 @@ export function ProposalsPanel({ projectId, isClientView, currentPhase }: { proj
   const { t, lang } = useLang();
   const { user } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -55,9 +57,12 @@ export function ProposalsPanel({ projectId, isClientView, currentPhase }: { proj
   if (loading) return null;
   if (proposals.length === 0) return null;
 
-  // Show panel only from pre_design onward
-  const visiblePhases = ["pre_design", "design", "permits", "construction", "completed"];
-  if (!visiblePhases.includes(currentPhase)) return null;
+  // Comparison view: visible only while still negotiating (≤ schematic_design).
+  // After approval, show summary if the panel was previously rendered (approved exists).
+  const negotiationPhases = ["pre_design", "schematic_design"];
+  const hasApprovedAlready = proposals.some((p) => p.status === "approved");
+  const showAfterApproval = ["design_development", "construction_documents", "permits", "construction", "completed"].includes(currentPhase) && hasApprovedAlready;
+  if (!negotiationPhases.includes(currentPhase) && !showAfterApproval) return null;
 
   const isClient = user?.role === "client" && isClientView;
   const hasApproved = proposals.some((p) => p.status === "approved");
@@ -67,8 +72,8 @@ export function ProposalsPanel({ projectId, isClientView, currentPhase }: { proj
     setBusy(true);
     try {
       await customFetch(`/api/projects/${projectId}/proposals/${proposalId}/approve`, { method: "POST" });
-      toast({ title: t("Proposal approved", "Propuesta aprobada"), description: t("Contract draft is on its way.", "El borrador del contrato está en camino.") });
-      await refresh();
+      toast({ title: t("Proposal approved", "Propuesta aprobada"), description: t("Contract draft is on its way. Project advanced to Permits.", "El borrador del contrato está en camino. Proyecto avanzado a Permisos.") });
+      await Promise.all([refresh(), queryClient.invalidateQueries({ queryKey: getGetProjectQueryKey(projectId) })]);
     } catch {
       toast({ title: t("Could not approve", "No se pudo aprobar"), variant: "destructive" });
     } finally {

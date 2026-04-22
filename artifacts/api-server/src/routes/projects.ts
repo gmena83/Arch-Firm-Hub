@@ -28,16 +28,9 @@ import { requireRole } from "../middlewares/require-role";
 
 const router: IRouter = Router();
 
-// Phase labels for UI sync
-const PHASE_LABELS: Record<string, { en: string; es: string }> = {
-  discovery: { en: "Discovery", es: "Descubrimiento" },
-  consultation: { en: "Consultation", es: "Consulta Inicial" },
-  pre_design: { en: "Pre-Design & Viability", es: "Pre-Diseño y Viabilidad" },
-  design: { en: "Design", es: "Diseño" },
-  permits: { en: "Permits", es: "Permisos" },
-  construction: { en: "Construction", es: "Construcción" },
-  completed: { en: "Completed", es: "Completado" },
-};
+// Phase labels for UI sync — mirrors PHASE_LABELS_MAP in seed.ts
+import { PHASE_LABELS_MAP } from "../data/seed";
+const PHASE_LABELS = PHASE_LABELS_MAP;
 
 const VALID_CHECKLIST_STATUS: ChecklistStatus[] = ["pending", "in_progress", "done"];
 const VALID_PROJECT_TYPES = ["residencial", "comercial", "mixto", "contenedor"] as const;
@@ -529,11 +522,20 @@ router.get("/projects/:id/design", requireRole(["team", "client"]), (req, res) =
   if (!project) return;
   if (!clientCanReadOrForbid(req, res, project.id)) return;
   const state = PROJECT_DESIGN_STATE[project.id];
+  // Derive current sub-phase from canonical project phase
+  let derivedCurrent: DesignSubPhase | "complete" | null = null;
+  if (DESIGN_SUB_PHASE_ORDER.includes(project.phase as DesignSubPhase)) {
+    derivedCurrent = project.phase as DesignSubPhase;
+  } else if (PHASE_ORDER.indexOf(project.phase) > PHASE_ORDER.indexOf("construction_documents")) {
+    derivedCurrent = "complete";
+  }
+  const inDesign = derivedCurrent !== null;
+  const stateOut = state && derivedCurrent !== null ? { ...state, currentSubPhase: derivedCurrent } : state;
   return res.json({
     projectId: project.id,
     available: !!state,
-    isProjectInDesign: project.phase === "design",
-    state: state ?? null,
+    isProjectInDesign: inDesign,
+    state: stateOut ?? null,
     subPhaseOrder: DESIGN_SUB_PHASE_ORDER,
     subPhaseLabels: DESIGN_SUB_PHASE_LABELS,
   });
@@ -560,30 +562,35 @@ router.post("/projects/:id/design/advance-sub-phase", requireRole(["team", "admi
   if (!project) return;
   const state = PROJECT_DESIGN_STATE[project.id];
   if (!state) return res.status(404).json({ error: "no_design_state" });
-  if (state.currentSubPhase === "complete") {
-    return res.status(400).json({ error: "already_complete", message: "Design phase is already complete" });
+  // Resolve current sub-phase from canonical project phase
+  if (!DESIGN_SUB_PHASE_ORDER.includes(project.phase as DesignSubPhase)) {
+    return res.status(400).json({ error: "not_in_design", message: "Project is not currently in a design sub-phase" });
   }
-  const idx = DESIGN_SUB_PHASE_ORDER.indexOf(state.currentSubPhase);
-  const current = state.subPhases[state.currentSubPhase];
+  const currentSub = project.phase as DesignSubPhase;
+  const idx = DESIGN_SUB_PHASE_ORDER.indexOf(currentSub);
+  const current = state.subPhases[currentSub];
   const allDone = current.deliverables.every((d) => d.status === "done");
   if (!allDone) {
     return res.status(400).json({ error: "deliverables_incomplete", message: "All deliverables must be marked done before advancing" });
   }
   const now = new Date().toISOString();
   current.completedAt = now;
-  const completedLabel = DESIGN_SUB_PHASE_LABELS[state.currentSubPhase];
+  const completedLabel = DESIGN_SUB_PHASE_LABELS[currentSub];
+  let nextPhase: typeof project.phase;
   if (idx === DESIGN_SUB_PHASE_ORDER.length - 1) {
     state.currentSubPhase = "complete";
+    nextPhase = "permits";
     appendActivity(project.id, {
       type: "sub_phase_advanced",
       actor: (req as { user?: { name?: string } }).user?.name ?? "Team",
-      description: `Design phase complete — ${completedLabel.en} signed off`,
-      descriptionEs: `Fase de Diseño completa — ${completedLabel.es} aprobado`,
+      description: `Design complete — ${completedLabel.en} signed off, advanced to Permits`,
+      descriptionEs: `Diseño completo — ${completedLabel.es} aprobado, avanzado a Permisos`,
     });
   } else {
     const next = DESIGN_SUB_PHASE_ORDER[idx + 1];
     state.currentSubPhase = next;
     state.subPhases[next].startedAt = now;
+    nextPhase = next;
     const nextLabel = DESIGN_SUB_PHASE_LABELS[next];
     appendActivity(project.id, {
       type: "sub_phase_advanced",
@@ -592,7 +599,13 @@ router.post("/projects/:id/design/advance-sub-phase", requireRole(["team", "admi
       descriptionEs: `Avanzado a ${nextLabel.es} (${completedLabel.es} completado)`,
     });
   }
-  return res.json({ projectId: project.id, state });
+  // Sync canonical project phase
+  const labels = PHASE_LABELS[nextPhase];
+  (project as { phase: typeof nextPhase }).phase = nextPhase;
+  (project as { phaseLabel: string }).phaseLabel = labels.en;
+  (project as { phaseLabelEs: string }).phaseLabelEs = labels.es;
+  (project as { phaseNumber: number }).phaseNumber = PHASE_ORDER.indexOf(nextPhase) + 1;
+  return res.json({ projectId: project.id, state, project });
 });
 
 router.get("/projects/:id/proposals", requireRole(["team", "client"]), (req, res) => {
@@ -639,7 +652,19 @@ router.post("/projects/:id/proposals/:proposalId/approve", requireRole(["client"
     description: "Proposal acceptance receipt and contract draft sent",
     descriptionEs: "Recibo de aceptación de propuesta y borrador de contrato enviados",
   });
-  return res.json({ projectId: project.id, proposals: list, approved: target });
+  // Approving a proposal commits the contract — auto-advance the project to Permits
+  const labels = PHASE_LABELS["permits"];
+  (project as { phase: "permits" }).phase = "permits";
+  (project as { phaseLabel: string }).phaseLabel = labels.en;
+  (project as { phaseLabelEs: string }).phaseLabelEs = labels.es;
+  (project as { phaseNumber: number }).phaseNumber = PHASE_ORDER.indexOf("permits") + 1;
+  appendActivity(project.id, {
+    type: "phase_change",
+    actor: "System",
+    description: `Phase advanced to ${labels.en} (proposal approved)`,
+    descriptionEs: `Fase avanzada a ${labels.es} (propuesta aprobada)`,
+  });
+  return res.json({ projectId: project.id, proposals: list, approved: target, project });
 });
 
 router.get("/projects/:id/change-orders", requireRole(["team", "client"]), (req, res) => {
@@ -658,7 +683,7 @@ router.get("/projects/:id/change-orders", requireRole(["team", "client"]), (req,
 router.post("/projects/:id/change-orders", requireRole(["team", "admin", "superadmin"]), (req, res) => {
   const project = getProjectOr404(String(req.params["id"]), res);
   if (!project) return;
-  const { title, titleEs, description, descriptionEs, amountDelta, scheduleImpactDays, reason, reasonEs } = req.body ?? {};
+  const { title, titleEs, description, descriptionEs, amountDelta, scheduleImpactDays, reason, reasonEs, outsideOfScope } = req.body ?? {};
   if (typeof title !== "string" || title.trim().length < 3) return res.status(400).json({ error: "invalid_title" });
   if (typeof amountDelta !== "number" || !isFinite(amountDelta)) return res.status(400).json({ error: "invalid_amount" });
   if (typeof scheduleImpactDays !== "number" || !isFinite(scheduleImpactDays) || scheduleImpactDays < 0) {
@@ -682,6 +707,7 @@ router.post("/projects/:id/change-orders", requireRole(["team", "admin", "supera
     requestedBy: actor,
     requestedAt: new Date().toISOString(),
     status: "pending",
+    outsideOfScope: typeof outsideOfScope === "boolean" ? outsideOfScope : false,
   };
   list.push(co);
   appendActivity(project.id, {
@@ -713,28 +739,33 @@ router.delete("/projects/:id/change-orders/:coId", requireRole(["team", "admin",
   return res.json({ projectId: project.id, deleted: co.id });
 });
 
-router.post("/projects/:id/change-orders/:coId/decision", requireRole(["client"]), (req, res) => {
+// Change-order status is admin/architect-only per spec — clients have read-only access.
+router.post("/projects/:id/change-orders/:coId/status", requireRole(["team", "admin", "superadmin"]), (req, res) => {
   const project = getProjectOr404(String(req.params["id"]), res);
   if (!project) return;
   const user = (req as { user?: { id: string; name?: string } }).user;
-  if (!user || !clientCanAccessProject(user.id, project.id)) {
-    return res.status(403).json({ error: "forbidden" });
+  const { status, note } = req.body ?? {};
+  if (status !== "approved" && status !== "rejected" && status !== "pending") {
+    return res.status(400).json({ error: "invalid_status" });
   }
-  const { decision, note } = req.body ?? {};
-  if (decision !== "approved" && decision !== "rejected") return res.status(400).json({ error: "invalid_decision" });
   const list = PROJECT_CHANGE_ORDERS[project.id] ?? [];
   const co = list.find((o) => o.id === String(req.params["coId"]));
   if (!co) return res.status(404).json({ error: "change_order_not_found" });
-  if (co.status !== "pending") return res.status(400).json({ error: "already_decided" });
-  co.status = decision;
-  co.decidedAt = new Date().toISOString();
-  co.decidedBy = user.name ?? "Client";
-  if (typeof note === "string" && note.trim()) co.decisionNote = note.trim().slice(0, 300);
+  co.status = status;
+  if (status === "pending") {
+    co.decidedAt = undefined;
+    co.decidedBy = undefined;
+    co.decisionNote = undefined;
+  } else {
+    co.decidedAt = new Date().toISOString();
+    co.decidedBy = user?.name ?? "Team";
+    if (typeof note === "string" && note.trim()) co.decisionNote = note.trim().slice(0, 300);
+  }
   appendActivity(project.id, {
     type: "change_order_decision",
-    actor: user.name ?? "Client",
-    description: `${co.number} ${decision} by client${co.decisionNote ? `: ${co.decisionNote}` : ""}`,
-    descriptionEs: `${co.number} ${decision === "approved" ? "aprobada" : "rechazada"} por el cliente${co.decisionNote ? `: ${co.decisionNote}` : ""}`,
+    actor: user?.name ?? "Team",
+    description: `${co.number} marked ${status}${co.decisionNote ? `: ${co.decisionNote}` : ""}`,
+    descriptionEs: `${co.number} marcada ${status === "approved" ? "aprobada" : status === "rejected" ? "rechazada" : "pendiente"}${co.decisionNote ? `: ${co.decisionNote}` : ""}`,
   });
   return res.json({ projectId: project.id, changeOrder: co });
 });
