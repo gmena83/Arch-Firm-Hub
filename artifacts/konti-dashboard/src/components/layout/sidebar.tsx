@@ -52,9 +52,9 @@ export function Sidebar() {
 
   const NavContent = () => (
     <div className="flex flex-col h-full">
-      <div className="px-4 py-5 border-b border-sidebar-border flex items-center justify-between gap-2">
-        <img src={logoWhite} alt="KONTi" className="h-6 w-auto max-w-[7.5rem] object-contain min-w-0" />
-        <div className="flex items-center gap-1 shrink-0">
+      <div className="px-4 py-4 border-b border-sidebar-border flex flex-col gap-3">
+        <img src={logoWhite} alt="KONTi" className="h-12 w-auto max-w-[12rem] object-contain" />
+        <div className="flex items-center justify-end gap-1">
           {showNotifications && <NotificationBell />}
           <LangToggle testId="lang-toggle-sidebar" />
         </div>
@@ -126,12 +126,12 @@ export function Sidebar() {
           href="https://menatech.cloud"
           target="_blank"
           rel="noopener noreferrer"
-          className="hidden md:flex items-center gap-1.5 px-3 py-1.5 opacity-30 hover:opacity-60 transition-opacity"
+          className="hidden md:flex items-center gap-1 px-3 py-1 opacity-40 hover:opacity-70 transition-opacity"
           data-testid="menatech-attribution-sidebar"
         >
-          <img src={menatechLogo} alt="Menatech" className="h-4 w-4 object-contain rounded" />
-          <span className="text-sidebar-foreground/70 text-xs">{t("Powered by", "Desarrollado por")}</span>
-          <span className="text-sidebar-foreground text-xs font-semibold">menatech</span>
+          <img src={menatechLogo} alt="Menatech" className="h-3 w-3 object-contain rounded" />
+          <span className="text-sidebar-foreground/60 text-[10px]">{t("Powered by", "Desarrollado por")}</span>
+          <span className="text-sidebar-foreground/80 text-[10px] font-medium">menatech</span>
         </a>
       </div>
     </div>
@@ -145,8 +145,8 @@ export function Sidebar() {
       </aside>
 
       {/* Mobile header */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-sidebar text-sidebar-foreground px-3 py-3 flex items-center justify-between gap-2 overflow-visible">
-        <img src={logoWhite} alt="KONTi" className="h-6 w-auto max-w-[7rem] object-contain min-w-0 shrink" />
+      <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-sidebar text-sidebar-foreground px-3 py-2 flex items-center justify-between gap-2 overflow-visible">
+        <img src={logoWhite} alt="KONTi" className="h-10 w-auto max-w-[8rem] object-contain min-w-0 shrink" />
         <div className="flex items-center gap-2 shrink-0">
           {showNotifications && <NotificationBell />}
           <LangToggle testId="lang-toggle-mobile" />
