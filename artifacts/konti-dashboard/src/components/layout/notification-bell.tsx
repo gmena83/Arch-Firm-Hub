@@ -69,7 +69,7 @@ export function NotificationBell() {
   const [unread, setUnread] = useState(0);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const [panelPos, setPanelPos] = useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 320 });
+  const [panelPos, setPanelPos] = useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 352 });
 
   const load = useCallback(() => {
     fetch(`/api/notifications`, { headers: authHeader() })
@@ -112,7 +112,7 @@ export function NotificationBell() {
     const rect = btn.getBoundingClientRect();
     const vw = window.innerWidth;
     const margin = 8;
-    const desiredWidth = 320;
+    const desiredWidth = 352;
     const width = Math.min(desiredWidth, vw - margin * 2);
     // Anchor right edge of panel to right edge of bell, then clamp into viewport
     let left = rect.right - width;

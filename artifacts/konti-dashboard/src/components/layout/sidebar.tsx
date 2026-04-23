@@ -152,7 +152,7 @@ export function Sidebar() {
             {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
         </div>
-        <div className="flex items-center justify-end gap-2">
+        <div className="flex items-center justify-end gap-1">
           {showNotifications && <NotificationBell />}
           <LangToggle testId="lang-toggle-mobile" />
         </div>
