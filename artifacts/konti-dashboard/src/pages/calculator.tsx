@@ -187,8 +187,8 @@ export default function CalculatorPage() {
         <div className="space-y-6" data-testid="calculator-page">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div>
-              <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-                <Calculator className="w-6 h-6 text-konti-olive" />
+              <h1 className="text-xl sm:text-2xl font-bold text-foreground flex items-center gap-2">
+                <Calculator className="w-5 h-5 sm:w-6 sm:h-6 text-konti-olive shrink-0" />
                 {t("Cost Calculator", "Calculadora de Costos")}
               </h1>
               <p className="text-muted-foreground text-sm mt-1">

@@ -88,7 +88,7 @@ export default function LoginPage() {
         </div>
 
         {/* Right panel — form */}
-        <div className="flex-1 flex flex-col justify-center items-center px-8 py-12 bg-background">
+        <div className="flex-1 flex flex-col justify-center items-center px-4 sm:px-8 py-8 sm:py-12 bg-background">
           <div className="w-full max-w-sm">
             <div className="mb-8 md:hidden">
               <img src={logoGreen} alt="KONTi" className="h-auto w-auto max-h-10 max-w-[200px] object-contain" />

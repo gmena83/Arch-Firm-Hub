@@ -102,8 +102,8 @@ export default function MaterialsPage() {
         <div className="space-y-6" data-testid="materials-page">
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-                <Package className="w-6 h-6 text-konti-olive" />
+              <h1 className="text-xl sm:text-2xl font-bold text-foreground flex items-center gap-2">
+                <Package className="w-5 h-5 sm:w-6 sm:h-6 text-konti-olive shrink-0" />
                 {t("Materials Library", "Biblioteca de Materiales")}
               </h1>
               <p className="text-muted-foreground text-sm mt-1">
