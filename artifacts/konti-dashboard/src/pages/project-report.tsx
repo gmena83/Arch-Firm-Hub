@@ -144,9 +144,9 @@ function ReportContent({ projectId }: { projectId: string }) {
   return (
     <div className="min-h-screen bg-konti-dark" data-testid="project-report-page">
       {/* Header */}
-      <div className="bg-konti-dark border-b border-white/10 px-6 md:px-12 py-4 flex items-center justify-between sticky top-0 z-10">
-        <img src={logoWhite} alt="KONTi" className="h-7 w-auto" />
-        <div className="flex items-center gap-3">
+      <div className="bg-konti-dark border-b border-white/10 px-4 sm:px-6 md:px-12 py-4 flex items-center justify-between gap-3 flex-wrap sticky top-0 z-10">
+        <img src={logoWhite} alt="KONTi" className="h-7 w-auto shrink-0" />
+        <div className="flex items-center gap-3 flex-wrap">
           <span className="text-white/50 text-xs hidden sm:inline">{t("Progress Report", "Reporte de Progreso")} — {reportDate}</span>
           <button
             onClick={downloadPdf}
@@ -169,7 +169,7 @@ function ReportContent({ projectId }: { projectId: string }) {
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-6 md:px-12 py-12 space-y-16">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 md:px-12 py-8 md:py-12 space-y-12 md:space-y-16">
         {template && template.headerLines.length > 0 && (
           <div className="border border-konti-olive/40 bg-konti-olive/5 rounded-lg p-4 text-center" data-testid="report-template-header">
             <p className="text-[10px] uppercase tracking-widest text-konti-olive/80 mb-2">{t("Template", "Plantilla")}: {template.name}</p>
@@ -189,7 +189,7 @@ function ReportContent({ projectId }: { projectId: string }) {
           <p className="text-white/60 text-lg max-w-2xl mx-auto">
             {project.description}
           </p>
-          <div className="flex items-center justify-center gap-6 text-sm text-white/50">
+          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-white/50">
             <span className="flex items-center gap-1.5"><MapPin className="w-4 h-4" /> {project.location}</span>
             <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4" /> {project.startDate} → {project.estimatedEndDate}</span>
           </div>
@@ -239,12 +239,12 @@ function ReportContent({ projectId }: { projectId: string }) {
           <h2 className="text-white/40 text-xs font-semibold uppercase tracking-widest mb-6">
             {t("Phase Timeline", "Línea de Tiempo de Fases")}
           </h2>
-          <div className="flex gap-3">
+          <div className="flex gap-2 sm:gap-3 overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0 pb-2">
             {phases.map((phase) => {
               const isCompleted = project.phaseNumber > phase.num;
               const isCurrent = project.phaseNumber === phase.num;
               return (
-                <div key={phase.key} className="flex-1 text-center">
+                <div key={phase.key} className="flex-1 min-w-[60px] text-center">
                   <div className={`h-1 rounded-full mb-3 ${isCompleted ? "bg-konti-olive" : isCurrent ? "bg-konti-olive/50" : "bg-white/10"}`} />
                   <div className={`w-8 h-8 rounded-full mx-auto flex items-center justify-center text-xs font-bold mb-2 ${
                     isCompleted ? "bg-konti-olive text-white" :
@@ -338,8 +338,8 @@ function ReportContent({ projectId }: { projectId: string }) {
               {t("Bill of Materials", "Lista de Materiales")}
               {template ? <span className="ml-2 text-konti-olive normal-case font-normal">· {template.name}</span> : null}
             </h2>
-            <div className="bg-white/5 rounded-xl border border-white/10 overflow-hidden">
-              <table className="w-full text-sm" data-testid="report-bom-table">
+            <div className="bg-white/5 rounded-xl border border-white/10 overflow-x-auto">
+              <table className="w-full text-sm min-w-[640px]" data-testid="report-bom-table">
                 <thead className="bg-white/5">
                   <tr>
                     {(template?.columns?.length ? template.columns : DEFAULT_REPORT_COLUMNS).map((col) => (
@@ -429,12 +429,12 @@ function ReportContent({ projectId }: { projectId: string }) {
             <h2 className="text-white/40 text-xs font-semibold uppercase tracking-widest mb-4">
               {t("Site Conditions", "Condiciones del Sitio")} — {weather.city}
             </h2>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-5xl font-bold text-white">{weather.temperature}{weather.temperatureUnit}</p>
-                <p className="text-white/50 mt-1">{lang === "es" ? weather.conditionEs : weather.condition} · {weather.humidity}% RH · {weather.windSpeed} {weather.windUnit}</p>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-4xl sm:text-5xl font-bold text-white">{weather.temperature}{weather.temperatureUnit}</p>
+                <p className="text-white/50 mt-1 text-sm sm:text-base break-words">{lang === "es" ? weather.conditionEs : weather.condition} · {weather.humidity}% RH · {weather.windSpeed} {weather.windUnit}</p>
               </div>
-              <div className={`px-4 py-2 rounded-xl border text-sm font-bold ${
+              <div className={`self-start sm:self-auto shrink-0 px-4 py-2 rounded-xl border text-sm font-bold ${
                 weather.buildSuitability === "green" ? "bg-emerald-900/40 border-emerald-500/30 text-emerald-400" :
                 weather.buildSuitability === "yellow" ? "bg-amber-900/40 border-amber-500/30 text-amber-400" :
                 "bg-red-900/40 border-red-500/30 text-red-400"

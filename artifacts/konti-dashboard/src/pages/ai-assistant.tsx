@@ -434,7 +434,7 @@ export default function AiAssistantPage() {
             )}
           </div>
 
-          <div className="bg-card border border-card-border rounded-xl shadow-sm overflow-hidden" style={{ height: "calc(100vh - 280px)", minHeight: 400 }}>
+          <div className="bg-card border border-card-border rounded-xl shadow-sm overflow-hidden h-[calc(100dvh-360px)] md:h-[calc(100vh-280px)] min-h-[400px]">
             {activeMode === "client_assistant" ? (
               <ChatInterface key={`client-${keys.client_assistant}`} mode="client_assistant" projectId={projectId} />
             ) : (

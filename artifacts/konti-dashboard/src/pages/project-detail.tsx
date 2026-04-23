@@ -782,21 +782,21 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
           <ChevronLeft className="w-4 h-4" /> {t("Back to Dashboard", "Volver al Panel")}
         </Link>
 
-        <div className="relative rounded-xl overflow-hidden h-56">
+        <div className="relative rounded-xl overflow-hidden h-48 sm:h-56">
           {project.coverImage && (
             <img src={project.coverImage} alt={project.name} className="w-full h-full object-cover" />
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-konti-dark/90 to-konti-dark/20" />
-          <div className="absolute bottom-4 left-6 right-6">
-            <div className="flex items-end justify-between">
-              <div>
+          <div className="absolute bottom-4 left-4 right-4 sm:left-6 sm:right-6">
+            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+              <div className="min-w-0">
                 <p className="text-white/70 text-sm mb-1">{project.clientName}</p>
-                <h1 className="text-white text-2xl font-bold">{project.name}</h1>
+                <h1 className="text-white text-xl sm:text-2xl font-bold break-words">{project.name}</h1>
                 <p className="text-white/60 text-sm flex items-center gap-1 mt-1">
-                  <MapPin className="w-3.5 h-3.5" /> {project.location}
+                  <MapPin className="w-3.5 h-3.5 shrink-0" /> {project.location}
                 </p>
               </div>
-              <div className="flex flex-col items-end gap-2">
+              <div className="flex sm:flex-col items-start sm:items-end gap-2 flex-wrap">
                 <span className="text-xs font-semibold px-3 py-1 rounded-full bg-konti-olive text-white">
                   {phaseLabel}
                 </span>
@@ -833,9 +833,9 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
         </div>
       )}
 
-      <div className="grid md:grid-cols-3 gap-6">
+      <div className="grid md:grid-cols-3 gap-4 md:gap-6">
         {/* Left column */}
-        <div className="md:col-span-2 space-y-6">
+        <div className="md:col-span-2 space-y-4 md:space-y-6">
           {/* Phase timeline */}
           <div className="bg-card rounded-xl border border-card-border p-5 shadow-sm">
             <h2 className="font-bold text-foreground mb-4">{t("Project Phase", "Fase del Proyecto")}</h2>
@@ -989,7 +989,7 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
         </div>
 
         {/* Right column */}
-        <div className="space-y-6">
+        <div className="space-y-4 md:space-y-6">
           {/* Phase 5 — Cost-Plus breakdown (shown for construction & completed projects) */}
           {(project.phase === "construction" || project.phase === "completed") && (
             <CostPlusBudget projectId={projectId} isClientView={isClientView} />

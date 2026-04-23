@@ -122,7 +122,7 @@ export default function IntakePage() {
 
   return (
     <div className="min-h-screen bg-konti-dark text-konti-light flex flex-col" data-testid="intake-page">
-      <header className="px-6 py-4 flex items-center justify-between border-b border-white/10">
+      <header className="px-4 sm:px-6 py-4 flex items-center justify-between gap-3 border-b border-white/10">
         <Link href="/login" className="flex items-center gap-2">
           <img src={logoWhite} alt="KONTi" className="h-7 w-auto" />
         </Link>
@@ -140,7 +140,7 @@ export default function IntakePage() {
         </div>
       </header>
 
-      <main className="flex-1 max-w-3xl w-full mx-auto px-6 py-10">
+      <main className="flex-1 max-w-3xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-10">
         {/* Progress dots */}
         {step < 5 && (
           <div className="flex items-center justify-center gap-2 mb-8">
@@ -275,7 +275,7 @@ export default function IntakePage() {
               <label className="text-sm font-medium text-white/80 mb-1.5 flex items-center gap-1.5">
                 <Mountain className="w-4 h-4" /> {t("Land status", "Estado del terreno")}
               </label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 {TERRAINS.map((tr) => {
                   const selected = form.terrainStatus === tr.value;
                   return (
@@ -387,7 +387,7 @@ export default function IntakePage() {
               </p>
             </div>
 
-            <div className="flex gap-2 border-b border-white/10">
+            <div className="flex flex-wrap gap-2 border-b border-white/10">
               <button
                 onClick={() => setBookingTab("consultation_30min")}
                 data-testid="tab-consult"
@@ -466,14 +466,14 @@ export default function IntakePage() {
               <p className="text-sm text-red-400">{t("Could not submit. Please try again.", "No se pudo enviar. Intenta de nuevo.")}</p>
             )}
 
-            <div className="flex justify-between">
+            <div className="flex flex-wrap justify-between gap-2">
               <button
                 onClick={() => setStep(3)}
                 className="flex items-center gap-2 px-4 py-2.5 rounded-md text-white/60 hover:text-white text-sm"
               >
                 <ArrowLeft className="w-4 h-4" /> {t("Back", "Atrás")}
               </button>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() => submitLead()}
                   disabled={createLead.isPending}
