@@ -144,23 +144,24 @@ export function Sidebar() {
         <NavContent />
       </aside>
 
-      {/* Mobile header */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-sidebar text-sidebar-foreground px-3 py-2 flex items-center justify-between gap-2 overflow-visible">
-        <img src={logoWhite} alt="KONTi" className="h-10 w-auto max-w-[8rem] object-contain min-w-0 shrink" />
-        <div className="flex items-center gap-2 shrink-0">
-          {showNotifications && <NotificationBell />}
-          <LangToggle testId="lang-toggle-mobile" />
-          <div className="w-px h-4 bg-white/20" />
+      {/* Mobile header (two-row to mirror desktop) */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-sidebar text-sidebar-foreground px-3 py-2 flex flex-col gap-2 overflow-visible">
+        <div className="flex items-center justify-between gap-2">
+          <img src={logoWhite} alt="KONTi" className="h-12 w-auto max-w-[12rem] object-contain min-w-0" />
           <button onClick={() => setMobileOpen(!mobileOpen)} data-testid="mobile-menu-toggle" className="shrink-0">
             {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
+        </div>
+        <div className="flex items-center justify-end gap-2">
+          {showNotifications && <NotificationBell />}
+          <LangToggle testId="lang-toggle-mobile" />
         </div>
       </div>
 
       {/* Mobile slide-out menu */}
       {mobileOpen && (
         <div className="md:hidden fixed inset-0 z-40 flex">
-          <div className="w-64 bg-sidebar text-sidebar-foreground h-full pt-14">
+          <div className="w-64 bg-sidebar text-sidebar-foreground h-full pt-24">
             <NavContent />
           </div>
           <div className="flex-1 bg-black/50" onClick={() => setMobileOpen(false)} />
