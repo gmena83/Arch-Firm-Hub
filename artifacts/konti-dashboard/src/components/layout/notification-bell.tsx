@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useLayoutEffect } from "react";
 import { useLocation } from "wouter";
 import { Bell, Upload, CheckSquare, ArrowRight, CloudRain, MessageSquare, HelpCircle, X } from "lucide-react";
 import { useLang } from "@/hooks/use-lang";
@@ -67,7 +67,9 @@ export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [unread, setUnread] = useState(0);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const [panelPos, setPanelPos] = useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 320 });
 
   const load = useCallback(() => {
     fetch(`/api/notifications`, { headers: authHeader() })
@@ -88,11 +90,49 @@ export function NotificationBell() {
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      const inPanel = panelRef.current?.contains(target);
+      const inButton = buttonRef.current?.contains(target);
+      if (!inPanel && !inButton) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
     };
     document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("keydown", onKey);
+    };
   }, [open]);
+
+  const computePanelPos = useCallback(() => {
+    const btn = buttonRef.current;
+    if (!btn) return;
+    const rect = btn.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const margin = 8;
+    const desiredWidth = 320;
+    const width = Math.min(desiredWidth, vw - margin * 2);
+    // Anchor right edge of panel to right edge of bell, then clamp into viewport
+    let left = rect.right - width;
+    if (left < margin) left = margin;
+    if (left + width > vw - margin) left = vw - margin - width;
+    const top = rect.bottom + 8;
+    setPanelPos({ top, left, width });
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    computePanelPos();
+    const onResize = () => computePanelPos();
+    window.addEventListener("resize", onResize);
+    window.addEventListener("scroll", onResize, true);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("scroll", onResize, true);
+    };
+  }, [open, computePanelPos]);
 
   const markSeen = async (id: string) => {
     setItems((prev) => prev.map((it) => it.id === id ? { ...it, seen: true } : it));
@@ -117,8 +157,9 @@ export function NotificationBell() {
   };
 
   return (
-    <div className="relative" ref={panelRef}>
+    <>
       <button
+        ref={buttonRef}
         type="button"
         onClick={() => setOpen((o) => !o)}
         data-testid="notification-bell"
@@ -139,10 +180,12 @@ export function NotificationBell() {
 
       {open && (
         <div
+          ref={panelRef}
           data-testid="notification-panel"
           onMouseDown={(e) => e.stopPropagation()}
           onPointerDown={(e) => e.stopPropagation()}
-          className="absolute right-0 top-9 w-80 max-w-[92vw] bg-card border border-card-border rounded-xl shadow-xl z-50 overflow-hidden"
+          style={{ position: "fixed", top: panelPos.top, left: panelPos.left, width: panelPos.width }}
+          className="bg-card border border-card-border rounded-xl shadow-xl z-[60] overflow-hidden"
         >
           <div className="flex items-center justify-between px-4 py-3 border-b border-border">
             <p className="text-sm font-semibold text-foreground">{t("Notifications", "Notificaciones")}</p>
@@ -200,6 +243,6 @@ export function NotificationBell() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
