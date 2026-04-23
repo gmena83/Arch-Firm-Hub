@@ -200,10 +200,10 @@ export default function LeadsPage() {
                     key={lead.id}
                     onClick={() => setSelectedId(lead.id)}
                     data-testid={`lead-row-${lead.id}`}
-                    className="bg-card border border-card-border rounded-xl p-4 flex items-center gap-4 hover:shadow-md transition-shadow cursor-pointer"
+                    className="bg-card border border-card-border rounded-xl p-3 sm:p-4 flex items-center gap-3 sm:gap-4 hover:shadow-md transition-shadow cursor-pointer"
                   >
                     {/* Score badge */}
-                    <div className={`w-14 h-14 rounded-xl flex flex-col items-center justify-center text-white shrink-0 ${scoreColor(lead.score)}`}>
+                    <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-xl flex flex-col items-center justify-center text-white shrink-0 ${scoreColor(lead.score)}`}>
                       <div className="text-lg font-bold leading-none">{lead.score}</div>
                       <div className="text-[9px] opacity-80 mt-0.5 uppercase tracking-wider">score</div>
                     </div>
@@ -233,7 +233,7 @@ export default function LeadsPage() {
                     </div>
 
                     <button
-                      className="text-xs px-3 py-1.5 rounded-md text-konti-olive hover:bg-konti-olive/10"
+                      className="text-xs px-2 sm:px-3 py-1.5 rounded-md text-konti-olive hover:bg-konti-olive/10 shrink-0"
                       onClick={(e) => { e.stopPropagation(); setSelectedId(lead.id); }}
                     >
                       {t("View →", "Ver →")}

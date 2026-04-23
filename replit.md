@@ -76,3 +76,15 @@ A bilingual (EN/ES) project management and client dashboard for KONTi Design | B
 1. **Casa Solar Rincón** (`proj-1`) — Phase 1: Discovery, Rincón PR
 2. **Residencia Martínez Ocasio** (`proj-2`) — Phase 5: Construction 67%, San Juan PR (client: Benito Antonio Martínez Ocasio)
 3. **Café Colmado Santurce** (`proj-3`) — Completed, Santurce PR
+
+### Responsive Layout Conventions
+The dashboard targets phone (~375px), tablet (~768px), and desktop. Conventions:
+- **Mobile header offset**: `pt-28 md:pt-0` on `<main>` clears the two-row mobile header (logo + bell/lang toggle).
+- **Page gutters**: `px-3 sm:px-4 md:px-8` from `app-layout.tsx`. Pages with their own container (e.g. `permits.tsx`) use `p-3 sm:p-6`.
+- **Card grids**: `grid sm:grid-cols-2 lg:grid-cols-3` for project cards (1→2→3 columns).
+- **List rows**: `p-3 sm:p-4 flex items-center gap-3 sm:gap-4`; secondary content (cover image, budget text) uses `hidden sm:block`; action buttons may collapse to icon-only on phone (`<span className="hidden sm:inline">View</span>`).
+- **Wide tables**: wrap in `overflow-x-auto` with `min-w-[…]` on the table itself (e.g. `min-w-[640px]` for BOM, `min-w-[700px]` for calculator, `min-w-[480px]` for materials).
+- **Hero/header rows**: `flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3` to stack on phone.
+- **Long horizontal strips** (e.g. 9-phase timeline): wrap in `overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0` with `min-w-[60px]` per item.
+- **Chat / fixed-height panels**: prefer `h-[calc(100dvh-360px)] md:h-[calc(100vh-280px)]` to account for the larger mobile header.
+- **Page H1**: `text-xl sm:text-2xl` and `shrink-0` on inline icons to prevent overflow.

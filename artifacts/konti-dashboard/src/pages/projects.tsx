@@ -244,7 +244,7 @@ export default function ProjectsPage() {
                   <div
                     key={project.id}
                     data-testid={`row-project-${project.id}`}
-                    className="bg-card rounded-xl border border-card-border shadow-sm p-4 flex items-center gap-4 hover:shadow-md transition-shadow"
+                    className="bg-card rounded-xl border border-card-border shadow-sm p-3 sm:p-4 flex items-center gap-3 sm:gap-4 hover:shadow-md transition-shadow"
                   >
                     {project.coverImage && (
                       <img
@@ -283,9 +283,9 @@ export default function ProjectsPage() {
                     <Link
                       href={`/projects/${project.id}`}
                       data-testid={`link-projects-list-${project.id}`}
-                      className="shrink-0 flex items-center gap-1.5 py-2 px-4 bg-konti-olive hover:bg-konti-olive/90 text-white text-xs font-semibold rounded-md transition-colors"
+                      className="shrink-0 flex items-center gap-1.5 py-2 px-3 sm:px-4 bg-konti-olive hover:bg-konti-olive/90 text-white text-xs font-semibold rounded-md transition-colors"
                     >
-                      {t("View", "Ver")} <ArrowRight className="w-3 h-3" />
+                      <span className="hidden sm:inline">{t("View", "Ver")}</span> <ArrowRight className="w-3 h-3" />
                     </Link>
                   </div>
                 );
