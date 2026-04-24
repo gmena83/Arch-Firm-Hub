@@ -1772,3 +1772,65 @@ export function getPunchlistForPhase(projectId: string, phase: string): Punchlis
 export function countOpenPunchlistItems(projectId: string, phase: string): number {
   return getPunchlistForPhase(projectId, phase).filter((i) => i.status !== "done" && i.status !== "waived").length;
 }
+
+// ---------------------------------------------------------------------------
+// Synthesized project scaffolding
+//
+// When a lead is accepted (see routes/leads.ts), a discovery-phase project is
+// created in-memory. This helper populates all the per-project state records
+// (pre-design checklist, design state, signatures, permit items, calculator
+// entries, cost-plus, milestones) so the project can be driven through the
+// full lifecycle by API callers — used both by the production lead-accept
+// flow and the e2e test suite.
+// ---------------------------------------------------------------------------
+export function scaffoldSynthesizedProjectState(projectId: string): void {
+  if (!PRE_DESIGN_CHECKLISTS[projectId]) {
+    PRE_DESIGN_CHECKLISTS[projectId] = defaultChecklist();
+  }
+  if (!PROJECT_DESIGN_STATE[projectId]) {
+    PROJECT_DESIGN_STATE[projectId] = designStateNotStarted(projectId);
+  }
+  if (!PROJECT_REQUIRED_SIGNATURES[projectId]) {
+    PROJECT_REQUIRED_SIGNATURES[projectId] = standardSignatures();
+  }
+  if (!PROJECT_PERMIT_AUTHORIZATIONS[projectId]) {
+    PROJECT_PERMIT_AUTHORIZATIONS[projectId] = { status: "none", summaryAccepted: false };
+  }
+  if (!PROJECT_PERMIT_ITEMS[projectId]) {
+    PROJECT_PERMIT_ITEMS[projectId] = permitItemsTemplate({ state: "not_submitted" });
+  }
+  const calc = CALCULATOR_ENTRIES as Record<string, Array<Record<string, unknown>>>;
+  if (!calc[projectId]) {
+    // Seed a 5-line baseline so calculator/material flows have data to read.
+    calc[projectId] = [
+      { id: `calc-${projectId}-1`, projectId, materialId: "mat-1", materialName: "40ft Shipping Container (One-trip)", materialNameEs: "Contenedor 40ft (Un viaje)", category: "steel", unit: "unit", quantity: 2, basePrice: 6800, manualPriceOverride: null, effectivePrice: 6800, lineTotal: 13600 },
+      { id: `calc-${projectId}-2`, projectId, materialId: "mat-3", materialName: "Concrete — Ready Mix (3000 PSI)", materialNameEs: "Concreto — Mezcla lista (3000 PSI)", category: "foundation", unit: "yd³", quantity: 40, basePrice: 165, manualPriceOverride: null, effectivePrice: 165, lineTotal: 6600 },
+      { id: `calc-${projectId}-3`, projectId, materialId: "mat-21", materialName: "Spray Foam Insulation (600 bd ft)", materialNameEs: "Espuma de poliuretano (600 bd ft)", category: "insulation", unit: "kit", quantity: 6, basePrice: 320, manualPriceOverride: null, effectivePrice: 320, lineTotal: 1920 },
+      { id: `calc-${projectId}-4`, projectId, materialId: "mat-22", materialName: "Standing Seam Metal Roof Panel (per sq)", materialNameEs: "Panel de techo metálico (por cuadro)", category: "finishes", unit: "square", quantity: 16, basePrice: 420, manualPriceOverride: null, effectivePrice: 420, lineTotal: 6720 },
+      { id: `calc-${projectId}-5`, projectId, materialId: "mat-19", materialName: "Drywall 5/8\" Type X (4×8)", materialNameEs: "Drywall 5/8\" Tipo X (4×8)", category: "finishes", unit: "sheet", quantity: 120, basePrice: 18.5, manualPriceOverride: null, effectivePrice: 18.5, lineTotal: 2220 },
+    ];
+  }
+  if (!PROJECT_COST_PLUS[projectId]) {
+    PROJECT_COST_PLUS[projectId] = buildCostPlus(projectId, 95000, 52000, 18000, 12, "Initial cost-plus baseline.", "Línea base cost-plus inicial.");
+  }
+  if (!PROJECT_MILESTONES[projectId]) {
+    PROJECT_MILESTONES[projectId] = [];
+  }
+  if (!PROJECT_INSPECTIONS[projectId]) {
+    PROJECT_INSPECTIONS[projectId] = [];
+  }
+  if (!PROJECT_PROPOSALS[projectId]) {
+    PROJECT_PROPOSALS[projectId] = [];
+  }
+  if (!PROJECT_CHANGE_ORDERS[projectId]) {
+    PROJECT_CHANGE_ORDERS[projectId] = [];
+  }
+  if (!PROJECT_PUNCHLIST[punchlistKey(projectId, "construction")]) {
+    PROJECT_PUNCHLIST[punchlistKey(projectId, "construction")] = [];
+  }
+  if (!PROJECT_ACTIVITIES[projectId]) {
+    PROJECT_ACTIVITIES[projectId] = [
+      { id: `act-${projectId}-1`, timestamp: new Date().toISOString(), type: "phase_change", actor: "System", description: "Project created from accepted lead", descriptionEs: "Proyecto creado desde lead aceptado" },
+    ];
+  }
+}

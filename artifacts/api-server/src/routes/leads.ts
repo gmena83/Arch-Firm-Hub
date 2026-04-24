@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import {
   LEADS,
   PROJECTS,
+  scaffoldSynthesizedProjectState,
   computeLeadScore,
   type Lead,
   type LeadProjectType,
@@ -131,6 +132,7 @@ router.post("/leads/:id/accept", requireRole("admin", "architect", "superadmin")
     res.status(404).json({ error: "not_found", message: "Lead not found" });
     return;
   }
+  const acceptBody = (req.body ?? {}) as Record<string, unknown>;
 
   // Idempotent: if already accepted, return the existing project
   if (lead.status === "accepted") {
@@ -177,10 +179,14 @@ router.post("/leads/:id/accept", requireRole("admin", "architect", "superadmin")
     gammaReportUrl: `/projects/${projectId}/report`,
     teamMembers: ["Carla Gautier"],
     status: "active" as const,
-    clientUserId: "user-client-1",
+    clientUserId: typeof acceptBody["clientUserId"] === "string" ? acceptBody["clientUserId"] : "user-client-1",
   };
   PROJECTS.push(newProject);
   ACCEPTED_LEAD_PROJECTS.set(lead.id, projectId);
+  // Scaffold full per-project state so the new project can be driven through
+  // the entire lifecycle (pre-design checklist, design stepper, signatures,
+  // permit items, calculator/cost-plus/inspections/milestones).
+  scaffoldSynthesizedProjectState(projectId);
 
   res.json({
     lead,
