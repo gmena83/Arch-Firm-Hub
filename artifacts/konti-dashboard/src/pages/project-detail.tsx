@@ -134,7 +134,14 @@ function UploadModal({ onClose, projectId }: { onClose: () => void; projectId: s
             mimeType: file.type || "application/octet-stream",
           },
         });
-        await queryClient.invalidateQueries({ queryKey: getGetProjectDocumentsQueryKey(projectId) });
+        // Refresh both the documents list AND the project response — the
+        // server appends a `receipts_upload` ProjectActivity on every upload
+        // and that activity is embedded in GET /projects/:id, so the project
+        // timeline needs to refetch too.
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: getGetProjectDocumentsQueryKey(projectId) }),
+          queryClient.invalidateQueries({ queryKey: getGetProjectQueryKey(projectId) }),
+        ]);
         toast({
           title: t("File uploaded successfully", "Archivo subido exitosamente"),
           description: category === "client_review"

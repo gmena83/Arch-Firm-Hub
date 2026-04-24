@@ -5,14 +5,20 @@
  * KONTi Design | Build Studio - Project Management API
  * OpenAPI spec version: 0.1.0
  */
+import type { DocumentCreateRequestCategory } from "./documentCreateRequestCategory";
+import type { DocumentCreateRequestType } from "./documentCreateRequestType";
 
 export interface DocumentCreateRequest {
-  /** File name including extension (1-200 chars). */
+  /**
+   * File name including extension (1-200 chars).
+   * @minLength 1
+   * @maxLength 200
+   */
   name: string;
-  /** Document category (client_review, internal, permits, construction, design). */
-  category: string;
-  /** Optional file-type bucket. Defaults to the file extension. */
-  type?: string;
+  /** Document category. Must match the Document.category enum. */
+  category: DocumentCreateRequestCategory;
+  /** Optional file-type bucket. If omitted, the server infers it from the file extension and normalizes to one of [pdf|excel|pptx|photo|other]. */
+  type?: DocumentCreateRequestType;
   /** When true the document appears in the client-visible list. Defaults to true. */
   isClientVisible?: boolean;
   /** Human-readable file size (e.g. "1.4 MB"). Optional. */
