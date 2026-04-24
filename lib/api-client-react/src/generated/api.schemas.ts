@@ -216,6 +216,23 @@ export interface Document {
   versions?: DocumentVersion[];
 }
 
+export interface DocumentCreateRequest {
+  /** File name including extension (1-200 chars). */
+  name: string;
+  /** Document category (client_review, internal, permits, construction, design). */
+  category: string;
+  /** Optional file-type bucket. Defaults to the file extension. */
+  type?: string;
+  /** When true the document appears in the client-visible list. Defaults to true. */
+  isClientVisible?: boolean;
+  /** Human-readable file size (e.g. "1.4 MB"). Optional. */
+  fileSize?: string;
+  /** Optional free-form description. */
+  description?: string;
+  /** Optional MIME type captured at upload time. */
+  mimeType?: string;
+}
+
 export type MaterialCategory =
   (typeof MaterialCategory)[keyof typeof MaterialCategory];
 

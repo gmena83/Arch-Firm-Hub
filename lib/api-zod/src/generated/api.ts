@@ -236,6 +236,44 @@ export const GetProjectDocumentsResponse = zod.array(
 );
 
 /**
+ * @summary Register a document metadata row for a project (team/admin/superadmin)
+ */
+export const CreateProjectDocumentParams = zod.object({
+  projectId: zod.coerce.string(),
+});
+
+export const CreateProjectDocumentBody = zod.object({
+  name: zod.string().describe("File name including extension (1-200 chars)."),
+  category: zod
+    .string()
+    .describe(
+      "Document category (client_review, internal, permits, construction, design).",
+    ),
+  type: zod
+    .string()
+    .optional()
+    .describe("Optional file-type bucket. Defaults to the file extension."),
+  isClientVisible: zod
+    .boolean()
+    .optional()
+    .describe(
+      "When true the document appears in the client-visible list. Defaults to true.",
+    ),
+  fileSize: zod
+    .string()
+    .optional()
+    .describe('Human-readable file size (e.g. \"1.4 MB\"). Optional.'),
+  description: zod
+    .string()
+    .optional()
+    .describe("Optional free-form description."),
+  mimeType: zod
+    .string()
+    .optional()
+    .describe("Optional MIME type captured at upload time."),
+});
+
+/**
  * @summary Get material calculations for a project
  */
 export const GetProjectCalculationsParams = zod.object({

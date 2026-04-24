@@ -200,15 +200,36 @@ router.post("/projects/:projectId/documents", requireRole(["team", "admin", "sup
   if (typeof body.name !== "string" || body.name.length === 0 || body.name.length > 200) {
     return res.status(400).json({ error: "bad_request", message: "name required" });
   }
-  if (typeof body.category !== "string" || body.category.length === 0) {
+  const ALLOWED_CATEGORIES = ["client_review", "internal", "permits", "construction", "design"] as const;
+  if (
+    typeof body.category !== "string" ||
+    !(ALLOWED_CATEGORIES as readonly string[]).includes(body.category)
+  ) {
     return res.status(400).json({ error: "bad_request", message: "category required" });
   }
+  // Normalize `type` to the Document schema enum [pdf|excel|pptx|photo|other]
+  // so the response satisfies the OpenAPI contract regardless of what the
+  // client sent (raw extensions like "jpg"/"png" are mapped to "photo").
+  const ALLOWED_TYPES = ["pdf", "excel", "pptx", "photo", "other"] as const;
+  const ext = (body.name.split(".").pop() ?? "").toLowerCase();
+  const inferTypeFromExt = (e: string): typeof ALLOWED_TYPES[number] => {
+    if (e === "pdf") return "pdf";
+    if (e === "xls" || e === "xlsx") return "excel";
+    if (e === "ppt" || e === "pptx") return "pptx";
+    if (e === "jpg" || e === "jpeg" || e === "png" || e === "gif" || e === "webp") return "photo";
+    return "other";
+  };
+  const requestedType = typeof body.type === "string" ? body.type.toLowerCase() : "";
+  const normalizedType: typeof ALLOWED_TYPES[number] =
+    (ALLOWED_TYPES as readonly string[]).includes(requestedType)
+      ? (requestedType as typeof ALLOWED_TYPES[number])
+      : inferTypeFromExt(ext);
   const list = (DOCUMENTS as Record<string, unknown[]>)[projectId] ?? [];
   const doc = {
     id: `doc-${projectId}-${list.length + 1}-${Date.now()}`,
     projectId,
     name: body.name,
-    type: body.type ?? body.name.split(".").pop() ?? "file",
+    type: normalizedType,
     category: body.category,
     isClientVisible: body.isClientVisible ?? true,
     uploadedBy: (req as { user?: { id?: string } }).user?.id ?? "system",

@@ -48,6 +48,7 @@ export * from "./designStateSubPhases";
 export * from "./designSubPhaseState";
 export * from "./document";
 export * from "./documentCategory";
+export * from "./documentCreateRequest";
 export * from "./documentDesignSubPhase";
 export * from "./documentType";
 export * from "./documentVersion";

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, Link } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { useGetProjectChangeOrders } from "@workspace/api-client-react";
@@ -8,6 +8,7 @@ import {
   useGetProjectWeather,
   useGetProjectDocuments,
   useGetProjectCalculations,
+  useCreateProjectDocument,
   getGetProjectQueryKey,
   getGetProjectTasksQueryKey,
   getGetProjectWeatherQueryKey,
@@ -47,28 +48,157 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
+// Maximum upload size accepted by the modal. Mirrors the demo policy
+// documented in `attached_assets/reports/critical-feedback-priorities.csv`
+// row #82 (Tatiana — "no me deja upload nada"). The server registers
+// metadata only, so this is a UX guard to block oversized payloads early.
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+const ACCEPTED_MIME = new Set([
+  "application/pdf",
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+]);
+const ACCEPTED_EXTENSIONS = [".pdf", ".jpg", ".jpeg", ".png", ".xls", ".xlsx", ".pptx"];
+
+function fileExtension(name: string): string {
+  const dot = name.lastIndexOf(".");
+  return dot >= 0 ? name.slice(dot).toLowerCase() : "";
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function inferDocType(file: File): "pdf" | "excel" | "pptx" | "photo" | "other" {
+  if (file.type === "application/pdf" || fileExtension(file.name) === ".pdf") return "pdf";
+  if (file.type.startsWith("image/")) return "photo";
+  const ext = fileExtension(file.name);
+  if (ext === ".xls" || ext === ".xlsx") return "excel";
+  if (ext === ".pptx") return "pptx";
+  return "other";
+}
+
 function UploadModal({ onClose, projectId }: { onClose: () => void; projectId: string }) {
   const { t } = useLang();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [category, setCategory] = useState<"client_review" | "internal">("client_review");
   const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const handleSimulateUpload = () => {
-    toast({
-      title: t("File uploaded successfully", "Archivo subido exitosamente"),
-      description: category === "client_review"
-        ? t("Email notification sent to client.", "Notificación enviada al cliente por correo.")
-        : t("File saved to internal documents.", "Archivo guardado en documentos internos."),
-    });
-    onClose();
+  const createDocument = useCreateProjectDocument();
+
+  const uploadFile = useCallback(
+    async (file: File) => {
+      // Client-side guards: bilingual error toast on validation failure,
+      // matching the bug-report row #82 acceptance criteria.
+      const ext = fileExtension(file.name);
+      const mimeOk = ACCEPTED_MIME.has(file.type) || ACCEPTED_EXTENSIONS.includes(ext);
+      if (!mimeOk) {
+        toast({
+          title: t("Unsupported file type", "Tipo de archivo no compatible"),
+          description: t(
+            "Allowed: PDF, JPG, PNG, Excel, PPTX.",
+            "Permitidos: PDF, JPG, PNG, Excel, PPTX.",
+          ),
+          variant: "destructive",
+        });
+        return;
+      }
+      if (file.size > MAX_UPLOAD_BYTES) {
+        toast({
+          title: t("File too large", "Archivo muy grande"),
+          description: t(
+            `Maximum size is 10 MB. This file is ${formatFileSize(file.size)}.`,
+            `El tamaño máximo es 10 MB. Este archivo pesa ${formatFileSize(file.size)}.`,
+          ),
+          variant: "destructive",
+        });
+        return;
+      }
+      try {
+        await createDocument.mutateAsync({
+          projectId,
+          data: {
+            name: file.name,
+            category,
+            type: inferDocType(file),
+            isClientVisible: category === "client_review",
+            fileSize: formatFileSize(file.size),
+            mimeType: file.type || "application/octet-stream",
+          },
+        });
+        await queryClient.invalidateQueries({ queryKey: getGetProjectDocumentsQueryKey(projectId) });
+        toast({
+          title: t("File uploaded successfully", "Archivo subido exitosamente"),
+          description: category === "client_review"
+            ? t("Email notification sent to client.", "Notificación enviada al cliente por correo.")
+            : t("File saved to internal documents.", "Archivo guardado en documentos internos."),
+        });
+        onClose();
+      } catch (err) {
+        // Surface bilingual error with the server's message (e.g. 404 on a
+        // missing project, 403 on insufficient role) so the user knows why
+        // it failed instead of a silent toast.
+        const status = (err as { status?: number }).status;
+        const serverMsg = (err as { data?: { message?: string } }).data?.message;
+        // Default fallback strings are bilingual (NOT the raw English server
+        // message in both branches) so a Spanish user always reads Spanish.
+        let descEn = "Could not register the document. Please try again.";
+        let descEs = "No se pudo registrar el documento. Inténtalo de nuevo.";
+        if (status === 404) {
+          descEn = "Project not found on the server. Refresh and try again.";
+          descEs = "El proyecto no existe en el servidor. Recarga e inténtalo de nuevo.";
+        } else if (status === 403) {
+          descEn = "Your role cannot upload documents to this project.";
+          descEs = "Tu rol no puede subir documentos a este proyecto.";
+        } else if (status === 401) {
+          descEn = "Session expired. Please sign in again.";
+          descEs = "Sesión expirada. Inicia sesión nuevamente.";
+        } else if (status === 400) {
+          // Server validation messages (e.g. "name required", "category
+          // required") are English-only — render a localized Spanish version
+          // and append the server hint in EN only.
+          descEn = serverMsg ?? "The file could not be accepted by the server.";
+          descEs = "El servidor rechazó el archivo. Verifica el nombre y la categoría.";
+        }
+        toast({
+          title: t("Upload failed", "No se pudo subir el archivo"),
+          description: t(descEn, descEs),
+          variant: "destructive",
+        });
+      }
+    },
+    [createDocument, projectId, category, queryClient, toast, t, onClose],
+  );
+
+  const onPickFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (file) void uploadFile(file);
   };
+
+  const onDropFile = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) void uploadFile(file);
+  };
+
+  const isUploading = createDocument.isPending;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" data-testid="upload-modal">
       <div className="bg-card rounded-xl border border-card-border shadow-xl w-full max-w-md mx-4 p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-bold">{t("Upload Document", "Subir Documento")}</h2>
-          <button onClick={onClose} data-testid="btn-close-upload"><X className="w-5 h-5" /></button>
+          <button onClick={onClose} data-testid="btn-close-upload" disabled={isUploading}><X className="w-5 h-5" /></button>
         </div>
 
         <div className="space-y-4">
@@ -80,6 +210,7 @@ function UploadModal({ onClose, projectId }: { onClose: () => void; projectId: s
                   key={cat}
                   onClick={() => setCategory(cat)}
                   data-testid={`btn-category-${cat}`}
+                  disabled={isUploading}
                   className={`flex-1 py-2 px-3 rounded-md text-sm font-medium border transition-colors ${
                     category === cat
                       ? "bg-konti-olive text-white border-konti-olive"
@@ -92,17 +223,35 @@ function UploadModal({ onClose, projectId }: { onClose: () => void; projectId: s
             </div>
           </div>
 
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="hidden"
+            data-testid="input-upload-file"
+            accept={ACCEPTED_EXTENSIONS.join(",")}
+            onChange={onPickFile}
+          />
+
           <div
+            role="button"
+            tabIndex={0}
+            onClick={() => !isUploading && fileInputRef.current?.click()}
+            onKeyDown={(e) => { if ((e.key === "Enter" || e.key === " ") && !isUploading) fileInputRef.current?.click(); }}
             onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
             onDragLeave={() => setDragOver(false)}
-            onDrop={(e) => { e.preventDefault(); setDragOver(false); handleSimulateUpload(); }}
-            className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
-              dragOver ? "border-konti-olive bg-konti-olive/5" : "border-border"
-            }`}
+            onDrop={onDropFile}
+            data-testid="upload-dropzone"
+            className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
+              dragOver ? "border-konti-olive bg-konti-olive/5" : "border-border hover:border-konti-olive/50"
+            } ${isUploading ? "opacity-50 cursor-wait" : ""}`}
           >
             <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-            <p className="text-sm font-medium text-foreground">{t("Drop files here or click to browse", "Suelta archivos aquí o haz clic para navegar")}</p>
-            <p className="text-xs text-muted-foreground mt-1">PDF, Excel, PPTX, JPG, PNG</p>
+            <p className="text-sm font-medium text-foreground">
+              {isUploading
+                ? t("Uploading…", "Subiendo…")
+                : t("Drop a file here or click to browse", "Suelta un archivo aquí o haz clic para navegar")}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">{t("PDF, JPG, PNG, Excel, PPTX · max 10 MB", "PDF, JPG, PNG, Excel, PPTX · máx. 10 MB")}</p>
           </div>
 
           {category === "client_review" && (
@@ -112,11 +261,12 @@ function UploadModal({ onClose, projectId }: { onClose: () => void; projectId: s
           )}
 
           <button
-            onClick={handleSimulateUpload}
-            data-testid="btn-simulate-upload"
-            className="w-full py-2.5 bg-konti-olive hover:bg-konti-olive/90 text-white text-sm font-semibold rounded-md transition-colors"
+            onClick={() => !isUploading && fileInputRef.current?.click()}
+            data-testid="btn-pick-upload"
+            disabled={isUploading}
+            className="w-full py-2.5 bg-konti-olive hover:bg-konti-olive/90 text-white text-sm font-semibold rounded-md transition-colors disabled:opacity-60"
           >
-            {t("Simulate Upload", "Simular Subida")}
+            {isUploading ? t("Uploading…", "Subiendo…") : t("Choose File", "Elegir Archivo")}
           </button>
         </div>
       </div>
