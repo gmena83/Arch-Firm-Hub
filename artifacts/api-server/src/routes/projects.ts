@@ -184,6 +184,43 @@ router.get("/projects/:projectId/weather", (req, res) => {
   return res.json({ ...weather, lastUpdated: new Date().toISOString() });
 });
 
+// Document upload metadata registration. Real binary upload is handled by the
+// dashboard via signed object-storage URLs; this endpoint records the metadata
+// row so GET /documents reflects newly-attached evidence (used by the e2e
+// suite to score document completeness from API state, not from file copies).
+router.post("/projects/:projectId/documents", requireRole(["team", "admin", "superadmin"]), (req, res) => {
+  const projectId = req.params["projectId"] as string;
+  if (!PROJECTS.find((p) => p.id === projectId)) {
+    return res.status(404).json({ error: "not_found", message: "Project not found" });
+  }
+  const body = (req.body ?? {}) as {
+    name?: string; type?: string; category?: string; isClientVisible?: boolean;
+    fileSize?: string; description?: string; mimeType?: string;
+  };
+  if (typeof body.name !== "string" || body.name.length === 0 || body.name.length > 200) {
+    return res.status(400).json({ error: "bad_request", message: "name required" });
+  }
+  if (typeof body.category !== "string" || body.category.length === 0) {
+    return res.status(400).json({ error: "bad_request", message: "category required" });
+  }
+  const list = (DOCUMENTS as Record<string, unknown[]>)[projectId] ?? [];
+  const doc = {
+    id: `doc-${projectId}-${list.length + 1}-${Date.now()}`,
+    projectId,
+    name: body.name,
+    type: body.type ?? body.name.split(".").pop() ?? "file",
+    category: body.category,
+    isClientVisible: body.isClientVisible ?? true,
+    uploadedBy: (req as { user?: { id?: string } }).user?.id ?? "system",
+    uploadedAt: new Date().toISOString(),
+    fileSize: body.fileSize ?? "0 KB",
+    mimeType: body.mimeType ?? "",
+    description: body.description ?? "",
+  };
+  (DOCUMENTS as Record<string, unknown[]>)[projectId] = [...list, doc];
+  return res.status(201).json(doc);
+});
+
 router.get("/projects/:projectId/documents", (req, res) => {
   const projectId = req.params["projectId"];
   const clientVisible = req.query["clientVisible"];
@@ -364,19 +401,63 @@ router.post("/projects/:id/pdf", async (req, res) => {
     return;
   }
 
-  const reportUrl = process.env["REPLIT_DEV_DOMAIN"]
-    ? `https://${process.env["REPLIT_DEV_DOMAIN"]}/projects/${project.id}/report`
-    : `http://localhost:${process.env["PORT"] ?? 8080}/projects/${project.id}/report`;
+  // Render the status report HTML server-side so the PDF renderer doesn't
+  // depend on an authenticated SPA load (the previous URL-based path would
+  // have pdf.co fetch the dashboard unauthenticated and rasterize the login
+  // screen). HTML contains: project name, phase, location, generated date,
+  // status summary, signature block.
+  const rawTasks = (PROJECT_TASKS[project.id as keyof typeof PROJECT_TASKS] ?? []) as ReadonlyArray<Record<string, unknown>>;
+  const tasks: Array<{ title: string; status: string; phase?: string; assignee?: string }> =
+    rawTasks.map((t) => ({
+      title: String(t["title"] ?? ""),
+      status: String(t["status"] ?? (t["completed"] ? "done" : "open")),
+      phase: typeof t["phase"] === "string" ? (t["phase"] as string) : undefined,
+      assignee: typeof t["assignee"] === "string" ? (t["assignee"] as string) : undefined,
+    }));
+  const docs = ((DOCUMENTS as Record<string, unknown[]>)[project.id] ?? []) as Array<{
+    name: string; category: string; uploadedAt: string;
+  }>;
+  const phaseLabel = String(project.phase ?? "discovery").replace(/_/g, " ").toUpperCase();
+  const generatedAt = new Date().toLocaleString("en-US", { timeZone: "America/Puerto_Rico" });
+  const taskRows = tasks.slice(0, 12).map((t) =>
+    `<tr><td style="padding:4px 8px;border-bottom:1px solid #eee;">${t.title}</td>` +
+    `<td style="padding:4px 8px;border-bottom:1px solid #eee;color:#666;">${t.phase ?? ""}</td>` +
+    `<td style="padding:4px 8px;border-bottom:1px solid #eee;">${t.status}</td></tr>`).join("");
+  const docRows = docs.slice(0, 20).map((d) =>
+    `<tr><td style="padding:4px 8px;border-bottom:1px solid #eee;">${d.name}</td>` +
+    `<td style="padding:4px 8px;border-bottom:1px solid #eee;color:#666;">${d.category}</td></tr>`).join("");
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>KONTi Status Report — ${project.name}</title>` +
+    `<style>body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;color:#222;margin:32px;}` +
+    `h1{color:#4F5E2A;margin:0 0 4px;}h2{font-size:14px;margin:24px 0 8px;color:#333;border-bottom:1px solid #ddd;padding-bottom:4px;}` +
+    `.meta{color:#555;font-size:12px;margin:8px 0 16px;}.meta b{color:#222;}` +
+    `table{width:100%;border-collapse:collapse;font-size:12px;}` +
+    `.sig{margin-top:48px;border-top:1px solid #999;padding-top:8px;width:300px;font-size:12px;color:#444;}</style></head><body>` +
+    `<h1>KONTi Project Status Report</h1>` +
+    `<div class="meta"><b>Project:</b> ${project.name}<br>` +
+    `<b>Location:</b> ${project.location ?? "—"}<br>` +
+    `<b>Phase:</b> ${phaseLabel}<br>` +
+    `<b>Date:</b> ${generatedAt}</div>` +
+    `<h2>Open Tasks (${tasks.length} total)</h2>` +
+    `<table><thead><tr><th align="left" style="padding:4px 8px;border-bottom:1px solid #ccc;">Task</th>` +
+    `<th align="left" style="padding:4px 8px;border-bottom:1px solid #ccc;">Phase</th>` +
+    `<th align="left" style="padding:4px 8px;border-bottom:1px solid #ccc;">Status</th></tr></thead>` +
+    `<tbody>${taskRows || '<tr><td colspan=3 style="padding:8px;color:#888;">No tasks recorded.</td></tr>'}</tbody></table>` +
+    `<h2>Documents on file (${docs.length})</h2>` +
+    `<table><thead><tr><th align="left" style="padding:4px 8px;border-bottom:1px solid #ccc;">Name</th>` +
+    `<th align="left" style="padding:4px 8px;border-bottom:1px solid #ccc;">Category</th></tr></thead>` +
+    `<tbody>${docRows || '<tr><td colspan=2 style="padding:8px;color:#888;">No documents on file.</td></tr>'}</tbody></table>` +
+    `<div class="sig"><b>Authorized Signature</b><br>KONTi Project Lead</div>` +
+    `</body></html>`;
 
   try {
-    const pdfResponse = await fetch("https://api.pdf.co/v1/pdf/convert/from/url", {
+    const pdfResponse = await fetch("https://api.pdf.co/v1/pdf/convert/from/html", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "x-api-key": pdfApiKey,
       },
       body: JSON.stringify({
-        url: reportUrl,
+        html,
         name: `KONTi-Report-${project.name.replace(/\s+/g, "-")}.pdf`,
         async: false,
         printBackground: true,

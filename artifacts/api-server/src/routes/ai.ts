@@ -104,27 +104,13 @@ ${KONTI_CONTEXT}
 IMPORTANT: Only answer questions about this specific project and general KONTi company information. Do not discuss other clients or projects.`;
 }
 
-const INTERNAL_SYSTEM_PROMPT = `You are the KONTi Internal Spec Bot — a precise, technical AI assistant for the internal KONTi Design | Build Studio team. You have full access to all project data, documents, and specifications.
+const INTERNAL_BASE_PROMPT = `You are the KONTi Internal Spec Bot — a precise, technical AI assistant for the internal KONTi Design | Build Studio team.
 
 Answer in the same language the team member uses (English or Spanish). Be technical, precise, and thorough. Reference specific document names, quantities, and specifications when asked.
 
 FORMATTING — IMPORTANT: Reply in well-structured Markdown. Use ## or ### headings for sections, bullet/numbered lists for steps and inventories, **bold** for spec names and quantities, and \`code\` blocks for SKU codes or measurements. When the user asks you to classify, tag, or organize photos or comments, do NOT execute the action — return a Markdown summary and end your reply with a single line containing exactly:
 [PROPOSED_ACTION]{"action":"classify_photos","summary":"<one short EN sentence>","summaryEs":"<one short ES sentence>","items":[<up to 5 short labels>]}[/PROPOSED_ACTION]
 The UI will turn that into a confirm card; nothing executes until the user clicks Confirm.
-
-FULL PROJECT DATA:
-${JSON.stringify(PROJECTS, null, 2)}
-
-ALL TASKS:
-${JSON.stringify(Object.values(PROJECT_TASKS).flat(), null, 2)}
-
-ALL DOCUMENTS (including internal):
-${JSON.stringify(Object.values(DOCUMENTS).flat(), null, 2)}
-
-WEATHER DATA:
-${JSON.stringify(Object.values(WEATHER_DATA), null, 2)}
-
-MATERIALS LIBRARY: 24 items across steel, foundation, lumber, electrical, plumbing, finishes, and insulation categories.
 
 TEAM:
 - Carla Gautier — CEO and Founder
@@ -141,6 +127,44 @@ WORKFLOW PHASES:
 4. Permits Phase (OGPE submission)
 5. Construction (cost-plus model)
 6. Completed`;
+
+function buildInternalPrompt(projectId?: string): string {
+  // Scope the internal bot to a single project whenever the caller provides a
+  // projectId. This prevents the model from describing other projects in the
+  // database when asked "summarize this project" or "what's open on this project".
+  const project = projectId ? PROJECTS.find((p) => p.id === projectId) : null;
+  if (project) {
+    const tasks = (PROJECT_TASKS[projectId as keyof typeof PROJECT_TASKS] ?? []);
+    const docs = (DOCUMENTS[projectId as keyof typeof DOCUMENTS] ?? []);
+    const weather = WEATHER_DATA[projectId as keyof typeof WEATHER_DATA];
+    return `${INTERNAL_BASE_PROMPT}
+
+PROJECT IN SCOPE — answer ONLY about this project. Do not describe or compare to any other project, even if you have data on others.
+- Project ID: ${project.id}
+- Name: ${project.name}
+- Client: ${project.clientName}
+- Location: ${project.location}
+- Phase: ${project.phaseLabel} (Phase ${project.phaseNumber} of 9)
+- Progress: ${project.progressPercent}% complete
+- Budget Allocated: $${project.budgetAllocated.toLocaleString()}
+- Timeline: ${project.startDate} → ${project.estimatedEndDate}
+- Status: ${project.status}
+
+PROJECT TASKS:
+${JSON.stringify(tasks, null, 2)}
+
+PROJECT DOCUMENTS:
+${JSON.stringify(docs, null, 2)}
+
+PROJECT WEATHER:
+${weather ? JSON.stringify(weather, null, 2) : "Not available"}
+
+IMPORTANT: If the user asks about a different project, politely refuse and remind them you are scoped to "${project.name}" (id ${project.id}).`;
+  }
+  return `${INTERNAL_BASE_PROMPT}
+
+NO PROJECT IN SCOPE — the user has not selected a project. Ask which project they want to discuss before sharing project-specific data.`;
+}
 
 function clientOwnsProject(userId: string | undefined, projectId: string): boolean {
   const p = PROJECTS.find((x) => x.id === projectId) as { clientUserId?: string } | undefined;
@@ -379,7 +403,7 @@ router.post("/ai/chat", requireRole(["team", "admin", "superadmin", "architect",
   const systemPrompt =
     mode === "client_assistant"
       ? buildClientPrompt(projectId)
-      : INTERNAL_SYSTEM_PROMPT;
+      : buildInternalPrompt(projectId);
 
   // Auto-collect: if the client asked a question, append it to the per-project Client Questions note list.
   if (mode === "client_assistant" && projectId && detectClientQuestion(message)) {
