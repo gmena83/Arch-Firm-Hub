@@ -88,3 +88,29 @@ The dashboard targets phone (~375px), tablet (~768px), and desktop. Conventions:
 - **Long horizontal strips** (e.g. 9-phase timeline): wrap in `overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0` with `min-w-[60px]` per item.
 - **Chat / fixed-height panels**: prefer `h-[calc(100dvh-360px)] md:h-[calc(100vh-280px)]` to account for the larger mobile header.
 - **Page H1**: `text-xl sm:text-2xl` and `shrink-0` on inline icons to prevent overflow.
+
+## Security: Dependency Audit Trail (Task #49)
+
+Run `runDependencyAudit` (osv-scanner) periodically. Resolutions applied:
+
+- **Patched via catalog**: vite ^7.3.2, drizzle-orm ^0.45.2.
+- **Patched via pnpm overrides** (transitive): brace-expansion ^2.0.3,
+  lodash ^4.18.0, path-to-regexp@8 ^8.4.0, picomatch@2 ^2.3.2,
+  picomatch@4 ^4.0.4, yaml ^2.8.3.
+- **xlsx**: pinned to SheetJS CDN tarball xlsx-0.20.3 (npm distribution
+  is unmaintained at 0.18.5; SheetJS now distributes via cdn.sheetjs.com).
+  Lockfile integrity hash is the trust anchor — install with
+  `pnpm install --frozen-lockfile` in CI to enforce.
+
+### Known scanner false positives (xlsx-0.20.3)
+osv-scanner continues to flag two advisories against xlsx, but both are
+patched in 0.20.3:
+
+| Advisory | Affected range | Installed | Status |
+|---|---|---|---|
+| GHSA-4r6h-8v6p-xvw6 (Prototype Pollution) | < 0.19.3 | 0.20.3 | patched |
+| GHSA-5pgg-2g8v-p4x9 (ReDoS) | < 0.20.2 | 0.20.3 | patched |
+
+The scanner appears to match by package name without consulting advisory
+version ranges, likely because the npm registry only knows about 0.18.5.
+
