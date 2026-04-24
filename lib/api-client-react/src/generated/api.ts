@@ -37,6 +37,7 @@ import type {
   DeleteInspection200,
   DesignStateResponse,
   Document,
+  DocumentCreateRequest,
   ErrorResponse,
   GammaReportResponse,
   GetInspection200,
@@ -795,6 +796,93 @@ export function useGetProjectDocuments<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Register a document metadata row for a project (team/admin/superadmin)
+ */
+export const getCreateProjectDocumentUrl = (projectId: string) => {
+  return `/api/projects/${projectId}/documents`;
+};
+
+export const createProjectDocument = async (
+  projectId: string,
+  documentCreateRequest: DocumentCreateRequest,
+  options?: RequestInit,
+): Promise<Document> => {
+  return customFetch<Document>(getCreateProjectDocumentUrl(projectId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(documentCreateRequest),
+  });
+};
+
+export const getCreateProjectDocumentMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createProjectDocument>>,
+    TError,
+    { projectId: string; data: BodyType<DocumentCreateRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createProjectDocument>>,
+  TError,
+  { projectId: string; data: BodyType<DocumentCreateRequest> },
+  TContext
+> => {
+  const mutationKey = ["createProjectDocument"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createProjectDocument>>,
+    { projectId: string; data: BodyType<DocumentCreateRequest> }
+  > = (props) => {
+    const { projectId, data } = props ?? {};
+
+    return createProjectDocument(projectId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateProjectDocumentMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createProjectDocument>>
+>;
+export type CreateProjectDocumentMutationBody = BodyType<DocumentCreateRequest>;
+export type CreateProjectDocumentMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Register a document metadata row for a project (team/admin/superadmin)
+ */
+export const useCreateProjectDocument = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createProjectDocument>>,
+    TError,
+    { projectId: string; data: BodyType<DocumentCreateRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createProjectDocument>>,
+  TError,
+  { projectId: string; data: BodyType<DocumentCreateRequest> },
+  TContext
+> => {
+  return useMutation(getCreateProjectDocumentMutationOptions(options));
+};
 
 /**
  * @summary Get material calculations for a project

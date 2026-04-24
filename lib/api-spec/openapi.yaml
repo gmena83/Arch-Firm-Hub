@@ -216,6 +216,53 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Document"
+    post:
+      operationId: createProjectDocument
+      tags: [documents]
+      summary: Register a document metadata row for a project (team/admin/superadmin)
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DocumentCreateRequest"
+      responses:
+        "201":
+          description: Document metadata recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Document"
+        "400":
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /projects/{projectId}/calculations:
     get:
@@ -1668,6 +1715,34 @@ components:
         - uploadedBy
         - uploadedAt
         - fileSize
+
+    DocumentCreateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: File name including extension (1-200 chars).
+        category:
+          type: string
+          description: Document category (client_review, internal, permits, construction, design).
+        type:
+          type: string
+          description: Optional file-type bucket. Defaults to the file extension.
+        isClientVisible:
+          type: boolean
+          description: When true the document appears in the client-visible list. Defaults to true.
+        fileSize:
+          type: string
+          description: Human-readable file size (e.g. "1.4 MB"). Optional.
+        description:
+          type: string
+          description: Optional free-form description.
+        mimeType:
+          type: string
+          description: Optional MIME type captured at upload time.
+      required:
+        - name
+        - category
 
     Material:
       type: object
