@@ -216,13 +216,45 @@ export interface Document {
   versions?: DocumentVersion[];
 }
 
+/**
+ * Document category. Must match the Document.category enum.
+ */
+export type DocumentCreateRequestCategory =
+  (typeof DocumentCreateRequestCategory)[keyof typeof DocumentCreateRequestCategory];
+
+export const DocumentCreateRequestCategory = {
+  client_review: "client_review",
+  internal: "internal",
+  permits: "permits",
+  construction: "construction",
+  design: "design",
+} as const;
+
+/**
+ * Optional file-type bucket. If omitted, the server infers it from the file extension and normalizes to one of [pdf|excel|pptx|photo|other].
+ */
+export type DocumentCreateRequestType =
+  (typeof DocumentCreateRequestType)[keyof typeof DocumentCreateRequestType];
+
+export const DocumentCreateRequestType = {
+  pdf: "pdf",
+  excel: "excel",
+  pptx: "pptx",
+  photo: "photo",
+  other: "other",
+} as const;
+
 export interface DocumentCreateRequest {
-  /** File name including extension (1-200 chars). */
+  /**
+   * File name including extension (1-200 chars).
+   * @minLength 1
+   * @maxLength 200
+   */
   name: string;
-  /** Document category (client_review, internal, permits, construction, design). */
-  category: string;
-  /** Optional file-type bucket. Defaults to the file extension. */
-  type?: string;
+  /** Document category. Must match the Document.category enum. */
+  category: DocumentCreateRequestCategory;
+  /** Optional file-type bucket. If omitted, the server infers it from the file extension and normalizes to one of [pdf|excel|pptx|photo|other]. */
+  type?: DocumentCreateRequestType;
   /** When true the document appears in the client-visible list. Defaults to true. */
   isClientVisible?: boolean;
   /** Human-readable file size (e.g. "1.4 MB"). Optional. */

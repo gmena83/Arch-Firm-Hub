@@ -1721,13 +1721,17 @@ components:
       properties:
         name:
           type: string
+          minLength: 1
+          maxLength: 200
           description: File name including extension (1-200 chars).
         category:
           type: string
-          description: Document category (client_review, internal, permits, construction, design).
+          enum: [client_review, internal, permits, construction, design]
+          description: Document category. Must match the Document.category enum.
         type:
           type: string
-          description: Optional file-type bucket. Defaults to the file extension.
+          enum: [pdf, excel, pptx, photo, other]
+          description: Optional file-type bucket. If omitted, the server infers it from the file extension and normalizes to one of [pdf|excel|pptx|photo|other].
         isClientVisible:
           type: boolean
           description: When true the document appears in the client-visible list. Defaults to true.

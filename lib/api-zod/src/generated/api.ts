@@ -242,17 +242,23 @@ export const CreateProjectDocumentParams = zod.object({
   projectId: zod.coerce.string(),
 });
 
+export const createProjectDocumentBodyNameMax = 200;
+
 export const CreateProjectDocumentBody = zod.object({
-  name: zod.string().describe("File name including extension (1-200 chars)."),
+  name: zod
+    .string()
+    .min(1)
+    .max(createProjectDocumentBodyNameMax)
+    .describe("File name including extension (1-200 chars)."),
   category: zod
-    .string()
-    .describe(
-      "Document category (client_review, internal, permits, construction, design).",
-    ),
+    .enum(["client_review", "internal", "permits", "construction", "design"])
+    .describe("Document category. Must match the Document.category enum."),
   type: zod
-    .string()
+    .enum(["pdf", "excel", "pptx", "photo", "other"])
     .optional()
-    .describe("Optional file-type bucket. Defaults to the file extension."),
+    .describe(
+      "Optional file-type bucket. If omitted, the server infers it from the file extension and normalizes to one of [pdf|excel|pptx|photo|other].",
+    ),
   isClientVisible: zod
     .boolean()
     .optional()
