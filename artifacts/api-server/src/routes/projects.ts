@@ -1462,6 +1462,24 @@ router.patch("/projects/:id/inspections/:insId", requireRole(["admin", "architec
   return res.json({ projectId: project.id, inspection: insp });
 });
 
+router.delete("/projects/:id/inspections/:insId", requireRole(["admin", "architect", "superadmin"]), (req, res) => {
+  const project = PROJECTS.find((p) => p.id === req.params["id"]);
+  if (!project) return res.status(404).json({ error: "not_found", message: "Project not found" });
+  const list = PROJECT_INSPECTIONS[project.id] ?? [];
+  const idx = list.findIndex((i) => i.id === req.params["insId"]);
+  if (idx === -1) return res.status(404).json({ error: "not_found", message: "Inspection not found" });
+  const removed = list[idx]!;
+  list.splice(idx, 1);
+  const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
+  appendActivity(project.id, {
+    type: "inspection_removed",
+    actor,
+    description: `Inspection removed: ${removed.title} (${removed.scheduledDate})`,
+    descriptionEs: `Inspección eliminada: ${removed.titleEs} (${removed.scheduledDate})`,
+  });
+  return res.json({ projectId: project.id, deleted: removed.id });
+});
+
 router.post("/projects/:id/inspections/:insId/send-report", requireRole(["admin", "architect", "superadmin"]), (req, res) => {
   const project = PROJECTS.find((p) => p.id === req.params["id"]);
   if (!project) return res.status(404).json({ error: "not_found", message: "Project not found" });
