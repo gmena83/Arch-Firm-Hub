@@ -12,3 +12,15 @@ id = "gZ9H-3JFqeiegPror4GX4"
 uri = "file://attached_assets/reports/feedback-vs-changelog.md"
 type = "text"
 title = "Feedback vs Changelog — KONTi Dashboard (Markdown)"
+
+[[outputs]]
+id = "7wuaL-mRMjDZSf0omliPw"
+uri = "file://attached_assets/reports/critical-feedback-priorities.xlsx"
+type = "table"
+title = "Critical Feedback — Prioritized Action Plan (xlsx)"
+
+[[outputs]]
+id = "E6KBfj4K2_utZQzi_CD0i"
+uri = "file://attached_assets/reports/critical-feedback-priorities.csv"
+type = "table"
+title = "Priorities (CSV mirror)"
