@@ -134,10 +134,7 @@ function UploadModal({ onClose, projectId }: { onClose: () => void; projectId: s
             mimeType: file.type || "application/octet-stream",
           },
         });
-        // Refresh both the documents list AND the project response — the
-        // server appends a `receipts_upload` ProjectActivity on every upload
-        // and that activity is embedded in GET /projects/:id, so the project
-        // timeline needs to refetch too.
+        // Refresh documents and project (which embeds the new activity entry).
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: getGetProjectDocumentsQueryKey(projectId) }),
           queryClient.invalidateQueries({ queryKey: getGetProjectQueryKey(projectId) }),
@@ -150,13 +147,9 @@ function UploadModal({ onClose, projectId }: { onClose: () => void; projectId: s
         });
         onClose();
       } catch (err) {
-        // Surface bilingual error with the server's message (e.g. 404 on a
-        // missing project, 403 on insufficient role) so the user knows why
-        // it failed instead of a silent toast.
+        // Bilingual destructive toast keyed by HTTP status.
         const status = (err as { status?: number }).status;
         const serverMsg = (err as { data?: { message?: string } }).data?.message;
-        // Default fallback strings are bilingual (NOT the raw English server
-        // message in both branches) so a Spanish user always reads Spanish.
         let descEn = "Could not register the document. Please try again.";
         let descEs = "No se pudo registrar el documento. Inténtalo de nuevo.";
         if (status === 404) {
@@ -169,9 +162,6 @@ function UploadModal({ onClose, projectId }: { onClose: () => void; projectId: s
           descEn = "Session expired. Please sign in again.";
           descEs = "Sesión expirada. Inicia sesión nuevamente.";
         } else if (status === 400) {
-          // Server validation messages (e.g. "name required", "category
-          // required") are English-only — render a localized Spanish version
-          // and append the server hint in EN only.
           descEn = serverMsg ?? "The file could not be accepted by the server.";
           descEs = "El servidor rechazó el archivo. Verifica el nombre y la categoría.";
         }

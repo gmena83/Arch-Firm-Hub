@@ -4,12 +4,8 @@ import type { AddressInfo } from "node:net";
 import app from "../../app";
 import { PROJECTS, DOCUMENTS, PROJECT_ACTIVITIES } from "../../data/seed";
 
-// Regression coverage for Task #60 — Tatiana ("no me deja upload nada"):
-// before the fix, the demo project (created at runtime via POST /projects,
-// e.g. `proj-1776983841174`) had no DOCUMENTS bucket, and the dashboard's
-// upload modal was a no-op simulator that never hit the API. These tests
-// pin the contract end-to-end so a future refactor cannot reintroduce the
-// regression without breaking the suite.
+// Regression coverage for Task #60: POST /projects/:projectId/documents
+// (auth, validation, runtime-created project IDs, seed integrity, activity).
 
 type LoginResponse = { token: string; user: { id: string; role: string } };
 
@@ -113,8 +109,7 @@ test("superadmin can upload JPG and PNG to seeded projects (no regression on pro
     await withServer(async (baseUrl) => {
       const token = await login(baseUrl, "tatiana@menatech.cloud", "Konti123");
 
-      // expectedType locks in the OpenAPI Document.type enum
-      // [pdf|excel|pptx|photo|other]: jpg/png must normalize to "photo".
+      // expectedType pins the Document.type enum normalization.
       for (const [projectId, mime, ext, expectedType] of [
         ["proj-1", "image/jpeg", "jpg", "photo"],
         ["proj-2", "image/png", "png", "photo"],
@@ -155,11 +150,7 @@ test("superadmin can upload JPG and PNG to seeded projects (no regression on pro
 });
 
 test("architect (team-role) can upload and an activity-feed entry is appended", async () => {
-  // Architect maps onto the "team" role alias inside requireRole, so this
-  // explicitly satisfies the acceptance criterion "team + superadmin can
-  // upload" — separate from the admin and superadmin paths covered above.
-  // We also assert the project timeline gains a `receipts_upload` activity
-  // entry, so the new document is visible in the activity feed.
+  // Architect maps to the "team" role alias and must be allowed to upload.
   const seededDocCount = ((DOCUMENTS as Record<string, unknown[]>)["proj-2"] ?? []).length;
   const seededActivityCount = (PROJECT_ACTIVITIES["proj-2"] ?? []).length;
   try {
