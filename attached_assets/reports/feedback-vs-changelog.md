@@ -18,8 +18,8 @@ Este reporte consolida cada pieza de feedback recibida a través del buzón en l
 | Status (Estado) | Count (Cantidad) | % |
 |---|---:|---:|
 | ✅ Completed (Completado) | 19 | 19% |
-| 🟡 In progress / scheduled (En progreso / programado) | 7 | 7% |
-| ⏳ Pending (Pendiente) | 44 | 45% |
+| 🟡 In progress / scheduled (En progreso / programado) | 6 | 6% |
+| ⏳ Pending (Pendiente) | 45 | 46% |
 | 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación) | 28 | 29% |
 | **Total** | **98** | **100%** |
 
@@ -38,7 +38,7 @@ Este reporte consolida cada pieza de feedback recibida a través del buzón en l
 | Page (Página) | Total | ✅ Completed | 🟡 In progress | ⏳ Pending | 💬 Out of scope |
 |---|---:|---:|---:|---:|---:|
 | https://konti-demo.replit.app/projects/proj-1/report | 15 | 0 | 0 | 10 | 5 |
-| https://konti-demo.replit.app/projects/proj-1 | 22 | 1 | 2 | 13 | 6 |
+| https://konti-demo.replit.app/projects/proj-1 | 22 | 1 | 1 | 14 | 6 |
 | https://konti-demo.replit.app/projects/proj-2 | 3 | 3 | 0 | 0 | 0 |
 | https://konti-demo.replit.app/projects/proj-2/report | 1 | 0 | 1 | 0 | 0 |
 | https://konti-demo.replit.app/projects/proj-3 | 1 | 1 | 0 | 0 | 0 |
@@ -489,15 +489,15 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 
 ---
 
-##### Item 15 · 2026-04-15 · 🟡 In progress / scheduled (En progreso / programado)
+##### Item 15 · 2026-04-15 · ⏳ Pending (Pendiente)
 
 > El informe de seguimiento del contratista debería mostrar retrasos, clima, problemas, cambios, incumplimientos y retrabajos. Lo ampliaria un poco más con la info.
 
 **Refs:** Task #7, Task #11, Task #25
 
-**Why (Por qué):** Weather (#7), change orders (#11) and punchlist (#25) shipped; a single consolidated 'contractor monitoring' report is still pending.
+**Why (Por qué):** Weather (#7), change orders (#11) and punchlist (#25) shipped, but a single consolidated 'contractor monitoring' report is not yet planned — surfacing for triage.
 
-**Por qué (Why):** Clima (#7), órdenes de cambio (#11) y punchlist (#25) ya se entregaron; falta un reporte único consolidado de seguimiento del contratista.
+**Por qué (Why):** Clima (#7), órdenes de cambio (#11) y punchlist (#25) entregados, pero un único reporte consolidado de 'contractor monitoring' aún no está planificado — se levanta para triage.
 
 _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4dbc3-00-7zq0uc6bszhd.spock.replit.dev/inbox#item-9c0297f1-fe4e-476b-a859-6e67af45150f-img-0) (asset: `1776267254084_aed091d2ab68f1cbeb928b5443e63335.png`)_
 
@@ -1700,7 +1700,7 @@ These items are open and not yet linked to a project task. Listed by topic, then
 
 Estos ítems están abiertos y aún no están vinculados a una tarea de proyecto. Listados por tema y luego por fecha.
 
-### Contenido / Copy (Content) (26)
+### Contenido / Copy (Content) (27)
 
 - _Item 95 · 2026-04-23 · https://konti-demo.replit.app/projects/proj-1/report_ — Copy change ('weather status') has not been applied.
 - _Item 94 · 2026-04-23 · https://konti-demo.replit.app/projects/proj-1/report_ — Removing numbers from the macro phases on the report (so they don't conflict with construction-phase numbering) is not yet planned.
@@ -1725,6 +1725,7 @@ Estos ítems están abiertos y aún no están vinculados a una tarea de proyecto
 - _Item 52 · 2026-04-23 · https://konti-demo.replit.app/materials_ — Lump-sum labor model (vs. hourly) is a calculator data-model change and not yet planned.
 - _Item 49 · 2026-04-23 · https://konti-demo.replit.app/calculator?projectId=proj-1&tab=variance_ — Lifting the receipts/categorization workflow into the dashboard so it's discoverable is not yet planned.
 - _Item 20 · 2026-04-15 · https://konti-demo.replit.app/projects/proj-1_ — Client profile fields (phone, postal/physical addresses) are not yet editable in settings.
+- _Item 15 · 2026-04-15 · https://konti-demo.replit.app/projects/proj-1_ — Task #7, Task #11, Task #25 — Weather (#7), change orders (#11) and punchlist (#25) shipped, but a single consolidated 'contractor monitoring' report is not yet planned — surfacing for triage.
 - _Item 14 · 2026-04-15 · https://konti-demo.replit.app/projects/proj-1_ — Photos & comments section is not yet built — see #3, #22, #68.
 - _Item 12 · 2026-04-15 · https://konti-demo.replit.app/projects/proj-1_ — Copy change ('Cronograma del proyecto') has not been applied yet.
 - _Item 2 · 2026-04-15 · https://konti-demo.replit.app/materials_ — No 'Add material' button on the materials library yet — page is read-only catalog today.
@@ -1765,20 +1766,15 @@ Estos ítems están abiertos y aún no están vinculados a una tarea de proyecto
 
 ## In Progress / Scheduled (En progreso / programado)
 
-These items are linked to a project task that is open or proposed. Items where one slice has shipped but a follow-up task is still scheduled are conservatively classified here.
+Each item in this section cites at least one open project task that covers the remaining work. Items where one slice has shipped but a follow-up task is still scheduled are conservatively classified here.
 
-Estos ítems están vinculados a una tarea de proyecto abierta o propuesta. Cuando una parte fue entregada pero otra parte aún está programada, los clasificamos aquí de forma conservadora.
+Cada ítem en esta sección cita al menos una tarea de proyecto abierta que cubre el trabajo restante. Cuando una parte fue entregada pero otra parte aún está programada, los clasificamos aquí de forma conservadora.
 
 ### Other (Otro) (3)
 
 - _Item 43 · 2026-04-15 · https://konti-demo.replit.app/ai_ — Task #25, Task #32 — Punchlist as a phase-advance gate shipped (#25); punchlist persistence across server restarts is scheduled (#32).
 - _Item 40 · 2026-04-15 · https://konti-demo.replit.app/ai_ — Task #23, Task #30 — Notes-from-client-questions UI shipped (#23); persistence across server restarts is scheduled (#30).
 - _Item 34 · 2026-04-15 · https://konti-demo.replit.app/calculator_ — Task #22, Task #29 — Report-template upload shipped in #22; using that template when exporting the project PDF is scheduled in #29.
-
-### Contenido / Copy (Content) (2)
-
-- _Item 48 · 2026-04-23 · https://konti-demo.replit.app/dashboard_ — Task #18 — Showing only the construction-status card on the client home is scheduled in #18; the broader 'move overall stats into per-project' restructure is still pending.
-- _Item 15 · 2026-04-15 · https://konti-demo.replit.app/projects/proj-1_ — Task #7, Task #11, Task #25 — Weather (#7), change orders (#11) and punchlist (#25) shipped; a single consolidated 'contractor monitoring' report is still pending.
 
 ### Design (Diseño) (1)
 
@@ -1787,6 +1783,10 @@ Estos ítems están vinculados a una tarea de proyecto abierta o propuesta. Cuan
 ### Feature request (Solicitud de funcionalidad) (1)
 
 - _Item 21 · 2026-04-15 · https://konti-demo.replit.app/projects/proj-1_ — Task #22, Task #27 — KONTi-side receipt entry shipped (#22); persistence across server restarts is scheduled (#27).
+
+### Contenido / Copy (Content) (1)
+
+- _Item 48 · 2026-04-23 · https://konti-demo.replit.app/dashboard_ — Task #18 — Showing only the construction-status card on the client home is scheduled in #18; the broader 'move overall stats into per-project' restructure is still pending.
 
 ---
 
@@ -1891,11 +1891,11 @@ Estos ítems están vinculados a una tarea de proyecto fusionada o a un commit v
 **Status definitions (Definiciones de estado):**
 
 - **Completed (Completado):** The full request is linked to a merged project task or a verifiable commit on `main`. Items where any portion of the request is still scheduled fall into **In progress** instead.
-- **In progress / scheduled (En progreso / programado):** Linked to an open project task that is in plan, in-progress, proposed, or where part of the request shipped and a follow-up is scheduled.
+- **In progress / scheduled (En progreso / programado):** Cites at least one open project task (state PENDING / IN_PROGRESS / IN_PLAN / PROPOSED) that covers the remaining work. Items where part of the request shipped and a follow-up is still scheduled are conservatively placed here, with the open task explicitly cited.
 - **Pending (Pendiente):** Open feedback that is not yet linked to a project task — surfaced for the team to triage.
 - **Out of scope / needs discussion (Fuera de alcance / requiere conversación):** Strategic, philosophical, or product-direction feedback that warrants a conversation rather than a single task.
 
-**Coverage check (Verificación de cobertura):** Every one of the 98 inbox items is labeled with exactly one of the four statuses. Status totals: 19 Completed + 7 In progress + 44 Pending + 28 Out of scope = 98.
+**Coverage check (Verificación de cobertura):** Every one of the 98 inbox items is labeled with exactly one of the four statuses. Status totals: 19 Completed + 6 In progress + 45 Pending + 28 Out of scope = 98.
 
 **Screenshots (Capturas):** The in-app inbox stores screenshots as private object-store keys (e.g. `<replId>/<timestamp>_<hash>.png`). The links in this report point to the matching item inside the in-app inbox UI, where the team can open each screenshot. The asset key is included in backticks for traceability.
 
