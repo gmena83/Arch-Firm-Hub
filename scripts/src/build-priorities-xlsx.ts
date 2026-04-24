@@ -728,7 +728,10 @@ sRm.eachRow((row, rowNum) => {
 });
 
 // 4. Out-of-scope deferred sheet
-const sOos = wb.addWorksheet("Out-of-scope (Fuera de alcance)", {
+// Excel caps worksheet names at 31 characters; the bilingual long form
+// ("Out-of-scope deferred (Fuera de alcance)" = 40 chars) does not fit, so
+// "OOS deferred" stands in for "Out-of-scope deferred" in the tab label.
+const sOos = wb.addWorksheet("OOS deferred (Fuera de alcance)", {
   views: [{ state: "frozen", ySplit: 1 }],
 });
 sOos.columns = [
