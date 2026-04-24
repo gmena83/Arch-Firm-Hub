@@ -1,126 +1,122 @@
-import { useEffect, useState, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { customFetch, getGetProjectQueryKey } from "@workspace/api-client-react";
+import {
+  useGetProjectDesign,
+  useUpdateDesignDeliverable,
+  useAdvanceDesignSubPhase,
+  getGetProjectQueryKey,
+  getGetProjectDesignQueryKey,
+  type Deliverable,
+  type DeliverableStatus,
+  type DesignSubPhaseState,
+  UpdateDesignDeliverableBodyStatus,
+  UpdateDesignDeliverableBodySubPhase,
+  DesignStateResponseSubPhaseOrderItem,
+} from "@workspace/api-client-react";
 import { useLang } from "@/hooks/use-lang";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { Check, Loader2, Circle, ArrowRight, Layers } from "lucide-react";
 
-type DesignSubPhase = "schematic_design" | "design_development" | "construction_documents";
-type DeliverableStatus = "pending" | "in_progress" | "done";
+type DesignSubPhase = DesignStateResponseSubPhaseOrderItem;
 
-interface Deliverable {
-  id: string;
-  label: string;
-  labelEs: string;
-  owner: string;
-  status: DeliverableStatus;
-  completedAt?: string;
-}
-
-interface SubPhaseState {
-  startedAt?: string;
-  completedAt?: string;
-  deliverables: Deliverable[];
-}
-
-interface DesignState {
-  projectId: string;
-  currentSubPhase: DesignSubPhase | "complete";
-  subPhases: Record<DesignSubPhase, SubPhaseState>;
-}
-
-interface DesignResponse {
-  projectId: string;
-  available: boolean;
-  isProjectInDesign: boolean;
-  state: DesignState | null;
-  subPhaseOrder: DesignSubPhase[];
-  subPhaseLabels: Record<DesignSubPhase, { en: string; es: string }>;
-}
-
-const STATUS_CYCLE: Record<DeliverableStatus, DeliverableStatus> = {
-  pending: "in_progress",
-  in_progress: "done",
-  done: "pending",
+const STATUS_CYCLE: Record<DeliverableStatus, UpdateDesignDeliverableBodyStatus> = {
+  pending: UpdateDesignDeliverableBodyStatus.in_progress,
+  in_progress: UpdateDesignDeliverableBodyStatus.done,
+  done: UpdateDesignDeliverableBodyStatus.pending,
 };
 
-const SUB_PHASES: DesignSubPhase[] = ["schematic_design", "design_development", "construction_documents"];
+const SUB_PHASES: DesignSubPhase[] = [
+  DesignStateResponseSubPhaseOrderItem.schematic_design,
+  DesignStateResponseSubPhaseOrderItem.design_development,
+  DesignStateResponseSubPhaseOrderItem.construction_documents,
+];
+
+const SUB_PHASE_TO_BODY: Record<DesignSubPhase, UpdateDesignDeliverableBodySubPhase> = {
+  schematic_design: UpdateDesignDeliverableBodySubPhase.schematic_design,
+  design_development: UpdateDesignDeliverableBodySubPhase.design_development,
+  construction_documents: UpdateDesignDeliverableBodySubPhase.construction_documents,
+};
+
+const isDesignSubPhase = (value: string): value is DesignSubPhase =>
+  (SUB_PHASES as readonly string[]).includes(value);
+
 export function DesignPanel({ projectId, isClientView, currentPhase }: { projectId: string; isClientView: boolean; currentPhase: string }) {
   const queryClient = useQueryClient();
   const { t, lang } = useLang();
   const { user } = useAuth();
   const { toast } = useToast();
-  const [data, setData] = useState<DesignResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
+
+  const { data, isLoading } = useGetProjectDesign(projectId);
+  const updateMutation = useUpdateDesignDeliverable();
+  const advanceMutation = useAdvanceDesignSubPhase();
+  const busy = updateMutation.isPending || advanceMutation.isPending;
 
   const isTeamUser = user?.role !== "client";
   const canEdit = isTeamUser && !isClientView;
 
-  const refresh = useCallback(async () => {
-    try {
-      const d = await customFetch<DesignResponse>(`/api/projects/${projectId}/design`);
-      setData(d);
-    } catch (e) {
-      // swallow
-    } finally {
-      setLoading(false);
-    }
-  }, [projectId]);
+  const invalidateDesign = () =>
+    queryClient.invalidateQueries({ queryKey: getGetProjectDesignQueryKey(projectId) });
 
-  useEffect(() => { void refresh(); }, [refresh]);
-
-  if (loading) return <div className="bg-card rounded-xl border border-card-border p-5 shadow-sm h-40 animate-pulse" />;
+  if (isLoading) return <div className="bg-card rounded-xl border border-card-border p-5 shadow-sm h-40 animate-pulse" />;
   if (!data?.state) return null;
 
   const state = data.state;
-  const order = data.subPhaseOrder;
-  const labels = data.subPhaseLabels;
+  const order: DesignSubPhase[] = data.subPhaseOrder ?? SUB_PHASES;
+  const labels = data.subPhaseLabels ?? {};
   // Derive current sub-phase from canonical project phase
-  const inSubPhase = SUB_PHASES.includes(currentPhase as DesignSubPhase);
+  const currentSubPhase: DesignSubPhase | undefined = isDesignSubPhase(currentPhase) ? currentPhase : undefined;
   const pastDesign = ["permits", "construction", "completed"].includes(currentPhase);
-  const derivedSub: DesignSubPhase | "complete" = inSubPhase ? (currentPhase as DesignSubPhase) : "complete";
-  const isComplete = !inSubPhase;
-  const showInDesign = inSubPhase || pastDesign;
+  const isComplete = currentSubPhase === undefined;
+  const showInDesign = currentSubPhase !== undefined || pastDesign;
   if (!showInDesign) return null;
+
+  const labelFor = (sp: DesignSubPhase): { en: string; es: string } => {
+    const entry = labels[sp];
+    return { en: entry?.en ?? sp, es: entry?.es ?? sp };
+  };
+
+  const subPhaseState = (sp: DesignSubPhase): DesignSubPhaseState | undefined =>
+    state.subPhases[sp];
 
   const cycleStatus = async (subPhase: DesignSubPhase, d: Deliverable) => {
     if (!canEdit || busy) return;
-    setBusy(true);
     try {
-      await customFetch(`/api/projects/${projectId}/design/deliverable`, {
-        method: "POST",
-        body: JSON.stringify({ subPhase, deliverableId: d.id, status: STATUS_CYCLE[d.status] }),
+      await updateMutation.mutateAsync({
+        projectId,
+        data: {
+          subPhase: SUB_PHASE_TO_BODY[subPhase],
+          deliverableId: d.id,
+          status: STATUS_CYCLE[d.status],
+        },
       });
-      await refresh();
+      await invalidateDesign();
     } catch {
       toast({ title: t("Update failed", "No se pudo actualizar"), variant: "destructive" });
-    } finally {
-      setBusy(false);
     }
   };
 
   const advance = async () => {
     if (!canEdit || busy || isComplete) return;
-    setBusy(true);
     try {
-      await customFetch(`/api/projects/${projectId}/design/advance-sub-phase`, { method: "POST" });
+      await advanceMutation.mutateAsync({ projectId });
       toast({ title: t("Sub-phase advanced", "Sub-fase avanzada") });
-      await Promise.all([refresh(), queryClient.invalidateQueries({ queryKey: getGetProjectQueryKey(projectId) })]);
+      await Promise.all([
+        invalidateDesign(),
+        queryClient.invalidateQueries({ queryKey: getGetProjectQueryKey(projectId) }),
+      ]);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "";
       toast({
         title: t("Cannot advance", "No se puede avanzar"),
-        description: /deliverables_incomplete/.test(msg) ? t("Mark all deliverables as done first.", "Marca todas las entregas como completadas primero.") : undefined,
+        description: /deliverables_incomplete/.test(msg)
+          ? t("Mark all deliverables as done first.", "Marca todas las entregas como completadas primero.")
+          : undefined,
         variant: "destructive",
       });
-    } finally {
-      setBusy(false);
     }
   };
 
-  const currentSP = isComplete ? null : state.subPhases[derivedSub as DesignSubPhase];
+  const currentSP = currentSubPhase ? subPhaseState(currentSubPhase) : undefined;
   const allDone = currentSP ? currentSP.deliverables.every((d) => d.status === "done") : false;
 
   return (
@@ -140,12 +136,13 @@ export function DesignPanel({ projectId, isClientView, currentPhase }: { project
       {/* Sub-phase stepper */}
       <div className="flex items-center gap-1 mb-5">
         {order.map((sp, i) => {
-          const sub = state.subPhases[sp];
+          const sub = subPhaseState(sp);
           const idx = order.indexOf(sp);
-          const currentIdx = isComplete ? order.length : order.indexOf(derivedSub as DesignSubPhase);
-          const isStepCurrent = !isComplete && derivedSub === sp;
+          const currentIdx = currentSubPhase ? order.indexOf(currentSubPhase) : order.length;
+          const isStepCurrent = currentSubPhase === sp;
           const isStepDone = isComplete || idx < currentIdx;
-          const label = lang === "es" ? labels[sp].es : labels[sp].en;
+          const lbl = labelFor(sp);
+          const label = lang === "es" ? lbl.es : lbl.en;
           return (
             <div key={sp} className="flex-1 flex flex-col items-center gap-1.5" data-testid={`design-step-${sp}`}>
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
@@ -156,7 +153,7 @@ export function DesignPanel({ projectId, isClientView, currentPhase }: { project
                 {isStepDone ? <Check className="w-4 h-4" /> : i + 1}
               </div>
               <span className={`text-[11px] text-center leading-tight ${isStepCurrent ? "text-foreground font-semibold" : "text-muted-foreground"}`}>{label}</span>
-              {sub.completedAt && (
+              {sub?.completedAt && (
                 <span className="text-[10px] text-muted-foreground">
                   {new Date(sub.completedAt).toLocaleDateString(lang === "es" ? "es-PR" : "en-US", { month: "short", day: "numeric" })}
                 </span>
@@ -167,11 +164,11 @@ export function DesignPanel({ projectId, isClientView, currentPhase }: { project
       </div>
 
       {/* Active sub-phase deliverables */}
-      {currentSP && (
+      {currentSP && currentSubPhase && (
         <div className="border-t border-border pt-4">
           <div className="flex items-center justify-between mb-3">
             <p className="text-sm font-semibold text-foreground">
-              {t("Active Deliverables", "Entregables Activos")} — {lang === "es" ? labels[derivedSub as DesignSubPhase].es : labels[derivedSub as DesignSubPhase].en}
+              {t("Active Deliverables", "Entregables Activos")} — {(() => { const lbl = labelFor(currentSubPhase); return lang === "es" ? lbl.es : lbl.en; })()}
             </p>
             <span className="text-xs text-muted-foreground">
               {currentSP.deliverables.filter((d) => d.status === "done").length}/{currentSP.deliverables.length} {t("done", "completos")}
@@ -189,14 +186,14 @@ export function DesignPanel({ projectId, isClientView, currentPhase }: { project
               return (
                 <button
                   key={d.id}
-                  onClick={() => cycleStatus(derivedSub as DesignSubPhase, d)}
+                  onClick={() => cycleStatus(currentSubPhase, d)}
                   disabled={!canEdit || busy}
                   data-testid={`deliverable-${d.id}`}
                   className={`w-full text-left flex items-center gap-3 p-2.5 rounded-lg ${ui.bg} ${canEdit ? "hover:opacity-80 cursor-pointer" : "cursor-default"}`}
                 >
                   <span className={ui.text}>{ui.icon}</span>
                   <span className={`flex-1 text-sm font-medium ${d.status === "done" ? "line-through opacity-70" : ""}`}>{label}</span>
-                  <span className="text-xs text-muted-foreground hidden sm:inline">{d.owner}</span>
+                  {d.owner && <span className="text-xs text-muted-foreground hidden sm:inline">{d.owner}</span>}
                 </button>
               );
             })}
