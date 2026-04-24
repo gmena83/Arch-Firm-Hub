@@ -12,7 +12,7 @@ import {
 import { useLang } from "@/hooks/use-lang";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { ClipboardCheck, Calendar, User, Plus, Send, X, CheckCircle2, AlertTriangle, RotateCcw, Clock } from "lucide-react";
+import { ClipboardCheck, Calendar, User, Plus, Send, X, CheckCircle2, AlertTriangle, RotateCcw, Clock, Trash2 } from "lucide-react";
 
 const INSPECTION_TYPES = [
   { value: "foundation", label: "Foundation", labelEs: "Cimientos" },
@@ -440,6 +440,32 @@ export function InspectionsSection({ projectId }: { projectId: string }) {
                       className="text-xs px-2 py-0.5 rounded border border-border hover:bg-muted font-medium"
                     >
                       {t("Edit", "Editar")}
+                    </button>
+                  )}
+                  {isStaff && (
+                    <button
+                      onClick={async () => {
+                        const confirmed = window.confirm(
+                          t(
+                            `Remove inspection "${insp.title}"? This cannot be undone.`,
+                            `¿Eliminar inspección "${insp.titleEs}"? Esta acción no se puede deshacer.`,
+                          ),
+                        );
+                        if (!confirmed) return;
+                        try {
+                          await customFetch(`/api/projects/${projectId}/inspections/${insp.id}`, {
+                            method: "DELETE",
+                          });
+                          toast({ title: t("Inspection removed", "Inspección eliminada") });
+                          refresh();
+                        } catch {
+                          toast({ title: t("Failed to remove", "Error al eliminar"), variant: "destructive" });
+                        }
+                      }}
+                      data-testid={`btn-remove-inspection-${insp.id}`}
+                      className="text-xs px-2 py-0.5 rounded border border-red-200 text-red-700 hover:bg-red-50 font-medium flex items-center gap-1"
+                    >
+                      <Trash2 className="w-3 h-3" /> {t("Remove", "Eliminar")}
                     </button>
                   )}
                   {isStaff && completed && !insp.reportSentTo && engineers.length > 0 && (

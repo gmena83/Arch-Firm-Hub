@@ -1197,6 +1197,19 @@ export const UpdateInspectionResponse = zod.object({
 });
 
 /**
+ * @summary Remove an inspection created in error (admin/architect)
+ */
+export const DeleteInspectionParams = zod.object({
+  id: zod.coerce.string(),
+  insId: zod.coerce.string(),
+});
+
+export const DeleteInspectionResponse = zod.object({
+  projectId: zod.string().optional(),
+  deleted: zod.string().optional(),
+});
+
+/**
  * @summary Send the inspection report to a structural engineer (admin/architect)
  */
 export const SendInspectionReportParams = zod.object({

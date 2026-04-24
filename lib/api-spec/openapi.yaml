@@ -892,6 +892,30 @@ paths:
                 properties:
                   projectId: { type: string }
                   inspection: { $ref: "#/components/schemas/Inspection" }
+    delete:
+      operationId: deleteInspection
+      tags: [construction]
+      summary: Remove an inspection created in error (admin/architect)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+        - in: path
+          name: insId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  projectId: { type: string }
+                  deleted: { type: string }
+        "404": { description: Inspection not found }
 
   /projects/{id}/inspections/{insId}/send-report:
     post:

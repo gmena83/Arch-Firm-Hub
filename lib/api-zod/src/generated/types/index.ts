@@ -36,6 +36,7 @@ export * from "./dashboardSummary";
 export * from "./dashboardSummaryProjectsByPhase";
 export * from "./declineProjectPhase200";
 export * from "./declineProjectPhaseBody";
+export * from "./deleteInspection200";
 export * from "./deliverable";
 export * from "./deliverableStatus";
 export * from "./designState";

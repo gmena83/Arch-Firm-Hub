@@ -1139,6 +1139,11 @@ export type UpdateInspection200 = {
   inspection?: Inspection;
 };
 
+export type DeleteInspection200 = {
+  projectId?: string;
+  deleted?: string;
+};
+
 export type SendInspectionReportBody = {
   engineerId: string;
   note?: string;

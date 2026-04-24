@@ -34,6 +34,7 @@ import type {
   DashboardSummary,
   DeclineProjectPhase200,
   DeclineProjectPhaseBody,
+  DeleteInspection200,
   DesignStateResponse,
   Document,
   ErrorResponse,
@@ -2848,6 +2849,91 @@ export const useUpdateInspection = <
   TContext
 > => {
   return useMutation(getUpdateInspectionMutationOptions(options));
+};
+
+/**
+ * @summary Remove an inspection created in error (admin/architect)
+ */
+export const getDeleteInspectionUrl = (id: string, insId: string) => {
+  return `/api/projects/${id}/inspections/${insId}`;
+};
+
+export const deleteInspection = async (
+  id: string,
+  insId: string,
+  options?: RequestInit,
+): Promise<DeleteInspection200> => {
+  return customFetch<DeleteInspection200>(getDeleteInspectionUrl(id, insId), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteInspectionMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteInspection>>,
+    TError,
+    { id: string; insId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteInspection>>,
+  TError,
+  { id: string; insId: string },
+  TContext
+> => {
+  const mutationKey = ["deleteInspection"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteInspection>>,
+    { id: string; insId: string }
+  > = (props) => {
+    const { id, insId } = props ?? {};
+
+    return deleteInspection(id, insId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteInspectionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteInspection>>
+>;
+
+export type DeleteInspectionMutationError = ErrorType<void>;
+
+/**
+ * @summary Remove an inspection created in error (admin/architect)
+ */
+export const useDeleteInspection = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteInspection>>,
+    TError,
+    { id: string; insId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteInspection>>,
+  TError,
+  { id: string; insId: string },
+  TContext
+> => {
+  return useMutation(getDeleteInspectionMutationOptions(options));
 };
 
 /**

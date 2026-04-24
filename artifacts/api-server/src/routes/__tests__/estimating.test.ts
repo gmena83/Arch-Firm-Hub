@@ -81,7 +81,7 @@ test("estimating end-to-end: import → contractor estimate → receipts → var
         body: JSON.stringify({ squareMeters: 180, projectType: "residencial", scope: ["pool", "solar"] }),
       });
       assert.equal(estRes.status, 200);
-      const est = (await estRes.json()) as { lines: Array<{ category: string; lineTotal: number }>; grandTotal: number };
+      const est = (await estRes.json()) as { lines: Array<{ category: string; lineTotal: number; quantity: number; unitPrice: number }>; grandTotal: number };
       assert.ok(est.lines.length >= 5);
       assert.ok(est.grandTotal > 0);
       assert.ok(est.lines.some((l) => l.category === "subcontractor"), "should include subcontractor for pool/solar");
@@ -127,7 +127,7 @@ test("estimating end-to-end: import → contractor estimate → receipts → var
 
       // 5d. Edit contractor estimate lines — totals must include non-labor/sub categories
       // (foundation/steel/finishes/etc. are materials buckets and must NOT be dropped from subtotal)
-      const editLines = est.lines.map((l, i) => i === 0 ? { ...l, quantity: (l as { quantity: number }).quantity, unitPrice: (l as { unitPrice: number }).unitPrice + 100 } : l);
+      const editLines = est.lines.map((l, i) => i === 0 ? { ...l, quantity: l.quantity, unitPrice: l.unitPrice + 100 } : l);
       const editRes = await fetch(`${baseUrl}/api/projects/proj-1/contractor-estimate/lines`, {
         method: "PUT", headers: auth, body: JSON.stringify({ lines: editLines }),
       });
