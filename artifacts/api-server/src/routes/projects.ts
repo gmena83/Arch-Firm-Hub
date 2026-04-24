@@ -184,10 +184,7 @@ router.get("/projects/:projectId/weather", (req, res) => {
   return res.json({ ...weather, lastUpdated: new Date().toISOString() });
 });
 
-// Document upload metadata registration. Real binary upload is handled by the
-// dashboard via signed object-storage URLs; this endpoint records the metadata
-// row so GET /documents reflects newly-attached evidence (used by the e2e
-// suite to score document completeness from API state, not from file copies).
+// Records document metadata for an upload (in-memory backend, no binary stream).
 router.post("/projects/:projectId/documents", requireRole(["team", "admin", "superadmin"]), (req, res) => {
   const projectId = req.params["projectId"] as string;
   if (!PROJECTS.find((p) => p.id === projectId)) {
@@ -207,9 +204,7 @@ router.post("/projects/:projectId/documents", requireRole(["team", "admin", "sup
   ) {
     return res.status(400).json({ error: "bad_request", message: "category required" });
   }
-  // Normalize `type` to the Document schema enum [pdf|excel|pptx|photo|other]
-  // so the response satisfies the OpenAPI contract regardless of what the
-  // client sent (raw extensions like "jpg"/"png" are mapped to "photo").
+  // Normalize `type` to the Document.type enum (jpg/png → photo).
   const ALLOWED_TYPES = ["pdf", "excel", "pptx", "photo", "other"] as const;
   const ext = (body.name.split(".").pop() ?? "").toLowerCase();
   const inferTypeFromExt = (e: string): typeof ALLOWED_TYPES[number] => {
@@ -239,10 +234,7 @@ router.post("/projects/:projectId/documents", requireRole(["team", "admin", "sup
     description: body.description ?? "",
   };
   (DOCUMENTS as Record<string, unknown[]>)[projectId] = [...list, doc];
-  // Mirror the activity-feed convention used by the other create routes
-  // (project create, change orders, inspections, …) so the new document is
-  // visible in the project timeline. `receipts_upload` is the closest
-  // existing ProjectActivity.type for evidence file uploads.
+  // Surface upload in the project timeline (closest existing activity type).
   appendActivity(projectId, {
     type: "receipts_upload",
     actor: (req as { user?: { name?: string } }).user?.name ?? "Team",
