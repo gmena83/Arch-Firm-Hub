@@ -18,9 +18,10 @@ Este reporte consolida cada pieza de feedback recibida a través del buzón en l
 | Status (Estado) | Count (Cantidad) | % |
 |---|---:|---:|
 | ✅ Completed (Completado) | 22 | 22% |
-| 🟡 In progress / scheduled (En progreso / programado) | 0 | 0% |
+| 🟡 In progress / scheduled (En progreso / programado) | 4 | 4% |
 | ⏳ Pending (Pendiente) | 44 | 45% |
-| 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación) | 0 | 0% |
+| 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación) | 28 | 29% |
+| **Total** | **98** | **100%** |
 
 ### By topic (Por tema)
 
@@ -31,6 +32,26 @@ Este reporte consolida cada pieza de feedback recibida a través del buzón en l
 | Feature request (Solicitud de funcionalidad) | 15 |
 | Design (Diseño) | 13 |
 | Bug report (Reporte de bug) | 2 |
+
+### By page (Por página)
+
+| Page (Página) | Total | ✅ Completed | 🟡 In progress | ⏳ Pending | 💬 Out of scope |
+|---|---:|---:|---:|---:|---:|
+| https://konti-demo.replit.app/dashboard | 4 | 1 | 1 | 1 | 1 |
+| https://konti-demo.replit.app/materials | 3 | 0 | 0 | 3 | 0 |
+| https://konti-demo.replit.app/projects/proj-1/report | 15 | 0 | 0 | 10 | 5 |
+| https://konti-demo.replit.app/projects/proj-1 | 22 | 2 | 1 | 13 | 6 |
+| https://konti-demo.replit.app/projects/proj-2 | 3 | 3 | 0 | 0 | 0 |
+| https://konti-demo.replit.app/projects/proj-2/report | 1 | 0 | 1 | 0 | 0 |
+| https://konti-demo.replit.app/calculator | 14 | 5 | 1 | 6 | 2 |
+| https://konti-demo.replit.app/projects/proj-3 | 1 | 1 | 0 | 0 | 0 |
+| https://konti-demo.replit.app/team | 3 | 2 | 0 | 1 | 0 |
+| https://konti-demo.replit.app/permits | 7 | 1 | 0 | 3 | 3 |
+| https://konti-demo.replit.app/ai | 10 | 7 | 0 | 0 | 3 |
+| https://konti-demo.replit.app/calculator?projectId=proj-1&tab=variance | 4 | 0 | 0 | 2 | 2 |
+| https://konti-demo.replit.app/leads | 3 | 0 | 0 | 1 | 2 |
+| https://konti-demo.replit.app/projects/proj-1776983841174 | 7 | 0 | 0 | 4 | 3 |
+| https://konti-demo.replit.app/calculator?projectId=proj-1776983841174&tab=variance | 1 | 0 | 0 | 0 | 1 |
 
 ---
 
@@ -89,6 +110,7 @@ Este reporte consolida cada pieza de feedback recibida a través del buzón en l
   - [Contenido / Copy (Content) (1)](#page-httpskonti-demoreplitappcalculatorprojectidproj-1776983841174tabvariance-content)
 - [Pending — Not Yet Planned (Pendientes — Aún sin planificar)](#pending-appendix)
 - [In Progress / Scheduled (En progreso / programado)](#inprogress-appendix)
+- [Out of scope / needs discussion (Fuera de alcance / requiere conversación)](#oos-appendix)
 - [Completed (Completado)](#completed-appendix)
 - [Methodology Note (Nota de metodología)](#methodology-note)
 
@@ -135,7 +157,7 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 <a id="page-httpskonti-demoreplitappdashboard-other"></a>
 #### Other (Otro) — 1 item
 
-##### Item 47 · 2026-04-15 · undefined
+##### Item 47 · 2026-04-15 · 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación)
 
 > Grabar video demo, para compartir antes para que vayan a la reunion con las preguntas listas
 
@@ -151,7 +173,7 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 <a id="page-httpskonti-demoreplitappdashboard-content"></a>
 #### Contenido / Copy (Content) — 1 item
 
-##### Item 48 · 2026-04-23 · undefined
+##### Item 48 · 2026-04-23 · 🟡 In progress / scheduled (En progreso / programado)
 
 > entendemos que esta parte deberia ir dentro de los proyectos y lo primero que vemos en el dashboard debe ser solamente active projects y recent activity. lo que esta en el screenshot debe estar dentro de cada proyecto y especifica para cada proyecto, no juntando la data de cada proyecto. Es overwhelming ver el total de todos los proyectos.
 
@@ -291,7 +313,7 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 
 ---
 
-##### Item 90 · 2026-04-23 · undefined
+##### Item 90 · 2026-04-23 · 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación)
 
 > no entiendo esta parte.. es como las instrucciones par el cliente que sepa lo que le toca?
 
@@ -305,7 +327,7 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 
 ---
 
-##### Item 68 · 2026-04-23 · undefined
+##### Item 68 · 2026-04-23 · 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación)
 
 > sera que esta pagina es el "punchlist"?
 
@@ -346,7 +368,7 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 
 ---
 
-##### Item 65 · 2026-04-23 · undefined
+##### Item 65 · 2026-04-23 · 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación)
 
 > de donde se estan alimentando estas catergorias?
 
@@ -360,7 +382,7 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 
 ---
 
-##### Item 64 · 2026-04-23 · undefined
+##### Item 64 · 2026-04-23 · 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación)
 
 > esto es client view o konti view?
 
@@ -420,7 +442,7 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 <a id="page-httpskonti-demoreplitappprojectsproj-1report-other"></a>
 #### Other (Otro) — 1 item
 
-##### Item 96 · 2026-04-23 · undefined
+##### Item 96 · 2026-04-23 · 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación)
 
 > esto simplemente esta leyendo asana ??
 
@@ -440,7 +462,7 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 <a id="page-httpskonti-demoreplitappprojectsproj-1-featurerequest"></a>
 #### Feature request (Solicitud de funcionalidad) — 8 items
 
-##### Item 25 · 2026-04-15 · undefined
+##### Item 25 · 2026-04-15 · 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación)
 
 > El respositorio de los datos tiene que estar en el Drive. Puede haber un tilde de subir al Drive o a una base de dato
 
@@ -552,7 +574,7 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 <a id="page-httpskonti-demoreplitappprojectsproj-1-content"></a>
 #### Contenido / Copy (Content) — 6 items
 
-##### Item 22 · 2026-04-15 · undefined
+##### Item 22 · 2026-04-15 · 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación)
 
 > Quieren actualizarlo 1 vez a la semana
 
@@ -579,7 +601,7 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 
 ---
 
-##### Item 15 · 2026-04-15 · undefined
+##### Item 15 · 2026-04-15 · 🟡 In progress / scheduled (En progreso / programado)
 
 > El informe de seguimiento del contratista debería mostrar retrasos, clima, problemas, cambios, incumplimientos y retrabajos. Lo ampliaria un poco más con la info.
 
@@ -607,7 +629,7 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 
 ---
 
-##### Item 13 · 2026-04-15 · undefined
+##### Item 13 · 2026-04-15 · 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación)
 
 > A veces las fases van en paralelo. ¿Qué pasa entonces? Podemos armar otra visual o se puede hacer en paralelo?
 
@@ -638,7 +660,7 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 <a id="page-httpskonti-demoreplitappprojectsproj-1-other"></a>
 #### Other (Otro) — 6 items
 
-##### Item 63 · 2026-04-23 · undefined
+##### Item 63 · 2026-04-23 · 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación)
 
 > que significa esto?
 
@@ -652,7 +674,7 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 
 ---
 
-##### Item 62 · 2026-04-23 · undefined
+##### Item 62 · 2026-04-23 · 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación)
 
 > esto esta conectado a asana?
 
@@ -694,7 +716,7 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 
 ---
 
-##### Item 24 · 2026-04-15 · undefined
+##### Item 24 · 2026-04-15 · 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación)
 
 > Conectado a ASana. Si se marca lista en asana o aquí se traslada
 
@@ -808,7 +830,7 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 <a id="page-httpskonti-demoreplitappprojectsproj-2report-design"></a>
 #### Design (Diseño) — 1 item
 
-##### Item 8 · 2026-04-15 · undefined
+##### Item 8 · 2026-04-15 · 🟡 In progress / scheduled (En progreso / programado)
 
 > Poder editar las fechas de reportes y que aparezcan los reportes generados a un costado para imprimirlos o descargarlos la cantidad de veces que quisiéramos.
 
@@ -828,7 +850,7 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 <a id="page-httpskonti-demoreplitappcalculator-content"></a>
 #### Contenido / Copy (Content) — 7 items
 
-##### Item 60 · 2026-04-23 · undefined
+##### Item 60 · 2026-04-23 · 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación)
 
 > lo que necesitamos es que tengamos una sola calculadora con toda la data que sale en el excell de jorge y que cada proyecto cree una copia editable... no estamos seguros como eso ocurre aqui en estos momentos.
 
@@ -899,7 +921,7 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 
 ---
 
-##### Item 54 · 2026-04-23 · undefined
+##### Item 54 · 2026-04-23 · 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación)
 
 > esto es para que nosotros ahora lo hagamos y ustedes puedan trabajar el template? no entendemos como funciona esto
 
@@ -938,7 +960,7 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 <a id="page-httpskonti-demoreplitappcalculator-other"></a>
 #### Other (Otro) — 3 items
 
-##### Item 34 · 2026-04-15 · undefined
+##### Item 34 · 2026-04-15 · 🟡 In progress / scheduled (En progreso / programado)
 
 > Nos pasan el reporte formato para subirlo y que quede con ese formato
 
@@ -1158,7 +1180,7 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 
 ---
 
-##### Item 86 · 2026-04-23 · undefined
+##### Item 86 · 2026-04-23 · 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación)
 
 > once approved and final document is uploaded either to a folder in the drive where this system can match it? how does the client download the final document?
 
@@ -1172,7 +1194,7 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 
 ---
 
-##### Item 85 · 2026-04-23 · undefined
+##### Item 85 · 2026-04-23 · 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación)
 
 > are these required signatures form the client only? how do we upload the documents? or is this reading the excell sheet in the drive?
 
@@ -1206,7 +1228,7 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 <a id="page-httpskonti-demoreplitapppermits-other"></a>
 #### Other (Otro) — 1 item
 
-##### Item 84 · 2026-04-23 · undefined
+##### Item 84 · 2026-04-23 · 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación)
 
 > esto esta leyendo el drive?
 
@@ -1226,7 +1248,7 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 <a id="page-httpskonti-demoreplitappai-other"></a>
 #### Other (Otro) — 7 items
 
-##### Item 72 · 2026-04-23 · undefined
+##### Item 72 · 2026-04-23 · 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación)
 
 > is this supposed to be how we communitcate change orders, material specs and such?
 
@@ -1340,7 +1362,7 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 <a id="page-httpskonti-demoreplitappai-featurerequest"></a>
 #### Feature request (Solicitud de funcionalidad) — 1 item
 
-##### Item 70 · 2026-04-23 · undefined
+##### Item 70 · 2026-04-23 · 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación)
 
 > is this bot only to ask questions on KONTi side? i thought it was supposed to help Nai write the weekly reports on site?
 
@@ -1356,7 +1378,7 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 <a id="page-httpskonti-demoreplitappai-content"></a>
 #### Contenido / Copy (Content) — 1 item
 
-##### Item 71 · 2026-04-23 · undefined
+##### Item 71 · 2026-04-23 · 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación)
 
 > where does this information get updated or requested to the client?
 
@@ -1395,7 +1417,7 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 
 ---
 
-##### Item 51 · 2026-04-23 · undefined
+##### Item 51 · 2026-04-23 · 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación)
 
 > no entedemos este tab tampoco..
 
@@ -1409,7 +1431,7 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 
 ---
 
-##### Item 50 · 2026-04-23 · undefined
+##### Item 50 · 2026-04-23 · 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación)
 
 > cual es la funcionalidad de esta seccion? no entiendo lo que va a alimentar?
 
@@ -1449,7 +1471,7 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 <a id="page-httpskonti-demoreplitappleads-content"></a>
 #### Contenido / Copy (Content) — 3 items
 
-##### Item 75 · 2026-04-23 · undefined
+##### Item 75 · 2026-04-23 · 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación)
 
 > ok me parece que esta conectado a asana y veo que de aqui los puedo crear a un proyecto nuevo cuando aceptan propuesta... la pregunta es en asana se crea el proyecto en base al template? no entiendo como funcioana
 
@@ -1476,7 +1498,7 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 
 ---
 
-##### Item 73 · 2026-04-23 · undefined
+##### Item 73 · 2026-04-23 · 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación)
 
 > no entiendo esta pagina? se supone que sea un crm? o esta conectado a asana y eso son los proyectos que van entrando a propuesta?
 
@@ -1495,7 +1517,7 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 <a id="page-httpskonti-demoreplitappprojectsproj-1776983841174-content"></a>
 #### Contenido / Copy (Content) — 5 items
 
-##### Item 81 · 2026-04-23 · undefined
+##### Item 81 · 2026-04-23 · 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación)
 
 > if this is how i send the clients docuements they need to sign, does this generate an email like we spoke automatically so that they get the notification explaining what the docuemnt is and what we need from them?
 
@@ -1537,7 +1559,7 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 
 ---
 
-##### Item 78 · 2026-04-23 · undefined
+##### Item 78 · 2026-04-23 · 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación)
 
 > se supone que esto es para añadir mas items especiales al punchlist que va a estar completo aqui segun el documento?
 
@@ -1551,7 +1573,7 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 
 ---
 
-##### Item 77 · 2026-04-23 · undefined
+##### Item 77 · 2026-04-23 · 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación)
 
 > no entiendo que hace esto? que es lo que calcula en base a zoning y tipo de proyecto?
 
@@ -1605,7 +1627,7 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 <a id="page-httpskonti-demoreplitappcalculatorprojectidproj-1776983841174tabvariance-content"></a>
 #### Contenido / Copy (Content) — 1 item
 
-##### Item 83 · 2026-04-23 · undefined
+##### Item 83 · 2026-04-23 · 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación)
 
 > nos parece que esto significa que cada vez que queremos hacer un estimado hay que seleccionar cada material individualmente??? si es asi definitivamente no nos ayuda. La carta de materiales a cada proyecto debe ser estandar y editable pero no partir de cero. maybe no entendemos como es que va a funcionar..
 
@@ -1669,7 +1691,7 @@ Estos ítems están abiertos y aún no están vinculados a una tarea de proyecto
 ### Other (Otro) (5)
 
 - _Item 76 · 2026-04-23 · https://konti-demo.replit.app/projects/proj-1776983841174_ — Document/note 'private' visibility needs to default to team-only and never show to clients — overlaps with #26.
-- _Item 35 · 2026-04-15 · https://konti-demo.replit.app/materials_ — Auto-updating labor rates from receipts is not yet built; real OCR for receipts is scheduled in #28 and is a prerequisite.
+- _Item 35 · 2026-04-15 · https://konti-demo.replit.app/materials_ — Task #28 — Auto-updating labor rates from receipts is not yet built; real OCR for receipts is scheduled in #28 and is a prerequisite.
 - _Item 27 · 2026-04-15 · https://konti-demo.replit.app/projects/proj-1_ — Per-document client-visibility flag is not yet built.
 - _Item 26 · 2026-04-15 · https://konti-demo.replit.app/projects/proj-1_ — Document version history (with download of latest) is not yet built.
 - _Item 23 · 2026-04-15 · https://konti-demo.replit.app/projects/proj-1_ — Self-administration and image upload by client are not yet built — overlaps with #3, #13, #15, #68.
@@ -1683,40 +1705,117 @@ Estos ítems están abiertos y aún no están vinculados a una tarea de proyecto
 
 ### Bug report (Reporte de bug) (1)
 
-- _Item 82 · 2026-04-23 · https://konti-demo.replit.app/projects/proj-1776983841174_ — Upload not persisting is a known limitation of the demo's in-memory data; persistence is scheduled in #27, #30, #32.
+- _Item 82 · 2026-04-23 · https://konti-demo.replit.app/projects/proj-1776983841174_ — Task #27, Task #30, Task #32 — Upload not persisting is a known limitation of the demo's in-memory data; persistence is scheduled in #27, #30, #32.
 
 ---
 
 <a id="inprogress-appendix"></a>
 ## In Progress / Scheduled (En progreso / programado)
 
+These items are linked to a project task that is open or proposed.
+
+Estos ítems están vinculados a una tarea de proyecto abierta o propuesta.
+
+### Contenido / Copy (Content) (2)
+
+- _Item 48 · 2026-04-23 · https://konti-demo.replit.app/dashboard_ — Task #18 — Showing only the construction-status card on the client home is scheduled in #18; the broader 'move overall stats into per-project' restructure is still pending.
+- _Item 15 · 2026-04-15 · https://konti-demo.replit.app/projects/proj-1_ — Task #7, Task #11, Task #25 — Weather (#7), change orders (#11) and punchlist (#25) shipped; a single consolidated 'contractor monitoring' report is still pending.
+
+### Design (Diseño) (1)
+
+- _Item 8 · 2026-04-15 · https://konti-demo.replit.app/projects/proj-2/report_ — Task #4, Task #29 — PDF export shipped (#4); using the saved template when exporting and keeping a side history of generated reports is scheduled in #29.
+
+### Other (Otro) (1)
+
+- _Item 34 · 2026-04-15 · https://konti-demo.replit.app/calculator_ — Task #22, Task #29 — Report-template upload shipped in #22; using that template when exporting the project PDF is scheduled in #29.
+
+---
+
+<a id="oos-appendix"></a>
+## Out of scope / needs discussion (Fuera de alcance / requiere conversación)
+
+These items are strategic, philosophical, or product-direction feedback that warrant a conversation rather than a single task. Listed by topic, then date.
+
+Estos ítems son feedback estratégico, filosófico o de dirección de producto que requieren una conversación más que una sola tarea. Listados por tema y luego por fecha.
+
+### Contenido / Copy (Content) (19)
+
+- _Item 90 · 2026-04-23 · https://konti-demo.replit.app/projects/proj-1/report_ — Clarification on whether this section is client instructions — needs a walkthrough.
+- _Item 86 · 2026-04-23 · https://konti-demo.replit.app/permits_ — Clarification on final-document distribution (Drive sync, client download) — needs scoping.
+- _Item 85 · 2026-04-23 · https://konti-demo.replit.app/permits_ — Clarification on permit-doc upload and signature flow — needs a walkthrough.
+- _Item 83 · 2026-04-23 · https://konti-demo.replit.app/calculator?projectId=proj-1776983841174&tab=variance_ — Workflow clarification on whether each estimate selects materials individually — needs a product call. Overlaps with #56, #59.
+- _Item 81 · 2026-04-23 · https://konti-demo.replit.app/projects/proj-1776983841174_ — Auto-emailing clients for signature requests is a notification/email integration; needs scoping.
+- _Item 78 · 2026-04-23 · https://konti-demo.replit.app/projects/proj-1776983841174_ — Clarification on the special punchlist items field — needs a walkthrough.
+- _Item 77 · 2026-04-23 · https://konti-demo.replit.app/projects/proj-1776983841174_ — Clarification on what the zoning/project-type calculator computes — needs a walkthrough.
+- _Item 75 · 2026-04-23 · https://konti-demo.replit.app/leads_ — Asana template-driven project creation — third-party integration question, needs scoping.
+- _Item 73 · 2026-04-23 · https://konti-demo.replit.app/leads_ — Clarification about the leads page being a CRM vs. Asana mirror — needs a walkthrough.
+- _Item 71 · 2026-04-23 · https://konti-demo.replit.app/ai_ — Clarification on how info flows back to the client — needs a walkthrough.
+- _Item 68 · 2026-04-23 · https://konti-demo.replit.app/projects/proj-1/report_ — Clarification: is this page the punchlist? — needs a walkthrough.
+- _Item 65 · 2026-04-23 · https://konti-demo.replit.app/projects/proj-1/report_ — Clarification about category sources — needs a walkthrough.
+- _Item 64 · 2026-04-23 · https://konti-demo.replit.app/projects/proj-1/report_ — Clarification: client view vs. KONTi view — needs a walkthrough; report has both modes today.
+- _Item 60 · 2026-04-23 · https://konti-demo.replit.app/calculator_ — 'One master calculator that each project copies' is a workflow design that needs a product call before building.
+- _Item 54 · 2026-04-23 · https://konti-demo.replit.app/calculator_ — Workflow clarification about who maintains the template — needs a product call.
+- _Item 51 · 2026-04-23 · https://konti-demo.replit.app/calculator?projectId=proj-1&tab=variance_ — Same clarification request — needs a walkthrough.
+- _Item 50 · 2026-04-23 · https://konti-demo.replit.app/calculator?projectId=proj-1&tab=variance_ — Clarification request about the variance tab — needs a walkthrough rather than code.
+- _Item 22 · 2026-04-15 · https://konti-demo.replit.app/projects/proj-1_ — Workflow expectation ('update once a week') — process note, not a product change.
+- _Item 13 · 2026-04-15 · https://konti-demo.replit.app/projects/proj-1_ — Parallel phases would change the validator-driven 9-phase model from #11; needs a product call before building.
+
+### Other (Otro) (7)
+
+- _Item 96 · 2026-04-23 · https://konti-demo.replit.app/projects/proj-1/report_ — Asana sync question for the report — same theme as #23, #61, #74.
+- _Item 84 · 2026-04-23 · https://konti-demo.replit.app/permits_ — Drive integration question — needs scoping.
+- _Item 72 · 2026-04-23 · https://konti-demo.replit.app/ai_ — Clarification on whether the AI is the channel for change orders / specs — needs a product call.
+- _Item 63 · 2026-04-23 · https://konti-demo.replit.app/projects/proj-1_ — Clarification request — needs a walkthrough.
+- _Item 62 · 2026-04-23 · https://konti-demo.replit.app/projects/proj-1_ — Asana connection question — see #23, #74, #95.
+- _Item 47 · 2026-04-15 · https://konti-demo.replit.app/dashboard_ — Process item (record a demo video) — not a product change.
+- _Item 24 · 2026-04-15 · https://konti-demo.replit.app/projects/proj-1_ — Bidirectional Asana sync is a third-party integration; needs scoping before building.
+
+### Feature request (Solicitud de funcionalidad) (2)
+
+- _Item 70 · 2026-04-23 · https://konti-demo.replit.app/ai_ — Scope clarification on what the AI should do (KONTi vs. on-site reports) — needs a product call.
+- _Item 25 · 2026-04-15 · https://konti-demo.replit.app/projects/proj-1_ — Google Drive as the canonical store is a third-party integration; needs scoping.
 
 ---
 
 <a id="completed-appendix"></a>
 ## Completed (Completado)
 
-- _Item 1 · 2026-04-15 · https://konti-demo.replit.app/dashboard_ — Task #5, Task #8, Task #36 — Login logo and sidebar logo were corrected and the menatech footer added.
-- _Item 6 · 2026-04-15 · https://konti-demo.replit.app/projects/proj-2_ — Task #7 — Documents panel was made richer and clickable as part of weather + documents work.
-- _Item 9 · 2026-04-15 · https://konti-demo.replit.app/projects/proj-2_ — Task #11 — The 9-phase validator-driven rework broke each phase into visible sub-steps with status, dates and gates.
-- _Item 10 · 2026-04-15 · https://konti-demo.replit.app/calculator_ — Task #3 — Language toggle (EN/ES) was wired across the app, including the calculator copy.
-- _Item 21 · 2026-04-15 · https://konti-demo.replit.app/projects/proj-1_ — Task #22, Task #27 — KONTi-side receipt entry shipped in the calculator overhaul (#22); persistence across restarts is scheduled in #27.
-- _Item 28 · 2026-04-15 · https://konti-demo.replit.app/projects/proj-3_ — Task #24, Task #26 — Client-side notifications popup shipped in #24; the bell button was polished in #26.
-- _Item 29 · 2026-04-15 · https://konti-demo.replit.app/projects/proj-1_ — Task #24 — Client notes/queries panel beside the chat shipped as part of #24.
-- _Item 30 · 2026-04-15 · https://konti-demo.replit.app/calculator_ — Task #22 — Editable categories with Excel/CSV import shipped in the calculator overhaul (#22).
-- _Item 31 · 2026-04-15 · https://konti-demo.replit.app/calculator_ — Task #22 — Labor rates with CSV import shipped in #22.
-- _Item 32 · 2026-04-15 · https://konti-demo.replit.app/calculator_ — Task #22 — Contractor estimate calculator shipped in #22.
-- _Item 33 · 2026-04-15 · https://konti-demo.replit.app/calculator_ — Task #22 — Variance reports (estimated vs. spent) shipped in #22.
-- _Item 36 · 2026-04-15 · https://konti-demo.replit.app/team_ — Task #35 (commit `9de748f`) — Team member name updated to Nainoshka in seed data and AI knowledge base.
-- _Item 37 · 2026-04-15 · https://konti-demo.replit.app/team_ — Task #35 (commit `9de748f`) — Team member entry was removed during the team-page edits.
-- _Item 38 · 2026-04-15 · https://konti-demo.replit.app/permits_ — Task #26 — Permits 'Diseño' section was added in the polish bundle (#26).
-- _Item 39 · 2026-04-15 · https://konti-demo.replit.app/ai_ — Task #23 — Markdown rendering for the AI assistant shipped in #23.
-- _Item 40 · 2026-04-15 · https://konti-demo.replit.app/ai_ — Task #23, Task #30 — Notes from client questions shipped in #23; persisting them across restarts is scheduled in #30.
-- _Item 41 · 2026-04-15 · https://konti-demo.replit.app/ai_ — Task #23 — Spec-updates report shipped in #23.
-- _Item 42 · 2026-04-15 · https://konti-demo.replit.app/ai_ — Task #23 — Voice notes integration shipped in #23.
-- _Item 43 · 2026-04-15 · https://konti-demo.replit.app/ai_ — Task #25, Task #32 — Punchlist as a phase-advance gate shipped in #25; punchlist persistence across restarts is scheduled in #32.
+These items are linked to a merged project task or a verifiable commit on `main`.
+
+Estos ítems están vinculados a una tarea de proyecto fusionada o a un commit verificable en `main`.
+
+### Design (Diseño) (8)
+
 - _Item 44 · 2026-04-15 · https://konti-demo.replit.app/ai_ — Task #26, Task #36 — Notification button visibility was fixed in #26 and the sidebar/header was polished in #36.
+- _Item 37 · 2026-04-15 · https://konti-demo.replit.app/team_ — Task #35 (commit `9de748f`) — Team member entry was removed during the team-page edits.
+- _Item 36 · 2026-04-15 · https://konti-demo.replit.app/team_ — Task #35 (commit `9de748f`) — Team member name updated to Nainoshka in seed data and AI knowledge base.
+- _Item 30 · 2026-04-15 · https://konti-demo.replit.app/calculator_ — Task #22 — Editable categories with Excel/CSV import shipped in the calculator overhaul (#22).
+- _Item 29 · 2026-04-15 · https://konti-demo.replit.app/projects/proj-1_ — Task #24 — Client notes/queries panel beside the chat shipped as part of #24.
+- _Item 28 · 2026-04-15 · https://konti-demo.replit.app/projects/proj-3_ — Task #24, Task #26 — Client-side notifications popup shipped in #24; the bell button was polished in #26.
+- _Item 10 · 2026-04-15 · https://konti-demo.replit.app/calculator_ — Task #3 — Language toggle (EN/ES) was wired across the app, including the calculator copy.
+- _Item 1 · 2026-04-15 · https://konti-demo.replit.app/dashboard_ — Task #5, Task #8, Task #36 — Login logo and sidebar logo were corrected and the menatech footer added.
+
+### Other (Otro) (8)
+
 - _Item 45 · 2026-04-15 · https://konti-demo.replit.app/ai_ — Task #23 — Confirm-before-classify shipped in the AI UX upgrade #23.
+- _Item 43 · 2026-04-15 · https://konti-demo.replit.app/ai_ — Task #25, Task #32 — Punchlist as a phase-advance gate shipped in #25; punchlist persistence across restarts is scheduled in #32.
+- _Item 42 · 2026-04-15 · https://konti-demo.replit.app/ai_ — Task #23 — Voice notes integration shipped in #23.
+- _Item 41 · 2026-04-15 · https://konti-demo.replit.app/ai_ — Task #23 — Spec-updates report shipped in #23.
+- _Item 40 · 2026-04-15 · https://konti-demo.replit.app/ai_ — Task #23, Task #30 — Notes from client questions shipped in #23; persisting them across restarts is scheduled in #30.
+- _Item 39 · 2026-04-15 · https://konti-demo.replit.app/ai_ — Task #23 — Markdown rendering for the AI assistant shipped in #23.
+- _Item 33 · 2026-04-15 · https://konti-demo.replit.app/calculator_ — Task #22 — Variance reports (estimated vs. spent) shipped in #22.
+- _Item 32 · 2026-04-15 · https://konti-demo.replit.app/calculator_ — Task #22 — Contractor estimate calculator shipped in #22.
+
+### Feature request (Solicitud de funcionalidad) (5)
+
+- _Item 38 · 2026-04-15 · https://konti-demo.replit.app/permits_ — Task #26 — Permits 'Diseño' section was added in the polish bundle (#26).
+- _Item 31 · 2026-04-15 · https://konti-demo.replit.app/calculator_ — Task #22 — Labor rates with CSV import shipped in #22.
+- _Item 21 · 2026-04-15 · https://konti-demo.replit.app/projects/proj-1_ — Task #22, Task #27 — KONTi-side receipt entry shipped in the calculator overhaul (#22); persistence across restarts is scheduled in #27.
+- _Item 9 · 2026-04-15 · https://konti-demo.replit.app/projects/proj-2_ — Task #11 — The 9-phase validator-driven rework broke each phase into visible sub-steps with status, dates and gates.
+- _Item 6 · 2026-04-15 · https://konti-demo.replit.app/projects/proj-2_ — Task #7 — Documents panel was made richer and clickable as part of weather + documents work.
+
+### Bug report (Reporte de bug) (1)
+
 - _Item 46 · 2026-04-15 · https://konti-demo.replit.app/projects/proj-2_ — Task #21 — Project creation save bug fixed in #21.
 
 ---
@@ -1736,6 +1835,8 @@ Estos ítems están abiertos y aún no están vinculados a una tarea de proyecto
 - **In progress / scheduled (En progreso / programado):** Linked to an open project task that is in plan, in-progress, or proposed.
 - **Pending (Pendiente):** Open feedback that is not yet linked to a project task — surfaced for the team to triage.
 - **Out of scope / needs discussion (Fuera de alcance / requiere conversación):** Strategic, philosophical, or product-direction feedback that warrants a conversation rather than a single task.
+
+**Coverage check (Verificación de cobertura):** Every one of the 98 inbox items is labeled with exactly one of the four statuses. Status totals: 22 Completed + 4 In progress + 44 Pending + 28 Out of scope = 98.
 
 **Screenshots (Capturas):** The in-app inbox stores screenshots as private object-store keys (e.g. `<replId>/<timestamp>_<hash>.png`). The links in this report point to the matching item inside the in-app inbox UI, where the team can open each screenshot. The asset key is included in backticks for traceability.
 
