@@ -114,6 +114,7 @@ Este reporte consolida cada pieza de feedback recibida a través del buzón en l
 - [In Progress / Scheduled (En progreso / programado)](#inprogress-appendix)
 - [Out of scope / needs discussion (Fuera de alcance / requiere conversación)](#oos-appendix)
 - [Completed (Completado)](#completed-appendix)
+- [Evidence Index (Índice de evidencia)](#evidence-index)
 - [Methodology Note (Nota de metodología)](#methodology-note)
 
 ---
@@ -1877,6 +1878,45 @@ Estos ítems están vinculados a una tarea de proyecto fusionada o a un commit v
 ### Bug report (Reporte de bug) (1)
 
 - _Item 46 · 2026-04-15 · https://konti-demo.replit.app/projects/proj-2_ — Task #21 — Project creation save bug fixed in #21.
+
+---
+
+
+<a id="evidence-index"></a>
+
+## Evidence Index (Índice de evidencia)
+
+A compact mapping from each Completed and In-Progress item to its supporting project task(s) and / or commit, for fast client audit.
+
+Mapeo compacto de cada ítem Completado y En progreso a la(s) tarea(s) de proyecto y / o commit que lo respaldan, para auditoría rápida del cliente.
+
+| # | Date (Fecha) | Page (Página) | Status (Estado) | Refs | Task title (Título de la tarea) |
+|---:|---|---|---|---|---|
+| 1 | 2026-04-15 | https://konti-demo.replit.app/dashboard | ✅ Completed | #5, #8, #36 | Login logo fix + Perplexity material pricing · Menatech branding + login logo polish · Sidebar polish: notifications panel on-screen, bigger KONTi logo, smaller menatech footer |
+| 6 | 2026-04-15 | https://konti-demo.replit.app/projects/proj-2 | ✅ Completed | #7 | Weather history chart + richer documents |
+| 8 | 2026-04-15 | https://konti-demo.replit.app/projects/proj-2/report | 🟡 In progress | #4, #29 | PDF export button on report page + OpenAI fallback for AI assistant · Use the saved report template when exporting project PDFs |
+| 9 | 2026-04-15 | https://konti-demo.replit.app/projects/proj-2 | ✅ Completed | #11 | Phase 3 — Design sub-phases & Change Orders |
+| 10 | 2026-04-15 | https://konti-demo.replit.app/calculator | ✅ Completed | #3 | UX Polish: language toggle in top nav, client portal view, mobile responsiveness |
+| 21 | 2026-04-15 | https://konti-demo.replit.app/projects/proj-1 | 🟡 In progress | #22, #27 | Estimating calculator overhaul (Excel + receipts + variance reports) · Persist receipts and contractor estimates so they survive a server restart |
+| 28 | 2026-04-15 | https://konti-demo.replit.app/projects/proj-3 | ✅ Completed | #24, #26 | Client view: notes/queries panel + notifications popup · Polish bundle: permits Design section, team page edits, notifications button fix |
+| 29 | 2026-04-15 | https://konti-demo.replit.app/projects/proj-1 | ✅ Completed | #24 | Client view: notes/queries panel + notifications popup |
+| 30 | 2026-04-15 | https://konti-demo.replit.app/calculator | ✅ Completed | #22 | Estimating calculator overhaul (Excel + receipts + variance reports) |
+| 31 | 2026-04-15 | https://konti-demo.replit.app/calculator | ✅ Completed | #22 | Estimating calculator overhaul (Excel + receipts + variance reports) |
+| 32 | 2026-04-15 | https://konti-demo.replit.app/calculator | ✅ Completed | #22 | Estimating calculator overhaul (Excel + receipts + variance reports) |
+| 33 | 2026-04-15 | https://konti-demo.replit.app/calculator | ✅ Completed | #22 | Estimating calculator overhaul (Excel + receipts + variance reports) |
+| 34 | 2026-04-15 | https://konti-demo.replit.app/calculator | 🟡 In progress | #22, #29 | Estimating calculator overhaul (Excel + receipts + variance reports) · Use the saved report template when exporting project PDFs |
+| 36 | 2026-04-15 | https://konti-demo.replit.app/team | ✅ Completed | #35 / `9de748f` | Update old team-member names in project history and AI knowledge base |
+| 37 | 2026-04-15 | https://konti-demo.replit.app/team | ✅ Completed | #35 / `9de748f` | Update old team-member names in project history and AI knowledge base |
+| 38 | 2026-04-15 | https://konti-demo.replit.app/permits | ✅ Completed | #26 | Polish bundle: permits Design section, team page edits, notifications button fix |
+| 39 | 2026-04-15 | https://konti-demo.replit.app/ai | ✅ Completed | #23 | AI assistant UX upgrade (markdown, voice, confirm-before-classify, client questions, spec report) |
+| 40 | 2026-04-15 | https://konti-demo.replit.app/ai | 🟡 In progress | #23, #30 | AI assistant UX upgrade (markdown, voice, confirm-before-classify, client questions, spec report) · Save AI assistant notes and updates so they survive restarts |
+| 41 | 2026-04-15 | https://konti-demo.replit.app/ai | ✅ Completed | #23 | AI assistant UX upgrade (markdown, voice, confirm-before-classify, client questions, spec report) |
+| 42 | 2026-04-15 | https://konti-demo.replit.app/ai | ✅ Completed | #23 | AI assistant UX upgrade (markdown, voice, confirm-before-classify, client questions, spec report) |
+| 43 | 2026-04-15 | https://konti-demo.replit.app/ai | 🟡 In progress | #25, #32 | Punchlist as phase advancement gate · Persist punchlist edits so they survive a server restart |
+| 44 | 2026-04-15 | https://konti-demo.replit.app/ai | ✅ Completed | #26, #36 | Polish bundle: permits Design section, team page edits, notifications button fix · Sidebar polish: notifications panel on-screen, bigger KONTi logo, smaller menatech footer |
+| 45 | 2026-04-15 | https://konti-demo.replit.app/ai | ✅ Completed | #23 | AI assistant UX upgrade (markdown, voice, confirm-before-classify, client questions, spec report) |
+| 46 | 2026-04-15 | https://konti-demo.replit.app/projects/proj-2 | ✅ Completed | #21 | Fix project creation save bug |
+| 48 | 2026-04-23 | https://konti-demo.replit.app/dashboard | 🟡 In progress | #18 | Show the construction status card on the client home for a more focused view |
 
 ---
 
