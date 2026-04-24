@@ -1,0 +1,14 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "z0DTqw84umm7FBjoAZBXu"
+uri = "file://attached_assets/reports/feedback-vs-changelog.pdf"
+type = "pdf"
+title = "Feedback vs Changelog — KONTi Dashboard (PDF)"
+
+[[outputs]]
+id = "gZ9H-3JFqeiegPror4GX4"
+uri = "file://attached_assets/reports/feedback-vs-changelog.md"
+type = "text"
+title = "Feedback vs Changelog — KONTi Dashboard (Markdown)"
