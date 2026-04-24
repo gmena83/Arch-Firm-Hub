@@ -7,6 +7,8 @@ This report consolidates every piece of feedback collected through the KONTi Das
 
 Este reporte consolida cada pieza de feedback recibida a través del buzón en la app del Dashboard KONTi y la empareja con la tarea de proyecto (o commit) que la atendió. Las citas se conservan textuales — el español queda en español y el inglés en inglés.
 
+> **How to read the references (Cómo leer las referencias):** Each item cites a `Task #N` (project-board reference inside the Replit workspace) and / or a 7-character commit hash. These are shown as plain text rather than hyperlinks because the project task panel and the git repository are both internal to the workspace and have no public URLs. The team can open each `Task #N` in the workspace task panel and look up each commit hash with `git show <hash>`.
+
 ---
 
 ## Executive Summary (Resumen Ejecutivo)
@@ -674,7 +676,7 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 
 ##### Item 9 · 2026-04-15 · ✅ Completed (Completado)
 
-> Gonza, creo que es importante poder desglosar cada fase en subpasos visibles, con estado, avance, responsable y próximo hito.	El cronograma debe desglosarse en los pasos de cada fase porque si no el avance se percibe muy lento. Tambien le sumaria fechas de cambio de cada uno
+> Gonza, creo que es importante poder desglosar cada fase en subpasos visibles, con estado, avance, responsable y próximo hito. El cronograma debe desglosarse en los pasos de cada fase porque si no el avance se percibe muy lento. Tambien le sumaria fechas de cambio de cada uno
 
 **Refs:** Task #11
 
@@ -1901,5 +1903,5 @@ Estos ítems están vinculados a una tarea de proyecto fusionada o a un commit v
 
 **Verbatim quotes (Citas textuales):** Feedback text is reproduced exactly as submitted — Spanish remains Spanish, English remains English, and team typos / shorthand are preserved.
 
-**Inbox state (Estado del buzón):** This exercise did not change the long-term state of the inbox. All items remain PENDING.
+**Inbox state (Estado del buzón):** All 98 inbox items were already in PENDING state at the start of this exercise (no items were in ACKNOWLEDGED, DISMISSED, IMPLEMENTED, or DELETED). To work around the inbox API's 20-item-per-bucket cap, 68 items were temporarily flipped to ACKNOWLEDGED so that the next page could be fetched, and were then restored to PENDING. After this exercise, the inbox state is identical to the starting state: 98 PENDING items, 0 in any other status.
 
