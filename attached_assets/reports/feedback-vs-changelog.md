@@ -1893,7 +1893,7 @@ Estos ítems están vinculados a una tarea de proyecto fusionada o a un commit v
 **Status definitions (Definiciones de estado):**
 
 - **Completed (Completado):** The full request is linked to a merged project task or a verifiable commit on `main`. Items where any portion of the request is still scheduled fall into **In progress** instead.
-- **In progress / scheduled (En progreso / programado):** Cites at least one open project task (state PENDING / IN_PROGRESS / IN_PLAN / PROPOSED) that covers the remaining work. Items where part of the request shipped and a follow-up is still scheduled are conservatively placed here, with the open task explicitly cited.
+- **In progress / scheduled (En progreso / programado):** Cites at least one open project task (state PENDING / IN_PROGRESS / PROPOSED) that covers the remaining work. Items where part of the request shipped and a follow-up is still scheduled are conservatively placed here, with the open task explicitly cited.
 - **Pending (Pendiente):** Open feedback that is not yet linked to a project task — surfaced for the team to triage.
 - **Out of scope / needs discussion (Fuera de alcance / requiere conversación):** Strategic, philosophical, or product-direction feedback that warrants a conversation rather than a single task.
 
