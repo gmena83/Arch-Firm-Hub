@@ -17,8 +17,8 @@ Este reporte consolida cada pieza de feedback recibida a través del buzón en l
 
 | Status (Estado) | Count (Cantidad) | % |
 |---|---:|---:|
-| ✅ Completed (Completado) | 22 | 22% |
-| 🟡 In progress / scheduled (En progreso / programado) | 4 | 4% |
+| ✅ Completed (Completado) | 19 | 19% |
+| 🟡 In progress / scheduled (En progreso / programado) | 7 | 7% |
 | ⏳ Pending (Pendiente) | 44 | 45% |
 | 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación) | 28 | 29% |
 | **Total** | **98** | **100%** |
@@ -37,77 +37,77 @@ Este reporte consolida cada pieza de feedback recibida a través del buzón en l
 
 | Page (Página) | Total | ✅ Completed | 🟡 In progress | ⏳ Pending | 💬 Out of scope |
 |---|---:|---:|---:|---:|---:|
-| https://konti-demo.replit.app/dashboard | 4 | 1 | 1 | 1 | 1 |
-| https://konti-demo.replit.app/materials | 3 | 0 | 0 | 3 | 0 |
 | https://konti-demo.replit.app/projects/proj-1/report | 15 | 0 | 0 | 10 | 5 |
-| https://konti-demo.replit.app/projects/proj-1 | 22 | 2 | 1 | 13 | 6 |
+| https://konti-demo.replit.app/projects/proj-1 | 22 | 1 | 2 | 13 | 6 |
 | https://konti-demo.replit.app/projects/proj-2 | 3 | 3 | 0 | 0 | 0 |
 | https://konti-demo.replit.app/projects/proj-2/report | 1 | 0 | 1 | 0 | 0 |
-| https://konti-demo.replit.app/calculator | 14 | 5 | 1 | 6 | 2 |
 | https://konti-demo.replit.app/projects/proj-3 | 1 | 1 | 0 | 0 | 0 |
-| https://konti-demo.replit.app/team | 3 | 2 | 0 | 1 | 0 |
-| https://konti-demo.replit.app/permits | 7 | 1 | 0 | 3 | 3 |
-| https://konti-demo.replit.app/ai | 10 | 7 | 0 | 0 | 3 |
-| https://konti-demo.replit.app/calculator?projectId=proj-1&tab=variance | 4 | 0 | 0 | 2 | 2 |
-| https://konti-demo.replit.app/leads | 3 | 0 | 0 | 1 | 2 |
 | https://konti-demo.replit.app/projects/proj-1776983841174 | 7 | 0 | 0 | 4 | 3 |
+| https://konti-demo.replit.app/dashboard | 4 | 1 | 1 | 1 | 1 |
+| https://konti-demo.replit.app/calculator | 14 | 5 | 1 | 6 | 2 |
+| https://konti-demo.replit.app/calculator?projectId=proj-1&tab=variance | 4 | 0 | 0 | 2 | 2 |
 | https://konti-demo.replit.app/calculator?projectId=proj-1776983841174&tab=variance | 1 | 0 | 0 | 0 | 1 |
+| https://konti-demo.replit.app/materials | 3 | 0 | 0 | 3 | 0 |
+| https://konti-demo.replit.app/permits | 7 | 1 | 0 | 3 | 3 |
+| https://konti-demo.replit.app/team | 3 | 2 | 0 | 1 | 0 |
+| https://konti-demo.replit.app/ai | 10 | 5 | 2 | 0 | 3 |
+| https://konti-demo.replit.app/leads | 3 | 0 | 0 | 1 | 2 |
 
 ---
 
 ## Table of Contents (Tabla de Contenidos)
 
-- [**https://konti-demo.replit.app/dashboard** (4)](#page-httpskonti-demoreplitappdashboard)
-  - [Design (Diseño) (1)](#page-httpskonti-demoreplitappdashboard-design)
-  - [Feature request (Solicitud de funcionalidad) (1)](#page-httpskonti-demoreplitappdashboard-featurerequest)
-  - [Other (Otro) (1)](#page-httpskonti-demoreplitappdashboard-other)
-  - [Contenido / Copy (Content) (1)](#page-httpskonti-demoreplitappdashboard-content)
-- [**https://konti-demo.replit.app/materials** (3)](#page-httpskonti-demoreplitappmaterials)
-  - [Contenido / Copy (Content) (2)](#page-httpskonti-demoreplitappmaterials-content)
-  - [Other (Otro) (1)](#page-httpskonti-demoreplitappmaterials-other)
-- [**https://konti-demo.replit.app/projects/proj-1/report** (15)](#page-httpskonti-demoreplitappprojectsproj-1report)
-  - [Contenido / Copy (Content) (11)](#page-httpskonti-demoreplitappprojectsproj-1report-content)
-  - [Design (Diseño) (3)](#page-httpskonti-demoreplitappprojectsproj-1report-design)
-  - [Other (Otro) (1)](#page-httpskonti-demoreplitappprojectsproj-1report-other)
-- [**https://konti-demo.replit.app/projects/proj-1** (22)](#page-httpskonti-demoreplitappprojectsproj-1)
-  - [Feature request (Solicitud de funcionalidad) (8)](#page-httpskonti-demoreplitappprojectsproj-1-featurerequest)
-  - [Contenido / Copy (Content) (6)](#page-httpskonti-demoreplitappprojectsproj-1-content)
-  - [Other (Otro) (6)](#page-httpskonti-demoreplitappprojectsproj-1-other)
-  - [Design (Diseño) (2)](#page-httpskonti-demoreplitappprojectsproj-1-design)
-- [**https://konti-demo.replit.app/projects/proj-2** (3)](#page-httpskonti-demoreplitappprojectsproj-2)
-  - [Feature request (Solicitud de funcionalidad) (2)](#page-httpskonti-demoreplitappprojectsproj-2-featurerequest)
-  - [Bug report (Reporte de bug) (1)](#page-httpskonti-demoreplitappprojectsproj-2-bugreport)
-- [**https://konti-demo.replit.app/projects/proj-2/report** (1)](#page-httpskonti-demoreplitappprojectsproj-2report)
-  - [Design (Diseño) (1)](#page-httpskonti-demoreplitappprojectsproj-2report-design)
-- [**https://konti-demo.replit.app/calculator** (14)](#page-httpskonti-demoreplitappcalculator)
-  - [Contenido / Copy (Content) (7)](#page-httpskonti-demoreplitappcalculator-content)
-  - [Other (Otro) (3)](#page-httpskonti-demoreplitappcalculator-other)
-  - [Design (Diseño) (2)](#page-httpskonti-demoreplitappcalculator-design)
-  - [Feature request (Solicitud de funcionalidad) (2)](#page-httpskonti-demoreplitappcalculator-featurerequest)
-- [**https://konti-demo.replit.app/projects/proj-3** (1)](#page-httpskonti-demoreplitappprojectsproj-3)
-  - [Design (Diseño) (1)](#page-httpskonti-demoreplitappprojectsproj-3-design)
-- [**https://konti-demo.replit.app/team** (3)](#page-httpskonti-demoreplitappteam)
-  - [Design (Diseño) (2)](#page-httpskonti-demoreplitappteam-design)
-  - [Contenido / Copy (Content) (1)](#page-httpskonti-demoreplitappteam-content)
-- [**https://konti-demo.replit.app/permits** (7)](#page-httpskonti-demoreplitapppermits)
-  - [Contenido / Copy (Content) (5)](#page-httpskonti-demoreplitapppermits-content)
-  - [Feature request (Solicitud de funcionalidad) (1)](#page-httpskonti-demoreplitapppermits-featurerequest)
-  - [Other (Otro) (1)](#page-httpskonti-demoreplitapppermits-other)
-- [**https://konti-demo.replit.app/ai** (10)](#page-httpskonti-demoreplitappai)
-  - [Other (Otro) (7)](#page-httpskonti-demoreplitappai-other)
-  - [Design (Diseño) (1)](#page-httpskonti-demoreplitappai-design)
-  - [Feature request (Solicitud de funcionalidad) (1)](#page-httpskonti-demoreplitappai-featurerequest)
-  - [Contenido / Copy (Content) (1)](#page-httpskonti-demoreplitappai-content)
-- [**https://konti-demo.replit.app/calculator?projectId=proj-1&tab=variance** (4)](#page-httpskonti-demoreplitappcalculatorprojectidproj-1tabvariance)
-  - [Contenido / Copy (Content) (4)](#page-httpskonti-demoreplitappcalculatorprojectidproj-1tabvariance-content)
-- [**https://konti-demo.replit.app/leads** (3)](#page-httpskonti-demoreplitappleads)
-  - [Contenido / Copy (Content) (3)](#page-httpskonti-demoreplitappleads-content)
-- [**https://konti-demo.replit.app/projects/proj-1776983841174** (7)](#page-httpskonti-demoreplitappprojectsproj-1776983841174)
-  - [Contenido / Copy (Content) (5)](#page-httpskonti-demoreplitappprojectsproj-1776983841174-content)
-  - [Other (Otro) (1)](#page-httpskonti-demoreplitappprojectsproj-1776983841174-other)
-  - [Bug report (Reporte de bug) (1)](#page-httpskonti-demoreplitappprojectsproj-1776983841174-bugreport)
-- [**https://konti-demo.replit.app/calculator?projectId=proj-1776983841174&tab=variance** (1)](#page-httpskonti-demoreplitappcalculatorprojectidproj-1776983841174tabvariance)
-  - [Contenido / Copy (Content) (1)](#page-httpskonti-demoreplitappcalculatorprojectidproj-1776983841174tabvariance-content)
+- [**https://konti-demo.replit.app/projects/proj-1/report** (15)](#page-projects-proj-1-report)
+  - [Contenido / Copy (Content) (11)](#page-projects-proj-1-report-content)
+  - [Design (Diseño) (3)](#page-projects-proj-1-report-design)
+  - [Other (Otro) (1)](#page-projects-proj-1-report-other)
+- [**https://konti-demo.replit.app/projects/proj-1** (22)](#page-projects-proj-1)
+  - [Feature request (Solicitud de funcionalidad) (8)](#page-projects-proj-1-feature-request)
+  - [Contenido / Copy (Content) (6)](#page-projects-proj-1-content)
+  - [Other (Otro) (6)](#page-projects-proj-1-other)
+  - [Design (Diseño) (2)](#page-projects-proj-1-design)
+- [**https://konti-demo.replit.app/projects/proj-2** (3)](#page-projects-proj-2)
+  - [Feature request (Solicitud de funcionalidad) (2)](#page-projects-proj-2-feature-request)
+  - [Bug report (Reporte de bug) (1)](#page-projects-proj-2-bug-report)
+- [**https://konti-demo.replit.app/projects/proj-2/report** (1)](#page-projects-proj-2-report)
+  - [Design (Diseño) (1)](#page-projects-proj-2-report-design)
+- [**https://konti-demo.replit.app/projects/proj-3** (1)](#page-projects-proj-3)
+  - [Design (Diseño) (1)](#page-projects-proj-3-design)
+- [**https://konti-demo.replit.app/projects/proj-1776983841174** (7)](#page-projects-proj-1776983841174)
+  - [Contenido / Copy (Content) (5)](#page-projects-proj-1776983841174-content)
+  - [Other (Otro) (1)](#page-projects-proj-1776983841174-other)
+  - [Bug report (Reporte de bug) (1)](#page-projects-proj-1776983841174-bug-report)
+- [**https://konti-demo.replit.app/dashboard** (4)](#page-dashboard)
+  - [Design (Diseño) (1)](#page-dashboard-design)
+  - [Feature request (Solicitud de funcionalidad) (1)](#page-dashboard-feature-request)
+  - [Other (Otro) (1)](#page-dashboard-other)
+  - [Contenido / Copy (Content) (1)](#page-dashboard-content)
+- [**https://konti-demo.replit.app/calculator** (14)](#page-calculator)
+  - [Contenido / Copy (Content) (7)](#page-calculator-content)
+  - [Other (Otro) (3)](#page-calculator-other)
+  - [Design (Diseño) (2)](#page-calculator-design)
+  - [Feature request (Solicitud de funcionalidad) (2)](#page-calculator-feature-request)
+- [**https://konti-demo.replit.app/calculator?projectId=proj-1&tab=variance** (4)](#page-calculator-projectid-proj-1-tab-variance)
+  - [Contenido / Copy (Content) (4)](#page-calculator-projectid-proj-1-tab-variance-content)
+- [**https://konti-demo.replit.app/calculator?projectId=proj-1776983841174&tab=variance** (1)](#page-calculator-projectid-proj-1776983841174-tab-variance)
+  - [Contenido / Copy (Content) (1)](#page-calculator-projectid-proj-1776983841174-tab-variance-content)
+- [**https://konti-demo.replit.app/materials** (3)](#page-materials)
+  - [Contenido / Copy (Content) (2)](#page-materials-content)
+  - [Other (Otro) (1)](#page-materials-other)
+- [**https://konti-demo.replit.app/permits** (7)](#page-permits)
+  - [Contenido / Copy (Content) (5)](#page-permits-content)
+  - [Feature request (Solicitud de funcionalidad) (1)](#page-permits-feature-request)
+  - [Other (Otro) (1)](#page-permits-other)
+- [**https://konti-demo.replit.app/team** (3)](#page-team)
+  - [Design (Diseño) (2)](#page-team-design)
+  - [Contenido / Copy (Content) (1)](#page-team-content)
+- [**https://konti-demo.replit.app/ai** (10)](#page-ai)
+  - [Other (Otro) (7)](#page-ai-other)
+  - [Design (Diseño) (1)](#page-ai-design)
+  - [Feature request (Solicitud de funcionalidad) (1)](#page-ai-feature-request)
+  - [Contenido / Copy (Content) (1)](#page-ai-content)
+- [**https://konti-demo.replit.app/leads** (3)](#page-leads)
+  - [Contenido / Copy (Content) (3)](#page-leads-content)
 - [Pending — Not Yet Planned (Pendientes — Aún sin planificar)](#pending-appendix)
 - [In Progress / Scheduled (En progreso / programado)](#inprogress-appendix)
 - [Out of scope / needs discussion (Fuera de alcance / requiere conversación)](#oos-appendix)
@@ -118,129 +118,12 @@ Este reporte consolida cada pieza de feedback recibida a través del buzón en l
 
 ## Feedback by Page (Feedback por Página)
 
-<a id="page-httpskonti-demoreplitappdashboard"></a>
-### https://konti-demo.replit.app/dashboard
+<a id="page-projects-proj-1-report"></a>
 
-<a id="page-httpskonti-demoreplitappdashboard-design"></a>
-#### Design (Diseño) — 1 item
-
-##### Item 1 · 2026-04-15 · ✅ Completed (Completado)
-
-> Logo deformado en el admin
-
-**Refs:** Task #5, Task #8, Task #36
-
-**Why (Por qué):** Login logo and sidebar logo were corrected and the menatech footer added.
-
-**Por qué (Why):** Se corrigió el logo del login y de la barra lateral y se añadió el pie de menatech.
-
-
----
-
-<a id="page-httpskonti-demoreplitappdashboard-featurerequest"></a>
-#### Feature request (Solicitud de funcionalidad) — 1 item
-
-##### Item 5 · 2026-04-15 · ⏳ Pending (Pendiente)
-
-> Me gusta esta sección. Le sumaria la posibilidad de hacer click en las actividades e ir a ver detalles
-
-**Refs:** —
-
-**Why (Por qué):** Activity items in the dashboard feed are not yet click-through to detail.
-
-**Por qué (Why):** Las actividades del feed del dashboard aún no son clickeables al detalle.
-
-_Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4dbc3-00-7zq0uc6bszhd.spock.replit.dev/inbox#item-ddc0e9f0-3163-4557-b7c2-547bbb81a1b7-img-0) (asset: `1776266192146_0fc70b4b47357b0d4f8e0b0ddf6069b0.png`)_
-
----
-
-<a id="page-httpskonti-demoreplitappdashboard-other"></a>
-#### Other (Otro) — 1 item
-
-##### Item 47 · 2026-04-15 · 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación)
-
-> Grabar video demo, para compartir antes para que vayan a la reunion con las preguntas listas
-
-**Refs:** —
-
-**Why (Por qué):** Process item (record a demo video) — not a product change.
-
-**Por qué (Why):** Ítem de proceso (grabar un video demo) — no es un cambio de producto.
-
-
----
-
-<a id="page-httpskonti-demoreplitappdashboard-content"></a>
-#### Contenido / Copy (Content) — 1 item
-
-##### Item 48 · 2026-04-23 · 🟡 In progress / scheduled (En progreso / programado)
-
-> entendemos que esta parte deberia ir dentro de los proyectos y lo primero que vemos en el dashboard debe ser solamente active projects y recent activity. lo que esta en el screenshot debe estar dentro de cada proyecto y especifica para cada proyecto, no juntando la data de cada proyecto. Es overwhelming ver el total de todos los proyectos.
-
-**Refs:** Task #18
-
-**Why (Por qué):** Showing only the construction-status card on the client home is scheduled in #18; the broader 'move overall stats into per-project' restructure is still pending.
-
-**Por qué (Why):** Mostrar sólo la tarjeta de estado de construcción en el home del cliente está programado en #18; la reestructuración más amplia sigue pendiente.
-
-_Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4dbc3-00-7zq0uc6bszhd.spock.replit.dev/inbox#item-c02cc055-3eb1-404f-bd95-465b7e1343e2-img-0) (asset: `1776976478039_12f8e026e5f4ae8a213b70f74839a708.png`)_
-
----
-
-<a id="page-httpskonti-demoreplitappmaterials"></a>
-### https://konti-demo.replit.app/materials
-
-<a id="page-httpskonti-demoreplitappmaterials-content"></a>
-#### Contenido / Copy (Content) — 2 items
-
-##### Item 52 · 2026-04-23 · ⏳ Pending (Pendiente)
-
-> nosotros no trabajamos por hora. si miramos el reporte de Jorge, esta la labor por lump sums.. creo que aqui esta la confusion con estos tabs.
-
-**Refs:** —
-
-**Why (Por qué):** Lump-sum labor model (vs. hourly) is a calculator data-model change and not yet planned.
-
-**Por qué (Why):** El modelo de mano de obra por suma alzada (vs. por hora) es un cambio en el modelo de datos y no está planificado.
-
-_Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4dbc3-00-7zq0uc6bszhd.spock.replit.dev/inbox#item-23e87ef3-ee64-47b1-976f-0312a1846da2-img-0) (asset: `1776978601451_ec5e651c878d4eccb5d84ca19234c55e.png`)_
-
----
-
-##### Item 2 · 2026-04-15 · ⏳ Pending (Pendiente)
-
-> Agregar botón de AÑADIR MATERIALES
-
-**Refs:** —
-
-**Why (Por qué):** No 'Add material' button on the materials library yet — page is read-only catalog today.
-
-**Por qué (Why):** Aún no existe el botón 'Añadir material' en la biblioteca; la página es un catálogo de solo lectura.
-
-_Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4dbc3-00-7zq0uc6bszhd.spock.replit.dev/inbox#item-a2b0e2fa-7cff-4117-8161-7241a7fa3000-img-0) (asset: `1776266094348_beddacd32479761eaf76795b2d6975d9.png`)_
-
----
-
-<a id="page-httpskonti-demoreplitappmaterials-other"></a>
-#### Other (Otro) — 1 item
-
-##### Item 35 · 2026-04-15 · ⏳ Pending (Pendiente)
-
-> Para el contratista, subir los ultimos 3 recibos y que tome esto para actualizar el listado de caculadora de mano de obra
-
-**Refs:** Task #28
-
-**Why (Por qué):** Auto-updating labor rates from receipts is not yet built; real OCR for receipts is scheduled in #28 and is a prerequisite.
-
-**Por qué (Why):** Aún no se construye la auto-actualización de tarifas desde recibos; el OCR real de recibos (requisito) está programado en #28.
-
-
----
-
-<a id="page-httpskonti-demoreplitappprojectsproj-1report"></a>
 ### https://konti-demo.replit.app/projects/proj-1/report
 
-<a id="page-httpskonti-demoreplitappprojectsproj-1report-content"></a>
+<a id="page-projects-proj-1-report-content"></a>
+
 #### Contenido / Copy (Content) — 11 items
 
 ##### Item 95 · 2026-04-23 · ⏳ Pending (Pendiente)
@@ -395,7 +278,8 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 
 ---
 
-<a id="page-httpskonti-demoreplitappprojectsproj-1report-design"></a>
+<a id="page-projects-proj-1-report-design"></a>
+
 #### Design (Diseño) — 3 items
 
 ##### Item 98 · 2026-04-23 · ⏳ Pending (Pendiente)
@@ -439,7 +323,8 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 
 ---
 
-<a id="page-httpskonti-demoreplitappprojectsproj-1report-other"></a>
+<a id="page-projects-proj-1-report-other"></a>
+
 #### Other (Otro) — 1 item
 
 ##### Item 96 · 2026-04-23 · 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación)
@@ -456,10 +341,12 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 
 ---
 
-<a id="page-httpskonti-demoreplitappprojectsproj-1"></a>
+<a id="page-projects-proj-1"></a>
+
 ### https://konti-demo.replit.app/projects/proj-1
 
-<a id="page-httpskonti-demoreplitappprojectsproj-1-featurerequest"></a>
+<a id="page-projects-proj-1-feature-request"></a>
+
 #### Feature request (Solicitud de funcionalidad) — 8 items
 
 ##### Item 25 · 2026-04-15 · 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación)
@@ -476,15 +363,15 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 
 ---
 
-##### Item 21 · 2026-04-15 · ✅ Completed (Completado)
+##### Item 21 · 2026-04-15 · 🟡 In progress / scheduled (En progreso / programado)
 
 > Agregar Recibos de compras – solo del lado de KONTi  y que puede el sistema cotejarlos con el informe
 
 **Refs:** Task #22, Task #27
 
-**Why (Por qué):** KONTi-side receipt entry shipped in the calculator overhaul (#22); persistence across restarts is scheduled in #27.
+**Why (Por qué):** KONTi-side receipt entry shipped (#22); persistence across server restarts is scheduled (#27).
 
-**Por qué (Why):** La carga de recibos del lado KONTi se entregó en la revisión de la calculadora (#22); su persistencia entre reinicios está programada en #27.
+**Por qué (Why):** Entrada de recibos del lado KONTi entregada (#22); la persistencia entre reinicios está programada (#27).
 
 _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4dbc3-00-7zq0uc6bszhd.spock.replit.dev/inbox#item-e86eb69f-90da-4690-8af6-49742b18b628-img-0) (asset: `1776268252864_ae5d234a133728a593db748145e1cf14.png`)_
 
@@ -571,7 +458,8 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 
 ---
 
-<a id="page-httpskonti-demoreplitappprojectsproj-1-content"></a>
+<a id="page-projects-proj-1-content"></a>
+
 #### Contenido / Copy (Content) — 6 items
 
 ##### Item 22 · 2026-04-15 · 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación)
@@ -657,7 +545,8 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 
 ---
 
-<a id="page-httpskonti-demoreplitappprojectsproj-1-other"></a>
+<a id="page-projects-proj-1-other"></a>
+
 #### Other (Otro) — 6 items
 
 ##### Item 63 · 2026-04-23 · 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación)
@@ -744,7 +633,8 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 
 ---
 
-<a id="page-httpskonti-demoreplitappprojectsproj-1-design"></a>
+<a id="page-projects-proj-1-design"></a>
+
 #### Design (Diseño) — 2 items
 
 ##### Item 29 · 2026-04-15 · ✅ Completed (Completado)
@@ -774,10 +664,12 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 
 ---
 
-<a id="page-httpskonti-demoreplitappprojectsproj-2"></a>
+<a id="page-projects-proj-2"></a>
+
 ### https://konti-demo.replit.app/projects/proj-2
 
-<a id="page-httpskonti-demoreplitappprojectsproj-2-featurerequest"></a>
+<a id="page-projects-proj-2-feature-request"></a>
+
 #### Feature request (Solicitud de funcionalidad) — 2 items
 
 ##### Item 9 · 2026-04-15 · ✅ Completed (Completado)
@@ -808,7 +700,8 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 
 ---
 
-<a id="page-httpskonti-demoreplitappprojectsproj-2-bugreport"></a>
+<a id="page-projects-proj-2-bug-report"></a>
+
 #### Bug report (Reporte de bug) — 1 item
 
 ##### Item 46 · 2026-04-15 · ✅ Completed (Completado)
@@ -824,10 +717,12 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 
 ---
 
-<a id="page-httpskonti-demoreplitappprojectsproj-2report"></a>
+<a id="page-projects-proj-2-report"></a>
+
 ### https://konti-demo.replit.app/projects/proj-2/report
 
-<a id="page-httpskonti-demoreplitappprojectsproj-2report-design"></a>
+<a id="page-projects-proj-2-report-design"></a>
+
 #### Design (Diseño) — 1 item
 
 ##### Item 8 · 2026-04-15 · 🟡 In progress / scheduled (En progreso / programado)
@@ -844,10 +739,222 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 
 ---
 
-<a id="page-httpskonti-demoreplitappcalculator"></a>
+<a id="page-projects-proj-3"></a>
+
+### https://konti-demo.replit.app/projects/proj-3
+
+<a id="page-projects-proj-3-design"></a>
+
+#### Design (Diseño) — 1 item
+
+##### Item 28 · 2026-04-15 · ✅ Completed (Completado)
+
+> sumar popup de notificaciones para el cliente
+
+**Refs:** Task #24, Task #26
+
+**Why (Por qué):** Client-side notifications popup shipped in #24; the bell button was polished in #26.
+
+**Por qué (Why):** Se entregó el popup de notificaciones del cliente en #24; el botón de campana se pulió en #26.
+
+_Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4dbc3-00-7zq0uc6bszhd.spock.replit.dev/inbox#item-bb9fe528-9db3-48ae-8968-6eca690e219c-img-0) (asset: `1776277944207_038d55e44151d61b863713c90ec50048.png`)_
+
+---
+
+<a id="page-projects-proj-1776983841174"></a>
+
+### https://konti-demo.replit.app/projects/proj-1776983841174
+
+<a id="page-projects-proj-1776983841174-content"></a>
+
+#### Contenido / Copy (Content) — 5 items
+
+##### Item 81 · 2026-04-23 · 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación)
+
+> if this is how i send the clients docuements they need to sign, does this generate an email like we spoke automatically so that they get the notification explaining what the docuemnt is and what we need from them?
+
+**Refs:** —
+
+**Why (Por qué):** Auto-emailing clients for signature requests is a notification/email integration; needs scoping.
+
+**Por qué (Why):** El envío automático de correos para firmas del cliente requiere integración de notificaciones; necesita alcance.
+
+_Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4dbc3-00-7zq0uc6bszhd.spock.replit.dev/inbox#item-b1312d6c-1169-4678-82a8-b62c07fddb47-img-0) (asset: `1776984762030_a907b4a9ef117073f87f261b07c9a25a.png`)_
+
+---
+
+##### Item 80 · 2026-04-23 · ⏳ Pending (Pendiente)
+
+> how do you categorize the document? permits, punchlist, drawings, etc?
+
+**Refs:** —
+
+**Why (Por qué):** Document categorization (permits / punchlist / drawings / etc.) is not yet built.
+
+**Por qué (Why):** Aún no existe la categorización de documentos (permisos/punchlist/planos/etc.).
+
+_Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4dbc3-00-7zq0uc6bszhd.spock.replit.dev/inbox#item-38f1a160-9197-41f4-aed1-338fdbb56ab0-img-0) (asset: `1776984708178_df29188ef83ec73e2cfd3bd468834d76.png`)_
+
+---
+
+##### Item 79 · 2026-04-23 · ⏳ Pending (Pendiente)
+
+> ver documento de punchlist.. deberiamos poder ver las mismas categorias items, y links a las fotos del dive para que el cliente pueda visualizar su proyecto sin tener que visitar el site
+
+**Refs:** —
+
+**Why (Por qué):** Aligning the punchlist categories/items and Drive photo links to the team's spreadsheet is not yet planned — overlaps with #68, #90.
+
+**Por qué (Why):** Aún no se planifica alinear categorías/ítems del punchlist y los links a fotos del Drive con la hoja del equipo — se solapa con #68, #90.
+
+_Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4dbc3-00-7zq0uc6bszhd.spock.replit.dev/inbox#item-36d51674-91bb-46d9-ba42-123428327e52-img-0) (asset: `1776984608098_99d4721dbe1297030fd6ab680b9f0917.png`)_
+
+---
+
+##### Item 78 · 2026-04-23 · 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación)
+
+> se supone que esto es para añadir mas items especiales al punchlist que va a estar completo aqui segun el documento?
+
+**Refs:** —
+
+**Why (Por qué):** Clarification on the special punchlist items field — needs a walkthrough.
+
+**Por qué (Why):** Aclaración sobre el campo de ítems especiales del punchlist — requiere recorrido.
+
+_Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4dbc3-00-7zq0uc6bszhd.spock.replit.dev/inbox#item-61080844-c556-4c2b-bcf4-aad49b5867e3-img-0) (asset: `1776984520464_d0da0b18b89e46f7859f8c0600284951.png`)_
+
+---
+
+##### Item 77 · 2026-04-23 · 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación)
+
+> no entiendo que hace esto? que es lo que calcula en base a zoning y tipo de proyecto?
+
+**Refs:** —
+
+**Why (Por qué):** Clarification on what the zoning/project-type calculator computes — needs a walkthrough.
+
+**Por qué (Why):** Aclaración sobre qué calcula el panel por zoning/tipo — requiere recorrido.
+
+_Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4dbc3-00-7zq0uc6bszhd.spock.replit.dev/inbox#item-336e50b8-a006-4629-82ae-c4e31c23c343-img-0) (asset: `1776984434114_8bc0de517e4984edec2fd0414f6bb154.png`)_
+
+---
+
+<a id="page-projects-proj-1776983841174-other"></a>
+
+#### Other (Otro) — 1 item
+
+##### Item 76 · 2026-04-23 · ⏳ Pending (Pendiente)
+
+> private to who? el team debe tener total visibilidad.. los clientes no
+
+**Refs:** —
+
+**Why (Por qué):** Document/note 'private' visibility needs to default to team-only and never show to clients — overlaps with #26.
+
+**Por qué (Why):** La visibilidad 'privado' debe ser por defecto sólo equipo y nunca cliente — se solapa con #26.
+
+_Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4dbc3-00-7zq0uc6bszhd.spock.replit.dev/inbox#item-64a06245-caf3-45e9-9b44-2b0f8ef94cad-img-0) (asset: `1776983968003_1130169c9235a88135a935f20c48e509.png`)_
+
+---
+
+<a id="page-projects-proj-1776983841174-bug-report"></a>
+
+#### Bug report (Reporte de bug) — 1 item
+
+##### Item 82 · 2026-04-23 · ⏳ Pending (Pendiente)
+
+> maybe es por ser el demo pero no me deja upload nada
+
+**Refs:** Task #27, Task #30, Task #32
+
+**Why (Por qué):** Upload not persisting is a known limitation of the demo's in-memory data; persistence is scheduled in #27, #30, #32.
+
+**Por qué (Why):** Que la carga no se guarde es una limitación conocida del demo en memoria; la persistencia está programada en #27, #30, #32.
+
+_Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4dbc3-00-7zq0uc6bszhd.spock.replit.dev/inbox#item-8ef1a5c6-6121-46b7-8290-2fbdd9bd6b61-img-0) (asset: `1776984976211_9b8bbacda96c91fed7ef96c872b04435.png`)_
+
+---
+
+<a id="page-dashboard"></a>
+
+### https://konti-demo.replit.app/dashboard
+
+<a id="page-dashboard-design"></a>
+
+#### Design (Diseño) — 1 item
+
+##### Item 1 · 2026-04-15 · ✅ Completed (Completado)
+
+> Logo deformado en el admin
+
+**Refs:** Task #5, Task #8, Task #36
+
+**Why (Por qué):** Login logo and sidebar logo were corrected and the menatech footer added.
+
+**Por qué (Why):** Se corrigió el logo del login y de la barra lateral y se añadió el pie de menatech.
+
+
+---
+
+<a id="page-dashboard-feature-request"></a>
+
+#### Feature request (Solicitud de funcionalidad) — 1 item
+
+##### Item 5 · 2026-04-15 · ⏳ Pending (Pendiente)
+
+> Me gusta esta sección. Le sumaria la posibilidad de hacer click en las actividades e ir a ver detalles
+
+**Refs:** —
+
+**Why (Por qué):** Activity items in the dashboard feed are not yet click-through to detail.
+
+**Por qué (Why):** Las actividades del feed del dashboard aún no son clickeables al detalle.
+
+_Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4dbc3-00-7zq0uc6bszhd.spock.replit.dev/inbox#item-ddc0e9f0-3163-4557-b7c2-547bbb81a1b7-img-0) (asset: `1776266192146_0fc70b4b47357b0d4f8e0b0ddf6069b0.png`)_
+
+---
+
+<a id="page-dashboard-other"></a>
+
+#### Other (Otro) — 1 item
+
+##### Item 47 · 2026-04-15 · 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación)
+
+> Grabar video demo, para compartir antes para que vayan a la reunion con las preguntas listas
+
+**Refs:** —
+
+**Why (Por qué):** Process item (record a demo video) — not a product change.
+
+**Por qué (Why):** Ítem de proceso (grabar un video demo) — no es un cambio de producto.
+
+
+---
+
+<a id="page-dashboard-content"></a>
+
+#### Contenido / Copy (Content) — 1 item
+
+##### Item 48 · 2026-04-23 · 🟡 In progress / scheduled (En progreso / programado)
+
+> entendemos que esta parte deberia ir dentro de los proyectos y lo primero que vemos en el dashboard debe ser solamente active projects y recent activity. lo que esta en el screenshot debe estar dentro de cada proyecto y especifica para cada proyecto, no juntando la data de cada proyecto. Es overwhelming ver el total de todos los proyectos.
+
+**Refs:** Task #18
+
+**Why (Por qué):** Showing only the construction-status card on the client home is scheduled in #18; the broader 'move overall stats into per-project' restructure is still pending.
+
+**Por qué (Why):** Mostrar sólo la tarjeta de estado de construcción en el home del cliente está programado en #18; la reestructuración más amplia sigue pendiente.
+
+_Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4dbc3-00-7zq0uc6bszhd.spock.replit.dev/inbox#item-c02cc055-3eb1-404f-bd95-465b7e1343e2-img-0) (asset: `1776976478039_12f8e026e5f4ae8a213b70f74839a708.png`)_
+
+---
+
+<a id="page-calculator"></a>
+
 ### https://konti-demo.replit.app/calculator
 
-<a id="page-httpskonti-demoreplitappcalculator-content"></a>
+<a id="page-calculator-content"></a>
+
 #### Contenido / Copy (Content) — 7 items
 
 ##### Item 60 · 2026-04-23 · 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación)
@@ -957,7 +1064,8 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 
 ---
 
-<a id="page-httpskonti-demoreplitappcalculator-other"></a>
+<a id="page-calculator-other"></a>
+
 #### Other (Otro) — 3 items
 
 ##### Item 34 · 2026-04-15 · 🟡 In progress / scheduled (En progreso / programado)
@@ -1000,7 +1108,8 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 
 ---
 
-<a id="page-httpskonti-demoreplitappcalculator-design"></a>
+<a id="page-calculator-design"></a>
+
 #### Design (Diseño) — 2 items
 
 ##### Item 30 · 2026-04-15 · ✅ Completed (Completado)
@@ -1031,7 +1140,8 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 
 ---
 
-<a id="page-httpskonti-demoreplitappcalculator-featurerequest"></a>
+<a id="page-calculator-feature-request"></a>
+
 #### Feature request (Solicitud de funcionalidad) — 2 items
 
 ##### Item 59 · 2026-04-23 · ⏳ Pending (Pendiente)
@@ -1061,82 +1171,162 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 
 ---
 
-<a id="page-httpskonti-demoreplitappprojectsproj-3"></a>
-### https://konti-demo.replit.app/projects/proj-3
+<a id="page-calculator-projectid-proj-1-tab-variance"></a>
 
-<a id="page-httpskonti-demoreplitappprojectsproj-3-design"></a>
-#### Design (Diseño) — 1 item
+### https://konti-demo.replit.app/calculator?projectId=proj-1&tab=variance
 
-##### Item 28 · 2026-04-15 · ✅ Completed (Completado)
+<a id="page-calculator-projectid-proj-1-tab-variance-content"></a>
 
-> sumar popup de notificaciones para el cliente
+#### Contenido / Copy (Content) — 4 items
 
-**Refs:** Task #24, Task #26
+##### Item 69 · 2026-04-23 · ⏳ Pending (Pendiente)
 
-**Why (Por qué):** Client-side notifications popup shipped in #24; the bell button was polished in #26.
-
-**Por qué (Why):** Se entregó el popup de notificaciones del cliente en #24; el botón de campana se pulió en #26.
-
-_Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4dbc3-00-7zq0uc6bszhd.spock.replit.dev/inbox#item-bb9fe528-9db3-48ae-8968-6eca690e219c-img-0) (asset: `1776277944207_038d55e44151d61b863713c90ec50048.png`)_
-
----
-
-<a id="page-httpskonti-demoreplitappteam"></a>
-### https://konti-demo.replit.app/team
-
-<a id="page-httpskonti-demoreplitappteam-design"></a>
-#### Design (Diseño) — 2 items
-
-##### Item 37 · 2026-04-15 · ✅ Completed (Completado)
-
-> Eliminar
-
-**Refs:** Task #35 (commit `9de748f`)
-
-**Why (Por qué):** Team member entry was removed during the team-page edits.
-
-**Por qué (Why):** La entrada del miembro fue removida en las ediciones del directorio.
-
-_Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4dbc3-00-7zq0uc6bszhd.spock.replit.dev/inbox#item-4e1a625e-a213-4e12-ada4-5f6fab0dc1e0-img-0) (asset: `1776279100985_8a04ecb5fb865f40f044492af0ddaef6.png`)_
-
----
-
-##### Item 36 · 2026-04-15 · ✅ Completed (Completado)
-
-> Cambiar a Nainoshka
-
-**Refs:** Task #35 (commit `9de748f`)
-
-**Why (Por qué):** Team member name updated to Nainoshka in seed data and AI knowledge base.
-
-**Por qué (Why):** Se actualizó el nombre del miembro a Nainoshka en datos semilla y base de conocimiento de IA.
-
-_Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4dbc3-00-7zq0uc6bszhd.spock.replit.dev/inbox#item-4538cb40-1882-4c0e-a9ea-be12707a9857-img-0) (asset: `1776279089942_23c0290b36a71d429c0b779faa9556a9.png`)_
-
----
-
-<a id="page-httpskonti-demoreplitappteam-content"></a>
-#### Contenido / Copy (Content) — 1 item
-
-##### Item 61 · 2026-04-23 · ⏳ Pending (Pendiente)
-
-> deberiamos poder upload personas nuevas para que tengamos el directorio de los contratistas y podamos ir uploading la informacion de ellos... 
+> we need a place to import the site photos for the weekly report and punchlist. not sure where this is?
 > 
-> a menos que esto sea solamente users de la plataforma??
+> these should also be able to be categorized so they can get saved in the drive as : 
+> 
+> process photos (internal), or punchlist photos (client view) 
+> 
+> then they need to get categorized by task type (plubming, electric, foundation, etc... ) see item categories in Punchlist excell
 
 **Refs:** —
 
-**Why (Por qué):** Uploading new people (contractor directory, not platform users) is not yet built.
+**Why (Por qué):** A site-photo import for weekly report and punchlist (with internal/client categories and task-type tags) is not yet planned.
 
-**Por qué (Why):** Aún no existe la carga de personas nuevas (directorio de contratistas, no usuarios de la plataforma).
+**Por qué (Why):** Aún no se planifica la importación de fotos de obra para el reporte semanal y el punchlist (con categorías internas/cliente y etiquetas por tipo de tarea).
 
 
 ---
 
-<a id="page-httpskonti-demoreplitapppermits"></a>
+##### Item 51 · 2026-04-23 · 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación)
+
+> no entedemos este tab tampoco..
+
+**Refs:** —
+
+**Why (Por qué):** Same clarification request — needs a walkthrough.
+
+**Por qué (Why):** Misma pregunta de aclaración — requiere recorrido.
+
+_Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4dbc3-00-7zq0uc6bszhd.spock.replit.dev/inbox#item-8b5dd6db-a935-4002-a3a2-dfc19f94e0f6-img-0) (asset: `1776978544523_fa0fc7f8359089d379d9ef17cf3e44dc.png`)_
+
+---
+
+##### Item 50 · 2026-04-23 · 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación)
+
+> cual es la funcionalidad de esta seccion? no entiendo lo que va a alimentar?
+
+**Refs:** —
+
+**Why (Por qué):** Clarification request about the variance tab — needs a walkthrough rather than code.
+
+**Por qué (Why):** Pregunta de aclaración sobre la pestaña de variación — requiere recorrido, no cambio de código.
+
+_Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4dbc3-00-7zq0uc6bszhd.spock.replit.dev/inbox#item-b1bf1d48-e963-4943-8e25-6cb34d72bb5b-img-0) (asset: `1776978459582_8f74ce79532171b2332e5a2e73397dac.png`)_
+
+---
+
+##### Item 49 · 2026-04-23 · ⏳ Pending (Pendiente)
+
+> esto deberia vivir en el dashboard para que Naino no tenga que encontrar esta pagina (que esta dificil de llegar a ella) para poder subir los recibos y categorizarlos. 
+> 
+> Project Name
+> Categoria 
+> Subcategoria 
+> etc
+> 
+> (ver excell de Jorge del project report) La idea de esta sección clasifique los recibos y las cantidades directamente dentro de este excell para que entonces el reporte pueda halar la informacion
+
+**Refs:** —
+
+**Why (Por qué):** Lifting the receipts/categorization workflow into the dashboard so it's discoverable is not yet planned.
+
+**Por qué (Why):** Aún no se planifica subir el flujo de recibos/categorización al dashboard para que sea fácil de encontrar.
+
+
+---
+
+<a id="page-calculator-projectid-proj-1776983841174-tab-variance"></a>
+
+### https://konti-demo.replit.app/calculator?projectId=proj-1776983841174&tab=variance
+
+<a id="page-calculator-projectid-proj-1776983841174-tab-variance-content"></a>
+
+#### Contenido / Copy (Content) — 1 item
+
+##### Item 83 · 2026-04-23 · 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación)
+
+> nos parece que esto significa que cada vez que queremos hacer un estimado hay que seleccionar cada material individualmente??? si es asi definitivamente no nos ayuda. La carta de materiales a cada proyecto debe ser estandar y editable pero no partir de cero. maybe no entendemos como es que va a funcionar..
+
+**Refs:** —
+
+**Why (Por qué):** Workflow clarification on whether each estimate selects materials individually — needs a product call. Overlaps with #56, #59.
+
+**Por qué (Why):** Aclaración sobre si cada estimado selecciona materiales uno por uno — requiere decisión de producto. Se solapa con #56, #59.
+
+_Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4dbc3-00-7zq0uc6bszhd.spock.replit.dev/inbox#item-807e6d74-37e9-4062-a53c-770dd5d6be89-img-0) (asset: `1776985017649_e1336acd9bbadded4938a9ad85a483d4.png`)_
+
+---
+
+<a id="page-materials"></a>
+
+### https://konti-demo.replit.app/materials
+
+<a id="page-materials-content"></a>
+
+#### Contenido / Copy (Content) — 2 items
+
+##### Item 52 · 2026-04-23 · ⏳ Pending (Pendiente)
+
+> nosotros no trabajamos por hora. si miramos el reporte de Jorge, esta la labor por lump sums.. creo que aqui esta la confusion con estos tabs.
+
+**Refs:** —
+
+**Why (Por qué):** Lump-sum labor model (vs. hourly) is a calculator data-model change and not yet planned.
+
+**Por qué (Why):** El modelo de mano de obra por suma alzada (vs. por hora) es un cambio en el modelo de datos y no está planificado.
+
+_Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4dbc3-00-7zq0uc6bszhd.spock.replit.dev/inbox#item-23e87ef3-ee64-47b1-976f-0312a1846da2-img-0) (asset: `1776978601451_ec5e651c878d4eccb5d84ca19234c55e.png`)_
+
+---
+
+##### Item 2 · 2026-04-15 · ⏳ Pending (Pendiente)
+
+> Agregar botón de AÑADIR MATERIALES
+
+**Refs:** —
+
+**Why (Por qué):** No 'Add material' button on the materials library yet — page is read-only catalog today.
+
+**Por qué (Why):** Aún no existe el botón 'Añadir material' en la biblioteca; la página es un catálogo de solo lectura.
+
+_Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4dbc3-00-7zq0uc6bszhd.spock.replit.dev/inbox#item-a2b0e2fa-7cff-4117-8161-7241a7fa3000-img-0) (asset: `1776266094348_beddacd32479761eaf76795b2d6975d9.png`)_
+
+---
+
+<a id="page-materials-other"></a>
+
+#### Other (Otro) — 1 item
+
+##### Item 35 · 2026-04-15 · ⏳ Pending (Pendiente)
+
+> Para el contratista, subir los ultimos 3 recibos y que tome esto para actualizar el listado de caculadora de mano de obra
+
+**Refs:** Task #28
+
+**Why (Por qué):** Auto-updating labor rates from receipts is not yet built; real OCR for receipts is scheduled in #28 and is a prerequisite.
+
+**Por qué (Why):** Aún no se construye la auto-actualización de tarifas desde recibos; el OCR real de recibos (requisito) está programado en #28.
+
+
+---
+
+<a id="page-permits"></a>
+
 ### https://konti-demo.replit.app/permits
 
-<a id="page-httpskonti-demoreplitapppermits-content"></a>
+<a id="page-permits-content"></a>
+
 #### Contenido / Copy (Content) — 5 items
 
 ##### Item 89 · 2026-04-23 · ⏳ Pending (Pendiente)
@@ -1208,7 +1398,8 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 
 ---
 
-<a id="page-httpskonti-demoreplitapppermits-featurerequest"></a>
+<a id="page-permits-feature-request"></a>
+
 #### Feature request (Solicitud de funcionalidad) — 1 item
 
 ##### Item 38 · 2026-04-15 · ✅ Completed (Completado)
@@ -1225,7 +1416,8 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 
 ---
 
-<a id="page-httpskonti-demoreplitapppermits-other"></a>
+<a id="page-permits-other"></a>
+
 #### Other (Otro) — 1 item
 
 ##### Item 84 · 2026-04-23 · 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación)
@@ -1242,10 +1434,67 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 
 ---
 
-<a id="page-httpskonti-demoreplitappai"></a>
+<a id="page-team"></a>
+
+### https://konti-demo.replit.app/team
+
+<a id="page-team-design"></a>
+
+#### Design (Diseño) — 2 items
+
+##### Item 37 · 2026-04-15 · ✅ Completed (Completado)
+
+> Eliminar
+
+**Refs:** Task #35 (commit `9de748f`)
+
+**Why (Por qué):** Team member entry was removed during the team-page edits.
+
+**Por qué (Why):** La entrada del miembro fue removida en las ediciones del directorio.
+
+_Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4dbc3-00-7zq0uc6bszhd.spock.replit.dev/inbox#item-4e1a625e-a213-4e12-ada4-5f6fab0dc1e0-img-0) (asset: `1776279100985_8a04ecb5fb865f40f044492af0ddaef6.png`)_
+
+---
+
+##### Item 36 · 2026-04-15 · ✅ Completed (Completado)
+
+> Cambiar a Nainoshka
+
+**Refs:** Task #35 (commit `9de748f`)
+
+**Why (Por qué):** Team member name updated to Nainoshka in seed data and AI knowledge base.
+
+**Por qué (Why):** Se actualizó el nombre del miembro a Nainoshka en datos semilla y base de conocimiento de IA.
+
+_Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4dbc3-00-7zq0uc6bszhd.spock.replit.dev/inbox#item-4538cb40-1882-4c0e-a9ea-be12707a9857-img-0) (asset: `1776279089942_23c0290b36a71d429c0b779faa9556a9.png`)_
+
+---
+
+<a id="page-team-content"></a>
+
+#### Contenido / Copy (Content) — 1 item
+
+##### Item 61 · 2026-04-23 · ⏳ Pending (Pendiente)
+
+> deberiamos poder upload personas nuevas para que tengamos el directorio de los contratistas y podamos ir uploading la informacion de ellos... 
+> 
+> a menos que esto sea solamente users de la plataforma??
+
+**Refs:** —
+
+**Why (Por qué):** Uploading new people (contractor directory, not platform users) is not yet built.
+
+**Por qué (Why):** Aún no existe la carga de personas nuevas (directorio de contratistas, no usuarios de la plataforma).
+
+
+---
+
+<a id="page-ai"></a>
+
 ### https://konti-demo.replit.app/ai
 
-<a id="page-httpskonti-demoreplitappai-other"></a>
+<a id="page-ai-other"></a>
+
 #### Other (Otro) — 7 items
 
 ##### Item 72 · 2026-04-23 · 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación)
@@ -1275,15 +1524,15 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 
 ---
 
-##### Item 43 · 2026-04-15 · ✅ Completed (Completado)
+##### Item 43 · 2026-04-15 · 🟡 In progress / scheduled (En progreso / programado)
 
 > Sumar el punchlist como checklist para pasar de etapas
 
 **Refs:** Task #25, Task #32
 
-**Why (Por qué):** Punchlist as a phase-advance gate shipped in #25; punchlist persistence across restarts is scheduled in #32.
+**Why (Por qué):** Punchlist as a phase-advance gate shipped (#25); punchlist persistence across server restarts is scheduled (#32).
 
-**Por qué (Why):** El punchlist como puerta de avance de fase se entregó en #25; su persistencia está programada en #32.
+**Por qué (Why):** El punchlist como compuerta para avanzar de fase fue entregado (#25); la persistencia del punchlist entre reinicios está programada (#32).
 
 
 ---
@@ -1314,15 +1563,15 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 
 ---
 
-##### Item 40 · 2026-04-15 · ✅ Completed (Completado)
+##### Item 40 · 2026-04-15 · 🟡 In progress / scheduled (En progreso / programado)
 
 > Armar notas de las preguntas realizadas por el cliente
 
 **Refs:** Task #23, Task #30
 
-**Why (Por qué):** Notes from client questions shipped in #23; persisting them across restarts is scheduled in #30.
+**Why (Por qué):** Notes-from-client-questions UI shipped (#23); persistence across server restarts is scheduled (#30).
 
-**Por qué (Why):** Las notas de preguntas del cliente se entregaron en #23; su persistencia está programada en #30.
+**Por qué (Why):** UI de notas de preguntas del cliente entregada (#23); la persistencia entre reinicios está programada (#30).
 
 _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4dbc3-00-7zq0uc6bszhd.spock.replit.dev/inbox#item-a3339bb9-2623-43a8-9ea3-45b758ed99f7-img-0) (asset: `1776279400286_325f324e37c5fa927b40f016dd6bf879.png`)_
 
@@ -1342,7 +1591,8 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 
 ---
 
-<a id="page-httpskonti-demoreplitappai-design"></a>
+<a id="page-ai-design"></a>
+
 #### Design (Diseño) — 1 item
 
 ##### Item 44 · 2026-04-15 · ✅ Completed (Completado)
@@ -1359,7 +1609,8 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 
 ---
 
-<a id="page-httpskonti-demoreplitappai-featurerequest"></a>
+<a id="page-ai-feature-request"></a>
+
 #### Feature request (Solicitud de funcionalidad) — 1 item
 
 ##### Item 70 · 2026-04-23 · 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación)
@@ -1375,7 +1626,8 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 
 ---
 
-<a id="page-httpskonti-demoreplitappai-content"></a>
+<a id="page-ai-content"></a>
+
 #### Contenido / Copy (Content) — 1 item
 
 ##### Item 71 · 2026-04-23 · 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación)
@@ -1392,83 +1644,12 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 
 ---
 
-<a id="page-httpskonti-demoreplitappcalculatorprojectidproj-1tabvariance"></a>
-### https://konti-demo.replit.app/calculator?projectId=proj-1&tab=variance
+<a id="page-leads"></a>
 
-<a id="page-httpskonti-demoreplitappcalculatorprojectidproj-1tabvariance-content"></a>
-#### Contenido / Copy (Content) — 4 items
-
-##### Item 69 · 2026-04-23 · ⏳ Pending (Pendiente)
-
-> we need a place to import the site photos for the weekly report and punchlist. not sure where this is?
-> 
-> these should also be able to be categorized so they can get saved in the drive as : 
-> 
-> process photos (internal), or punchlist photos (client view) 
-> 
-> then they need to get categorized by task type (plubming, electric, foundation, etc... ) see item categories in Punchlist excell
-
-**Refs:** —
-
-**Why (Por qué):** A site-photo import for weekly report and punchlist (with internal/client categories and task-type tags) is not yet planned.
-
-**Por qué (Why):** Aún no se planifica la importación de fotos de obra para el reporte semanal y el punchlist (con categorías internas/cliente y etiquetas por tipo de tarea).
-
-
----
-
-##### Item 51 · 2026-04-23 · 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación)
-
-> no entedemos este tab tampoco..
-
-**Refs:** —
-
-**Why (Por qué):** Same clarification request — needs a walkthrough.
-
-**Por qué (Why):** Misma pregunta de aclaración — requiere recorrido.
-
-_Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4dbc3-00-7zq0uc6bszhd.spock.replit.dev/inbox#item-8b5dd6db-a935-4002-a3a2-dfc19f94e0f6-img-0) (asset: `1776978544523_fa0fc7f8359089d379d9ef17cf3e44dc.png`)_
-
----
-
-##### Item 50 · 2026-04-23 · 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación)
-
-> cual es la funcionalidad de esta seccion? no entiendo lo que va a alimentar?
-
-**Refs:** —
-
-**Why (Por qué):** Clarification request about the variance tab — needs a walkthrough rather than code.
-
-**Por qué (Why):** Pregunta de aclaración sobre la pestaña de variación — requiere recorrido, no cambio de código.
-
-_Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4dbc3-00-7zq0uc6bszhd.spock.replit.dev/inbox#item-b1bf1d48-e963-4943-8e25-6cb34d72bb5b-img-0) (asset: `1776978459582_8f74ce79532171b2332e5a2e73397dac.png`)_
-
----
-
-##### Item 49 · 2026-04-23 · ⏳ Pending (Pendiente)
-
-> esto deberia vivir en el dashboard para que Naino no tenga que encontrar esta pagina (que esta dificil de llegar a ella) para poder subir los recibos y categorizarlos. 
-> 
-> Project Name
-> Categoria 
-> Subcategoria 
-> etc
-> 
-> (ver excell de Jorge del project report) La idea de esta sección clasifique los recibos y las cantidades directamente dentro de este excell para que entonces el reporte pueda halar la informacion
-
-**Refs:** —
-
-**Why (Por qué):** Lifting the receipts/categorization workflow into the dashboard so it's discoverable is not yet planned.
-
-**Por qué (Why):** Aún no se planifica subir el flujo de recibos/categorización al dashboard para que sea fácil de encontrar.
-
-
----
-
-<a id="page-httpskonti-demoreplitappleads"></a>
 ### https://konti-demo.replit.app/leads
 
-<a id="page-httpskonti-demoreplitappleads-content"></a>
+<a id="page-leads-content"></a>
+
 #### Contenido / Copy (Content) — 3 items
 
 ##### Item 75 · 2026-04-23 · 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación)
@@ -1511,137 +1692,8 @@ _Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4db
 
 ---
 
-<a id="page-httpskonti-demoreplitappprojectsproj-1776983841174"></a>
-### https://konti-demo.replit.app/projects/proj-1776983841174
-
-<a id="page-httpskonti-demoreplitappprojectsproj-1776983841174-content"></a>
-#### Contenido / Copy (Content) — 5 items
-
-##### Item 81 · 2026-04-23 · 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación)
-
-> if this is how i send the clients docuements they need to sign, does this generate an email like we spoke automatically so that they get the notification explaining what the docuemnt is and what we need from them?
-
-**Refs:** —
-
-**Why (Por qué):** Auto-emailing clients for signature requests is a notification/email integration; needs scoping.
-
-**Por qué (Why):** El envío automático de correos para firmas del cliente requiere integración de notificaciones; necesita alcance.
-
-_Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4dbc3-00-7zq0uc6bszhd.spock.replit.dev/inbox#item-b1312d6c-1169-4678-82a8-b62c07fddb47-img-0) (asset: `1776984762030_a907b4a9ef117073f87f261b07c9a25a.png`)_
-
----
-
-##### Item 80 · 2026-04-23 · ⏳ Pending (Pendiente)
-
-> how do you categorize the document? permits, punchlist, drawings, etc?
-
-**Refs:** —
-
-**Why (Por qué):** Document categorization (permits / punchlist / drawings / etc.) is not yet built.
-
-**Por qué (Why):** Aún no existe la categorización de documentos (permisos/punchlist/planos/etc.).
-
-_Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4dbc3-00-7zq0uc6bszhd.spock.replit.dev/inbox#item-38f1a160-9197-41f4-aed1-338fdbb56ab0-img-0) (asset: `1776984708178_df29188ef83ec73e2cfd3bd468834d76.png`)_
-
----
-
-##### Item 79 · 2026-04-23 · ⏳ Pending (Pendiente)
-
-> ver documento de punchlist.. deberiamos poder ver las mismas categorias items, y links a las fotos del dive para que el cliente pueda visualizar su proyecto sin tener que visitar el site
-
-**Refs:** —
-
-**Why (Por qué):** Aligning the punchlist categories/items and Drive photo links to the team's spreadsheet is not yet planned — overlaps with #68, #90.
-
-**Por qué (Why):** Aún no se planifica alinear categorías/ítems del punchlist y los links a fotos del Drive con la hoja del equipo — se solapa con #68, #90.
-
-_Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4dbc3-00-7zq0uc6bszhd.spock.replit.dev/inbox#item-36d51674-91bb-46d9-ba42-123428327e52-img-0) (asset: `1776984608098_99d4721dbe1297030fd6ab680b9f0917.png`)_
-
----
-
-##### Item 78 · 2026-04-23 · 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación)
-
-> se supone que esto es para añadir mas items especiales al punchlist que va a estar completo aqui segun el documento?
-
-**Refs:** —
-
-**Why (Por qué):** Clarification on the special punchlist items field — needs a walkthrough.
-
-**Por qué (Why):** Aclaración sobre el campo de ítems especiales del punchlist — requiere recorrido.
-
-_Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4dbc3-00-7zq0uc6bszhd.spock.replit.dev/inbox#item-61080844-c556-4c2b-bcf4-aad49b5867e3-img-0) (asset: `1776984520464_d0da0b18b89e46f7859f8c0600284951.png`)_
-
----
-
-##### Item 77 · 2026-04-23 · 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación)
-
-> no entiendo que hace esto? que es lo que calcula en base a zoning y tipo de proyecto?
-
-**Refs:** —
-
-**Why (Por qué):** Clarification on what the zoning/project-type calculator computes — needs a walkthrough.
-
-**Por qué (Why):** Aclaración sobre qué calcula el panel por zoning/tipo — requiere recorrido.
-
-_Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4dbc3-00-7zq0uc6bszhd.spock.replit.dev/inbox#item-336e50b8-a006-4629-82ae-c4e31c23c343-img-0) (asset: `1776984434114_8bc0de517e4984edec2fd0414f6bb154.png`)_
-
----
-
-<a id="page-httpskonti-demoreplitappprojectsproj-1776983841174-other"></a>
-#### Other (Otro) — 1 item
-
-##### Item 76 · 2026-04-23 · ⏳ Pending (Pendiente)
-
-> private to who? el team debe tener total visibilidad.. los clientes no
-
-**Refs:** —
-
-**Why (Por qué):** Document/note 'private' visibility needs to default to team-only and never show to clients — overlaps with #26.
-
-**Por qué (Why):** La visibilidad 'privado' debe ser por defecto sólo equipo y nunca cliente — se solapa con #26.
-
-_Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4dbc3-00-7zq0uc6bszhd.spock.replit.dev/inbox#item-64a06245-caf3-45e9-9b44-2b0f8ef94cad-img-0) (asset: `1776983968003_1130169c9235a88135a935f20c48e509.png`)_
-
----
-
-<a id="page-httpskonti-demoreplitappprojectsproj-1776983841174-bugreport"></a>
-#### Bug report (Reporte de bug) — 1 item
-
-##### Item 82 · 2026-04-23 · ⏳ Pending (Pendiente)
-
-> maybe es por ser el demo pero no me deja upload nada
-
-**Refs:** Task #27, Task #30, Task #32
-
-**Why (Por qué):** Upload not persisting is a known limitation of the demo's in-memory data; persistence is scheduled in #27, #30, #32.
-
-**Por qué (Why):** Que la carga no se guarde es una limitación conocida del demo en memoria; la persistencia está programada en #27, #30, #32.
-
-_Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4dbc3-00-7zq0uc6bszhd.spock.replit.dev/inbox#item-8ef1a5c6-6121-46b7-8290-2fbdd9bd6b61-img-0) (asset: `1776984976211_9b8bbacda96c91fed7ef96c872b04435.png`)_
-
----
-
-<a id="page-httpskonti-demoreplitappcalculatorprojectidproj-1776983841174tabvariance"></a>
-### https://konti-demo.replit.app/calculator?projectId=proj-1776983841174&tab=variance
-
-<a id="page-httpskonti-demoreplitappcalculatorprojectidproj-1776983841174tabvariance-content"></a>
-#### Contenido / Copy (Content) — 1 item
-
-##### Item 83 · 2026-04-23 · 💬 Out of scope / needs discussion (Fuera de alcance / requiere conversación)
-
-> nos parece que esto significa que cada vez que queremos hacer un estimado hay que seleccionar cada material individualmente??? si es asi definitivamente no nos ayuda. La carta de materiales a cada proyecto debe ser estandar y editable pero no partir de cero. maybe no entendemos como es que va a funcionar..
-
-**Refs:** —
-
-**Why (Por qué):** Workflow clarification on whether each estimate selects materials individually — needs a product call. Overlaps with #56, #59.
-
-**Por qué (Why):** Aclaración sobre si cada estimado selecciona materiales uno por uno — requiere decisión de producto. Se solapa con #56, #59.
-
-_Screenshot (Captura): [Screenshot 1](https://5ad98f17-de16-4057-90b7-eb39bee4dbc3-00-7zq0uc6bszhd.spock.replit.dev/inbox#item-807e6d74-37e9-4062-a53c-770dd5d6be89-img-0) (asset: `1776985017649_e1336acd9bbadded4938a9ad85a483d4.png`)_
-
----
-
 <a id="pending-appendix"></a>
+
 ## Pending — Not Yet Planned (Pendientes — Aún sin planificar)
 
 These items are open and not yet linked to a project task. Listed by topic, then date.
@@ -1710,11 +1762,18 @@ Estos ítems están abiertos y aún no están vinculados a una tarea de proyecto
 ---
 
 <a id="inprogress-appendix"></a>
+
 ## In Progress / Scheduled (En progreso / programado)
 
-These items are linked to a project task that is open or proposed.
+These items are linked to a project task that is open or proposed. Items where one slice has shipped but a follow-up task is still scheduled are conservatively classified here.
 
-Estos ítems están vinculados a una tarea de proyecto abierta o propuesta.
+Estos ítems están vinculados a una tarea de proyecto abierta o propuesta. Cuando una parte fue entregada pero otra parte aún está programada, los clasificamos aquí de forma conservadora.
+
+### Other (Otro) (3)
+
+- _Item 43 · 2026-04-15 · https://konti-demo.replit.app/ai_ — Task #25, Task #32 — Punchlist as a phase-advance gate shipped (#25); punchlist persistence across server restarts is scheduled (#32).
+- _Item 40 · 2026-04-15 · https://konti-demo.replit.app/ai_ — Task #23, Task #30 — Notes-from-client-questions UI shipped (#23); persistence across server restarts is scheduled (#30).
+- _Item 34 · 2026-04-15 · https://konti-demo.replit.app/calculator_ — Task #22, Task #29 — Report-template upload shipped in #22; using that template when exporting the project PDF is scheduled in #29.
 
 ### Contenido / Copy (Content) (2)
 
@@ -1725,13 +1784,14 @@ Estos ítems están vinculados a una tarea de proyecto abierta o propuesta.
 
 - _Item 8 · 2026-04-15 · https://konti-demo.replit.app/projects/proj-2/report_ — Task #4, Task #29 — PDF export shipped (#4); using the saved template when exporting and keeping a side history of generated reports is scheduled in #29.
 
-### Other (Otro) (1)
+### Feature request (Solicitud de funcionalidad) (1)
 
-- _Item 34 · 2026-04-15 · https://konti-demo.replit.app/calculator_ — Task #22, Task #29 — Report-template upload shipped in #22; using that template when exporting the project PDF is scheduled in #29.
+- _Item 21 · 2026-04-15 · https://konti-demo.replit.app/projects/proj-1_ — Task #22, Task #27 — KONTi-side receipt entry shipped (#22); persistence across server restarts is scheduled (#27).
 
 ---
 
 <a id="oos-appendix"></a>
+
 ## Out of scope / needs discussion (Fuera de alcance / requiere conversación)
 
 These items are strategic, philosophical, or product-direction feedback that warrant a conversation rather than a single task. Listed by topic, then date.
@@ -1778,11 +1838,12 @@ Estos ítems son feedback estratégico, filosófico o de dirección de producto 
 ---
 
 <a id="completed-appendix"></a>
+
 ## Completed (Completado)
 
-These items are linked to a merged project task or a verifiable commit on `main`.
+These items are linked to a merged project task or a verifiable commit on `main`. Items where any portion of the request is still scheduled are tracked under In Progress, not here.
 
-Estos ítems están vinculados a una tarea de proyecto fusionada o a un commit verificable en `main`.
+Estos ítems están vinculados a una tarea de proyecto fusionada o a un commit verificable en `main`. Los ítems con cualquier parte aún programada se rastrean bajo En Progreso, no aquí.
 
 ### Design (Diseño) (8)
 
@@ -1795,22 +1856,19 @@ Estos ítems están vinculados a una tarea de proyecto fusionada o a un commit v
 - _Item 10 · 2026-04-15 · https://konti-demo.replit.app/calculator_ — Task #3 — Language toggle (EN/ES) was wired across the app, including the calculator copy.
 - _Item 1 · 2026-04-15 · https://konti-demo.replit.app/dashboard_ — Task #5, Task #8, Task #36 — Login logo and sidebar logo were corrected and the menatech footer added.
 
-### Other (Otro) (8)
+### Other (Otro) (6)
 
 - _Item 45 · 2026-04-15 · https://konti-demo.replit.app/ai_ — Task #23 — Confirm-before-classify shipped in the AI UX upgrade #23.
-- _Item 43 · 2026-04-15 · https://konti-demo.replit.app/ai_ — Task #25, Task #32 — Punchlist as a phase-advance gate shipped in #25; punchlist persistence across restarts is scheduled in #32.
 - _Item 42 · 2026-04-15 · https://konti-demo.replit.app/ai_ — Task #23 — Voice notes integration shipped in #23.
 - _Item 41 · 2026-04-15 · https://konti-demo.replit.app/ai_ — Task #23 — Spec-updates report shipped in #23.
-- _Item 40 · 2026-04-15 · https://konti-demo.replit.app/ai_ — Task #23, Task #30 — Notes from client questions shipped in #23; persisting them across restarts is scheduled in #30.
 - _Item 39 · 2026-04-15 · https://konti-demo.replit.app/ai_ — Task #23 — Markdown rendering for the AI assistant shipped in #23.
 - _Item 33 · 2026-04-15 · https://konti-demo.replit.app/calculator_ — Task #22 — Variance reports (estimated vs. spent) shipped in #22.
 - _Item 32 · 2026-04-15 · https://konti-demo.replit.app/calculator_ — Task #22 — Contractor estimate calculator shipped in #22.
 
-### Feature request (Solicitud de funcionalidad) (5)
+### Feature request (Solicitud de funcionalidad) (4)
 
 - _Item 38 · 2026-04-15 · https://konti-demo.replit.app/permits_ — Task #26 — Permits 'Diseño' section was added in the polish bundle (#26).
 - _Item 31 · 2026-04-15 · https://konti-demo.replit.app/calculator_ — Task #22 — Labor rates with CSV import shipped in #22.
-- _Item 21 · 2026-04-15 · https://konti-demo.replit.app/projects/proj-1_ — Task #22, Task #27 — KONTi-side receipt entry shipped in the calculator overhaul (#22); persistence across restarts is scheduled in #27.
 - _Item 9 · 2026-04-15 · https://konti-demo.replit.app/projects/proj-2_ — Task #11 — The 9-phase validator-driven rework broke each phase into visible sub-steps with status, dates and gates.
 - _Item 6 · 2026-04-15 · https://konti-demo.replit.app/projects/proj-2_ — Task #7 — Documents panel was made richer and clickable as part of weather + documents work.
 
@@ -1821,22 +1879,23 @@ Estos ítems están vinculados a una tarea de proyecto fusionada o a un commit v
 ---
 
 <a id="methodology-note"></a>
+
 ## Methodology Note (Nota de metodología)
 
 **Sources (Fuentes):**
 
 1. **In-app feedback inbox** — All 98 items pulled from the in-app inbox via the agent inbox API. Items are filtered by (status, topic) pairs; two PENDING buckets exceeded the 20-item cap (CONTENT=47, OTHER=21) and were drained by temporarily flipping visible items to ACKNOWLEDGED, refetching, then restoring all 68 to PENDING. Final inbox state matches the original (98 PENDING).
-2. **Project task board** — All 45 project tasks across every state (refs #1 through #45) were enumerated and matched to feedback items by topic + content + date.
-3. **Git history** — `git log --all --oneline` was scanned for commits that explicitly cite a Task # (e.g. `Update old team-member names ... (Task #35)` → commit `9de748f`).
+2. **Project task board** — All 45 project tasks across every state (refs #1 through #45) were enumerated and matched to feedback items by topic + content + date. Project tasks live inside the Replit workspace and do not have public URLs to link to from this report; the team can open each ref in the workspace task panel.
+3. **Git history** — `git log --all --oneline` was scanned for commits that explicitly cite a Task # (e.g. `Update old team-member names ... (Task #35)` → commit `9de748f`). The repository has no public mirror, so commit hashes are shown but not hyperlinked.
 
 **Status definitions (Definiciones de estado):**
 
-- **Completed (Completado):** Linked to a merged project task or a verifiable commit on `main`.
-- **In progress / scheduled (En progreso / programado):** Linked to an open project task that is in plan, in-progress, or proposed.
+- **Completed (Completado):** The full request is linked to a merged project task or a verifiable commit on `main`. Items where any portion of the request is still scheduled fall into **In progress** instead.
+- **In progress / scheduled (En progreso / programado):** Linked to an open project task that is in plan, in-progress, proposed, or where part of the request shipped and a follow-up is scheduled.
 - **Pending (Pendiente):** Open feedback that is not yet linked to a project task — surfaced for the team to triage.
 - **Out of scope / needs discussion (Fuera de alcance / requiere conversación):** Strategic, philosophical, or product-direction feedback that warrants a conversation rather than a single task.
 
-**Coverage check (Verificación de cobertura):** Every one of the 98 inbox items is labeled with exactly one of the four statuses. Status totals: 22 Completed + 4 In progress + 44 Pending + 28 Out of scope = 98.
+**Coverage check (Verificación de cobertura):** Every one of the 98 inbox items is labeled with exactly one of the four statuses. Status totals: 19 Completed + 7 In progress + 44 Pending + 28 Out of scope = 98.
 
 **Screenshots (Capturas):** The in-app inbox stores screenshots as private object-store keys (e.g. `<replId>/<timestamp>_<hash>.png`). The links in this report point to the matching item inside the in-app inbox UI, where the team can open each screenshot. The asset key is included in backticks for traceability.
 
