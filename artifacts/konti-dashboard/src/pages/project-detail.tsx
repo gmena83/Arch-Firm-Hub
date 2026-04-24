@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, Link } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
-import { customFetch } from "@workspace/api-client-react";
+import { useGetProjectChangeOrders } from "@workspace/api-client-react";
 import {
   useGetProject,
   useGetProjectTasks,
@@ -356,16 +356,9 @@ function DocPreviewModal({ doc, onClose }: { doc: Document; onClose: () => void 
 
 function ChangeOrderDelta({ projectId }: { projectId: string }) {
   const { t } = useLang();
-  const [totals, setTotals] = useState<{ approvedDelta: number; pendingDelta: number; approvedDays: number } | null>(null);
-  useEffect(() => {
-    let alive = true;
-    customFetch<{ totals: { approvedDelta: number; pendingDelta: number; approvedDays: number } }>(`/api/projects/${projectId}/change-orders`)
-      .then((d) => { if (alive) setTotals(d.totals); })
-      .catch(() => {});
-    return () => { alive = false; };
-  }, [projectId]);
-  if (!totals) return null;
-  const { approvedDelta, pendingDelta } = totals;
+  const { data } = useGetProjectChangeOrders(projectId);
+  if (!data) return null;
+  const { approvedDelta, pendingDelta } = data.totals;
   if (approvedDelta === 0 && pendingDelta === 0) return null;
   return (
     <div data-testid="budget-co-delta" className="mt-3 pt-3 border-t border-border space-y-1">

@@ -1,38 +1,26 @@
-import { useEffect, useState, useCallback } from "react";
-import { customFetch } from "@workspace/api-client-react";
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  useGetProjectChangeOrders,
+  useCreateChangeOrder,
+  useUpdateChangeOrder,
+  useSetChangeOrderStatus,
+  getGetProjectChangeOrdersQueryKey,
+  type ChangeOrder,
+  SetChangeOrderStatusBodyStatus,
+} from "@workspace/api-client-react";
 import { useLang } from "@/hooks/use-lang";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { ClipboardList, Plus, X, CheckCircle, XCircle, Clock, ChevronDown, ChevronUp, Pencil } from "lucide-react";
 
-type COStatus = "pending" | "approved" | "rejected";
+type COStatus = ChangeOrder["status"];
 
-interface ChangeOrder {
-  id: string;
-  projectId: string;
-  number: string;
-  title: string;
-  titleEs: string;
-  description: string;
-  descriptionEs: string;
-  amountDelta: number;
-  scheduleImpactDays: number;
-  reason: string;
-  reasonEs: string;
-  requestedBy: string;
-  requestedAt: string;
-  status: COStatus;
-  decidedBy?: string;
-  decidedAt?: string;
-  decisionNote?: string;
-  outsideOfScope?: boolean;
-}
-
-interface COResponse {
-  projectId: string;
-  changeOrders: ChangeOrder[];
-  totals: { approvedDelta: number; pendingDelta: number; approvedDays: number };
-}
+const CO_STATUS_VALUES = Object.values(SetChangeOrderStatusBodyStatus);
+const parseCOStatus = (value: string): SetChangeOrderStatusBodyStatus | null =>
+  (CO_STATUS_VALUES as readonly string[]).includes(value)
+    ? (value as SetChangeOrderStatusBodyStatus)
+    : null;
 
 const STATUS_BADGE: Record<COStatus, { bg: string; label: { en: string; es: string }; icon: React.ReactNode }> = {
   pending: { bg: "bg-amber-100 text-amber-800 border-amber-200", label: { en: "Pending", es: "Pendiente" }, icon: <Clock className="w-3 h-3" /> },
@@ -40,15 +28,16 @@ const STATUS_BADGE: Record<COStatus, { bg: string; label: { en: string; es: stri
   rejected: { bg: "bg-red-100 text-red-800 border-red-200", label: { en: "Rejected", es: "Rechazada" }, icon: <XCircle className="w-3 h-3" /> },
 };
 
-function CreateCOModal({ projectId, onClose, onCreated }: { projectId: string; onClose: () => void; onCreated: () => void }) {
+function CreateCOModal({ projectId, onClose }: { projectId: string; onClose: () => void }) {
   const { t } = useLang();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const createMutation = useCreateChangeOrder();
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
   const [days, setDays] = useState("");
   const [reason, setReason] = useState("");
   const [outsideOfScope, setOutsideOfScope] = useState(false);
-  const [busy, setBusy] = useState(false);
 
   const submit = async () => {
     if (!title.trim() || !amount.trim()) return;
@@ -58,11 +47,10 @@ function CreateCOModal({ projectId, onClose, onCreated }: { projectId: string; o
       toast({ title: t("Invalid amount", "Monto inválido"), variant: "destructive" });
       return;
     }
-    setBusy(true);
     try {
-      await customFetch(`/api/projects/${projectId}/change-orders`, {
-        method: "POST",
-        body: JSON.stringify({
+      await createMutation.mutateAsync({
+        projectId,
+        data: {
           title: title.trim(),
           titleEs: title.trim(),
           description: reason.trim(),
@@ -72,15 +60,13 @@ function CreateCOModal({ projectId, onClose, onCreated }: { projectId: string; o
           reason: reason.trim(),
           reasonEs: reason.trim(),
           outsideOfScope,
-        }),
+        },
       });
       toast({ title: t("Change order created", "Orden de cambio creada") });
-      onCreated();
+      await queryClient.invalidateQueries({ queryKey: getGetProjectChangeOrdersQueryKey(projectId) });
       onClose();
     } catch {
       toast({ title: t("Could not create", "No se pudo crear"), variant: "destructive" });
-    } finally {
-      setBusy(false);
     }
   };
 
@@ -153,7 +139,7 @@ function CreateCOModal({ projectId, onClose, onCreated }: { projectId: string; o
           </label>
           <button
             onClick={submit}
-            disabled={busy || !title.trim() || !amount.trim()}
+            disabled={createMutation.isPending || !title.trim() || !amount.trim()}
             data-testid="btn-submit-co"
             className="w-full py-2.5 bg-konti-olive hover:bg-konti-olive/90 disabled:opacity-50 text-white text-sm font-semibold rounded-md transition-colors"
           >
@@ -165,15 +151,16 @@ function CreateCOModal({ projectId, onClose, onCreated }: { projectId: string; o
   );
 }
 
-function EditCOModal({ projectId, co, onClose, onSaved }: { projectId: string; co: ChangeOrder; onClose: () => void; onSaved: () => void }) {
+function EditCOModal({ projectId, co, onClose }: { projectId: string; co: ChangeOrder; onClose: () => void }) {
   const { t } = useLang();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const updateMutation = useUpdateChangeOrder();
   const [title, setTitle] = useState(co.title);
   const [amount, setAmount] = useState(String(co.amountDelta));
   const [days, setDays] = useState(String(co.scheduleImpactDays));
   const [reason, setReason] = useState(co.reason ?? "");
   const [outsideOfScope, setOutsideOfScope] = useState(!!co.outsideOfScope);
-  const [busy, setBusy] = useState(false);
 
   const submit = async () => {
     const amt = Number(amount);
@@ -182,11 +169,11 @@ function EditCOModal({ projectId, co, onClose, onSaved }: { projectId: string; c
       toast({ title: t("Invalid input", "Entrada inválida"), variant: "destructive" });
       return;
     }
-    setBusy(true);
     try {
-      await customFetch(`/api/projects/${projectId}/change-orders/${co.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({
+      await updateMutation.mutateAsync({
+        projectId,
+        coId: co.id,
+        data: {
           title: title.trim(),
           titleEs: title.trim(),
           description: reason.trim(),
@@ -196,15 +183,13 @@ function EditCOModal({ projectId, co, onClose, onSaved }: { projectId: string; c
           reason: reason.trim(),
           reasonEs: reason.trim(),
           outsideOfScope,
-        }),
+        },
       });
       toast({ title: t("Change order updated", "Orden de cambio actualizada") });
-      onSaved();
+      await queryClient.invalidateQueries({ queryKey: getGetProjectChangeOrdersQueryKey(projectId) });
       onClose();
     } catch {
       toast({ title: t("Could not update", "No se pudo actualizar"), variant: "destructive" });
-    } finally {
-      setBusy(false);
     }
   };
 
@@ -245,7 +230,7 @@ function EditCOModal({ projectId, co, onClose, onSaved }: { projectId: string; c
               <strong>{t("Outside of original scope", "Fuera del alcance original")}</strong>
             </span>
           </label>
-          <button onClick={submit} disabled={busy} data-testid="btn-save-co-edit" className="w-full py-2.5 bg-konti-olive hover:bg-konti-olive/90 disabled:opacity-50 text-white text-sm font-semibold rounded-md transition-colors">
+          <button onClick={submit} disabled={updateMutation.isPending} data-testid="btn-save-co-edit" className="w-full py-2.5 bg-konti-olive hover:bg-konti-olive/90 disabled:opacity-50 text-white text-sm font-semibold rounded-md transition-colors">
             {t("Save Changes", "Guardar Cambios")}
           </button>
         </div>
@@ -258,27 +243,16 @@ export function ChangeOrdersPanel({ projectId, isClientView, currentPhase }: { p
   const { t, lang } = useLang();
   const { user } = useAuth();
   const { toast } = useToast();
-  const [data, setData] = useState<COResponse | null>(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+
+  const { data, isLoading } = useGetProjectChangeOrders(projectId);
+  const statusMutation = useSetChangeOrderStatus();
+
   const [showCreate, setShowCreate] = useState(false);
   const [editingCO, setEditingCO] = useState<ChangeOrder | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
 
-  const refresh = useCallback(async () => {
-    try {
-      const d = await customFetch<COResponse>(`/api/projects/${projectId}/change-orders`);
-      setData(d);
-    } catch {
-      // ignore
-    } finally {
-      setLoading(false);
-    }
-  }, [projectId]);
-
-  useEffect(() => { void refresh(); }, [refresh]);
-
-  if (loading) return null;
+  if (isLoading) return null;
   if (!data) return null;
 
   // Visible from schematic_design onward (CO's are most relevant once a contract or design baseline exists)
@@ -288,20 +262,14 @@ export function ChangeOrdersPanel({ projectId, isClientView, currentPhase }: { p
   const isTeamUser = user?.role !== "client";
   const canManage = isTeamUser && !isClientView;
 
-  const setStatus = async (coId: string, status: "approved" | "rejected" | "pending", note?: string) => {
-    if (!canManage || busy) return;
-    setBusy(true);
+  const setStatus = async (coId: string, status: SetChangeOrderStatusBodyStatus, note?: string) => {
+    if (!canManage || statusMutation.isPending) return;
     try {
-      await customFetch(`/api/projects/${projectId}/change-orders/${coId}/status`, {
-        method: "POST",
-        body: JSON.stringify({ status, note }),
-      });
+      await statusMutation.mutateAsync({ projectId, coId, data: { status, note } });
       toast({ title: t("Status updated", "Estado actualizado") });
-      await refresh();
+      await queryClient.invalidateQueries({ queryKey: getGetProjectChangeOrdersQueryKey(projectId) });
     } catch {
       toast({ title: t("Action failed", "Acción fallida"), variant: "destructive" });
-    } finally {
-      setBusy(false);
     }
   };
 
@@ -344,7 +312,7 @@ export function ChangeOrdersPanel({ projectId, isClientView, currentPhase }: { p
       ) : (
         <div className="space-y-2">
           {data.changeOrders.map((co) => {
-            const title = lang === "es" ? co.titleEs : co.title;
+            const title = lang === "es" ? (co.titleEs ?? co.title) : co.title;
             const reason = lang === "es" ? co.reasonEs : co.reason;
             const badge = STATUS_BADGE[co.status];
             const expanded = expandedId === co.id;
@@ -382,8 +350,8 @@ export function ChangeOrdersPanel({ projectId, isClientView, currentPhase }: { p
                     {reason && <p className="text-xs text-foreground"><span className="font-semibold">{t("Reason", "Razón")}:</span> {reason}</p>}
                     <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
                       <span>{t("Schedule impact", "Impacto en plazo")}: <strong className="text-foreground">+{co.scheduleImpactDays}d</strong></span>
-                      <span>{t("Requested by", "Solicitado por")}: <strong className="text-foreground">{co.requestedBy}</strong></span>
-                      <span>{new Date(co.requestedAt).toLocaleDateString(lang === "es" ? "es-PR" : "en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                      {co.requestedBy && <span>{t("Requested by", "Solicitado por")}: <strong className="text-foreground">{co.requestedBy}</strong></span>}
+                      {co.requestedAt && <span>{new Date(co.requestedAt).toLocaleDateString(lang === "es" ? "es-PR" : "en-US", { month: "short", day: "numeric", year: "numeric" })}</span>}
                     </div>
                     {co.decidedAt && co.decidedBy && (
                       <p className="text-xs text-muted-foreground">
@@ -396,14 +364,17 @@ export function ChangeOrdersPanel({ projectId, isClientView, currentPhase }: { p
                         <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{t("Set status", "Cambiar estado")}:</span>
                         <select
                           value={co.status}
-                          onChange={(e) => setStatus(co.id, e.target.value as "approved" | "rejected" | "pending")}
-                          disabled={busy}
+                          onChange={(e) => {
+                            const next = parseCOStatus(e.target.value);
+                            if (next) void setStatus(co.id, next);
+                          }}
+                          disabled={statusMutation.isPending}
                           data-testid={`select-co-status-${co.number}`}
                           className="text-xs px-2 py-1 border border-border rounded-md bg-background"
                         >
-                          <option value="pending">{t("Pending", "Pendiente")}</option>
-                          <option value="approved">{t("Approved", "Aprobada")}</option>
-                          <option value="rejected">{t("Rejected", "Rechazada")}</option>
+                          <option value={SetChangeOrderStatusBodyStatus.pending}>{t("Pending", "Pendiente")}</option>
+                          <option value={SetChangeOrderStatusBodyStatus.approved}>{t("Approved", "Aprobada")}</option>
+                          <option value={SetChangeOrderStatusBodyStatus.rejected}>{t("Rejected", "Rechazada")}</option>
                         </select>
                         {co.status === "pending" && (
                           <button
@@ -427,8 +398,8 @@ export function ChangeOrdersPanel({ projectId, isClientView, currentPhase }: { p
         </div>
       )}
 
-      {showCreate && <CreateCOModal projectId={projectId} onClose={() => setShowCreate(false)} onCreated={refresh} />}
-      {editingCO && <EditCOModal projectId={projectId} co={editingCO} onClose={() => setEditingCO(null)} onSaved={refresh} />}
+      {showCreate && <CreateCOModal projectId={projectId} onClose={() => setShowCreate(false)} />}
+      {editingCO && <EditCOModal projectId={projectId} co={editingCO} onClose={() => setEditingCO(null)} />}
     </div>
   );
 }

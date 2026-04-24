@@ -1,32 +1,17 @@
-import { useEffect, useState, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { customFetch, getGetProjectQueryKey } from "@workspace/api-client-react";
+import {
+  useGetProjectProposals,
+  useApproveProposal,
+  getGetProjectQueryKey,
+  getGetProjectProposalsQueryKey,
+  type Proposal,
+} from "@workspace/api-client-react";
 import { useLang } from "@/hooks/use-lang";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { CheckCircle, XCircle, Clock, FileSignature } from "lucide-react";
 
-type Scenario = "economy" | "standard" | "premium";
-type Status = "pending" | "approved" | "rejected";
-
-interface Proposal {
-  id: string;
-  projectId: string;
-  scenario: Scenario;
-  title: string;
-  titleEs: string;
-  summary: string;
-  summaryEs: string;
-  totalCost: number;
-  durationWeeks: number;
-  highlights: string[];
-  highlightsEs: string[];
-  status: Status;
-  decidedAt?: string;
-  decidedBy?: string;
-}
-
-const SCENARIO_BADGE: Record<Scenario, string> = {
+const SCENARIO_BADGE: Record<Proposal["scenario"], string> = {
   economy: "bg-slate-100 text-slate-800 border-slate-200",
   standard: "bg-konti-olive/15 text-konti-olive border-konti-olive/30",
   premium: "bg-amber-100 text-amber-800 border-amber-200",
@@ -37,24 +22,12 @@ export function ProposalsPanel({ projectId, isClientView, currentPhase }: { proj
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [proposals, setProposals] = useState<Proposal[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
 
-  const refresh = useCallback(async () => {
-    try {
-      const d = await customFetch<{ projectId: string; proposals: Proposal[] }>(`/api/projects/${projectId}/proposals`);
-      setProposals(d.proposals);
-    } catch {
-      // ignore
-    } finally {
-      setLoading(false);
-    }
-  }, [projectId]);
+  const { data, isLoading } = useGetProjectProposals(projectId);
+  const approveMutation = useApproveProposal();
+  const proposals: Proposal[] = data?.proposals ?? [];
 
-  useEffect(() => { void refresh(); }, [refresh]);
-
-  if (loading) return null;
+  if (isLoading) return null;
   if (proposals.length === 0) return null;
 
   // Comparison view: visible only while still negotiating (≤ schematic_design).
@@ -68,16 +41,16 @@ export function ProposalsPanel({ projectId, isClientView, currentPhase }: { proj
   const hasApproved = proposals.some((p) => p.status === "approved");
 
   const approve = async (proposalId: string) => {
-    if (!isClient || busy) return;
-    setBusy(true);
+    if (!isClient || approveMutation.isPending) return;
     try {
-      await customFetch(`/api/projects/${projectId}/proposals/${proposalId}/approve`, { method: "POST" });
+      await approveMutation.mutateAsync({ projectId, proposalId });
       toast({ title: t("Proposal approved", "Propuesta aprobada"), description: t("Contract draft is on its way. Project advanced to Permits.", "El borrador del contrato está en camino. Proyecto avanzado a Permisos.") });
-      await Promise.all([refresh(), queryClient.invalidateQueries({ queryKey: getGetProjectQueryKey(projectId) })]);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: getGetProjectProposalsQueryKey(projectId) }),
+        queryClient.invalidateQueries({ queryKey: getGetProjectQueryKey(projectId) }),
+      ]);
     } catch {
       toast({ title: t("Could not approve", "No se pudo aprobar"), variant: "destructive" });
-    } finally {
-      setBusy(false);
     }
   };
 
@@ -103,9 +76,9 @@ export function ProposalsPanel({ projectId, isClientView, currentPhase }: { proj
 
       <div className="grid md:grid-cols-3 gap-4">
         {proposals.map((p) => {
-          const title = lang === "es" ? p.titleEs : p.title;
-          const summary = lang === "es" ? p.summaryEs : p.summary;
-          const highlights = lang === "es" ? p.highlightsEs : p.highlights;
+          const title = lang === "es" ? (p.titleEs ?? p.title) : p.title;
+          const summary = lang === "es" ? (p.summaryEs ?? p.summary ?? "") : (p.summary ?? "");
+          const highlights = (lang === "es" ? p.highlightsEs : p.highlights) ?? [];
           const isApproved = p.status === "approved";
           const isRejected = p.status === "rejected";
           const canApprove = isClient && !hasApproved && p.status === "pending";
@@ -141,7 +114,9 @@ export function ProposalsPanel({ projectId, isClientView, currentPhase }: { proj
               <div className="border-t border-border pt-2 mt-auto">
                 <div className="flex items-baseline justify-between">
                   <span className="text-xl font-bold text-foreground">${p.totalCost.toLocaleString()}</span>
-                  <span className="text-xs text-muted-foreground">{p.durationWeeks} {t("wks", "sem")}</span>
+                  {p.durationWeeks !== undefined && (
+                    <span className="text-xs text-muted-foreground">{p.durationWeeks} {t("wks", "sem")}</span>
+                  )}
                 </div>
                 {p.decidedAt && (
                   <p className="text-[11px] text-muted-foreground mt-1">
@@ -151,7 +126,7 @@ export function ProposalsPanel({ projectId, isClientView, currentPhase }: { proj
                 {canApprove && (
                   <button
                     onClick={() => approve(p.id)}
-                    disabled={busy}
+                    disabled={approveMutation.isPending}
                     data-testid={`btn-approve-proposal-${p.scenario}`}
                     className="mt-3 w-full py-2 bg-konti-olive hover:bg-konti-olive/90 disabled:opacity-50 text-white text-xs font-semibold rounded-md transition-colors"
                   >

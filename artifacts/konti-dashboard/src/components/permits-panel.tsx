@@ -1,5 +1,18 @@
-import { useEffect, useState, useCallback } from "react";
-import { customFetch } from "@workspace/api-client-react";
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  useGetProjectPermits,
+  useAuthorizePermits,
+  useSignPermitForm,
+  useSubmitPermitsToOgpe,
+  useSetPermitItemState,
+  getGetProjectPermitsQueryKey,
+  getGetProjectQueryKey,
+  type RequiredSignature,
+  type PermitsResponseMilestones,
+  PermitItemState,
+  SetPermitItemStateBodyState,
+} from "@workspace/api-client-react";
 import { useLang } from "@/hooks/use-lang";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -15,56 +28,7 @@ import {
   Loader2,
 } from "lucide-react";
 
-type AuthStatus = "none" | "authorized";
-type ItemState = "not_submitted" | "submitted" | "in_review" | "revision_requested" | "approved";
-
-interface Authorization {
-  status: AuthStatus;
-  authorizedBy?: string;
-  authorizedAt?: string;
-  authorizedIpMock?: string;
-  summaryAccepted: boolean;
-}
-interface Signature {
-  id: string;
-  formName: string;
-  formNameEs: string;
-  required: boolean;
-  signedBy?: string;
-  signedAt?: string;
-}
-interface PermitItem {
-  id: string;
-  name: string;
-  nameEs: string;
-  agency: string;
-  responsible: string;
-  state: ItemState;
-  lastUpdatedAt?: string;
-  revisionNote?: string;
-  revisionNoteEs?: string;
-  estimatedTime: string;
-  estimatedTimeEs: string;
-  notes: string;
-  notesEs: string;
-}
-interface Milestones {
-  authorization: boolean;
-  signatures: boolean;
-  submission: boolean;
-  review: boolean;
-  approval: boolean;
-}
-interface PermitsResponse {
-  projectId: string;
-  authorization: Authorization;
-  requiredSignatures: Signature[];
-  permitItems: PermitItem[];
-  milestones: Milestones;
-  canSubmitToOgpe: boolean;
-}
-
-const STATE_BADGE: Record<ItemState, { bg: string; en: string; es: string }> = {
+const STATE_BADGE: Record<PermitItemState, { bg: string; en: string; es: string }> = {
   not_submitted: { bg: "bg-slate-100 text-slate-700 border-slate-200", en: "Not submitted", es: "No sometido" },
   submitted: { bg: "bg-blue-100 text-blue-800 border-blue-200", en: "Submitted", es: "Sometido" },
   in_review: { bg: "bg-amber-100 text-amber-800 border-amber-200", en: "In review", es: "En revisión" },
@@ -72,7 +36,13 @@ const STATE_BADGE: Record<ItemState, { bg: string; en: string; es: string }> = {
   approved: { bg: "bg-emerald-100 text-emerald-800 border-emerald-200", en: "Approved", es: "Aprobado" },
 };
 
-const MILESTONES: Array<{ key: keyof Milestones; en: string; es: string }> = [
+const ITEM_STATE_VALUES = Object.values(SetPermitItemStateBodyState);
+const parseItemState = (value: string): SetPermitItemStateBodyState | null =>
+  (ITEM_STATE_VALUES as readonly string[]).includes(value)
+    ? (value as SetPermitItemStateBodyState)
+    : null;
+
+const MILESTONES: Array<{ key: keyof PermitsResponseMilestones; en: string; es: string }> = [
   { key: "authorization", en: "Authorization", es: "Autorización" },
   { key: "signatures", en: "Signatures", es: "Firmas" },
   { key: "submission", en: "Submission", es: "Sometimiento" },
@@ -90,38 +60,33 @@ export default function PermitsPanel({ projectId, projectPhase, onProjectUpdated
   const { lang, t } = useLang();
   const { user } = useAuth();
   const { toast } = useToast();
-  const [data, setData] = useState<PermitsResponse | null>(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+
+  const { data, isLoading } = useGetProjectPermits(projectId);
+  const authorizeMutation = useAuthorizePermits();
+  const signMutation = useSignPermitForm();
+  const submitMutation = useSubmitPermitsToOgpe();
+  const itemStateMutation = useSetPermitItemState();
+
   const [busyId, setBusyId] = useState<string | null>(null);
   const [signatureDraft, setSignatureDraft] = useState<Record<string, string>>({});
   const [revNote, setRevNote] = useState<Record<string, string>>({});
-  const [signDialogFor, setSignDialogFor] = useState<Signature | null>(null);
+  const [signDialogFor, setSignDialogFor] = useState<RequiredSignature | null>(null);
 
   const isClient = user?.role === "client";
   const isStaff = !!user?.role && (["admin", "superadmin", "architect"] as const).includes(user.role as "admin" | "superadmin" | "architect");
   const inPermitsPhase = projectPhase === "permits";
   const isAuthorized = data?.authorization.status === "authorized";
 
-  const refresh = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await customFetch<PermitsResponse>(`/api/projects/${projectId}/permits`);
-      setData(res);
-    } catch {
-      toast({ title: t("Could not load permits", "No se pudieron cargar los permisos"), variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
-  }, [projectId, t, toast]);
-
-  useEffect(() => { refresh(); }, [refresh]);
+  const invalidatePermits = () =>
+    queryClient.invalidateQueries({ queryKey: getGetProjectPermitsQueryKey(projectId) });
 
   const authorize = async () => {
     setBusyId("__auth__");
     try {
-      await customFetch(`/api/projects/${projectId}/authorize-permits`, { method: "POST" });
+      await authorizeMutation.mutateAsync({ id: projectId });
       toast({ title: t("Authorization recorded", "Autorización registrada") });
-      await refresh();
+      await invalidatePermits();
     } catch {
       toast({ title: t("Authorization failed", "Falló la autorización"), variant: "destructive" });
     } finally { setBusyId(null); }
@@ -135,13 +100,10 @@ export default function PermitsPanel({ projectId, projectPhase, onProjectUpdated
     }
     setBusyId(`sig-${sigId}`);
     try {
-      await customFetch(`/api/projects/${projectId}/sign/${sigId}`, {
-        method: "POST",
-        body: JSON.stringify({ signatureName: name }),
-      });
+      await signMutation.mutateAsync({ id: projectId, signatureId: sigId, data: { signatureName: name } });
       toast({ title: t("Signature recorded", "Firma registrada") });
       setSignatureDraft((d) => ({ ...d, [sigId]: "" }));
-      await refresh();
+      await invalidatePermits();
     } catch {
       toast({ title: t("Could not sign", "No se pudo firmar"), variant: "destructive" });
     } finally { setBusyId(null); }
@@ -150,40 +112,38 @@ export default function PermitsPanel({ projectId, projectPhase, onProjectUpdated
   const submitToOgpe = async () => {
     setBusyId("__submit__");
     try {
-      await customFetch(`/api/projects/${projectId}/permit-items/submit-to-ogpe`, { method: "POST" });
+      await submitMutation.mutateAsync({ id: projectId });
       toast({ title: t("Submitted to OGPE", "Enviado a OGPE") });
-      await refresh();
+      await invalidatePermits();
     } catch {
       toast({ title: t("Submission failed", "Falló el envío"), variant: "destructive" });
     } finally { setBusyId(null); }
   };
 
-  const setItemState = async (itemId: string, nextState: ItemState) => {
+  const setItemState = async (itemId: string, nextState: SetPermitItemStateBodyState) => {
     setBusyId(`item-${itemId}`);
     try {
       const note = revNote[itemId] ?? "";
-      const body: Record<string, unknown> = { state: nextState };
-      if (nextState === "revision_requested" && note.trim()) {
-        body["revisionNote"] = note.trim();
-        body["revisionNoteEs"] = note.trim();
+      const body: { state: SetPermitItemStateBodyState; revisionNote?: string; revisionNoteEs?: string } = { state: nextState };
+      if (nextState === SetPermitItemStateBodyState.revision_requested && note.trim()) {
+        body.revisionNote = note.trim();
+        body.revisionNoteEs = note.trim();
       }
-      const res = await customFetch<{ advancedToConstruction: boolean }>(
-        `/api/projects/${projectId}/permit-items/${itemId}/state`,
-        { method: "POST", body: JSON.stringify(body) },
-      );
+      const res = await itemStateMutation.mutateAsync({ id: projectId, itemId, data: body });
       toast({ title: t("Permit updated", "Permiso actualizado") });
       if (res.advancedToConstruction) {
         toast({ title: t("Project advanced to Construction", "Proyecto avanzado a Construcción") });
+        await queryClient.invalidateQueries({ queryKey: getGetProjectQueryKey(projectId) });
         onProjectUpdated?.();
       }
       setRevNote((r) => ({ ...r, [itemId]: "" }));
-      await refresh();
+      await invalidatePermits();
     } catch {
       toast({ title: t("Update failed", "Falló la actualización"), variant: "destructive" });
     } finally { setBusyId(null); }
   };
 
-  if (loading && !data) {
+  if (isLoading && !data) {
     return (
       <div className="bg-white rounded-xl border border-slate-200 p-6 flex items-center gap-2 text-slate-500">
         <Loader2 className="w-4 h-4 animate-spin" /> {t("Loading permits…", "Cargando permisos…")}
@@ -376,16 +336,19 @@ export default function PermitsPanel({ projectId, projectPhase, onProjectUpdated
                     <div className="flex flex-col gap-1.5 items-end">
                       <select
                         value={it.state}
-                        onChange={(e) => setItemState(it.id, e.target.value as ItemState)}
+                        onChange={(e) => {
+                          const next = parseItemState(e.target.value);
+                          if (next) void setItemState(it.id, next);
+                        }}
                         disabled={busyId === `item-${it.id}`}
                         className="text-xs px-2 py-1 border border-slate-300 rounded-md bg-white focus:ring-2 focus:ring-emerald-500"
                         aria-label={t("Change state", "Cambiar estado")}
                       >
-                        <option value="not_submitted">{lang === "es" ? "No sometido" : "Not submitted"}</option>
-                        <option value="submitted">{lang === "es" ? "Sometido" : "Submitted"}</option>
-                        <option value="in_review">{lang === "es" ? "En revisión" : "In review"}</option>
-                        <option value="revision_requested">{lang === "es" ? "Revisión solicitada" : "Revision requested"}</option>
-                        <option value="approved">{lang === "es" ? "Aprobado" : "Approved"}</option>
+                        <option value={SetPermitItemStateBodyState.not_submitted}>{lang === "es" ? "No sometido" : "Not submitted"}</option>
+                        <option value={SetPermitItemStateBodyState.submitted}>{lang === "es" ? "Sometido" : "Submitted"}</option>
+                        <option value={SetPermitItemStateBodyState.in_review}>{lang === "es" ? "En revisión" : "In review"}</option>
+                        <option value={SetPermitItemStateBodyState.revision_requested}>{lang === "es" ? "Revisión solicitada" : "Revision requested"}</option>
+                        <option value={SetPermitItemStateBodyState.approved}>{lang === "es" ? "Aprobado" : "Approved"}</option>
                       </select>
                       <input
                         type="text"
