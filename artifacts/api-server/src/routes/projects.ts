@@ -239,6 +239,16 @@ router.post("/projects/:projectId/documents", requireRole(["team", "admin", "sup
     description: body.description ?? "",
   };
   (DOCUMENTS as Record<string, unknown[]>)[projectId] = [...list, doc];
+  // Mirror the activity-feed convention used by the other create routes
+  // (project create, change orders, inspections, …) so the new document is
+  // visible in the project timeline. `receipts_upload` is the closest
+  // existing ProjectActivity.type for evidence file uploads.
+  appendActivity(projectId, {
+    type: "receipts_upload",
+    actor: (req as { user?: { name?: string } }).user?.name ?? "Team",
+    description: `Document "${doc.name}" uploaded to ${body.category}`,
+    descriptionEs: `Documento "${doc.name}" subido a ${body.category}`,
+  });
   return res.status(201).json(doc);
 });
 

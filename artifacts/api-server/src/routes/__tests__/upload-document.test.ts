@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { AddressInfo } from "node:net";
 import app from "../../app";
-import { PROJECTS, DOCUMENTS } from "../../data/seed";
+import { PROJECTS, DOCUMENTS, PROJECT_ACTIVITIES } from "../../data/seed";
 
 // Regression coverage for Task #60 — Tatiana ("no me deja upload nada"):
 // before the fix, the demo project (created at runtime via POST /projects,
@@ -151,6 +151,52 @@ test("superadmin can upload JPG and PNG to seeded projects (no regression on pro
       if (arr) arr.length = count;
     }
     restoreProjects(original);
+  }
+});
+
+test("architect (team-role) can upload and an activity-feed entry is appended", async () => {
+  // Architect maps onto the "team" role alias inside requireRole, so this
+  // explicitly satisfies the acceptance criterion "team + superadmin can
+  // upload" — separate from the admin and superadmin paths covered above.
+  // We also assert the project timeline gains a `receipts_upload` activity
+  // entry, so the new document is visible in the activity feed.
+  const seededDocCount = ((DOCUMENTS as Record<string, unknown[]>)["proj-2"] ?? []).length;
+  const seededActivityCount = (PROJECT_ACTIVITIES["proj-2"] ?? []).length;
+  try {
+    await withServer(async (baseUrl) => {
+      const token = await login(baseUrl, "michelle@konti.com");
+      const res = await fetch(`${baseUrl}/api/projects/proj-2/documents`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          name: `architect-plan-${Date.now()}.pdf`,
+          category: "design",
+          fileSize: "1.2 MB",
+          mimeType: "application/pdf",
+        }),
+      });
+      assert.equal(res.status, 201, "architect role must be allowed to upload");
+      const doc = (await res.json()) as { id: string; type: string; category: string; name: string };
+      assert.equal(doc.type, "pdf");
+      assert.equal(doc.category, "design");
+
+      const activities = PROJECT_ACTIVITIES["proj-2"] ?? [];
+      assert.equal(
+        activities.length,
+        seededActivityCount + 1,
+        "exactly one new activity entry should be appended for this upload",
+      );
+      const newest = activities[0];
+      assert.ok(newest, "new activity must exist");
+      assert.equal(newest.type, "receipts_upload");
+      assert.ok(newest.description.includes(doc.name), "EN description should mention the file name");
+      assert.ok(newest.descriptionEs.includes(doc.name), "ES description should mention the file name");
+    });
+  } finally {
+    const arr = (DOCUMENTS as Record<string, unknown[]>)["proj-2"];
+    if (arr) arr.length = seededDocCount;
+    const acts = PROJECT_ACTIVITIES["proj-2"];
+    if (acts) acts.length = seededActivityCount;
   }
 });
 
