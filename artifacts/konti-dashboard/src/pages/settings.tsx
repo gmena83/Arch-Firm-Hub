@@ -1,13 +1,68 @@
-import { useState } from "react";
-import { Settings, User, Bell, Globe } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Settings, User, Bell, Globe, Phone, Mail, Home, Save } from "lucide-react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { RequireAuth } from "@/hooks/use-auth";
 import { useAuth } from "@/hooks/use-auth";
 import { useLang } from "@/hooks/use-lang";
+import { useToast } from "@/hooks/use-toast";
+import { useUpdateMe } from "@workspace/api-client-react";
 
 export default function SettingsPage() {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const { t, lang, toggleLang } = useLang();
+  const { toast } = useToast();
+
+  const [phone, setPhone] = useState(user?.phone ?? "");
+  const [postalAddress, setPostalAddress] = useState(user?.postalAddress ?? "");
+  const [physicalAddress, setPhysicalAddress] = useState(user?.physicalAddress ?? "");
+
+  // Re-sync local form fields when the persisted user changes (e.g. after re-login).
+  useEffect(() => {
+    setPhone(user?.phone ?? "");
+    setPostalAddress(user?.postalAddress ?? "");
+    setPhysicalAddress(user?.physicalAddress ?? "");
+  }, [user?.phone, user?.postalAddress, user?.physicalAddress]);
+
+  const updateMe = useUpdateMe();
+
+  const dirty =
+    phone !== (user?.phone ?? "") ||
+    postalAddress !== (user?.postalAddress ?? "") ||
+    physicalAddress !== (user?.physicalAddress ?? "");
+
+  const onSave = async () => {
+    try {
+      const updated = await updateMe.mutateAsync({
+        data: {
+          phone: phone.trim(),
+          postalAddress: postalAddress.trim(),
+          physicalAddress: physicalAddress.trim(),
+        },
+      });
+      updateUser({
+        phone: updated.phone,
+        postalAddress: updated.postalAddress,
+        physicalAddress: updated.physicalAddress,
+      });
+      toast({
+        title: t("Profile saved", "Perfil guardado"),
+        description: t("Your contact info has been updated.", "Tu información de contacto fue actualizada."),
+      });
+    } catch (err) {
+      const status = (err as { status?: number }).status;
+      let descEn = "Could not save your changes. Please try again.";
+      let descEs = "No se pudieron guardar tus cambios. Inténtalo de nuevo.";
+      if (status === 401) {
+        descEn = "Session expired. Please sign in again.";
+        descEs = "Sesión expirada. Inicia sesión nuevamente.";
+      }
+      toast({
+        title: t("Save failed", "No se pudo guardar"),
+        description: t(descEn, descEs),
+        variant: "destructive",
+      });
+    }
+  };
 
   const [notifEnabled, setNotifEnabled] = useState<boolean>(() => {
     return localStorage.getItem("konti_notif_pref") !== "false";
@@ -35,6 +90,8 @@ export default function SettingsPage() {
 
   const [en, es] = roleLabel[user?.role ?? ""] ?? [user?.role ?? "", user?.role ?? ""];
 
+  const isSaving = updateMe.isPending;
+
   return (
     <RequireAuth>
       <AppLayout>
@@ -50,8 +107,8 @@ export default function SettingsPage() {
           </div>
 
           {/* Profile card */}
-          <div className="bg-card rounded-xl border border-card-border shadow-sm p-6">
-            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-4 flex items-center gap-2">
+          <div className="bg-card rounded-xl border border-card-border shadow-sm p-6 space-y-5">
+            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
               <User className="w-4 h-4" />
               {t("Profile", "Perfil")}
             </h2>
@@ -61,18 +118,82 @@ export default function SettingsPage() {
               </div>
               <div className="space-y-1">
                 <p className="text-lg font-semibold text-foreground">{user?.name}</p>
-                <p className="text-sm text-muted-foreground">{user?.email}</p>
+                <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+                  <Mail className="w-3.5 h-3.5" />
+                  {user?.email}
+                </p>
                 <span className="inline-block text-xs px-2 py-0.5 rounded-full bg-konti-olive/15 text-konti-olive font-medium">
                   {t(en, es)}
                 </span>
               </div>
             </div>
-            <p className="mt-4 text-xs text-muted-foreground">
-              {t(
-                "Profile editing is not available in the demo. Contact your administrator to update your information.",
-                "La edición del perfil no está disponible en la demo. Contacta a tu administrador para actualizar tu información."
-              )}
-            </p>
+
+            <div className="border-t border-border pt-4 space-y-4">
+              <p className="text-xs text-muted-foreground">
+                {t(
+                  "Update the contact information your project team uses to reach you.",
+                  "Actualiza la información de contacto que el equipo del proyecto utiliza para comunicarse contigo.",
+                )}
+              </p>
+
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground mb-1.5 flex items-center gap-1.5">
+                  <Phone className="w-3.5 h-3.5" />
+                  {t("Phone", "Teléfono")}
+                </label>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  data-testid="settings-input-phone"
+                  placeholder="+1 787-555-0000"
+                  className="w-full px-3 py-2 text-sm rounded-md border border-input bg-background focus:outline-none focus:ring-2 focus:ring-konti-olive/40"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground mb-1.5 flex items-center gap-1.5">
+                  <Mail className="w-3.5 h-3.5" />
+                  {t("Postal Address", "Dirección Postal")}
+                </label>
+                <input
+                  type="text"
+                  value={postalAddress}
+                  onChange={(e) => setPostalAddress(e.target.value)}
+                  data-testid="settings-input-postal-address"
+                  placeholder={t("PO Box, City, ZIP", "Apartado, Ciudad, ZIP")}
+                  className="w-full px-3 py-2 text-sm rounded-md border border-input bg-background focus:outline-none focus:ring-2 focus:ring-konti-olive/40"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground mb-1.5 flex items-center gap-1.5">
+                  <Home className="w-3.5 h-3.5" />
+                  {t("Physical Address", "Dirección Física")}
+                </label>
+                <input
+                  type="text"
+                  value={physicalAddress}
+                  onChange={(e) => setPhysicalAddress(e.target.value)}
+                  data-testid="settings-input-physical-address"
+                  placeholder={t("Street, City, ZIP", "Calle, Ciudad, ZIP")}
+                  className="w-full px-3 py-2 text-sm rounded-md border border-input bg-background focus:outline-none focus:ring-2 focus:ring-konti-olive/40"
+                />
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={onSave}
+                  disabled={!dirty || isSaving}
+                  data-testid="settings-btn-save"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-md bg-konti-olive text-white text-sm font-semibold hover:bg-konti-olive/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Save className="w-4 h-4" />
+                  {isSaving ? t("Saving…", "Guardando…") : t("Save Changes", "Guardar Cambios")}
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Preferences card */}
@@ -117,7 +238,7 @@ export default function SettingsPage() {
                   <p className="text-xs text-muted-foreground mt-0.5">
                     {t(
                       "Receive project activity notifications in the sidebar.",
-                      "Recibe notificaciones de actividad de proyectos en la barra lateral."
+                      "Recibe notificaciones de actividad de proyectos en la barra lateral.",
                     )}
                   </p>
                 </div>

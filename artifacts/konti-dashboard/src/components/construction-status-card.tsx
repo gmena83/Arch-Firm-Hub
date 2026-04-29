@@ -11,18 +11,21 @@ import {
 } from "@workspace/api-client-react";
 import { useLang } from "@/hooks/use-lang";
 import { MilestonesTimeline } from "@/components/milestones-timeline";
-import { HardHat, ClipboardCheck, FileSpreadsheet, ArrowRight, CheckCircle2, AlertTriangle, RotateCcw, ListChecks } from "lucide-react";
+import { HardHat, ClipboardCheck, FileSpreadsheet, ArrowRight, CheckCircle2, AlertTriangle, RotateCcw, ListChecks, TrendingUp } from "lucide-react";
 
 export function ConstructionStatusCard({
   projectId,
   projectName,
   progressPercent,
+  variant = "team",
 }: {
   projectId: string;
   projectName: string;
   progressPercent: number;
+  variant?: "team" | "client";
 }) {
   const { t, lang } = useLang();
+  const isClient = variant === "client";
 
   const { data: inspectionsData } = useGetProjectInspections(projectId, {
     query: { enabled: !!projectId, queryKey: getGetProjectInspectionsQueryKey(projectId) },
@@ -31,7 +34,7 @@ export function ConstructionStatusCard({
     query: { enabled: !!projectId, queryKey: getGetProjectMilestonesQueryKey(projectId) },
   });
   const { data: coData } = useGetProjectChangeOrders(projectId, {
-    query: { enabled: !!projectId, queryKey: getGetProjectChangeOrdersQueryKey(projectId) },
+    query: { enabled: !!projectId && !isClient, queryKey: getGetProjectChangeOrdersQueryKey(projectId) },
   });
 
   const inspections = inspectionsData?.inspections ?? [];
@@ -40,6 +43,7 @@ export function ConstructionStatusCard({
 
   const [punchlist, setPunchlist] = useState<{ openCount: number; doneCount: number; waivedCount: number; totalCount: number } | null>(null);
   useEffect(() => {
+    if (isClient) return;
     let alive = true;
     customFetch<{ openCount: number; doneCount: number; waivedCount: number; totalCount: number }>(
       `/api/projects/${projectId}/punchlist`,
@@ -47,7 +51,7 @@ export function ConstructionStatusCard({
       .then((d) => { if (alive) setPunchlist({ openCount: d.openCount, doneCount: d.doneCount, waivedCount: d.waivedCount, totalCount: d.totalCount }); })
       .catch(() => {});
     return () => { alive = false; };
-  }, [projectId]);
+  }, [projectId, isClient]);
 
   const currentMilestone = milestones.find((m) => m.status === "in_progress")
     ?? milestones.find((m) => m.status === "upcoming")
@@ -83,8 +87,71 @@ export function ConstructionStatusCard({
         ? "text-amber-700"
         : "text-muted-foreground";
 
+  if (isClient) {
+    return (
+      <div data-testid="construction-status-card" data-variant="client" className="bg-card rounded-xl border border-card-border shadow-sm p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-bold text-foreground flex items-center gap-2">
+            <HardHat className="w-5 h-5 text-konti-olive" />
+            {t("Where We Are Now", "En Dónde Estamos Ahora")}
+          </h2>
+          <Link
+            href={`/projects/${projectId}`}
+            data-testid="link-construction-detail"
+            className="text-xs text-konti-olive hover:underline font-semibold flex items-center gap-1"
+          >
+            {projectName} <ArrowRight className="w-3 h-3" />
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+          <div className="bg-konti-olive/10 rounded-lg p-4 md:col-span-1">
+            <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+              <TrendingUp className="w-3 h-3" />{t("Progress", "Progreso")}
+            </p>
+            <p className="text-3xl font-bold text-konti-olive" data-testid="status-progress-percent">{progressPercent}%</p>
+            <div className="h-1.5 rounded-full bg-konti-olive/20 overflow-hidden mt-2">
+              <div className="h-full bg-konti-olive rounded-full" style={{ width: `${progressPercent}%` }} />
+            </div>
+          </div>
+          <div className="bg-muted/40 rounded-lg p-4">
+            <p className="text-xs text-muted-foreground mb-1">{t("Current Milestone", "Hito Actual")}</p>
+            <p className="text-base font-semibold text-foreground" data-testid="status-current-milestone">
+              {currentMilestone ? (lang === "es" ? currentMilestone.titleEs : currentMilestone.title) : "—"}
+            </p>
+            {currentMilestone && (
+              <p className="text-xs text-muted-foreground mt-1">
+                {currentMilestone.status === "in_progress"
+                  ? t("In progress now", "En progreso ahora")
+                  : currentMilestone.status === "upcoming"
+                    ? t("Up next", "Próximo")
+                    : t("Completed", "Completado")}
+              </p>
+            )}
+          </div>
+          <div className="bg-muted/40 rounded-lg p-4">
+            <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+              <ClipboardCheck className="w-3 h-3" />{t("Next Inspection", "Próx. Inspección")}
+            </p>
+            <p className="text-base font-semibold text-foreground" data-testid="status-next-inspection">
+              {upcomingInspection ? (lang === "es" ? upcomingInspection.titleEs : upcomingInspection.title) : t("None scheduled", "Sin programar")}
+            </p>
+            {upcomingInspection && (
+              <p className="text-xs text-muted-foreground mt-1">{upcomingInspection.scheduledDate}</p>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-4 pt-4 border-t border-border" data-testid="status-milestones-strip">
+          <p className="text-xs font-semibold text-muted-foreground mb-2">{t("Milestone Timeline", "Línea de Hitos")}</p>
+          <MilestonesTimeline projectId={projectId} compact />
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div data-testid="construction-status-card" className="bg-card rounded-xl border border-card-border shadow-sm p-5">
+    <div data-testid="construction-status-card" data-variant="team" className="bg-card rounded-xl border border-card-border shadow-sm p-5">
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-bold text-foreground flex items-center gap-2">
           <HardHat className="w-5 h-5 text-konti-olive" />

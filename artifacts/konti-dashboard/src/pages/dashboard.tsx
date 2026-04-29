@@ -214,6 +214,7 @@ function DashboardContent() {
           projectId={p.id}
           projectName={p.name}
           progressPercent={p.progressPercent}
+          variant={isClientUser ? "client" : "team"}
         />
       ))}
 

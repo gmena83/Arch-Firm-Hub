@@ -19,6 +19,9 @@ export interface ProjectNote {
   source: string;
   status?: "open" | "answered";
   replies?: NoteReply[];
+  // Default true for "general" + "voice_note" (team-only); false for
+  // "client_question" so the client always sees their own questions.
+  isPrivate?: boolean;
 }
 export const PROJECT_NOTES: Record<string, ProjectNote[]> = {};
 
@@ -178,7 +181,12 @@ router.get("/projects/:id/notes", requireRole(["team", "admin", "superadmin", "a
   if (user?.role === "client" && !clientOwnsProject(user.id, id)) {
     res.status(403).json({ error: "forbidden", message: "Client cannot access this project" }); return;
   }
-  res.json({ projectId: id, notes: PROJECT_NOTES[id] ?? [] });
+  let notes = PROJECT_NOTES[id] ?? [];
+  // Clients never see private team notes (general/voice_note default to private).
+  if (user?.role === "client") {
+    notes = notes.filter((n) => n.isPrivate !== true);
+  }
+  res.json({ projectId: id, notes });
 });
 
 // POST manual note (voice transcript "Save as note", or general note).
@@ -193,6 +201,9 @@ router.post("/projects/:id/notes", requireRole(["team", "admin", "superadmin", "
   const text = (body.text ?? "").trim();
   if (!text) { res.status(400).json({ error: "empty_note" }); return; }
   const noteType = (body.type === "voice_note" || body.type === "client_question") ? body.type : "general";
+  // Client questions are inherently shared with the team, so they are public
+  // on both sides. Voice notes + general notes default to team-only ("private").
+  const isPrivate = noteType !== "client_question";
   const note: ProjectNote = {
     id: `note-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     type: noteType,
@@ -202,6 +213,7 @@ router.post("/projects/:id/notes", requireRole(["team", "admin", "superadmin", "
     createdBy: user?.name ?? "User",
     createdByUserId: user?.id,
     source: body.source ?? "manual",
+    isPrivate,
     ...(noteType === "client_question" ? { status: "open" as const, replies: [] } : {}),
   };
   if (!PROJECT_NOTES[id]) PROJECT_NOTES[id] = [];

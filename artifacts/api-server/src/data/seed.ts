@@ -1,11 +1,26 @@
 // KONTi Design | Build Studio — Static Seed Data for MVP Demo
 
-export const USERS = [
+// Users carry optional contact + address fields so clients can edit their
+// own contact info from the in-app Settings page (T3 / row #20). Mutable so
+// PATCH /me can update them in-memory for the demo.
+export interface DemoUser {
+  id: string;
+  name: string;
+  email: string;
+  role: "admin" | "architect" | "client" | "superadmin";
+  avatar: string;
+  password: string;
+  phone?: string;
+  postalAddress?: string;
+  physicalAddress?: string;
+}
+
+export const USERS: DemoUser[] = [
   {
     id: "user-1",
     name: "Carla Gautier",
     email: "demo@konti.com",
-    role: "admin" as const,
+    role: "admin",
     avatar: "CG",
     password: "konti2026",
   },
@@ -13,7 +28,7 @@ export const USERS = [
     id: "user-2",
     name: "Michelle Telon Sosa",
     email: "michelle@konti.com",
-    role: "architect" as const,
+    role: "architect",
     avatar: "MT",
     password: "konti2026",
   },
@@ -21,23 +36,29 @@ export const USERS = [
     id: "user-client-1",
     name: "Benito Antonio Martínez Ocasio",
     email: "client@konti.com",
-    role: "client" as const,
+    role: "client",
     avatar: "BA",
     password: "konti2026",
+    phone: "+1 787-555-0142",
+    postalAddress: "PO Box 1402, Rincón, PR 00677",
+    physicalAddress: "Calle Sol 12, Rincón, PR 00677",
   },
   {
     id: "user-client-2",
     name: "Isabel Rivera (Demo Client #2)",
     email: "client2@konti.com",
-    role: "client" as const,
+    role: "client",
     avatar: "IR",
     password: "konti2026",
+    phone: "+1 787-555-0188",
+    postalAddress: "PO Box 88, San Juan, PR 00901",
+    physicalAddress: "Ave. Ashford 1500, San Juan, PR 00907",
   },
   {
     id: "user-super-1",
     name: "Tatiana",
     email: "tatiana@menatech.cloud",
-    role: "superadmin" as const,
+    role: "superadmin",
     avatar: "TM",
     password: "Konti123",
   },
@@ -45,7 +66,7 @@ export const USERS = [
     id: "user-super-2",
     name: "Gonzalo",
     email: "gonzalo@menatech.cloud",
-    role: "superadmin" as const,
+    role: "superadmin",
     avatar: "GM",
     password: "Konti123",
   },
@@ -1070,7 +1091,7 @@ export interface PreDesignChecklistItem {
 export interface ProjectActivity {
   id: string;
   timestamp: string;
-  type: "phase_change" | "checklist_toggle" | "gamma_generated" | "email_sent" | "invoice_sent" | "weekly_report" | "structured_variables" | "proposal_decision" | "change_order_created" | "change_order_decision" | "sub_phase_advanced" | "permit_authorization" | "permit_signature" | "permit_submitted" | "permit_state_change" | "inspection_scheduled" | "inspection_status_change" | "inspection_report_sent" | "inspection_removed" | "milestone_status_change" | "receipts_upload" | "report_template_upload" | "contractor_estimate" | "punchlist_change";
+  type: "phase_change" | "checklist_toggle" | "gamma_generated" | "email_sent" | "invoice_sent" | "weekly_report" | "structured_variables" | "proposal_decision" | "change_order_created" | "change_order_decision" | "sub_phase_advanced" | "permit_authorization" | "permit_signature" | "permit_submitted" | "permit_state_change" | "inspection_scheduled" | "inspection_status_change" | "inspection_report_sent" | "inspection_removed" | "milestone_status_change" | "receipts_upload" | "report_template_upload" | "contractor_estimate" | "punchlist_change" | "document_visibility_change" | "client_view" | "document_download" | "client_upload" | "profile_update";
   actor: string;
   description: string;
   descriptionEs: string;
@@ -1595,6 +1616,17 @@ export const PROJECT_PERMIT_ITEMS: Record<string, PermitItem[]> = {
 // Phase 5 — Construction: Cost-Plus, Inspections, Milestones
 // ============================================================
 
+export interface NonBillableExpense {
+  id: string;
+  date: string;            // ISO date "YYYY-MM-DD"
+  category: string;        // free-text category, e.g. "owner_change", "rework"
+  categoryEs: string;
+  description: string;
+  descriptionEs: string;
+  amount: number;          // positive USD
+  paidBy: string;          // e.g. "KONTi", "Cliente"
+}
+
 export interface CostPlusBudget {
   projectId: string;
   materialsCost: number;
@@ -1606,6 +1638,8 @@ export interface CostPlusBudget {
   finalTotal: number;
   notes?: string;
   notesEs?: string;
+  nonBillableExpenses?: NonBillableExpense[];
+  nonBillableTotal?: number;
 }
 
 function buildCostPlus(projectId: string, materials: number, labor: number, subcontractor: number, plusPct: number, notes?: string, notesEs?: string): CostPlusBudget {
@@ -1625,9 +1659,163 @@ function buildCostPlus(projectId: string, materials: number, labor: number, subc
   };
 }
 
+const PROJ2_NON_BILLABLE: NonBillableExpense[] = [
+  { id: "nb-2-1", date: "2025-09-12", category: "Rework",        categoryEs: "Retrabajo",        description: "Re-pour of cracked slab section (contractor responsibility)",                                          descriptionEs: "Re-vaciado de losa fisurada (responsabilidad del contratista)",                                  amount: 1850, paidBy: "KONTi" },
+  { id: "nb-2-2", date: "2025-10-04", category: "Owner Change",  categoryEs: "Cambio del Cliente", description: "Window upgrade absorbed by KONTi as goodwill — not billed to client",                                  descriptionEs: "Mejora de ventanas absorbida por KONTi — no facturada al cliente",                              amount: 920,  paidBy: "KONTi" },
+  { id: "nb-2-3", date: "2025-12-18", category: "Weather Delay", categoryEs: "Retraso Climático",  description: "Extra crew day to recover from tropical storm Elena (no client charge)",                              descriptionEs: "Día extra de cuadrilla por tormenta tropical Elena (sin cargo al cliente)",                     amount: 1340, paidBy: "KONTi" },
+  { id: "nb-2-4", date: "2026-02-09", category: "Site Cleanup",  categoryEs: "Limpieza de Obra",   description: "Punchlist cleanup before electrical re-inspection",                                                       descriptionEs: "Limpieza previa a re-inspección eléctrica",                                                     amount: 410,  paidBy: "KONTi" },
+];
+
+function attachNonBillable(cp: CostPlusBudget, items: NonBillableExpense[]): CostPlusBudget {
+  return {
+    ...cp,
+    nonBillableExpenses: items,
+    nonBillableTotal: items.reduce((sum, e) => sum + e.amount, 0),
+  };
+}
+
+// --------------------------------------------------------------------------
+// REPORT_CATEGORY_KEYS — single source of truth for the cost-breakdown
+// categories rendered on the client/team progress report. The server-side
+// estimating bucket grouping and the report.tsx category card both consume
+// this map so that English/Spanish labels stay in lockstep with the team
+// spreadsheet (attached_assets/2a)_Construction_Report_Benito_Colon… and
+// 1b)_KONTI_DESIGN_CONSTRUCTION_ESTIMATE…). Keys match the lower-cased
+// `category` field already attached to estimate lines in routes/estimating.ts.
+export type ReportCategoryKey =
+  | "foundation"
+  | "steel"
+  | "electrical"
+  | "plumbing"
+  | "finishes"
+  | "labor"
+  | "subcontractor";
+
+export const REPORT_CATEGORY_KEYS: ReportCategoryKey[] = [
+  "foundation",
+  "steel",
+  "electrical",
+  "plumbing",
+  "finishes",
+  "labor",
+  "subcontractor",
+];
+
+export const REPORT_CATEGORY_LABELS: Record<ReportCategoryKey, { en: string; es: string }> = {
+  foundation:    { en: "Foundation",    es: "Cimientos" },
+  steel:         { en: "Steel / Container", es: "Acero / Contenedor" },
+  electrical:    { en: "Electrical",    es: "Eléctrico" },
+  plumbing:      { en: "Plumbing",      es: "Plomería" },
+  finishes:      { en: "Finishes",      es: "Acabados" },
+  labor:         { en: "Labor",         es: "Mano de Obra" },
+  subcontractor: { en: "Subcontractor", es: "Subcontratistas" },
+};
+
+// --------------------------------------------------------------------------
+// PROJECT_CONTRACTOR_MONITORING — narrative monitoring rows that mirror the
+// 6 Excel sections (delays / weather / issues / changes / breaches / rework)
+// from attached_assets/2b)_CONTRACTOR_MONITORING_REPORT…. Surfaced in the
+// progress report and a compact card on the team-only project page.
+export type ContractorMonitoringRowType =
+  | "delays"
+  | "weather"
+  | "issues"
+  | "changes"
+  | "breaches"
+  | "rework";
+
+export interface ContractorMonitoringRow {
+  id: string;
+  type: ContractorMonitoringRowType;
+  labelEn: string;
+  labelEs: string;
+  status: "ok" | "watch" | "issue";
+  summaryEn: string;
+  summaryEs: string;
+  updatedAt: string;
+}
+
+export const PROJECT_CONTRACTOR_MONITORING: Record<string, ContractorMonitoringRow[]> = {
+  "proj-1": [
+    { id: "mon-1-1", type: "delays",   labelEn: "Schedule Delays",     labelEs: "Retrasos de Cronograma", status: "ok",     summaryEn: "Pre-design tracking on plan; no slip recorded.",                                summaryEs: "Pre-diseño según plan; sin atraso registrado.",                                       updatedAt: "2026-04-22" },
+    { id: "mon-1-2", type: "weather",  labelEn: "Weather Impact",      labelEs: "Impacto del Clima",      status: "ok",     summaryEn: "Trade-wind season favorable for site survey work.",                              summaryEs: "Temporada de vientos alisios favorable para los levantamientos.",                     updatedAt: "2026-04-22" },
+    { id: "mon-1-3", type: "issues",   labelEn: "Open Issues",         labelEs: "Asuntos Abiertos",       status: "watch",  summaryEn: "Awaiting site terrain assessment from civil consultant.",                        summaryEs: "Pendiente evaluación de terreno del consultor civil.",                                updatedAt: "2026-04-22" },
+    { id: "mon-1-4", type: "changes",  labelEn: "Change Orders",       labelEs: "Órdenes de Cambio",      status: "ok",     summaryEn: "No change orders recorded yet for this phase.",                                  summaryEs: "Aún no se han registrado órdenes de cambio en esta fase.",                            updatedAt: "2026-04-22" },
+    { id: "mon-1-5", type: "breaches", labelEn: "Contract Breaches",   labelEs: "Incumplimientos",        status: "ok",     summaryEn: "All contractual milestones honored to date.",                                    summaryEs: "Todos los hitos contractuales cumplidos a la fecha.",                                 updatedAt: "2026-04-22" },
+    { id: "mon-1-6", type: "rework",   labelEn: "Rework",              labelEs: "Retrabajo",              status: "ok",     summaryEn: "No rework triggered during the discovery phase.",                                summaryEs: "Sin retrabajo durante la fase de descubrimiento.",                                    updatedAt: "2026-04-22" },
+  ],
+  "proj-2": [
+    { id: "mon-2-1", type: "delays",   labelEn: "Schedule Delays",     labelEs: "Retrasos de Cronograma", status: "watch",  summaryEn: "Electrical rough-in slipped 4 days; recovered with double crew on 2026-02-09.",  summaryEs: "Eléctrico inicial atrasado 4 días; recuperado con doble cuadrilla el 2026-02-09.",   updatedAt: "2026-04-21" },
+    { id: "mon-2-2", type: "weather",  labelEn: "Weather Impact",      labelEs: "Impacto del Clima",      status: "issue",  summaryEn: "Tropical Storm Elena cost 2 site days; absorbed by KONTi (non-billable).",      summaryEs: "Tormenta Tropical Elena costó 2 días de obra; absorbidos por KONTi (no facturable).", updatedAt: "2026-04-21" },
+    { id: "mon-2-3", type: "issues",   labelEn: "Open Issues",         labelEs: "Asuntos Abiertos",       status: "watch",  summaryEn: "GFCI requirement on 3 exterior outlets — re-inspection scheduled.",              summaryEs: "Requisito GFCI en 3 tomacorrientes exteriores — re-inspección programada.",          updatedAt: "2026-04-20" },
+    { id: "mon-2-4", type: "changes",  labelEn: "Change Orders",       labelEs: "Órdenes de Cambio",      status: "watch",  summaryEn: "Window-upgrade CO logged; client decision pending.",                             summaryEs: "OC de mejora de ventanas registrada; pendiente decisión del cliente.",                updatedAt: "2026-04-19" },
+    { id: "mon-2-5", type: "breaches", labelEn: "Contract Breaches",   labelEs: "Incumplimientos",        status: "ok",     summaryEn: "No contractual breaches observed by KONTi or sub-trades.",                       summaryEs: "Sin incumplimientos por parte de KONTi ni de los subcontratistas.",                   updatedAt: "2026-04-19" },
+    { id: "mon-2-6", type: "rework",   labelEn: "Rework",              labelEs: "Retrabajo",              status: "issue",  summaryEn: "Slab section re-pour required; covered by contractor at no client cost.",        summaryEs: "Sección de losa re-vaciada; cubierto por el contratista sin costo al cliente.",     updatedAt: "2026-04-15" },
+  ],
+  "proj-3": [
+    { id: "mon-3-1", type: "delays",   labelEn: "Schedule Delays",     labelEs: "Retrasos de Cronograma", status: "ok",     summaryEn: "Project closed on schedule; certificate of occupancy issued.",                  summaryEs: "Proyecto cerrado en cronograma; certificado de ocupación emitido.",                   updatedAt: "2025-11-30" },
+    { id: "mon-3-2", type: "weather",  labelEn: "Weather Impact",      labelEs: "Impacto del Clima",      status: "ok",     summaryEn: "No weather-driven schedule loss after framing.",                                 summaryEs: "Sin pérdida de cronograma por clima tras la estructura.",                             updatedAt: "2025-11-30" },
+    { id: "mon-3-3", type: "issues",   labelEn: "Open Issues",         labelEs: "Asuntos Abiertos",       status: "ok",     summaryEn: "All punch items closed at handover.",                                            summaryEs: "Todos los puntos del punchlist cerrados al entregar.",                                updatedAt: "2025-11-30" },
+    { id: "mon-3-4", type: "changes",  labelEn: "Change Orders",       labelEs: "Órdenes de Cambio",      status: "ok",     summaryEn: "Two change orders approved during construction; both within tolerance.",         summaryEs: "Dos órdenes de cambio aprobadas durante construcción; ambas dentro de tolerancia.",   updatedAt: "2025-11-15" },
+    { id: "mon-3-5", type: "breaches", labelEn: "Contract Breaches",   labelEs: "Incumplimientos",        status: "ok",     summaryEn: "No breaches recorded across the project lifecycle.",                             summaryEs: "Sin incumplimientos durante el ciclo de vida del proyecto.",                          updatedAt: "2025-11-30" },
+    { id: "mon-3-6", type: "rework",   labelEn: "Rework",              labelEs: "Retrabajo",              status: "ok",     summaryEn: "Minor finishes touch-up only — no structural rework.",                           summaryEs: "Solo retoques menores en acabados — sin retrabajo estructural.",                      updatedAt: "2025-11-30" },
+  ],
+};
+
+export type InvoiceStatus = "draft" | "sent" | "partial" | "paid" | "overdue";
+
+export interface ProjectInvoice {
+  id: string;
+  projectId: string;
+  number: string;       // human-readable "INV-2025-001"
+  title: string;
+  titleEs: string;
+  total: number;
+  paid: number;
+  balance: number;
+  status: InvoiceStatus;
+  issuedAt: string;     // YYYY-MM-DD
+  dueAt: string;        // YYYY-MM-DD
+}
+
+function buildInvoice(
+  projectId: string,
+  id: string,
+  number: string,
+  title: string,
+  titleEs: string,
+  total: number,
+  paid: number,
+  status: InvoiceStatus,
+  issuedAt: string,
+  dueAt: string,
+): ProjectInvoice {
+  return { id, projectId, number, title, titleEs, total, paid, balance: Math.max(0, total - paid), status, issuedAt, dueAt };
+}
+
+export const PROJECT_INVOICES: Record<string, ProjectInvoice[]> = {
+  "proj-1": [
+    buildInvoice("proj-1", "inv-1-1", "INV-2026-014", "Pre-Design & Viability Study",          "Estudio de Prefactibilidad y Viabilidad",      8500,  8500, "paid",    "2026-04-08", "2026-04-22"),
+    buildInvoice("proj-1", "inv-1-2", "INV-2026-031", "Schematic Design — Milestone 1",        "Diseño Esquemático — Hito 1",                  18000, 9000, "partial", "2026-04-22", "2026-05-06"),
+  ],
+  "proj-2": [
+    buildInvoice("proj-2", "inv-2-1", "INV-2025-088", "Construction Mobilization",             "Movilización de Construcción",                  42000, 42000, "paid",    "2025-08-01", "2025-08-15"),
+    buildInvoice("proj-2", "inv-2-2", "INV-2025-104", "Foundation Pour & Inspection",          "Vaciado y Inspección de Cimientos",             58000, 58000, "paid",    "2025-08-25", "2025-09-08"),
+    buildInvoice("proj-2", "inv-2-3", "INV-2025-122", "Container Set & Welding",               "Colocación y Soldadura de Contenedores",        76000, 76000, "paid",    "2025-10-12", "2025-10-26"),
+    buildInvoice("proj-2", "inv-2-4", "INV-2026-007", "Electrical & Plumbing Rough-In",        "Eléctrico y Plomería Inicial",                  64000, 32000, "partial", "2026-02-04", "2026-02-18"),
+    buildInvoice("proj-2", "inv-2-5", "INV-2026-019", "Interior Finishes — Progress Billing",  "Acabados Interiores — Facturación de Avance",   48000, 0,     "sent",    "2026-04-10", "2026-04-24"),
+  ],
+  "proj-3": [
+    buildInvoice("proj-3", "inv-3-1", "INV-2025-201", "Project Closeout & C/O",                "Cierre del Proyecto y Certificado de Ocupación", 12000, 12000, "paid",    "2025-11-26", "2025-12-10"),
+  ],
+};
+
 export const PROJECT_COST_PLUS: Record<string, CostPlusBudget> = {
   "proj-1": buildCostPlus("proj-1", 138000, 78000, 32000, 12, "Pre-construction estimate; locked at proposal signing.", "Estimado pre-construcción; fijado al firmar la propuesta."),
-  "proj-2": buildCostPlus("proj-2", 198000, 112000, 48000, 11, "In-flight construction; numbers update with approved change orders.", "Construcción en curso; los números se actualizan con órdenes de cambio aprobadas."),
+  "proj-2": attachNonBillable(
+    buildCostPlus("proj-2", 198000, 112000, 48000, 11, "In-flight construction; numbers update with approved change orders.", "Construcción en curso; los números se actualizan con órdenes de cambio aprobadas."),
+    PROJ2_NON_BILLABLE,
+  ),
   "proj-3": buildCostPlus("proj-3", 84000, 46000, 21000, 10, "Final cost-plus reconciliation post-handover.", "Reconciliación final cost-plus tras entrega."),
 };
 

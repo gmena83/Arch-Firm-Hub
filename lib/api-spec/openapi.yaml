@@ -219,7 +219,7 @@ paths:
     post:
       operationId: createProjectDocument
       tags: [documents]
-      summary: Register a document metadata row for a project (team/admin/superadmin)
+      summary: Register a document metadata row for a project (team/admin/superadmin or owning client)
       parameters:
         - name: projectId
           in: path
@@ -252,13 +252,67 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
         "403":
-          description: Insufficient permissions
+          description: Insufficient permissions (team role or owning client only)
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
         "404":
           description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /projects/{projectId}/documents/{documentId}:
+    patch:
+      operationId: updateProjectDocument
+      tags: [documents]
+      summary: Update document metadata (team/admin/superadmin) — toggles client visibility
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: documentId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DocumentUpdateRequest"
+      responses:
+        "200":
+          description: Updated document
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Document"
+        "400":
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Insufficient permissions (team-only)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Project or document not found
           content:
             application/json:
               schema:
@@ -802,7 +856,7 @@ paths:
     get:
       operationId: getProjectCostPlus
       tags: [construction]
-      summary: Get the Cost-Plus budget breakdown for a project
+      summary: Get the Cost-Plus budget breakdown for a project (team or owning client)
       parameters:
         - in: path
           name: id
@@ -814,7 +868,148 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/CostPlusBudget" }
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Insufficient permissions (team role or owning client only)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
         "404": { description: Not found }
+
+  /projects/{id}/invoices:
+    get:
+      operationId: getProjectInvoices
+      tags: [construction]
+      summary: List invoices for a project (team or owning client)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Invoices
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectInvoicesResponse" }
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Insufficient permissions (team role or owning client only)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404": { description: Not found }
+
+  /projects/{id}/contractor-monitoring:
+    get:
+      operationId: getProjectContractorMonitoring
+      tags: [construction]
+      summary: Contractor-monitoring narrative rows (team or owning client)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Monitoring rows
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ContractorMonitoringResponse" }
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Insufficient permissions (team role or owning client only)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404": { description: Not found }
+
+  /projects/{id}/audit-log:
+    get:
+      operationId: getProjectAuditLog
+      tags: [construction]
+      summary: Recent project activity entries (team always; owning client allowed)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+        - in: query
+          name: clientOnly
+          required: false
+          schema: { type: boolean }
+          description: When true, restricts the feed to client-driven activity types.
+      responses:
+        "200":
+          description: Audit log entries (most-recent first, max 100)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectAuditLogResponse" }
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Insufficient permissions (team role or owning client only)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404": { description: Not found }
+
+  /me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get the authenticated user (refreshed from server-side state)
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+    patch:
+      operationId: updateMe
+      tags: [auth]
+      summary: Update the authenticated user's editable contact fields
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UserUpdateRequest" }
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
 
   /projects/{id}/inspections:
     get:
@@ -1438,11 +1633,90 @@ components:
           enum: [admin, superadmin, architect, client]
         avatar:
           type: string
+        phone:
+          type: string
+        postalAddress:
+          type: string
+        physicalAddress:
+          type: string
       required:
         - id
         - name
         - email
         - role
+
+    UserUpdateRequest:
+      type: object
+      description: Editable contact fields for the authenticated user.
+      properties:
+        phone:
+          type: string
+        postalAddress:
+          type: string
+        physicalAddress:
+          type: string
+
+    ProjectInvoice:
+      type: object
+      properties:
+        id: { type: string }
+        projectId: { type: string }
+        number: { type: string }
+        title: { type: string }
+        titleEs: { type: string }
+        total: { type: number }
+        paid: { type: number }
+        balance: { type: number }
+        status:
+          type: string
+          enum: [draft, sent, partial, paid, overdue]
+        issuedAt: { type: string, description: "ISO date YYYY-MM-DD." }
+        dueAt: { type: string, description: "ISO date YYYY-MM-DD." }
+      required: [id, projectId, number, title, titleEs, total, paid, balance, status, issuedAt, dueAt]
+
+    ProjectInvoicesResponse:
+      type: object
+      properties:
+        projectId: { type: string }
+        invoices:
+          type: array
+          items: { $ref: "#/components/schemas/ProjectInvoice" }
+      required: [projectId, invoices]
+
+    ContractorMonitoringRow:
+      type: object
+      properties:
+        id: { type: string }
+        type:
+          type: string
+          enum: [delays, weather, issues, changes, breaches, rework]
+        labelEn: { type: string }
+        labelEs: { type: string }
+        status:
+          type: string
+          enum: [ok, watch, issue]
+        summaryEn: { type: string }
+        summaryEs: { type: string }
+        updatedAt: { type: string, description: "ISO date YYYY-MM-DD." }
+      required: [id, type, labelEn, labelEs, status, summaryEn, summaryEs, updatedAt]
+
+    ContractorMonitoringResponse:
+      type: object
+      properties:
+        projectId: { type: string }
+        rows:
+          type: array
+          items: { $ref: "#/components/schemas/ContractorMonitoringRow" }
+      required: [projectId, rows]
+
+    ProjectAuditLogResponse:
+      type: object
+      properties:
+        projectId: { type: string }
+        entries:
+          type: array
+          items: { $ref: "#/components/schemas/ProjectActivity" }
+      required: [projectId, entries]
 
     ProjectCreateRequest:
       type: object
@@ -1747,6 +2021,15 @@ components:
       required:
         - name
         - category
+
+    DocumentUpdateRequest:
+      type: object
+      properties:
+        isClientVisible:
+          type: boolean
+          description: Toggle whether the document is visible in the client-facing document list.
+      required:
+        - isClientVisible
 
     Material:
       type: object
@@ -2308,6 +2591,19 @@ components:
         specialtyEs: { type: string }
       required: [id, name, firm, email, phone, specialty, specialtyEs]
 
+    NonBillableExpense:
+      type: object
+      properties:
+        id: { type: string }
+        date: { type: string, description: "ISO date YYYY-MM-DD." }
+        category: { type: string }
+        categoryEs: { type: string }
+        description: { type: string }
+        descriptionEs: { type: string }
+        amount: { type: number }
+        paidBy: { type: string }
+      required: [id, date, category, categoryEs, description, descriptionEs, amount, paidBy]
+
     CostPlusBudget:
       type: object
       properties:
@@ -2321,6 +2617,10 @@ components:
         finalTotal: { type: number }
         notes: { type: string }
         notesEs: { type: string }
+        nonBillableExpenses:
+          type: array
+          items: { $ref: "#/components/schemas/NonBillableExpense" }
+        nonBillableTotal: { type: number }
       required: [projectId, materialsCost, laborCost, subcontractorCost, subtotal, plusFeePercent, plusFeeAmount, finalTotal]
 
     Inspection:

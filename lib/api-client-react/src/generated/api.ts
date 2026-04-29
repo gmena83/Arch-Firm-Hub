@@ -26,6 +26,7 @@ import type {
   ChangeOrderResponse,
   ChatRequest,
   ChatResponse,
+  ContractorMonitoringResponse,
   CostPlusBudget,
   CreateChangeOrder201,
   CreateChangeOrderBody,
@@ -38,9 +39,11 @@ import type {
   DesignStateResponse,
   Document,
   DocumentCreateRequest,
+  DocumentUpdateRequest,
   ErrorResponse,
   GammaReportResponse,
   GetInspection200,
+  GetProjectAuditLogParams,
   GetProjectDocumentsParams,
   GetProjectProposals200,
   HealthStatus,
@@ -57,7 +60,9 @@ import type {
   PermitsResponse,
   PreDesignData,
   Project,
+  ProjectAuditLogResponse,
   ProjectCreateRequest,
+  ProjectInvoicesResponse,
   ProjectTask,
   RefreshMaterialPricesParams,
   SendInspectionReport200,
@@ -81,6 +86,8 @@ import type {
   UpdateInspectionBody,
   UpdateMilestone200,
   UpdateMilestoneBody,
+  User,
+  UserUpdateRequest,
   WeatherStatus,
 } from "./api.schemas";
 
@@ -798,7 +805,7 @@ export function useGetProjectDocuments<
 }
 
 /**
- * @summary Register a document metadata row for a project (team/admin/superadmin)
+ * @summary Register a document metadata row for a project (team/admin/superadmin or owning client)
  */
 export const getCreateProjectDocumentUrl = (projectId: string) => {
   return `/api/projects/${projectId}/documents`;
@@ -862,7 +869,7 @@ export type CreateProjectDocumentMutationBody = BodyType<DocumentCreateRequest>;
 export type CreateProjectDocumentMutationError = ErrorType<ErrorResponse>;
 
 /**
- * @summary Register a document metadata row for a project (team/admin/superadmin)
+ * @summary Register a document metadata row for a project (team/admin/superadmin or owning client)
  */
 export const useCreateProjectDocument = <
   TError = ErrorType<ErrorResponse>,
@@ -882,6 +889,120 @@ export const useCreateProjectDocument = <
   TContext
 > => {
   return useMutation(getCreateProjectDocumentMutationOptions(options));
+};
+
+/**
+ * @summary Update document metadata (team/admin/superadmin) — toggles client visibility
+ */
+export const getUpdateProjectDocumentUrl = (
+  projectId: string,
+  documentId: string,
+) => {
+  return `/api/projects/${projectId}/documents/${documentId}`;
+};
+
+export const updateProjectDocument = async (
+  projectId: string,
+  documentId: string,
+  documentUpdateRequest: DocumentUpdateRequest,
+  options?: RequestInit,
+): Promise<Document> => {
+  return customFetch<Document>(
+    getUpdateProjectDocumentUrl(projectId, documentId),
+    {
+      ...options,
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(documentUpdateRequest),
+    },
+  );
+};
+
+export const getUpdateProjectDocumentMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateProjectDocument>>,
+    TError,
+    {
+      projectId: string;
+      documentId: string;
+      data: BodyType<DocumentUpdateRequest>;
+    },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateProjectDocument>>,
+  TError,
+  {
+    projectId: string;
+    documentId: string;
+    data: BodyType<DocumentUpdateRequest>;
+  },
+  TContext
+> => {
+  const mutationKey = ["updateProjectDocument"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateProjectDocument>>,
+    {
+      projectId: string;
+      documentId: string;
+      data: BodyType<DocumentUpdateRequest>;
+    }
+  > = (props) => {
+    const { projectId, documentId, data } = props ?? {};
+
+    return updateProjectDocument(projectId, documentId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateProjectDocumentMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateProjectDocument>>
+>;
+export type UpdateProjectDocumentMutationBody = BodyType<DocumentUpdateRequest>;
+export type UpdateProjectDocumentMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Update document metadata (team/admin/superadmin) — toggles client visibility
+ */
+export const useUpdateProjectDocument = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateProjectDocument>>,
+    TError,
+    {
+      projectId: string;
+      documentId: string;
+      data: BodyType<DocumentUpdateRequest>;
+    },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateProjectDocument>>,
+  TError,
+  {
+    projectId: string;
+    documentId: string;
+    data: BodyType<DocumentUpdateRequest>;
+  },
+  TContext
+> => {
+  return useMutation(getUpdateProjectDocumentMutationOptions(options));
 };
 
 /**
@@ -2499,7 +2620,7 @@ export function useListStructuralEngineers<
 }
 
 /**
- * @summary Get the Cost-Plus budget breakdown for a project
+ * @summary Get the Cost-Plus budget breakdown for a project (team or owning client)
  */
 export const getGetProjectCostPlusUrl = (id: string) => {
   return `/api/projects/${id}/cost-plus`;
@@ -2521,7 +2642,7 @@ export const getGetProjectCostPlusQueryKey = (id: string) => {
 
 export const getGetProjectCostPlusQueryOptions = <
   TData = Awaited<ReturnType<typeof getProjectCostPlus>>,
-  TError = ErrorType<void>,
+  TError = ErrorType<ErrorResponse | void>,
 >(
   id: string,
   options?: {
@@ -2556,15 +2677,15 @@ export const getGetProjectCostPlusQueryOptions = <
 export type GetProjectCostPlusQueryResult = NonNullable<
   Awaited<ReturnType<typeof getProjectCostPlus>>
 >;
-export type GetProjectCostPlusQueryError = ErrorType<void>;
+export type GetProjectCostPlusQueryError = ErrorType<ErrorResponse | void>;
 
 /**
- * @summary Get the Cost-Plus budget breakdown for a project
+ * @summary Get the Cost-Plus budget breakdown for a project (team or owning client)
  */
 
 export function useGetProjectCostPlus<
   TData = Awaited<ReturnType<typeof getProjectCostPlus>>,
-  TError = ErrorType<void>,
+  TError = ErrorType<ErrorResponse | void>,
 >(
   id: string,
   options?: {
@@ -2584,6 +2705,454 @@ export function useGetProjectCostPlus<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary List invoices for a project (team or owning client)
+ */
+export const getGetProjectInvoicesUrl = (id: string) => {
+  return `/api/projects/${id}/invoices`;
+};
+
+export const getProjectInvoices = async (
+  id: string,
+  options?: RequestInit,
+): Promise<ProjectInvoicesResponse> => {
+  return customFetch<ProjectInvoicesResponse>(getGetProjectInvoicesUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetProjectInvoicesQueryKey = (id: string) => {
+  return [`/api/projects/${id}/invoices`] as const;
+};
+
+export const getGetProjectInvoicesQueryOptions = <
+  TData = Awaited<ReturnType<typeof getProjectInvoices>>,
+  TError = ErrorType<ErrorResponse | void>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getProjectInvoices>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetProjectInvoicesQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getProjectInvoices>>
+  > = ({ signal }) => getProjectInvoices(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getProjectInvoices>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetProjectInvoicesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getProjectInvoices>>
+>;
+export type GetProjectInvoicesQueryError = ErrorType<ErrorResponse | void>;
+
+/**
+ * @summary List invoices for a project (team or owning client)
+ */
+
+export function useGetProjectInvoices<
+  TData = Awaited<ReturnType<typeof getProjectInvoices>>,
+  TError = ErrorType<ErrorResponse | void>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getProjectInvoices>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetProjectInvoicesQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Contractor-monitoring narrative rows (team or owning client)
+ */
+export const getGetProjectContractorMonitoringUrl = (id: string) => {
+  return `/api/projects/${id}/contractor-monitoring`;
+};
+
+export const getProjectContractorMonitoring = async (
+  id: string,
+  options?: RequestInit,
+): Promise<ContractorMonitoringResponse> => {
+  return customFetch<ContractorMonitoringResponse>(
+    getGetProjectContractorMonitoringUrl(id),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetProjectContractorMonitoringQueryKey = (id: string) => {
+  return [`/api/projects/${id}/contractor-monitoring`] as const;
+};
+
+export const getGetProjectContractorMonitoringQueryOptions = <
+  TData = Awaited<ReturnType<typeof getProjectContractorMonitoring>>,
+  TError = ErrorType<ErrorResponse | void>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getProjectContractorMonitoring>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetProjectContractorMonitoringQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getProjectContractorMonitoring>>
+  > = ({ signal }) =>
+    getProjectContractorMonitoring(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getProjectContractorMonitoring>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetProjectContractorMonitoringQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getProjectContractorMonitoring>>
+>;
+export type GetProjectContractorMonitoringQueryError =
+  ErrorType<ErrorResponse | void>;
+
+/**
+ * @summary Contractor-monitoring narrative rows (team or owning client)
+ */
+
+export function useGetProjectContractorMonitoring<
+  TData = Awaited<ReturnType<typeof getProjectContractorMonitoring>>,
+  TError = ErrorType<ErrorResponse | void>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getProjectContractorMonitoring>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetProjectContractorMonitoringQueryOptions(
+    id,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Recent project activity entries (team always; owning client allowed)
+ */
+export const getGetProjectAuditLogUrl = (
+  id: string,
+  params?: GetProjectAuditLogParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/projects/${id}/audit-log?${stringifiedParams}`
+    : `/api/projects/${id}/audit-log`;
+};
+
+export const getProjectAuditLog = async (
+  id: string,
+  params?: GetProjectAuditLogParams,
+  options?: RequestInit,
+): Promise<ProjectAuditLogResponse> => {
+  return customFetch<ProjectAuditLogResponse>(
+    getGetProjectAuditLogUrl(id, params),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetProjectAuditLogQueryKey = (
+  id: string,
+  params?: GetProjectAuditLogParams,
+) => {
+  return [
+    `/api/projects/${id}/audit-log`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getGetProjectAuditLogQueryOptions = <
+  TData = Awaited<ReturnType<typeof getProjectAuditLog>>,
+  TError = ErrorType<ErrorResponse | void>,
+>(
+  id: string,
+  params?: GetProjectAuditLogParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getProjectAuditLog>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetProjectAuditLogQueryKey(id, params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getProjectAuditLog>>
+  > = ({ signal }) =>
+    getProjectAuditLog(id, params, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getProjectAuditLog>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetProjectAuditLogQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getProjectAuditLog>>
+>;
+export type GetProjectAuditLogQueryError = ErrorType<ErrorResponse | void>;
+
+/**
+ * @summary Recent project activity entries (team always; owning client allowed)
+ */
+
+export function useGetProjectAuditLog<
+  TData = Awaited<ReturnType<typeof getProjectAuditLog>>,
+  TError = ErrorType<ErrorResponse | void>,
+>(
+  id: string,
+  params?: GetProjectAuditLogParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getProjectAuditLog>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetProjectAuditLogQueryOptions(id, params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get the authenticated user (refreshed from server-side state)
+ */
+export const getGetMeUrl = () => {
+  return `/api/me`;
+};
+
+export const getMe = async (options?: RequestInit): Promise<User> => {
+  return customFetch<User>(getGetMeUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetMeQueryKey = () => {
+  return [`/api/me`] as const;
+};
+
+export const getGetMeQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMe>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<Awaited<ReturnType<typeof getMe>>, TError, TData>;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetMeQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getMe>>> = ({
+    signal,
+  }) => getMe({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMe>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetMeQueryResult = NonNullable<Awaited<ReturnType<typeof getMe>>>;
+export type GetMeQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Get the authenticated user (refreshed from server-side state)
+ */
+
+export function useGetMe<
+  TData = Awaited<ReturnType<typeof getMe>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<Awaited<ReturnType<typeof getMe>>, TError, TData>;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetMeQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Update the authenticated user's editable contact fields
+ */
+export const getUpdateMeUrl = () => {
+  return `/api/me`;
+};
+
+export const updateMe = async (
+  userUpdateRequest: UserUpdateRequest,
+  options?: RequestInit,
+): Promise<User> => {
+  return customFetch<User>(getUpdateMeUrl(), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(userUpdateRequest),
+  });
+};
+
+export const getUpdateMeMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateMe>>,
+    TError,
+    { data: BodyType<UserUpdateRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateMe>>,
+  TError,
+  { data: BodyType<UserUpdateRequest> },
+  TContext
+> => {
+  const mutationKey = ["updateMe"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateMe>>,
+    { data: BodyType<UserUpdateRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return updateMe(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateMeMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateMe>>
+>;
+export type UpdateMeMutationBody = BodyType<UserUpdateRequest>;
+export type UpdateMeMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Update the authenticated user's editable contact fields
+ */
+export const useUpdateMe = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateMe>>,
+    TError,
+    { data: BodyType<UserUpdateRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateMe>>,
+  TError,
+  { data: BodyType<UserUpdateRequest> },
+  TContext
+> => {
+  return useMutation(getUpdateMeMutationOptions(options));
+};
 
 /**
  * @summary List inspections for a project

@@ -8,9 +8,12 @@ import {
   getGetProjectTasksQueryKey, getGetProjectCalculationsQueryKey,
   getGetProjectCostPlusQueryKey, getGetProjectInspectionsQueryKey, getGetProjectMilestonesQueryKey,
 } from "@workspace/api-client-react";
-import { RequireAuth } from "@/hooks/use-auth";
+import { RequireAuth, useAuth } from "@/hooks/use-auth";
 import { useLang } from "@/hooks/use-lang";
 import { WeatherBadge } from "@/components/weather-badge";
+import { PunchlistPanel } from "@/components/punchlist-panel";
+import { ContractorMonitoringSection } from "@/components/contractor-monitoring-section";
+import { reportCategoryLabel } from "@/lib/report-categories";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { Check, ArrowLeft, MapPin, Calendar, TrendingUp, Download, Loader2 } from "lucide-react";
 import logoWhite from "@assets/Horizontal02_WhitePNG_1776258303461.png";
@@ -36,6 +39,8 @@ function reportCellForColumn(col: string, line: ContractorLine, lang: string): s
 
 function ReportContent({ projectId }: { projectId: string }) {
   const { t, lang } = useLang();
+  const { viewRole } = useAuth();
+  const isClientView = viewRole === "client";
   const [isDownloading, setIsDownloading] = useState(false);
   const [template, setTemplate] = useState<ReportTemplate | null>(null);
   const [contractorEst, setContractorEst] = useState<ContractorEstimate | null>(null);
@@ -51,12 +56,17 @@ function ReportContent({ projectId }: { projectId: string }) {
       .then((r) => r.ok ? r.json() : null)
       .then((d) => { if (!cancel && d) setTemplate(d as ReportTemplate); })
       .catch(() => undefined);
-    fetch(`/api/projects/${projectId}/contractor-estimate`, { headers })
-      .then((r) => r.ok ? r.json() : null)
-      .then((d) => { if (!cancel && d) setContractorEst(d as ContractorEstimate); })
-      .catch(() => undefined);
+    // The contractor BOM is internal-only. Skip the request entirely for
+    // client viewers so the raw line items never reach the browser even if
+    // someone opens devtools.
+    if (!isClientView) {
+      fetch(`/api/projects/${projectId}/contractor-estimate`, { headers })
+        .then((r) => r.ok ? r.json() : null)
+        .then((d) => { if (!cancel && d) setContractorEst(d as ContractorEstimate); })
+        .catch(() => undefined);
+    }
     return () => { cancel = true; };
-  }, [projectId]);
+  }, [projectId, isClientView]);
 
   const { data: project } = useGetProject(projectId, {
     query: { enabled: !!projectId, queryKey: getGetProjectQueryKey(projectId) }
@@ -128,14 +138,23 @@ function ReportContent({ projectId }: { projectId: string }) {
   ];
 
   const chartData = calc?.subtotalByCategory
-    ? Object.entries(calc.subtotalByCategory).map(([name, value]) => ({ name, value }))
+    ? Object.entries(calc.subtotalByCategory).map(([name, value]) => ({ name: reportCategoryLabel(name, lang), value }))
     : [
-        { name: "Steel/Container", value: 45000 },
-        { name: "Foundation", value: 32000 },
-        { name: "Electrical", value: 18000 },
-        { name: "Plumbing", value: 12000 },
-        { name: "Finishes", value: 22000 },
+        { name: reportCategoryLabel("steel", lang),      value: 45000 },
+        { name: reportCategoryLabel("foundation", lang), value: 32000 },
+        { name: reportCategoryLabel("electrical", lang), value: 18000 },
+        { name: reportCategoryLabel("plumbing", lang),   value: 12000 },
+        { name: reportCategoryLabel("finishes", lang),   value: 22000 },
       ];
+
+  // Category rollup row data (used by the client-facing card that replaces
+  // the BOM detail and by the team report as a summary above the BOM).
+  const categoryRows: Array<{ key: string; label: string; total: number }> = calc?.subtotalByCategory
+    ? Object.entries(calc.subtotalByCategory)
+        .map(([key, total]) => ({ key, label: reportCategoryLabel(key, lang), total }))
+        .sort((a, b) => b.total - a.total)
+    : [];
+  const categoryTotal = categoryRows.reduce((sum, r) => sum + r.total, 0);
 
   const reportDate = new Date().toLocaleDateString(lang === "es" ? "es-PR" : "en-US", {
     year: "numeric", month: "long", day: "numeric"
@@ -331,8 +350,60 @@ function ReportContent({ projectId }: { projectId: string }) {
           </section>
         )}
 
-        {/* Bill of Materials — uses uploaded template column order/headings when available */}
-        {contractorEst && contractorEst.lines.length > 0 && (
+        {/* Cost-by-category card — clients see this in place of the raw BOM. Team
+            view also renders it as a summary above the BOM detail table. */}
+        {categoryRows.length > 0 && (
+          <section data-testid="report-category-breakdown">
+            <h2 className="text-white/40 text-xs font-semibold uppercase tracking-widest mb-4">
+              {t("Cost by Category", "Costo por Categoría")}
+            </h2>
+            <div className="bg-white/5 rounded-xl border border-white/10 overflow-hidden">
+              <table className="w-full text-sm" data-testid="report-category-table">
+                <thead className="bg-white/5">
+                  <tr>
+                    <th className="text-left px-4 py-2 text-xs uppercase tracking-wider text-white/60">{t("Category", "Categoría")}</th>
+                    <th className="text-right px-4 py-2 text-xs uppercase tracking-wider text-white/60">{t("Subtotal", "Subtotal")}</th>
+                    <th className="text-right px-4 py-2 text-xs uppercase tracking-wider text-white/60">{t("Share", "Participación")}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/10">
+                  {categoryRows.map((row) => (
+                    <tr key={row.key} data-testid={`report-category-row-${row.key}`}>
+                      <td className="px-4 py-2 text-white/80">{row.label}</td>
+                      <td className="px-4 py-2 text-right text-white">${row.total.toLocaleString()}</td>
+                      <td className="px-4 py-2 text-right text-white/60">
+                        {categoryTotal > 0 ? Math.round((row.total / categoryTotal) * 100) : 0}%
+                      </td>
+                    </tr>
+                  ))}
+                  <tr className="bg-konti-olive/20">
+                    <td className="px-4 py-3 font-bold text-white">{t("Grand Total", "Total General")}</td>
+                    <td className="px-4 py-3 text-right font-bold text-konti-olive">${categoryTotal.toLocaleString()}</td>
+                    <td className="px-4 py-3 text-right font-bold text-konti-olive">100%</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
+        {/* Punchlist (read-only on the report). Always rendered — `PunchlistPanel`
+            self-disables editing for client viewers via `isClientView`. */}
+        <section data-testid="report-punchlist">
+          <h2 className="text-white/40 text-xs font-semibold uppercase tracking-widest mb-4">
+            {t("Punchlist by Phase", "Lista de Pendientes por Fase")}
+          </h2>
+          <div className="bg-white/5 rounded-xl border border-white/10 p-4">
+            <PunchlistPanel projectId={projectId} currentPhase={project.phase} isClientView={isClientView} />
+          </div>
+        </section>
+
+        {/* Contractor monitoring narrative (delays / weather / issues / changes / breaches / rework) */}
+        <ContractorMonitoringSection projectId={projectId} variant="report" />
+
+        {/* Bill of Materials — team-only detailed line items. Clients see the
+            higher-level Cost-by-Category card above instead. */}
+        {!isClientView && contractorEst && contractorEst.lines.length > 0 && (
           <section data-testid="report-bill-of-materials">
             <h2 className="text-white/40 text-xs font-semibold uppercase tracking-widest mb-4">
               {t("Bill of Materials", "Lista de Materiales")}
