@@ -154,7 +154,7 @@ function UploadModal({
         ]);
         toast({
           title: t("File uploaded successfully", "Archivo subido exitosamente"),
-          description: category === "client_review"
+          description: effectiveCategory === "client_review"
             ? t("Email notification sent to client.", "Notificación enviada al cliente por correo.")
             : t("File saved to internal documents.", "Archivo guardado en documentos internos."),
         });
