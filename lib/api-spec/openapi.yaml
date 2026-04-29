@@ -1958,7 +1958,7 @@ components:
           enum: [pdf, excel, pptx, photo, other]
         category:
           type: string
-          enum: [client_review, internal, permits, construction, design]
+          enum: [client_review, internal, permits, construction, design, contratos, acuerdos_compra, otros]
         designSubPhase:
           type: string
           enum: [schematic_design, design_development, construction_documents]
@@ -2000,7 +2000,7 @@ components:
           description: File name including extension (1-200 chars).
         category:
           type: string
-          enum: [client_review, internal, permits, construction, design]
+          enum: [client_review, internal, permits, construction, design, contratos, acuerdos_compra, otros]
           description: Document category. Must match the Document.category enum.
         type:
           type: string

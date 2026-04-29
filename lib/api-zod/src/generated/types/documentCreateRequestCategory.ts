@@ -18,4 +18,7 @@ export const DocumentCreateRequestCategory = {
   permits: "permits",
   construction: "construction",
   design: "design",
+  contratos: "contratos",
+  acuerdos_compra: "acuerdos_compra",
+  otros: "otros",
 } as const;
