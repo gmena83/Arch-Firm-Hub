@@ -4,7 +4,7 @@ import { useSearch } from "wouter";
 import { AppLayout } from "@/components/layout/app-layout";
 import { RequireAuth } from "@/hooks/use-auth";
 import { useLang } from "@/hooks/use-lang";
-import { Calculator, Plus, X } from "lucide-react";
+import { Calculator, Plus, X, FileText } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ContractorCalculator } from "@/components/estimating/contractor-calculator";
 import { ImportsPanel } from "@/components/estimating/imports-panel";
@@ -114,6 +114,135 @@ interface LocalEntry {
   manualPriceOverride: number | null;
   effectivePrice: number;
   lineTotal: number;
+}
+
+interface ReportTemplate {
+  name: string;
+  columns: string[];
+  headerLines: string[];
+  footer: string;
+}
+
+const DEFAULT_TEMPLATE_COLUMNS = ["Category", "Item", "Qty", "Unit", "Unit Price", "Total"];
+
+function templateCellForColumn(col: string, entry: LocalEntry): string {
+  const c = col.trim().toLowerCase();
+  if (c === "category" || c === "categoría" || c === "categoria") return entry.category;
+  if (c === "item" || c === "material" || c === "description" || c === "descripción" || c === "descripcion") return entry.materialName;
+  if (c === "qty" || c === "quantity" || c === "cant." || c === "cantidad") return String(entry.quantity);
+  if (c === "unit" || c === "unidad") return entry.unit;
+  if (c === "unit price" || c === "precio unit." || c === "precio unitario" || c === "base price" || c === "precio base") return `$${entry.effectivePrice.toLocaleString()}`;
+  if (c === "total") return `$${entry.lineTotal.toLocaleString()}`;
+  return "";
+}
+
+function TemplatePreviewPanel({ projectId, entries, grandTotal }: { projectId: string; entries: LocalEntry[]; grandTotal: number }) {
+  const { t } = useLang();
+  const [template, setTemplate] = useState<ReportTemplate | null>(null);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!projectId) { setTemplate(null); setLoaded(true); return; }
+    let cancel = false;
+    setLoaded(false);
+    const raw = typeof window !== "undefined" ? window.localStorage.getItem("konti_auth") : null;
+    let token: string | undefined;
+    try { token = raw ? (JSON.parse(raw).token as string) : undefined; } catch { /* ignore */ }
+    const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
+    const base = (import.meta.env.BASE_URL ?? "/").replace(/\/$/, "");
+    fetch(`${base}/api/projects/${projectId}/report-template`, { headers })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (!cancel) { setTemplate(d as ReportTemplate | null); setLoaded(true); } })
+      .catch(() => { if (!cancel) { setTemplate(null); setLoaded(true); } });
+    return () => { cancel = true; };
+  }, [projectId]);
+
+  if (!loaded) return null;
+  if (!template) {
+    return (
+      <div data-testid="template-preview-empty" className="bg-card border border-dashed border-card-border rounded-xl p-4 text-xs text-muted-foreground flex items-center gap-2">
+        <FileText className="w-4 h-4 shrink-0 text-muted-foreground" />
+        <span>
+          {t(
+            "No report template uploaded yet — set one up under Imports → Report Template to preview the calculator in your team's report layout.",
+            "Aún no hay plantilla de reporte — súbela en Importaciones → Plantilla de Reporte para previsualizar la calculadora en el formato del equipo."
+          )}
+        </span>
+      </div>
+    );
+  }
+
+  const columns = template.columns.length > 0 ? template.columns : DEFAULT_TEMPLATE_COLUMNS;
+
+  return (
+    <div data-testid="template-preview" className="bg-card border border-card-border rounded-xl shadow-sm overflow-hidden">
+      <div className="px-5 py-3 border-b border-border bg-muted/30 flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <FileText className="w-4 h-4 text-konti-olive" />
+          <h3 className="text-sm font-bold text-foreground" data-testid="template-preview-title">
+            {t("Report Template Preview", "Vista previa de plantilla")} — {template.name}
+          </h3>
+        </div>
+        <span className="text-[11px] text-muted-foreground uppercase tracking-wider">
+          {t("Live calculator data", "Datos de la calculadora")}
+        </span>
+      </div>
+      {template.headerLines.length > 0 && (
+        <div className="px-5 py-3 border-b border-border text-center" data-testid="template-preview-header">
+          {template.headerLines.map((line, i) => (
+            <p key={i} className={`text-xs ${i === 0 ? "font-bold text-foreground" : "text-muted-foreground"}`}>
+              {line}
+            </p>
+          ))}
+        </div>
+      )}
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs min-w-[640px]">
+          <thead>
+            <tr className="bg-muted/50 border-b border-border">
+              {columns.map((col) => (
+                <th key={col} className="text-left px-4 py-2 font-semibold text-muted-foreground">{col}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {entries.length === 0 ? (
+              <tr>
+                <td colSpan={columns.length} className="px-4 py-6 text-center text-muted-foreground">
+                  {t("Add materials to see the preview populate.", "Agrega materiales para ver la vista previa.")}
+                </td>
+              </tr>
+            ) : (
+              entries.map((entry, i) => (
+                <tr key={i} data-testid={`template-row-${i}`} className="hover:bg-muted/20">
+                  {columns.map((col) => (
+                    <td key={col} className="px-4 py-2 text-foreground">{templateCellForColumn(col, entry)}</td>
+                  ))}
+                </tr>
+              ))
+            )}
+          </tbody>
+          {entries.length > 0 && (
+            <tfoot>
+              <tr className="border-t border-border bg-muted/30">
+                <td colSpan={columns.length - 1} className="px-4 py-2 text-right font-semibold text-foreground">
+                  {t("Grand Total", "Total General")}
+                </td>
+                <td className="px-4 py-2 text-right font-bold text-konti-olive" data-testid="template-grand-total">
+                  ${grandTotal.toLocaleString()}
+                </td>
+              </tr>
+            </tfoot>
+          )}
+        </table>
+      </div>
+      {template.footer && (
+        <div className="px-5 py-3 border-t border-border text-[11px] text-muted-foreground text-center" data-testid="template-preview-footer">
+          {template.footer}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function makeEntry(item: string, category: string, unit: string, qty: number, base: number, override: number | null): LocalEntry {
@@ -316,6 +445,11 @@ export default function CalculatorPage() {
                   </div>
                 ))}
               </div>
+
+              {/* In-app preview using uploaded report template (#34) */}
+              {projectId && (
+                <TemplatePreviewPanel projectId={projectId} entries={allEntries} grandTotal={grandTotal} />
+              )}
             </>
           )}
             </TabsContent>

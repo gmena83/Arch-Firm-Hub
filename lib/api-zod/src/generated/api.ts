@@ -210,6 +210,9 @@ export const GetProjectDocumentsResponseItem = zod.object({
     "permits",
     "construction",
     "design",
+    "contratos",
+    "acuerdos_compra",
+    "otros",
   ]),
   designSubPhase: zod
     .enum(["schematic_design", "design_development", "construction_documents"])
@@ -254,7 +257,16 @@ export const CreateProjectDocumentBody = zod.object({
     .max(createProjectDocumentBodyNameMax)
     .describe("File name including extension (1-200 chars)."),
   category: zod
-    .enum(["client_review", "internal", "permits", "construction", "design"])
+    .enum([
+      "client_review",
+      "internal",
+      "permits",
+      "construction",
+      "design",
+      "contratos",
+      "acuerdos_compra",
+      "otros",
+    ])
     .describe("Document category. Must match the Document.category enum."),
   type: zod
     .enum(["pdf", "excel", "pptx", "photo", "other"])
@@ -309,6 +321,9 @@ export const UpdateProjectDocumentResponse = zod.object({
     "permits",
     "construction",
     "design",
+    "contratos",
+    "acuerdos_compra",
+    "otros",
   ]),
   designSubPhase: zod
     .enum(["schematic_design", "design_development", "construction_documents"])

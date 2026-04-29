@@ -88,6 +88,53 @@ function inferDocType(file: File): "pdf" | "excel" | "pptx" | "photo" | "other" 
   return "other";
 }
 
+// Document categories — drives the upload picker (#80) and grouped list (#11).
+type DocCategory =
+  | "client_review" | "internal" | "permits" | "construction" | "design"
+  | "contratos" | "acuerdos_compra" | "otros";
+
+const DOC_CATEGORY_OPTIONS: Array<{ key: DocCategory; label: string; labelEs: string }> = [
+  { key: "contratos",       label: "Contracts",         labelEs: "Contratos" },
+  { key: "acuerdos_compra", label: "Purchase Agreements", labelEs: "Acuerdos de compra" },
+  { key: "client_review",   label: "Client Review",     labelEs: "Revisión del Cliente" },
+  { key: "internal",        label: "Internal",          labelEs: "Interno" },
+  { key: "permits",         label: "Permits",           labelEs: "Permisos" },
+  { key: "construction",    label: "Construction",      labelEs: "Construcción" },
+  { key: "design",          label: "Design",            labelEs: "Diseño" },
+  { key: "otros",           label: "Other",             labelEs: "Otros" },
+];
+
+const DOC_CATEGORY_COLORS: Record<string, string> = {
+  client_review:   "bg-sky-100 text-sky-800",
+  internal:        "bg-purple-100 text-purple-800",
+  permits:         "bg-amber-100 text-amber-800",
+  construction:    "bg-orange-100 text-orange-800",
+  design:          "bg-indigo-100 text-indigo-800",
+  contratos:       "bg-emerald-100 text-emerald-800",
+  acuerdos_compra: "bg-rose-100 text-rose-800",
+  otros:           "bg-gray-100 text-gray-700",
+};
+
+function categoryLabel(cat: string, lang: "en" | "es"): string {
+  const opt = DOC_CATEGORY_OPTIONS.find((o) => o.key === cat);
+  if (opt) return lang === "es" ? opt.labelEs : opt.label;
+  return cat;
+}
+
+// Top-level groups for the project Documents card (#11). Anything that is
+// not a contract or purchase agreement falls under "Otros".
+type DocGroupKey = "contratos" | "acuerdos_compra" | "otros";
+const DOC_GROUPS: Array<{ key: DocGroupKey; label: string; labelEs: string }> = [
+  { key: "contratos",       label: "Contracts",           labelEs: "Contratos" },
+  { key: "acuerdos_compra", label: "Purchase Agreements", labelEs: "Acuerdos de compra" },
+  { key: "otros",           label: "Other",               labelEs: "Otros" },
+];
+function groupForCategory(cat: string): DocGroupKey {
+  if (cat === "contratos") return "contratos";
+  if (cat === "acuerdos_compra") return "acuerdos_compra";
+  return "otros";
+}
+
 function UploadModal({
   onClose,
   projectId,
@@ -100,7 +147,7 @@ function UploadModal({
   const { t } = useLang();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [category, setCategory] = useState<"client_review" | "internal">("client_review");
+  const [category, setCategory] = useState<DocCategory>("client_review");
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -134,7 +181,7 @@ function UploadModal({
         });
         return;
       }
-      const effectiveCategory: "client_review" | "internal" = lockedToClientReview ? "client_review" : category;
+      const effectiveCategory: DocCategory = lockedToClientReview ? "client_review" : category;
       try {
         await createDocument.mutateAsync({
           projectId,
@@ -225,23 +272,19 @@ function UploadModal({
                 </span>
               </div>
             ) : (
-              <div className="flex gap-2">
-                {(["client_review", "internal"] as const).map((cat) => (
-                  <button
-                    key={cat}
-                    onClick={() => setCategory(cat)}
-                    data-testid={`btn-category-${cat}`}
-                    disabled={isUploading}
-                    className={`flex-1 py-2 px-3 rounded-md text-sm font-medium border transition-colors ${
-                      category === cat
-                        ? "bg-konti-olive text-white border-konti-olive"
-                        : "border-border text-muted-foreground hover:bg-muted/50"
-                    }`}
-                  >
-                    {cat === "client_review" ? t("Client Review", "Revisión del Cliente") : t("Internal", "Interno")}
-                  </button>
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value as DocCategory)}
+                data-testid="select-doc-category"
+                disabled={isUploading}
+                className="w-full px-3 py-2 rounded-md border border-input bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+              >
+                {DOC_CATEGORY_OPTIONS.map((opt) => (
+                  <option key={opt.key} value={opt.key} data-testid={`option-category-${opt.key}`}>
+                    {t(opt.label, opt.labelEs)}
+                  </option>
                 ))}
-              </div>
+              </select>
             )}
           </div>
 
@@ -427,13 +470,7 @@ const TYPE_ICON_CONFIG: Record<string, { color: string; bg: string; border: stri
 
 function DocPreviewModal({ doc, onClose }: { doc: Document; onClose: () => void }) {
   const { t, lang } = useLang();
-  const catColors: Record<string, string> = {
-    client_review: "bg-sky-100 text-sky-800",
-    internal: "bg-purple-100 text-purple-800",
-    permits: "bg-amber-100 text-amber-800",
-    construction: "bg-orange-100 text-orange-800",
-    design: "bg-indigo-100 text-indigo-800",
-  };
+  const catColors = DOC_CATEGORY_COLORS;
   const versions = doc.versions ?? [];
   const typeIcon = TYPE_ICON_CONFIG[doc.type] ?? { color: "text-muted-foreground", bg: "bg-muted", border: "border-border", label: "FILE" };
 
@@ -447,7 +484,7 @@ function DocPreviewModal({ doc, onClose }: { doc: Document; onClose: () => void 
               <p className="text-sm font-bold text-foreground truncate">{doc.name}</p>
               <div className="flex items-center gap-1.5 mt-0.5">
                 <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${catColors[doc.category] ?? "bg-gray-100 text-gray-700"}`}>
-                  {doc.category === "client_review" ? t("Client", "Cliente") : doc.category}
+                  {categoryLabel(doc.category, lang)}
                 </span>
                 {versions.length > 1 && (
                   <span className="text-xs bg-konti-olive/10 text-konti-olive border border-konti-olive/30 px-1.5 py-0.5 rounded font-medium">
@@ -584,13 +621,7 @@ function DocCard({ doc, isClientView, projectId }: { doc: Document; isClientView
     });
   };
 
-  const catColors: Record<string, string> = {
-    client_review: "bg-sky-100 text-sky-800",
-    internal: "bg-purple-100 text-purple-800",
-    permits: "bg-amber-100 text-amber-800",
-    construction: "bg-orange-100 text-orange-800",
-    design: "bg-indigo-100 text-indigo-800",
-  };
+  const catColors = DOC_CATEGORY_COLORS;
 
   const subPhaseLabels: Record<string, { en: string; es: string }> = {
     schematic_design: { en: "SD", es: "DE" },
@@ -629,7 +660,7 @@ function DocCard({ doc, isClientView, projectId }: { doc: Document; isClientView
               <p className="text-xs font-medium text-foreground truncate">{doc.name}</p>
               <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                 <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${catColors[doc.category] ?? "bg-gray-100 text-gray-700"}`}>
-                  {doc.category === "client_review" ? t("Client", "Cliente") : doc.category}
+                  {categoryLabel(doc.category, lang)}
                 </span>
                 {subBadge && (
                   <span data-testid={`doc-sub-phase-${doc.id}`} className="text-xs px-1.5 py-0.5 rounded font-semibold bg-konti-olive/15 text-konti-olive border border-konti-olive/30">
@@ -1061,7 +1092,7 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
         <div className="md:col-span-2 space-y-4 md:space-y-6">
           {/* Phase timeline */}
           <div className="bg-card rounded-xl border border-card-border p-5 shadow-sm">
-            <h2 className="font-bold text-foreground mb-4">{t("Project Phase", "Fase del Proyecto")}</h2>
+            <h2 className="font-bold text-foreground mb-4">{t("Project Timeline", "Cronograma del proyecto")}</h2>
             <div className="flex items-center gap-1">
               {phases.map((phase, i) => {
                 const isCompleted = project.phaseNumber > phase.num;
@@ -1330,10 +1361,24 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
                 <Upload className="w-3.5 h-3.5" /> {t("Upload", "Subir")}
               </button>
             </div>
-            <div className="space-y-1.5">
-              {docs.map((doc) => (
-                <DocCard key={doc.id} doc={doc} isClientView={isClientView} projectId={projectId} />
-              ))}
+            <div className="space-y-3">
+              {DOC_GROUPS.map((group) => {
+                const groupDocs = docs.filter((d) => groupForCategory(d.category) === group.key);
+                if (groupDocs.length === 0) return null;
+                return (
+                  <div key={group.key} data-testid={`doc-group-${group.key}`} className="space-y-1.5">
+                    <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground px-0.5">
+                      {t(group.label, group.labelEs)}
+                      <span className="ml-1 text-muted-foreground/70">({groupDocs.length})</span>
+                    </p>
+                    <div className="space-y-1.5">
+                      {groupDocs.map((doc) => (
+                        <DocCard key={doc.id} doc={doc} isClientView={isClientView} projectId={projectId} />
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
               {docs.length === 0 && (
                 <p className="text-xs text-muted-foreground text-center py-4">{t("No documents available.", "No hay documentos disponibles.")}</p>
               )}

@@ -3,7 +3,7 @@ import { useListMaterials } from "@workspace/api-client-react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { RequireAuth } from "@/hooks/use-auth";
 import { useLang } from "@/hooks/use-lang";
-import { Search, Package, RefreshCw, CheckCircle, AlertCircle, Upload } from "lucide-react";
+import { Search, Package, RefreshCw, CheckCircle, AlertCircle, Upload, Plus } from "lucide-react";
 import { Link } from "wouter";
 
 const CATEGORIES = [
@@ -111,7 +111,15 @@ export default function MaterialsPage() {
               </p>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-2 shrink-0 flex-wrap">
+            <Link
+              href="/calculator?tab=imports"
+              data-testid="btn-add-materials"
+              className="flex items-center gap-2 px-4 py-2 bg-konti-olive hover:bg-konti-olive/90 text-white text-sm font-semibold rounded-md transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              {t("Add Materials", "Añadir Materiales")}
+            </Link>
             <Link
               href="/calculator?tab=imports"
               data-testid="btn-import-materials"

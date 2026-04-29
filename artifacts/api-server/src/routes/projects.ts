@@ -190,7 +190,10 @@ router.post("/projects/:projectId/documents", requireRole(["team", "admin", "sup
   if (typeof body.name !== "string" || body.name.length === 0 || body.name.length > 200) {
     return res.status(400).json({ error: "bad_request", message: "name required" });
   }
-  const ALLOWED_CATEGORIES = ["client_review", "internal", "permits", "construction", "design"] as const;
+  const ALLOWED_CATEGORIES = [
+    "client_review", "internal", "permits", "construction", "design",
+    "contratos", "acuerdos_compra", "otros",
+  ] as const;
   // Clients are locked to "client_review" + always client-visible.
   if (isClient) {
     body.category = "client_review";

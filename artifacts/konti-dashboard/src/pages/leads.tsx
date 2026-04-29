@@ -54,6 +54,13 @@ function scoreColor(score: number): string {
   return "bg-slate-400";
 }
 
+const SCORE_LEGEND: Array<{ range: string; color: string; label: string; labelEs: string; hint: string; hintEs: string }> = [
+  { range: "80–100", color: "bg-emerald-500", label: "Hot",   labelEs: "Caliente", hint: "Prioritize — high budget, ready land",       hintEs: "Prioridad — presupuesto alto, terreno listo" },
+  { range: "60–79",  color: "bg-konti-olive", label: "Warm",  labelEs: "Tibio",    hint: "Strong fit — follow up within 48 h",         hintEs: "Buen ajuste — contactar en 48 h" },
+  { range: "40–59",  color: "bg-amber-500",   label: "Cool",  labelEs: "Templado", hint: "Nurture — qualify budget and timeline",       hintEs: "Madurar — calificar presupuesto y tiempo" },
+  { range: "0–39",   color: "bg-slate-400",   label: "Cold",  labelEs: "Frío",     hint: "Low fit — auto-reply with KONTi resources",   hintEs: "Bajo ajuste — respuesta automática con recursos" },
+];
+
 export default function LeadsPage() {
   const { t, lang } = useLang();
   const { toast } = useToast();
@@ -127,6 +134,34 @@ export default function LeadsPage() {
                 <div className="text-xs text-muted-foreground">{t("Total", "Total")}</div>
                 <div className="text-xl font-bold text-foreground" data-testid="stat-total">{leads.length}</div>
               </div>
+            </div>
+          </div>
+
+          {/* Lead-score legend (#74) — inline tier guide */}
+          <div className="bg-card border border-card-border rounded-xl p-4" data-testid="score-legend">
+            <div className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wide">
+              {t("Lead score legend", "Leyenda de score")}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+              {SCORE_LEGEND.map((tier) => (
+                <div
+                  key={tier.range}
+                  data-testid={`legend-tier-${tier.label.toLowerCase()}`}
+                  className="flex items-start gap-2.5 px-2.5 py-2 rounded-md border border-border/60 bg-muted/20"
+                >
+                  <div className={`w-9 h-9 rounded-md ${tier.color} text-white flex flex-col items-center justify-center shrink-0`}>
+                    <div className="text-[10px] font-bold leading-none">{tier.range.split("–")[0]}+</div>
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-xs font-bold text-foreground">
+                      {t(tier.label, tier.labelEs)} <span className="text-muted-foreground font-normal">· {tier.range}</span>
+                    </div>
+                    <div className="text-[11px] text-muted-foreground leading-snug mt-0.5">
+                      {t(tier.hint, tier.hintEs)}
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
