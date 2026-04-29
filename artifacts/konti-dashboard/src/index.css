@@ -69,9 +69,12 @@
 
 /* KONTi Brand Colors:
    #1C1814 — near-black warm brown
+   #2A2622 — graphite (softer dark surface for hero/report headers)
    #E6EAEB — near-white cool gray
-   #778894 — slate blue-gray
+   #F4F2EE — paper (warm off-white for the report's light mode)
+   #778894 — slate blue-gray (the official "KONTi gray" used for soft surfaces)
    #4F5E2A — olive green (primary accent)
+   #A3B38C — sage (secondary accent / chart color)
 */
 
 :root {
@@ -223,11 +226,19 @@
   .konti-olive { color: #4F5E2A; }
   .konti-slate { color: #778894; }
   .konti-dark { color: #1C1814; }
+  .konti-graphite { color: #2A2622; }
   .konti-light { color: #E6EAEB; }
+  .konti-paper { color: #F4F2EE; }
+  .konti-sage { color: #A3B38C; }
   .bg-konti-olive { background-color: #4F5E2A; }
   .bg-konti-dark { background-color: #1C1814; }
+  .bg-konti-graphite { background-color: #2A2622; }
   .bg-konti-light { background-color: #E6EAEB; }
+  .bg-konti-paper { background-color: #F4F2EE; }
   .bg-konti-slate { background-color: #778894; }
+  .bg-konti-sage { background-color: #A3B38C; }
+  .border-konti-slate { border-color: #778894; }
+  .border-konti-olive { border-color: #4F5E2A; }
   
   .no-default-hover-elevate {}
   .no-default-active-elevate {}

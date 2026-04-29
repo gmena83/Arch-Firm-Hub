@@ -27,13 +27,13 @@ export function ContractorMonitoringSection({ projectId, variant = "report" }: P
     <section data-testid="contractor-monitoring-section">
       <h2 className={isCard
         ? "text-konti-dark text-xs font-semibold uppercase tracking-widest mb-3"
-        : "text-white/40 text-xs font-semibold uppercase tracking-widest mb-4"
+        : "text-[color:var(--rep-fg-faint)] text-xs font-semibold uppercase tracking-widest mb-4"
       }>
         {t("Contractor Monitoring", "Monitoreo del Contratista")}
       </h2>
       <div className={isCard
         ? "rounded-lg border border-konti-olive/20 bg-white divide-y divide-konti-olive/10"
-        : "bg-white/5 rounded-xl border border-white/10 divide-y divide-white/5"
+        : "bg-[color:var(--rep-surface)] rounded-xl border border-[color:var(--rep-border)] divide-y divide-[color:var(--rep-border)]"
       }>
         {rows.map((row) => {
           const style = STATUS_STYLES[row.status] ?? STATUS_STYLES["ok"]!;
@@ -43,9 +43,9 @@ export function ContractorMonitoringSection({ projectId, variant = "report" }: P
           return (
             <div key={row.id} className="px-4 py-3 flex items-start justify-between gap-3" data-testid={`monitoring-row-${row.type}`}>
               <div className="min-w-0">
-                <p className={isCard ? "text-konti-dark font-semibold text-sm" : "text-white font-semibold text-sm"}>{label}</p>
-                <p className={isCard ? "text-konti-dark/70 text-xs mt-0.5 break-words" : "text-white/60 text-xs mt-0.5 break-words"}>{summary}</p>
-                <p className={isCard ? "text-konti-dark/40 text-[10px] mt-1" : "text-white/30 text-[10px] mt-1"}>{row.updatedAt}</p>
+                <p className={isCard ? "text-konti-dark font-semibold text-sm" : "text-[color:var(--rep-fg-strong)] font-semibold text-sm"}>{label}</p>
+                <p className={isCard ? "text-konti-dark/70 text-xs mt-0.5 break-words" : "text-[color:var(--rep-fg-muted)] text-xs mt-0.5 break-words"}>{summary}</p>
+                <p className={isCard ? "text-konti-dark/40 text-[10px] mt-1" : "text-[color:var(--rep-fg-faint)] text-[10px] mt-1"}>{row.updatedAt}</p>
               </div>
               <span className={`shrink-0 px-2 py-1 rounded-md border text-[10px] font-bold whitespace-nowrap inline-flex items-center gap-1 ${style.bg} ${style.text}`}>
                 <style.Icon className="w-3 h-3" /> {statusLabel}
