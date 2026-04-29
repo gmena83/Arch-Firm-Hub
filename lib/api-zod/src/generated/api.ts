@@ -31,6 +31,9 @@ export const LoginResponse = zod.object({
     email: zod.string(),
     role: zod.enum(["admin", "superadmin", "architect", "client"]),
     avatar: zod.string().optional(),
+    phone: zod.string().optional(),
+    postalAddress: zod.string().optional(),
+    physicalAddress: zod.string().optional(),
   }),
 });
 
@@ -236,7 +239,7 @@ export const GetProjectDocumentsResponse = zod.array(
 );
 
 /**
- * @summary Register a document metadata row for a project (team/admin/superadmin)
+ * @summary Register a document metadata row for a project (team/admin/superadmin or owning client)
  */
 export const CreateProjectDocumentParams = zod.object({
   projectId: zod.coerce.string(),
@@ -277,6 +280,58 @@ export const CreateProjectDocumentBody = zod.object({
     .string()
     .optional()
     .describe("Optional MIME type captured at upload time."),
+});
+
+/**
+ * @summary Update document metadata (team/admin/superadmin) — toggles client visibility
+ */
+export const UpdateProjectDocumentParams = zod.object({
+  projectId: zod.coerce.string(),
+  documentId: zod.coerce.string(),
+});
+
+export const UpdateProjectDocumentBody = zod.object({
+  isClientVisible: zod
+    .boolean()
+    .describe(
+      "Toggle whether the document is visible in the client-facing document list.",
+    ),
+});
+
+export const UpdateProjectDocumentResponse = zod.object({
+  id: zod.string(),
+  projectId: zod.string(),
+  name: zod.string(),
+  type: zod.enum(["pdf", "excel", "pptx", "photo", "other"]),
+  category: zod.enum([
+    "client_review",
+    "internal",
+    "permits",
+    "construction",
+    "design",
+  ]),
+  designSubPhase: zod
+    .enum(["schematic_design", "design_development", "construction_documents"])
+    .optional()
+    .describe("Optional Phase-3 sub-phase tag (SD\/DD\/CD)."),
+  isClientVisible: zod.boolean(),
+  uploadedBy: zod.string(),
+  uploadedAt: zod.string(),
+  fileSize: zod.string(),
+  description: zod.string().optional(),
+  previewable: zod.boolean().optional(),
+  versions: zod
+    .array(
+      zod.object({
+        version: zod.number(),
+        uploadedBy: zod.string(),
+        uploadedAt: zod.string(),
+        fileSize: zod.string(),
+        notes: zod.string().optional(),
+        notesEs: zod.string().optional(),
+      }),
+    )
+    .optional(),
 });
 
 /**
@@ -1073,7 +1128,7 @@ export const ListStructuralEngineersResponse = zod.array(
 );
 
 /**
- * @summary Get the Cost-Plus budget breakdown for a project
+ * @summary Get the Cost-Plus budget breakdown for a project (team or owning client)
  */
 export const GetProjectCostPlusParams = zod.object({
   id: zod.coerce.string(),
@@ -1090,6 +1145,141 @@ export const GetProjectCostPlusResponse = zod.object({
   finalTotal: zod.number(),
   notes: zod.string().optional(),
   notesEs: zod.string().optional(),
+  nonBillableExpenses: zod
+    .array(
+      zod.object({
+        id: zod.string(),
+        date: zod.string().describe("ISO date YYYY-MM-DD."),
+        category: zod.string(),
+        categoryEs: zod.string(),
+        description: zod.string(),
+        descriptionEs: zod.string(),
+        amount: zod.number(),
+        paidBy: zod.string(),
+      }),
+    )
+    .optional(),
+  nonBillableTotal: zod.number().optional(),
+});
+
+/**
+ * @summary List invoices for a project (team or owning client)
+ */
+export const GetProjectInvoicesParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const GetProjectInvoicesResponse = zod.object({
+  projectId: zod.string(),
+  invoices: zod.array(
+    zod.object({
+      id: zod.string(),
+      projectId: zod.string(),
+      number: zod.string(),
+      title: zod.string(),
+      titleEs: zod.string(),
+      total: zod.number(),
+      paid: zod.number(),
+      balance: zod.number(),
+      status: zod.enum(["draft", "sent", "partial", "paid", "overdue"]),
+      issuedAt: zod.string().describe("ISO date YYYY-MM-DD."),
+      dueAt: zod.string().describe("ISO date YYYY-MM-DD."),
+    }),
+  ),
+});
+
+/**
+ * @summary Contractor-monitoring narrative rows (team or owning client)
+ */
+export const GetProjectContractorMonitoringParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const GetProjectContractorMonitoringResponse = zod.object({
+  projectId: zod.string(),
+  rows: zod.array(
+    zod.object({
+      id: zod.string(),
+      type: zod.enum([
+        "delays",
+        "weather",
+        "issues",
+        "changes",
+        "breaches",
+        "rework",
+      ]),
+      labelEn: zod.string(),
+      labelEs: zod.string(),
+      status: zod.enum(["ok", "watch", "issue"]),
+      summaryEn: zod.string(),
+      summaryEs: zod.string(),
+      updatedAt: zod.string().describe("ISO date YYYY-MM-DD."),
+    }),
+  ),
+});
+
+/**
+ * @summary Recent project activity entries (team always; owning client allowed)
+ */
+export const GetProjectAuditLogParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const GetProjectAuditLogQueryParams = zod.object({
+  clientOnly: zod.coerce
+    .boolean()
+    .optional()
+    .describe("When true, restricts the feed to client-driven activity types."),
+});
+
+export const GetProjectAuditLogResponse = zod.object({
+  projectId: zod.string(),
+  entries: zod.array(
+    zod.object({
+      id: zod.string(),
+      timestamp: zod.string(),
+      type: zod.string(),
+      actor: zod.string(),
+      description: zod.string(),
+      descriptionEs: zod.string(),
+    }),
+  ),
+});
+
+/**
+ * @summary Get the authenticated user (refreshed from server-side state)
+ */
+export const GetMeResponse = zod.object({
+  id: zod.string(),
+  name: zod.string(),
+  email: zod.string(),
+  role: zod.enum(["admin", "superadmin", "architect", "client"]),
+  avatar: zod.string().optional(),
+  phone: zod.string().optional(),
+  postalAddress: zod.string().optional(),
+  physicalAddress: zod.string().optional(),
+});
+
+/**
+ * @summary Update the authenticated user's editable contact fields
+ */
+export const UpdateMeBody = zod
+  .object({
+    phone: zod.string().optional(),
+    postalAddress: zod.string().optional(),
+    physicalAddress: zod.string().optional(),
+  })
+  .describe("Editable contact fields for the authenticated user.");
+
+export const UpdateMeResponse = zod.object({
+  id: zod.string(),
+  name: zod.string(),
+  email: zod.string(),
+  role: zod.enum(["admin", "superadmin", "architect", "client"]),
+  avatar: zod.string().optional(),
+  phone: zod.string().optional(),
+  postalAddress: zod.string().optional(),
+  physicalAddress: zod.string().optional(),
 });
 
 /**

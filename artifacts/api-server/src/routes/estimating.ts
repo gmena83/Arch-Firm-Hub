@@ -7,6 +7,7 @@ import {
   appendActivity,
 } from "../data/seed";
 import { requireRole } from "../middlewares/require-role";
+import { enforceClientOwnership } from "../middlewares/client-ownership";
 
 const router: IRouter = Router();
 
@@ -353,7 +354,9 @@ router.post("/projects/:id/report-template", requireRole(["team", "admin", "supe
 });
 
 router.get("/projects/:id/report-template", requireRole(["team","admin","superadmin","architect","client"]), (req, res) => {
-  const tpl = PROJECT_REPORT_TEMPLATE[req.params["id"] as string];
+  const id = req.params["id"] as string;
+  if (!enforceClientOwnership(req, res, id)) return;
+  const tpl = PROJECT_REPORT_TEMPLATE[id];
   if (!tpl) { res.status(404).json({ error: "not_found", message: "No template saved" }); return; }
   res.json(tpl);
 });
@@ -515,6 +518,7 @@ router.post("/projects/:id/contractor-estimate", requireRole(["team", "admin", "
 
 router.get("/projects/:id/contractor-estimate", requireRole(["team","admin","superadmin","architect","client"]), (req, res) => {
   const id = req.params["id"] as string;
+  if (!enforceClientOwnership(req, res, id)) return;
   const est = PROJECT_CONTRACTOR_ESTIMATE[id];
   if (!est) { res.status(404).json({ error: "no_estimate", message: "No contractor estimate yet." }); return; }
   res.json(est);

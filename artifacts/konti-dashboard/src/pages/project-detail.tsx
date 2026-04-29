@@ -9,6 +9,7 @@ import {
   useGetProjectDocuments,
   useGetProjectCalculations,
   useCreateProjectDocument,
+  useUpdateProjectDocument,
   getGetProjectQueryKey,
   getGetProjectTasksQueryKey,
   getGetProjectWeatherQueryKey,
@@ -38,6 +39,9 @@ import { ProposalsPanel } from "@/components/proposals-panel";
 import { ChangeOrdersPanel } from "@/components/change-orders-panel";
 import PermitsPanel from "@/components/permits-panel";
 import { CostPlusBudget } from "@/components/cost-plus-budget";
+import { ProjectInvoices } from "@/components/project-invoices";
+import { ClientActivityCard } from "@/components/client-activity-card";
+import { ContractorMonitoringSection } from "@/components/contractor-monitoring-section";
 import { InspectionsSection } from "@/components/inspections-section";
 import { PunchlistPanel } from "@/components/punchlist-panel";
 import { MilestonesTimeline } from "@/components/milestones-timeline";
@@ -84,7 +88,15 @@ function inferDocType(file: File): "pdf" | "excel" | "pptx" | "photo" | "other" 
   return "other";
 }
 
-function UploadModal({ onClose, projectId }: { onClose: () => void; projectId: string }) {
+function UploadModal({
+  onClose,
+  projectId,
+  lockedToClientReview = false,
+}: {
+  onClose: () => void;
+  projectId: string;
+  lockedToClientReview?: boolean;
+}) {
   const { t } = useLang();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -122,14 +134,15 @@ function UploadModal({ onClose, projectId }: { onClose: () => void; projectId: s
         });
         return;
       }
+      const effectiveCategory: "client_review" | "internal" = lockedToClientReview ? "client_review" : category;
       try {
         await createDocument.mutateAsync({
           projectId,
           data: {
             name: file.name,
-            category,
+            category: effectiveCategory,
             type: inferDocType(file),
-            isClientVisible: category === "client_review",
+            isClientVisible: effectiveCategory === "client_review",
             fileSize: formatFileSize(file.size),
             mimeType: file.type || "application/octet-stream",
           },
@@ -172,7 +185,7 @@ function UploadModal({ onClose, projectId }: { onClose: () => void; projectId: s
         });
       }
     },
-    [createDocument, projectId, category, queryClient, toast, t, onClose],
+    [createDocument, projectId, category, lockedToClientReview, queryClient, toast, t, onClose],
   );
 
   const onPickFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -201,23 +214,35 @@ function UploadModal({ onClose, projectId }: { onClose: () => void; projectId: s
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium mb-2">{t("Category", "Categoría")}</label>
-            <div className="flex gap-2">
-              {(["client_review", "internal"] as const).map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setCategory(cat)}
-                  data-testid={`btn-category-${cat}`}
-                  disabled={isUploading}
-                  className={`flex-1 py-2 px-3 rounded-md text-sm font-medium border transition-colors ${
-                    category === cat
-                      ? "bg-konti-olive text-white border-konti-olive"
-                      : "border-border text-muted-foreground hover:bg-muted/50"
-                  }`}
-                >
-                  {cat === "client_review" ? t("Client Review", "Revisión del Cliente") : t("Internal", "Interno")}
-                </button>
-              ))}
-            </div>
+            {lockedToClientReview ? (
+              <div
+                data-testid="locked-category-client-review"
+                className="py-2 px-3 rounded-md text-sm font-medium border bg-konti-olive text-white border-konti-olive flex items-center justify-between"
+              >
+                <span>{t("Client Review", "Revisión del Cliente")}</span>
+                <span className="text-[11px] uppercase tracking-wider opacity-80">
+                  {t("Locked", "Bloqueado")}
+                </span>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                {(["client_review", "internal"] as const).map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => setCategory(cat)}
+                    data-testid={`btn-category-${cat}`}
+                    disabled={isUploading}
+                    className={`flex-1 py-2 px-3 rounded-md text-sm font-medium border transition-colors ${
+                      category === cat
+                        ? "bg-konti-olive text-white border-konti-olive"
+                        : "border-border text-muted-foreground hover:bg-muted/50"
+                    }`}
+                  >
+                    {cat === "client_review" ? t("Client Review", "Revisión del Cliente") : t("Internal", "Interno")}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           <input
@@ -529,10 +554,35 @@ function ChangeOrderDelta({ projectId }: { projectId: string }) {
   );
 }
 
-function DocCard({ doc, isClientView }: { doc: Document; isClientView: boolean }) {
+function DocCard({ doc, isClientView, projectId }: { doc: Document; isClientView: boolean; projectId: string }) {
   const { t, lang } = useLang();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [showVersions, setShowVersions] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const updateDoc = useUpdateProjectDocument({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getGetProjectDocumentsQueryKey(projectId) });
+        toast({
+          title: doc.isClientVisible
+            ? t("Hidden from client", "Oculto al cliente")
+            : t("Visible to client", "Visible al cliente"),
+        });
+      },
+      onError: () => {
+        toast({ title: t("Could not update visibility", "No se pudo actualizar la visibilidad"), variant: "destructive" });
+      },
+    },
+  });
+  const onToggleVisibility = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    updateDoc.mutate({
+      projectId,
+      documentId: doc.id,
+      data: { isClientVisible: !doc.isClientVisible },
+    });
+  };
 
   const catColors: Record<string, string> = {
     client_review: "bg-sky-100 text-sky-800",
@@ -595,6 +645,39 @@ function DocCard({ doc, isClientView }: { doc: Document; isClientView: boolean }
               </div>
             </div>
           </div>
+          {!isClientView && (
+            <button
+              onClick={onToggleVisibility}
+              disabled={updateDoc.isPending}
+              className={`p-1 transition-colors shrink-0 mt-0.5 disabled:opacity-50 ${
+                doc.isClientVisible
+                  ? "text-konti-olive hover:text-konti-olive/80"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              data-testid={`btn-toggle-visibility-${doc.id}`}
+              aria-label={
+                doc.isClientVisible
+                  ? t("Hide from client", "Ocultar al cliente")
+                  : t("Make visible to client", "Hacer visible al cliente")
+              }
+              title={
+                doc.isClientVisible
+                  ? t("Visible to client — click to hide", "Visible al cliente — clic para ocultar")
+                  : t("Hidden from client — click to share", "Oculto al cliente — clic para compartir")
+              }
+            >
+              {doc.isClientVisible ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+            </button>
+          )}
+          {isClientView && doc.isClientVisible && (
+            <span
+              data-testid={`badge-client-visible-${doc.id}`}
+              className="shrink-0 mt-0.5 text-xs px-1.5 py-0.5 rounded bg-konti-olive/10 text-konti-olive border border-konti-olive/30 flex items-center gap-1"
+              title={t("Shared with you", "Compartido contigo")}
+            >
+              <Eye className="w-3 h-3" />
+            </span>
+          )}
           {hasVersions && (
             <button
               onClick={() => setShowVersions((v) => !v)}
@@ -1135,6 +1218,8 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
             <CostPlusBudget projectId={projectId} isClientView={isClientView} />
           )}
 
+          <ProjectInvoices projectId={projectId} />
+
           {/* Budget */}
           <div className="bg-card rounded-xl border border-card-border p-5 shadow-sm">
             <h2 className="font-bold text-foreground mb-3">{t("Budget", "Presupuesto")}</h2>
@@ -1155,6 +1240,18 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
             <p className="text-xs text-muted-foreground">{spendPct}% {t("used", "utilizado")}</p>
             <ChangeOrderDelta projectId={projectId} />
           </div>
+
+          {/* Team-only: client activity audit log */}
+          {!isClientView && (
+            <ClientActivityCard projectId={projectId} />
+          )}
+
+          {/* Team-only: contractor monitoring narrative card */}
+          {!isClientView && (
+            <div className="bg-card rounded-xl border border-card-border p-5 shadow-sm" data-testid="contractor-monitoring-card">
+              <ContractorMonitoringSection projectId={projectId} variant="card" />
+            </div>
+          )}
 
           {/* Team */}
           {!isClientView && project.teamMembers && (
@@ -1225,19 +1322,17 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
           <div className="bg-card rounded-xl border border-card-border p-5 shadow-sm">
             <div className="flex items-center justify-between mb-3">
               <h2 className="font-bold text-foreground">{t("Documents", "Documentos")}</h2>
-              {!isClientView && (
-                <button
-                  onClick={() => setShowUpload(true)}
-                  data-testid="btn-upload-document"
-                  className="flex items-center gap-1 text-xs text-konti-olive hover:text-konti-olive/80 font-medium transition-colors"
-                >
-                  <Upload className="w-3.5 h-3.5" /> {t("Upload", "Subir")}
-                </button>
-              )}
+              <button
+                onClick={() => setShowUpload(true)}
+                data-testid="btn-upload-document"
+                className="flex items-center gap-1 text-xs text-konti-olive hover:text-konti-olive/80 font-medium transition-colors"
+              >
+                <Upload className="w-3.5 h-3.5" /> {t("Upload", "Subir")}
+              </button>
             </div>
             <div className="space-y-1.5">
               {docs.map((doc) => (
-                <DocCard key={doc.id} doc={doc} isClientView={isClientView} />
+                <DocCard key={doc.id} doc={doc} isClientView={isClientView} projectId={projectId} />
               ))}
               {docs.length === 0 && (
                 <p className="text-xs text-muted-foreground text-center py-4">{t("No documents available.", "No hay documentos disponibles.")}</p>
@@ -1247,7 +1342,13 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
         </div>
       </div>
 
-      {showUpload && <UploadModal onClose={() => setShowUpload(false)} projectId={projectId} />}
+      {showUpload && (
+        <UploadModal
+          onClose={() => setShowUpload(false)}
+          projectId={projectId}
+          lockedToClientReview={isClientView}
+        />
+      )}
     </div>
   );
 }

@@ -34,11 +34,107 @@ export interface User {
   email: string;
   role: UserRole;
   avatar?: string;
+  phone?: string;
+  postalAddress?: string;
+  physicalAddress?: string;
 }
 
 export interface LoginResponse {
   token: string;
   user: User;
+}
+
+/**
+ * Editable contact fields for the authenticated user.
+ */
+export interface UserUpdateRequest {
+  phone?: string;
+  postalAddress?: string;
+  physicalAddress?: string;
+}
+
+export type ProjectInvoiceStatus =
+  (typeof ProjectInvoiceStatus)[keyof typeof ProjectInvoiceStatus];
+
+export const ProjectInvoiceStatus = {
+  draft: "draft",
+  sent: "sent",
+  partial: "partial",
+  paid: "paid",
+  overdue: "overdue",
+} as const;
+
+export interface ProjectInvoice {
+  id: string;
+  projectId: string;
+  number: string;
+  title: string;
+  titleEs: string;
+  total: number;
+  paid: number;
+  balance: number;
+  status: ProjectInvoiceStatus;
+  /** ISO date YYYY-MM-DD. */
+  issuedAt: string;
+  /** ISO date YYYY-MM-DD. */
+  dueAt: string;
+}
+
+export interface ProjectInvoicesResponse {
+  projectId: string;
+  invoices: ProjectInvoice[];
+}
+
+export type ContractorMonitoringRowType =
+  (typeof ContractorMonitoringRowType)[keyof typeof ContractorMonitoringRowType];
+
+export const ContractorMonitoringRowType = {
+  delays: "delays",
+  weather: "weather",
+  issues: "issues",
+  changes: "changes",
+  breaches: "breaches",
+  rework: "rework",
+} as const;
+
+export type ContractorMonitoringRowStatus =
+  (typeof ContractorMonitoringRowStatus)[keyof typeof ContractorMonitoringRowStatus];
+
+export const ContractorMonitoringRowStatus = {
+  ok: "ok",
+  watch: "watch",
+  issue: "issue",
+} as const;
+
+export interface ContractorMonitoringRow {
+  id: string;
+  type: ContractorMonitoringRowType;
+  labelEn: string;
+  labelEs: string;
+  status: ContractorMonitoringRowStatus;
+  summaryEn: string;
+  summaryEs: string;
+  /** ISO date YYYY-MM-DD. */
+  updatedAt: string;
+}
+
+export interface ContractorMonitoringResponse {
+  projectId: string;
+  rows: ContractorMonitoringRow[];
+}
+
+export interface ProjectActivity {
+  id: string;
+  timestamp: string;
+  type: string;
+  actor: string;
+  description: string;
+  descriptionEs: string;
+}
+
+export interface ProjectAuditLogResponse {
+  projectId: string;
+  entries: ProjectActivity[];
 }
 
 export interface ProjectCreateRequest {
@@ -263,6 +359,11 @@ export interface DocumentCreateRequest {
   description?: string;
   /** Optional MIME type captured at upload time. */
   mimeType?: string;
+}
+
+export interface DocumentUpdateRequest {
+  /** Toggle whether the document is visible in the client-facing document list. */
+  isClientVisible: boolean;
 }
 
 export type MaterialCategory =
@@ -780,6 +881,18 @@ export interface StructuralEngineer {
   specialtyEs: string;
 }
 
+export interface NonBillableExpense {
+  id: string;
+  /** ISO date YYYY-MM-DD. */
+  date: string;
+  category: string;
+  categoryEs: string;
+  description: string;
+  descriptionEs: string;
+  amount: number;
+  paidBy: string;
+}
+
 export interface CostPlusBudget {
   projectId: string;
   materialsCost: number;
@@ -791,6 +904,8 @@ export interface CostPlusBudget {
   finalTotal: number;
   notes?: string;
   notesEs?: string;
+  nonBillableExpenses?: NonBillableExpense[];
+  nonBillableTotal?: number;
 }
 
 export type InspectionType =
@@ -926,15 +1041,6 @@ export interface WeeklyReport {
   title: string;
   titleEs: string;
   url: string;
-}
-
-export interface ProjectActivity {
-  id: string;
-  timestamp: string;
-  type: string;
-  actor: string;
-  description: string;
-  descriptionEs: string;
 }
 
 export interface PreDesignData {
@@ -1115,6 +1221,13 @@ export type SetChangeOrderStatusBody = {
 export type SetChangeOrderStatus200 = {
   projectId?: string;
   changeOrder?: ChangeOrder;
+};
+
+export type GetProjectAuditLogParams = {
+  /**
+   * When true, restricts the feed to client-driven activity types.
+   */
+  clientOnly?: boolean;
 };
 
 export type CreateInspectionBodyType =

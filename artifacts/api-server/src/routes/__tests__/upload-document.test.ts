@@ -206,9 +206,12 @@ test("upload to a nonexistent project returns 404 with a structured error", asyn
   });
 });
 
-test("client cannot upload documents (403)", async () => {
+test("non-owner client cannot upload documents (403)", async () => {
+  // Client uploads are now allowed for owning clients only (forced to
+  // category=client_review and isClientVisible=true server-side). A
+  // non-owning client must still be rejected at the ownership gate.
   await withServer(async (baseUrl) => {
-    const token = await login(baseUrl, "client@konti.com");
+    const token = await login(baseUrl, "client2@konti.com");
     const res = await fetch(`${baseUrl}/api/projects/proj-1/documents`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },

@@ -5,6 +5,7 @@
  * KONTi Design | Build Studio - Project Management API
  * OpenAPI spec version: 0.1.0
  */
+import type { NonBillableExpense } from "./nonBillableExpense";
 
 export interface CostPlusBudget {
   projectId: string;
@@ -17,4 +18,6 @@ export interface CostPlusBudget {
   finalTotal: number;
   notes?: string;
   notesEs?: string;
+  nonBillableExpenses?: NonBillableExpense[];
+  nonBillableTotal?: number;
 }

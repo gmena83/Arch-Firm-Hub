@@ -5,14 +5,11 @@
  * KONTi Design | Build Studio - Project Management API
  * OpenAPI spec version: 0.1.0
  */
-import type { UserRole } from "./userRole";
 
-export interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: UserRole;
-  avatar?: string;
+/**
+ * Editable contact fields for the authenticated user.
+ */
+export interface UserUpdateRequest {
   phone?: string;
   postalAddress?: string;
   physicalAddress?: string;

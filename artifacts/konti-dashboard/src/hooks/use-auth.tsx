@@ -8,6 +8,9 @@ interface AuthUser {
   email: string;
   role: "admin" | "superadmin" | "architect" | "client";
   avatar: string;
+  phone?: string;
+  postalAddress?: string;
+  physicalAddress?: string;
 }
 
 interface AuthState {
@@ -20,6 +23,7 @@ interface AuthContextType extends AuthState {
   login: (token: string, user: AuthUser) => void;
   logout: () => void;
   setViewRole: (role: "team" | "client") => void;
+  updateUser: (patch: Partial<AuthUser>) => void;
   isAuthenticated: boolean;
 }
 
@@ -75,6 +79,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  const updateUser = (patch: Partial<AuthUser>) => {
+    setAuth((prev) => {
+      if (!prev.user) return prev;
+      const next: AuthState = { ...prev, user: { ...prev.user, ...patch } };
+      localStorage.setItem("konti_auth", JSON.stringify(next));
+      return next;
+    });
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -82,6 +95,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         login,
         logout,
         setViewRole,
+        updateUser,
         isAuthenticated: !!auth.token,
       }}
     >

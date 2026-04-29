@@ -24,6 +24,8 @@ import {
   PROJECT_PERMIT_ITEMS,
   PERMIT_ITEM_STATE_ORDER,
   PROJECT_COST_PLUS,
+  PROJECT_INVOICES,
+  PROJECT_CONTRACTOR_MONITORING,
   PROJECT_INSPECTIONS,
   STRUCTURAL_ENGINEERS,
   PROJECT_MILESTONES,
@@ -58,31 +60,18 @@ const VALID_CHECKLIST_STATUS: ChecklistStatus[] = ["pending", "in_progress", "do
 const VALID_PROJECT_TYPES = ["residencial", "comercial", "mixto", "contenedor"] as const;
 const VALID_ZONING = /^[A-Z]{1,3}-[0-9]{1,2}$/;
 
-// Demo project ownership: maps client user ids to the projects they own.
-// The demo client account is associated with all three sample projects so
-// reviewers can exercise both the consultation gate and the in-flight project
-// views from a single login.
+// Shared ownership gate. Implementation lives in
+// middlewares/client-ownership.ts so estimating.ts can reuse it without
+// creating a circular import with this routes file. Re-exported here so
+// callers that previously imported from this module keep working.
+import { enforceClientOwnership } from "../middlewares/client-ownership";
+export { enforceClientOwnership };
+
+// Local helper retained for the PDF route at the bottom of this file.
 function clientCanAccessProject(userId: string, projectId: string): boolean {
   const project = PROJECTS.find((p) => p.id === projectId) as { clientUserId?: string } | undefined;
   if (!project || !project.clientUserId) return false;
   return project.clientUserId === userId;
-}
-
-// Shared ownership gate for every client-callable endpoint. When the caller is
-// a client, they must own the project or the request is rejected with 403.
-// Team/admin/superadmin callers bypass the ownership check (their role gate is
-// already enforced by requireRole). Returns true when the request may proceed.
-function enforceClientOwnership(
-  req: import("express").Request,
-  res: import("express").Response,
-  projectId: string,
-): boolean {
-  const user = (req as { user?: { id: string; role: string } }).user;
-  if (user?.role === "client" && !clientCanAccessProject(user.id, projectId)) {
-    res.status(403).json({ error: "forbidden", message: "Client cannot access this project" });
-    return false;
-  }
-  return true;
 }
 
 router.get("/projects", (_req, res) => {
@@ -185,11 +174,15 @@ router.get("/projects/:projectId/weather", (req, res) => {
 });
 
 // Records document metadata for an upload (in-memory backend, no binary stream).
-router.post("/projects/:projectId/documents", requireRole(["team", "admin", "superadmin"]), (req, res) => {
+router.post("/projects/:projectId/documents", requireRole(["team", "admin", "superadmin", "client"]), (req, res) => {
   const projectId = req.params["projectId"] as string;
   if (!PROJECTS.find((p) => p.id === projectId)) {
     return res.status(404).json({ error: "not_found", message: "Project not found" });
   }
+  // Clients may only upload to projects they own.
+  if (!enforceClientOwnership(req, res, projectId)) return;
+  const role = (req as { user?: { role?: string } }).user?.role;
+  const isClient = role === "client";
   const body = (req.body ?? {}) as {
     name?: string; type?: string; category?: string; isClientVisible?: boolean;
     fileSize?: string; description?: string; mimeType?: string;
@@ -198,6 +191,11 @@ router.post("/projects/:projectId/documents", requireRole(["team", "admin", "sup
     return res.status(400).json({ error: "bad_request", message: "name required" });
   }
   const ALLOWED_CATEGORIES = ["client_review", "internal", "permits", "construction", "design"] as const;
+  // Clients are locked to "client_review" + always client-visible.
+  if (isClient) {
+    body.category = "client_review";
+    body.isClientVisible = true;
+  }
   if (
     typeof body.category !== "string" ||
     !(ALLOWED_CATEGORIES as readonly string[]).includes(body.category)
@@ -234,32 +232,80 @@ router.post("/projects/:projectId/documents", requireRole(["team", "admin", "sup
     description: body.description ?? "",
   };
   (DOCUMENTS as Record<string, unknown[]>)[projectId] = [...list, doc];
-  // Surface upload in the project timeline (closest existing activity type).
+  // Surface upload in the project timeline. Use a dedicated audit type when
+  // the uploader is a client so the team's audit log can highlight it.
+  const actor = (req as { user?: { name?: string } }).user?.name ?? (isClient ? "Client" : "Team");
   appendActivity(projectId, {
-    type: "receipts_upload",
-    actor: (req as { user?: { name?: string } }).user?.name ?? "Team",
+    type: isClient ? "client_upload" : "receipts_upload",
+    actor,
     description: `Document "${doc.name}" uploaded to ${body.category}`,
     descriptionEs: `Documento "${doc.name}" subido a ${body.category}`,
   });
   return res.status(201).json(doc);
 });
 
-router.get("/projects/:projectId/documents", (req, res) => {
-  const projectId = req.params["projectId"];
-  const clientVisible = req.query["clientVisible"];
-  let docs = (DOCUMENTS[projectId as keyof typeof DOCUMENTS] ?? []) as Array<{
-    id: string; projectId: string; name: string; type: string; category: string;
-    isClientVisible: boolean; uploadedBy: string; uploadedAt: string; fileSize: string; description: string;
-  }>;
+// Team-only: toggle document visibility (and other safe metadata fields).
+router.patch(
+  "/projects/:projectId/documents/:documentId",
+  requireRole(["team", "admin", "superadmin"]),
+  (req, res) => {
+    const projectId = req.params["projectId"] as string;
+    const documentId = req.params["documentId"] as string;
+    if (!PROJECTS.find((p) => p.id === projectId)) {
+      return res.status(404).json({ error: "not_found", message: "Project not found" });
+    }
+    const list = (DOCUMENTS as Record<string, Array<{ id: string; name: string; isClientVisible: boolean }>>)[projectId] ?? [];
+    const doc = list.find((d) => d.id === documentId);
+    if (!doc) return res.status(404).json({ error: "not_found", message: "Document not found" });
+    const body = (req.body ?? {}) as { isClientVisible?: boolean };
+    if (typeof body.isClientVisible !== "boolean") {
+      return res.status(400).json({ error: "bad_request", message: "isClientVisible (boolean) required" });
+    }
+    const previous = doc.isClientVisible;
+    doc.isClientVisible = body.isClientVisible;
+    if (previous !== doc.isClientVisible) {
+      const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
+      const visEn = doc.isClientVisible ? "visible to client" : "hidden from client";
+      const visEs = doc.isClientVisible ? "visible al cliente" : "oculto al cliente";
+      appendActivity(projectId, {
+        type: "document_visibility_change",
+        actor,
+        description: `Document "${doc.name}" marked ${visEn}`,
+        descriptionEs: `Documento "${doc.name}" marcado ${visEs}`,
+      });
+    }
+    return res.json(doc);
+  },
+);
 
-  if (clientVisible === "true") {
-    docs = docs.filter((d) => d.isClientVisible);
-  } else if (clientVisible === "false") {
-    docs = docs.filter((d) => !d.isClientVisible);
-  }
+// Documents listing — gated by role + ownership. Clients are server-side
+// restricted to docs flagged isClientVisible so internal documents never
+// leave the API even if the dashboard's filter is bypassed.
+router.get(
+  "/projects/:projectId/documents",
+  requireRole(["team", "admin", "superadmin", "architect", "client"]),
+  (req, res) => {
+    const projectId = req.params["projectId"] as string;
+    if (!enforceClientOwnership(req, res, projectId)) return;
+    const role = (req as { user?: { role?: string } }).user?.role;
+    const clientVisible = req.query["clientVisible"];
+    let docs = (DOCUMENTS[projectId as keyof typeof DOCUMENTS] ?? []) as Array<{
+      id: string; projectId: string; name: string; type: string; category: string;
+      isClientVisible: boolean; uploadedBy: string; uploadedAt: string; fileSize: string; description: string;
+    }>;
 
-  return res.json(docs);
-});
+    if (role === "client") {
+      // Hard guarantee: clients never see internal docs from this endpoint.
+      docs = docs.filter((d) => d.isClientVisible);
+    } else if (clientVisible === "true") {
+      docs = docs.filter((d) => d.isClientVisible);
+    } else if (clientVisible === "false") {
+      docs = docs.filter((d) => !d.isClientVisible);
+    }
+
+    return res.json(docs);
+  },
+);
 
 router.get("/projects/:projectId/calculations", (req, res) => {
   const projectId = req.params["projectId"];
@@ -1388,12 +1434,53 @@ router.get("/structural-engineers", requireRole(["admin", "architect", "superadm
   res.json(STRUCTURAL_ENGINEERS);
 });
 
-router.get("/projects/:id/cost-plus", (req, res) => {
+router.get("/projects/:id/cost-plus", requireRole(["team", "client"]), (req, res) => {
   const project = PROJECTS.find((p) => p.id === req.params["id"]);
   if (!project) return res.status(404).json({ error: "not_found", message: "Project not found" });
+  if (!enforceClientOwnership(req, res, project.id)) return;
   const cp = PROJECT_COST_PLUS[project.id];
   if (!cp) return res.status(404).json({ error: "not_found", message: "Cost-plus budget not configured" });
   return res.json(cp);
+});
+
+router.get("/projects/:id/invoices", requireRole(["team", "client"]), (req, res) => {
+  const project = PROJECTS.find((p) => p.id === req.params["id"]);
+  if (!project) return res.status(404).json({ error: "not_found", message: "Project not found" });
+  if (!enforceClientOwnership(req, res, project.id)) return;
+  const invoices = PROJECT_INVOICES[project.id] ?? [];
+  return res.json({ projectId: project.id, invoices });
+});
+
+router.get("/projects/:id/contractor-monitoring", requireRole(["team", "client"]), (req, res) => {
+  const project = PROJECTS.find((p) => p.id === req.params["id"]);
+  if (!project) return res.status(404).json({ error: "not_found", message: "Project not found" });
+  if (!enforceClientOwnership(req, res, project.id)) return;
+  const rows = PROJECT_CONTRACTOR_MONITORING[project.id] ?? [];
+  return res.json({ projectId: project.id, rows });
+});
+
+// Last-100 client-facing activity feed. Team consumes this on the project page;
+// `?clientOnly=true` narrows to entries triggered by client behaviour. Clients
+// may only fetch the audit log for projects they own (enforceClientOwnership).
+router.get("/projects/:id/audit-log", requireRole(["team", "client", "admin", "superadmin"]), (req, res) => {
+  const project = PROJECTS.find((p) => p.id === req.params["id"]);
+  if (!project) return res.status(404).json({ error: "not_found", message: "Project not found" });
+  if (!enforceClientOwnership(req, res, project.id)) return;
+  const clientOnly = String(req.query["clientOnly"] ?? "").toLowerCase() === "true";
+  const CLIENT_TYPES = new Set([
+    "client_view",
+    "document_download",
+    "client_upload",
+    "profile_update",
+    "document_visibility_change",
+    "proposal_decision",
+    "change_order_decision",
+  ]);
+  const all = PROJECT_ACTIVITIES[project.id] ?? [];
+  const filtered = clientOnly ? all.filter((a) => CLIENT_TYPES.has(a.type)) : all;
+  // Most recent first, capped at 100 to keep payload small.
+  const sorted = [...filtered].sort((a, b) => (a.timestamp < b.timestamp ? 1 : -1)).slice(0, 100);
+  return res.json({ projectId: project.id, entries: sorted });
 });
 
 router.get("/projects/:id/inspections", (req, res) => {
