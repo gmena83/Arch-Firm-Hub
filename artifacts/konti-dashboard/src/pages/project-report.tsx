@@ -18,11 +18,9 @@ import { Check, ArrowLeft, MapPin, Calendar, TrendingUp, Download, Loader2, Sun,
 import logoWhite from "@assets/Horizontal02_WhitePNG_1776258303461.png";
 import logoGreen from "@assets/Horizontal02_VerdePNG_1776258303461.png";
 
-// KONTi-aligned chart palette: olive, slate, sage, dark warm, cool slate-tint
 const CHART_COLORS = ["#4F5E2A", "#778894", "#A3B38C", "#2A2622", "#9FB0BA"];
 
-// Industry-typical share of project budget per macro phase. Used to render the
-// "Budget by Phase" pie when no per-phase actuals are tracked. Sums to 1.00.
+// Industry-typical share of project budget per macro phase. Sums to 1.00.
 const PHASE_BUDGET_WEIGHTS: Record<string, number> = {
   discovery: 0.01,
   consultation: 0.01,
@@ -58,9 +56,6 @@ interface ThemeVars extends Record<string, string> {
   "--rep-border-strong": string;
 }
 
-// Contrast tuned to clear WCAG AA for the small/secondary text used in metric
-// labels and timeline captions. Faint tokens stay slightly below AA on purpose
-// (decorative date hints, divider stamps).
 const THEME_VARS: Record<ReportTheme, ThemeVars> = {
   light: {
     "--rep-bg": "#F4F2EE",
@@ -195,10 +190,7 @@ function ReportContent({ projectId }: { projectId: string }) {
 
   const themeStyle = THEME_VARS[theme];
 
-  // Macro phases — labels only, no numeric prefix (#94). Keep `num` internally
-  // to drive the "completed / current / upcoming" timeline state. Hoisted above
-  // the early return so its consumer hook (useMemo for phaseBudgetData) keeps a
-  // stable call order across renders.
+  // Hoisted above the early return so hook order stays stable.
   const phases = useMemo(() => [
     { key: "discovery", label: t("Discovery", "Descubrimiento"), num: 1 },
     { key: "consultation", label: t("Consultation", "Consulta"), num: 2 },
@@ -211,10 +203,6 @@ function ReportContent({ projectId }: { projectId: string }) {
     { key: "completed", label: t("Completed", "Completado"), num: 9 },
   ], [t]);
 
-  // Phase budget rollup — used by the new "Budget by Phase" pie (#93). Mirrors
-  // the punchlist phase chart pattern but slices the project's allocated budget
-  // by macro phase using industry-typical weights. Hoisted above the early
-  // return so React keeps the same hook order on the loading-vs-loaded renders.
   const budgetAllocated = project?.budgetAllocated ?? 0;
   const phaseBudgetData = useMemo(() => {
     if (budgetAllocated <= 0) return [] as Array<{ key: string; name: string; value: number }>;
@@ -276,16 +264,13 @@ function ReportContent({ projectId }: { projectId: string }) {
 
   return (
     <div
-      // The `dark` utility class flips Tailwind's global design tokens
-      // (`bg-card`, `text-foreground`, etc.) for any descendant — used so
-      // nested panels like `PunchlistPanel` track the report's theme without
-      // each one having to opt into the `--rep-*` variables individually.
+      // `dark` class flips global tokens for nested panels (e.g. PunchlistPanel).
       className={`min-h-screen bg-[color:var(--rep-bg)] text-[color:var(--rep-fg)] ${isLight ? "" : "dark"}`}
       data-testid="project-report-page"
       data-report-theme={theme}
       style={themeStyle as React.CSSProperties}
     >
-      {/* Header — tightened padding (#97) and enlarged logo. */}
+      {/* Header */}
       <div className="bg-[color:var(--rep-bg)] border-b border-[color:var(--rep-border)] px-4 sm:px-6 md:px-12 py-3 flex items-center justify-between gap-3 flex-wrap sticky top-0 z-10">
         <img src={reportLogo} alt="KONTi" className="h-10 sm:h-12 w-auto shrink-0" data-testid="report-logo" />
         <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
@@ -331,7 +316,7 @@ function ReportContent({ projectId }: { projectId: string }) {
             ))}
           </div>
         )}
-        {/* Hero section — phase badge no longer carries the "Phase X / 9" suffix (#94). */}
+        {/* Hero section */}
         <section className="text-center space-y-4">
           <div className="inline-block bg-konti-olive/20 text-konti-olive text-xs font-semibold px-4 py-1.5 rounded-full border border-konti-olive/30">
             {phaseLabel}
@@ -348,8 +333,7 @@ function ReportContent({ projectId }: { projectId: string }) {
           </div>
         </section>
 
-        {/* Key metrics — "weather status" card relabelled to "Site Conditions" (#95)
-            so it matches the section header used further down on the report. */}
+        {/* Key metrics */}
         <section>
           <h2 className="text-[color:var(--rep-fg-faint)] text-xs font-semibold uppercase tracking-widest mb-6">
             {t("Key Metrics", "Métricas Clave")}
@@ -388,8 +372,7 @@ function ReportContent({ projectId }: { projectId: string }) {
           </div>
         </section>
 
-        {/* Phase timeline — macro phases without numeric prefix (#94).
-            Completed → check, current → ring + dot, upcoming → empty dot. */}
+        {/* Phase timeline */}
         <section>
           <h2 className="text-[color:var(--rep-fg-faint)] text-xs font-semibold uppercase tracking-widest mb-6">
             {t("Phase Timeline", "Línea de Tiempo de Fases")}
@@ -456,8 +439,7 @@ function ReportContent({ projectId }: { projectId: string }) {
           </div>
         </section>
 
-        {/* Budget by phase — mirrors the punchlist phase chart, but slices the
-            project's allocated budget across macro phases (#93). */}
+        {/* Budget by phase */}
         {phaseBudgetTotal > 0 && (
           <section className="grid md:grid-cols-2 gap-8 items-center" data-testid="report-budget-by-phase">
             <div>
