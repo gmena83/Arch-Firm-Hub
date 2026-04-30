@@ -4,7 +4,8 @@ import { useSearch } from "wouter";
 import { AppLayout } from "@/components/layout/app-layout";
 import { RequireAuth } from "@/hooks/use-auth";
 import { useLang } from "@/hooks/use-lang";
-import { Calculator, Plus, X, FileText } from "lucide-react";
+import { Calculator, Plus, X, FileText, HelpCircle } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ContractorCalculator } from "@/components/estimating/contractor-calculator";
 import { ImportsPanel } from "@/components/estimating/imports-panel";
@@ -277,21 +278,39 @@ export default function CalculatorPage() {
   }, [search]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [overrides, setOverrides] = useState<Record<number, string>>({});
+  const [basePriceEdits, setBasePriceEdits] = useState<Record<number, string>>({});
+  const [qtyEdits, setQtyEdits] = useState<Record<number, string>>({});
   const [localEntries, setLocalEntries] = useState<LocalEntry[]>([]);
 
   const projectId = selectedProject || projects[0]?.id || "";
+
+  useEffect(() => {
+    setOverrides({});
+    setBasePriceEdits({});
+    setQtyEdits({});
+  }, [projectId]);
   const { data: calc, isLoading } = useGetProjectCalculations(projectId, {
     query: { enabled: !!projectId, queryKey: getGetProjectCalculationsQueryKey(projectId) }
   });
 
   const baseEntries: LocalEntry[] = (calc?.entries ?? []).map((e, i) => {
     const overrideVal = overrides[i] !== undefined && overrides[i] !== "" ? Number(overrides[i]) : null;
-    const effective = overrideVal ?? e.effectivePrice;
+    const baseEditRaw = basePriceEdits[i];
+    const baseVal = baseEditRaw !== undefined && baseEditRaw !== "" && isFinite(Number(baseEditRaw))
+      ? Number(baseEditRaw)
+      : e.basePrice;
+    const qtyEditRaw = qtyEdits[i];
+    const qtyVal = qtyEditRaw !== undefined && qtyEditRaw !== "" && isFinite(Number(qtyEditRaw))
+      ? Number(qtyEditRaw)
+      : e.quantity;
+    const effective = overrideVal ?? baseVal;
     return {
       ...e,
+      basePrice: baseVal,
+      quantity: qtyVal,
       manualPriceOverride: overrideVal,
       effectivePrice: effective,
-      lineTotal: effective * e.quantity,
+      lineTotal: effective * qtyVal,
     };
   });
 
@@ -370,7 +389,26 @@ export default function CalculatorPage() {
                       <th className="text-right px-4 py-3 font-semibold text-muted-foreground">{t("Qty", "Cant.")}</th>
                       <th className="text-right px-4 py-3 font-semibold text-muted-foreground">{t("Base Price", "P. Base")}</th>
                       <th className="text-right px-4 py-3 font-semibold text-muted-foreground">{t("Override", "Sobrescribir")}</th>
-                      <th className="text-right px-4 py-3 font-semibold text-muted-foreground">{t("Effective", "Efectivo")}</th>
+                      <th className="text-right px-4 py-3 font-semibold text-muted-foreground">
+                        <span className="inline-flex items-center justify-end gap-1" data-testid="effective-price-header">
+                          {t("Effective Price", "Precio Efectivo")}
+                          <TooltipProvider delayDuration={150}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button type="button" aria-label={t("What is the effective price?", "¿Qué es el precio efectivo?")} className="text-muted-foreground hover:text-foreground" data-testid="effective-price-help">
+                                  <HelpCircle className="w-3.5 h-3.5" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="max-w-[260px] text-xs leading-relaxed">
+                                {t(
+                                  "The Effective Price is the price actually used for this line. It equals the Override when set, otherwise the Base Price. An asterisk (*) marks rows where an override is active.",
+                                  "El Precio Efectivo es el precio realmente usado en la línea. Equivale al valor Sobrescribir cuando se ha ingresado, o al Precio Base cuando no. Un asterisco (*) marca las filas con sobrescritura activa."
+                                )}
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </span>
+                      </th>
                       <th className="text-right px-4 py-3 font-semibold text-muted-foreground">{t("Total", "Total")}</th>
                     </tr>
                   </thead>
@@ -389,12 +427,40 @@ export default function CalculatorPage() {
                           const globalIdx = allEntries.indexOf(entry);
                           const isLocal = globalIdx >= baseEntries.length;
                           return (
-                            <tr key={`${cat}-${entryIdx}`} className="hover:bg-muted/20 border-t border-border/50 transition-colors">
+                            <tr key={`${cat}-${entryIdx}`} className="hover:bg-muted/20 border-t border-border/50 transition-colors" data-testid={`calc-row-${globalIdx}`}>
                               <td className="px-4 py-2.5 font-medium text-foreground">{entry.materialName}</td>
                               <td className="px-4 py-2.5 text-muted-foreground hidden md:table-cell text-xs">{entry.category}</td>
                               <td className="px-4 py-2.5 text-right text-muted-foreground">{entry.unit}</td>
-                              <td className="px-4 py-2.5 text-right">{entry.quantity}</td>
-                              <td className="px-4 py-2.5 text-right text-muted-foreground">${entry.basePrice.toLocaleString()}</td>
+                              <td className="px-4 py-2.5 text-right">
+                                {!isLocal ? (
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    step="0.01"
+                                    value={qtyEdits[globalIdx] ?? String(entry.quantity)}
+                                    onChange={(e) => setQtyEdits((prev) => ({ ...prev, [globalIdx]: e.target.value }))}
+                                    data-testid={`calc-qty-${globalIdx}`}
+                                    className="w-20 px-2 py-1 rounded border border-input text-right text-sm bg-background"
+                                  />
+                                ) : (
+                                  entry.quantity
+                                )}
+                              </td>
+                              <td className="px-4 py-2.5 text-right text-muted-foreground">
+                                {!isLocal ? (
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    step="0.01"
+                                    value={basePriceEdits[globalIdx] ?? String(entry.basePrice)}
+                                    onChange={(e) => setBasePriceEdits((prev) => ({ ...prev, [globalIdx]: e.target.value }))}
+                                    data-testid={`calc-base-${globalIdx}`}
+                                    className="w-24 px-2 py-1 rounded border border-input text-right text-sm bg-background"
+                                  />
+                                ) : (
+                                  <>${entry.basePrice.toLocaleString()}</>
+                                )}
+                              </td>
                               <td className="px-4 py-2.5 text-right">
                                 {!isLocal ? (
                                   <input
@@ -403,6 +469,7 @@ export default function CalculatorPage() {
                                     value={overrides[globalIdx] ?? ""}
                                     onChange={(e) => setOverrides((prev) => ({ ...prev, [globalIdx]: e.target.value }))}
                                     placeholder="—"
+                                    data-testid={`calc-override-${globalIdx}`}
                                     className="w-20 px-2 py-1 rounded border border-input text-right text-sm bg-background"
                                   />
                                 ) : (
@@ -435,6 +502,14 @@ export default function CalculatorPage() {
                 </div>
                 <p className="text-4xl font-bold" data-testid="grand-total">${grandTotal.toLocaleString()}</p>
               </div>
+
+              <p className="text-[11px] text-muted-foreground" data-testid="effective-price-legend">
+                <span className="text-konti-olive font-semibold">*</span>{" "}
+                {t(
+                  "Effective Price uses the Override when set; otherwise the Base Price.",
+                  "El Precio Efectivo usa el valor Sobrescribir cuando está presente; en caso contrario, el Precio Base."
+                )}
+              </p>
 
               {/* Subtotals */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

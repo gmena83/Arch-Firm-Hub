@@ -1654,4 +1654,43 @@ router.patch("/projects/:id/milestones/:milestoneId", requireRole(["admin", "arc
   return res.json({ projectId: project.id, milestone: m });
 });
 
+// PATCH client contact info on a project (phone, postal address, physical address).
+// Lets team members maintain a per-project copy of the client's reach-out info
+// without forcing the client to update their own profile (CSV item #20).
+router.patch(
+  "/projects/:projectId/client-contact",
+  requireRole(["team", "admin", "superadmin"]),
+  (req, res) => {
+    const project = PROJECTS.find((p) => p.id === req.params["projectId"]);
+    if (!project) return res.status(404).json({ error: "not_found", message: "Project not found" });
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const next = project as typeof project & {
+      clientPhone?: string;
+      clientPostalAddress?: string;
+      clientPhysicalAddress?: string;
+    };
+    const apply = (key: "clientPhone" | "clientPostalAddress" | "clientPhysicalAddress") => {
+      if (body[key] !== undefined) {
+        const raw = body[key];
+        next[key] = typeof raw === "string" ? raw.trim() : "";
+      }
+    };
+    apply("clientPhone");
+    apply("clientPostalAddress");
+    apply("clientPhysicalAddress");
+    appendActivity(project.id, {
+      type: "client_contact_updated",
+      actor: (req as { user?: { name?: string } }).user?.name ?? "Team",
+      description: `Client contact info updated for ${project.clientName}.`,
+      descriptionEs: `Información de contacto del cliente actualizada para ${project.clientName}.`,
+    });
+    return res.json({
+      projectId: project.id,
+      clientPhone: next.clientPhone ?? "",
+      clientPostalAddress: next.clientPostalAddress ?? "",
+      clientPhysicalAddress: next.clientPhysicalAddress ?? "",
+    });
+  },
+);
+
 export default router;

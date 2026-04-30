@@ -65,6 +65,8 @@ import type {
   PreDesignData,
   Project,
   ProjectAuditLogResponse,
+  ProjectClientContact,
+  ProjectClientContactUpdate,
   ProjectCreateRequest,
   ProjectInvoicesResponse,
   ProjectTask,
@@ -3008,6 +3010,97 @@ export function useGetProjectAuditLog<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Update the project-level client contact info (team only).
+ */
+export const getUpdateProjectClientContactUrl = (projectId: string) => {
+  return `/api/projects/${projectId}/client-contact`;
+};
+
+export const updateProjectClientContact = async (
+  projectId: string,
+  projectClientContactUpdate: ProjectClientContactUpdate,
+  options?: RequestInit,
+): Promise<ProjectClientContact> => {
+  return customFetch<ProjectClientContact>(
+    getUpdateProjectClientContactUrl(projectId),
+    {
+      ...options,
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(projectClientContactUpdate),
+    },
+  );
+};
+
+export const getUpdateProjectClientContactMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateProjectClientContact>>,
+    TError,
+    { projectId: string; data: BodyType<ProjectClientContactUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateProjectClientContact>>,
+  TError,
+  { projectId: string; data: BodyType<ProjectClientContactUpdate> },
+  TContext
+> => {
+  const mutationKey = ["updateProjectClientContact"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateProjectClientContact>>,
+    { projectId: string; data: BodyType<ProjectClientContactUpdate> }
+  > = (props) => {
+    const { projectId, data } = props ?? {};
+
+    return updateProjectClientContact(projectId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateProjectClientContactMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateProjectClientContact>>
+>;
+export type UpdateProjectClientContactMutationBody =
+  BodyType<ProjectClientContactUpdate>;
+export type UpdateProjectClientContactMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Update the project-level client contact info (team only).
+ */
+export const useUpdateProjectClientContact = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateProjectClientContact>>,
+    TError,
+    { projectId: string; data: BodyType<ProjectClientContactUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateProjectClientContact>>,
+  TError,
+  { projectId: string; data: BodyType<ProjectClientContactUpdate> },
+  TContext
+> => {
+  return useMutation(getUpdateProjectClientContactMutationOptions(options));
+};
 
 /**
  * @summary Get the authenticated user (refreshed from server-side state)

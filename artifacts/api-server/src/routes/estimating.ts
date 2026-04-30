@@ -68,12 +68,18 @@ export interface ContractorEstimate {
   squareMeters: number;
   projectType: string;
   scope: string[];
+  bathrooms: number;
+  kitchens: number;
   lines: ContractorEstimateLine[];
   subtotalMaterials: number;
   subtotalLabor: number;
   subtotalSubcontractor: number;
   contingencyPercent: number;
   contingency: number;
+  marginPercent: number;
+  marginAmount: number;
+  managementFeePercent: number;
+  managementFeeAmount: number;
   grandTotal: number;
   generatedAt: string;
   generatedBy: string;
@@ -150,6 +156,9 @@ router.get("/estimating/materials", requireRole(["team","admin","superadmin","ar
 });
 
 // POST import materials from CSV body or JSON array. Role: team.
+// When `projectId` is provided, also append imported materials as calculator
+// lines for that project (default qty = 1) so the team doesn't have to add
+// them again under Estimate → Add Material (CSV item #57).
 router.post("/estimating/materials/import", requireRole(["team", "admin", "superadmin"]), (req, res) => {
   const body = (req.body ?? {}) as Record<string, unknown>;
 
@@ -172,6 +181,13 @@ router.post("/estimating/materials/import", requireRole(["team", "admin", "super
     return;
   }
 
+  const targetProjectId = typeof body["projectId"] === "string" ? (body["projectId"] as string) : undefined;
+  const targetProject = targetProjectId ? PROJECTS.find((p) => p.id === targetProjectId) : undefined;
+  if (targetProjectId && !targetProject) {
+    res.status(400).json({ error: "invalid_project", message: `Project ${targetProjectId} not found.` });
+    return;
+  }
+
   const accepted: ImportedMaterial[] = [];
   const skipped: Array<{ row: number; reason: string }> = [];
   for (let i = 0; i < rows.length; i++) {
@@ -180,22 +196,54 @@ router.post("/estimating/materials/import", requireRole(["team", "admin", "super
     const itemEs = (r["item_es"] ?? r["itemes"] ?? r["nombre"] ?? item).trim();
     const category = (r["category"] ?? r["categoria"] ?? "").trim().toLowerCase();
     const unit = (r["unit"] ?? r["unidad"] ?? "").trim();
+    const qtyRaw = (r["qty"] ?? r["quantity"] ?? r["cantidad"] ?? "1").replace(/[^0-9.]/g, "");
     const priceRaw = (r["base_price"] ?? r["baseprice"] ?? r["price"] ?? r["precio"] ?? "").replace(/[^0-9.]/g, "");
     const basePrice = Number(priceRaw);
+    const qty = Number(qtyRaw) > 0 ? Number(qtyRaw) : 1;
     if (!item || !category || !unit || !isFinite(basePrice) || basePrice <= 0) {
       skipped.push({ row: i + 2, reason: "missing item/category/unit/price" });
       continue;
     }
     const id = `mat-imp-${Date.now()}-${EXTRA_MATERIALS.length + accepted.length + 1}`;
     accepted.push({ id, item, itemEs, category, unit, basePrice });
+
+    if (targetProject) {
+      const calcMap = CALCULATOR_ENTRIES as Record<string, Array<Record<string, unknown>>>;
+      const list = calcMap[targetProject.id] ?? (calcMap[targetProject.id] = []);
+      list.push({
+        id: `calc-imp-${Date.now()}-${list.length + 1}`,
+        projectId: targetProject.id,
+        materialId: id,
+        materialName: item,
+        materialNameEs: itemEs,
+        category,
+        unit,
+        quantity: qty,
+        basePrice,
+        manualPriceOverride: null,
+        effectivePrice: basePrice,
+        lineTotal: basePrice * qty,
+      });
+    }
   }
   EXTRA_MATERIALS.push(...accepted);
+
+  if (targetProject && accepted.length > 0) {
+    appendActivity(targetProject.id, {
+      type: "calculator_import",
+      actor: (req as { user?: { name?: string } }).user?.name ?? "Team",
+      description: `Auto-added ${accepted.length} imported material(s) to the project calculator.`,
+      descriptionEs: `Se agregaron automáticamente ${accepted.length} material(es) importado(s) a la calculadora.`,
+    });
+  }
+
   res.json({
     imported: accepted.length,
     skipped: skipped.length,
     skippedDetails: skipped,
     materials: accepted,
     totalCatalogSize: MATERIALS.length + EXTRA_MATERIALS.length,
+    addedToProjectCalculator: targetProject ? targetProject.id : null,
   });
 });
 
@@ -371,6 +419,10 @@ router.post("/projects/:id/contractor-estimate", requireRole(["team", "admin", "
   const scope = Array.isArray(body["scope"]) ? (body["scope"] as unknown[]).map(String) : [];
   const source = typeof body["source"] === "string" ? body["source"] : "Preliminary project doc (manual entry)";
   const contingencyPercent = Number(body["contingencyPercent"] ?? 8);
+  const bathrooms = Math.max(0, Math.floor(Number(body["bathrooms"] ?? 0)) || 0);
+  const kitchens = Math.max(0, Math.floor(Number(body["kitchens"] ?? 0)) || 0);
+  const marginPercent = Math.max(0, Number(body["marginPercent"] ?? 0) || 0);
+  const managementFeePercent = Math.max(0, Number(body["managementFeePercent"] ?? 0) || 0);
 
   if (!isFinite(squareMeters) || squareMeters <= 0) {
     res.status(400).json({ error: "invalid_square_meters", message: "squareMeters must be > 0" });
@@ -460,6 +512,24 @@ router.post("/projects/:id/contractor-estimate", requireRole(["team", "admin", "
     }
   }
 
+  // Bathroom + kitchen rough-in extras (subcontractor allowances).
+  if (bathrooms > 0) {
+    lines.push({
+      id: `est-line-${lines.length + 1}`, category: "subcontractor",
+      description: `Bathroom rough-in & fixtures (${bathrooms})`,
+      descriptionEs: `Baños — instalación y accesorios (${bathrooms})`,
+      quantity: bathrooms, unit: "each", unitPrice: 4200, lineTotal: bathrooms * 4200,
+    });
+  }
+  if (kitchens > 0) {
+    lines.push({
+      id: `est-line-${lines.length + 1}`, category: "subcontractor",
+      description: `Kitchen rough-in & cabinetry (${kitchens})`,
+      descriptionEs: `Cocinas — instalación y gabinetes (${kitchens})`,
+      quantity: kitchens, unit: "each", unitPrice: 9800, lineTotal: kitchens * 9800,
+    });
+  }
+
   // Labor lines — drive from current LABOR_RATES.
   const laborHoursBase = squareMeters * (projectType === "comercial" ? 6 : 4.5);
   const splits: Record<string, number> = { "General Labor": 0.45, "Carpenter": 0.20, "Electrician": 0.12, "Plumber": 0.10, "Mason": 0.13 };
@@ -486,7 +556,9 @@ router.post("/projects/:id/contractor-estimate", requireRole(["team", "admin", "
   }
   const subtotal = subtotalMaterials + subtotalLabor + subtotalSubcontractor;
   const contingency = Math.round(subtotal * (contingencyPercent / 100));
-  const grandTotal = subtotal + contingency;
+  const marginAmount = Math.round((subtotal + contingency) * (marginPercent / 100));
+  const managementFeeAmount = Math.round((subtotal + contingency + marginAmount) * (managementFeePercent / 100));
+  const grandTotal = subtotal + contingency + marginAmount + managementFeeAmount;
 
   const estimate: ContractorEstimate = {
     projectId: project.id,
@@ -494,12 +566,18 @@ router.post("/projects/:id/contractor-estimate", requireRole(["team", "admin", "
     squareMeters,
     projectType,
     scope,
+    bathrooms,
+    kitchens,
     lines,
     subtotalMaterials,
     subtotalLabor,
     subtotalSubcontractor,
     contingencyPercent,
     contingency,
+    marginPercent,
+    marginAmount,
+    managementFeePercent,
+    managementFeeAmount,
     grandTotal,
     generatedAt: new Date().toISOString(),
     generatedBy: (req as { user?: { name?: string } }).user?.name ?? "Team",
@@ -531,7 +609,14 @@ router.put("/projects/:id/contractor-estimate/lines", requireRole(["team", "admi
   if (!project) { res.status(404).json({ error: "not_found" }); return; }
   const est = PROJECT_CONTRACTOR_ESTIMATE[id];
   if (!est) { res.status(404).json({ error: "no_estimate", message: "Generate an estimate first." }); return; }
-  const body = (req.body ?? {}) as { lines?: Array<Record<string, unknown>> };
+  const body = (req.body ?? {}) as {
+    lines?: Array<Record<string, unknown>>;
+    contingencyPercent?: number;
+    marginPercent?: number;
+    managementFeePercent?: number;
+    bathrooms?: number;
+    kitchens?: number;
+  };
   if (!Array.isArray(body.lines) || body.lines.length === 0) {
     res.status(400).json({ error: "invalid_lines" }); return;
   }
@@ -551,13 +636,24 @@ router.put("/projects/:id/contractor-estimate/lines", requireRole(["team", "admi
   const subtotalSubcontractor = updatedLines.filter((l) => l.category === "subcontractor").reduce((a, b) => a + b.lineTotal, 0);
   const subtotalMaterials = updatedLines.filter((l) => l.category !== "labor" && l.category !== "subcontractor").reduce((a, b) => a + b.lineTotal, 0);
   const baseSubtotal = subtotalMaterials + subtotalLabor + subtotalSubcontractor;
-  const contingency = Math.round(baseSubtotal * (est.contingencyPercent / 100) * 100) / 100;
-  const grandTotal = Math.round((baseSubtotal + contingency) * 100) / 100;
-  const updated = {
+  const contingencyPercent = body.contingencyPercent !== undefined ? Math.max(0, Number(body.contingencyPercent) || 0) : est.contingencyPercent;
+  const marginPercent = body.marginPercent !== undefined ? Math.max(0, Number(body.marginPercent) || 0) : (est.marginPercent ?? 0);
+  const managementFeePercent = body.managementFeePercent !== undefined ? Math.max(0, Number(body.managementFeePercent) || 0) : (est.managementFeePercent ?? 0);
+  const bathrooms = body.bathrooms !== undefined ? Math.max(0, Math.floor(Number(body.bathrooms) || 0)) : (est.bathrooms ?? 0);
+  const kitchens = body.kitchens !== undefined ? Math.max(0, Math.floor(Number(body.kitchens) || 0)) : (est.kitchens ?? 0);
+  const contingency = Math.round(baseSubtotal * (contingencyPercent / 100) * 100) / 100;
+  const marginAmount = Math.round((baseSubtotal + contingency) * (marginPercent / 100) * 100) / 100;
+  const managementFeeAmount = Math.round((baseSubtotal + contingency + marginAmount) * (managementFeePercent / 100) * 100) / 100;
+  const grandTotal = Math.round((baseSubtotal + contingency + marginAmount + managementFeeAmount) * 100) / 100;
+  const updated: ContractorEstimate = {
     ...est,
     lines: updatedLines,
     subtotalMaterials, subtotalLabor, subtotalSubcontractor,
-    contingency, grandTotal,
+    contingencyPercent, contingency,
+    marginPercent, marginAmount,
+    managementFeePercent, managementFeeAmount,
+    bathrooms, kitchens,
+    grandTotal,
     generatedAt: new Date().toISOString(),
   };
   PROJECT_CONTRACTOR_ESTIMATE[id] = updated;

@@ -87,7 +87,19 @@ const THEME_VARS: Record<ReportTheme, ThemeVars> = {
 
 interface ReportTemplate { name: string; columns: string[]; headerLines: string[]; footer: string }
 interface ContractorLine { id: string; category: string; description: string; descriptionEs: string; quantity: number; unit: string; unitPrice: number; lineTotal: number }
-interface ContractorEstimate { lines: ContractorLine[]; grandTotal: number }
+interface ContractorEstimate {
+  lines: ContractorLine[];
+  grandTotal: number;
+  subtotalMaterials: number;
+  subtotalLabor: number;
+  subtotalSubcontractor: number;
+  contingencyPercent: number;
+  contingency: number;
+  marginPercent?: number;
+  marginAmount?: number;
+  managementFeePercent?: number;
+  managementFeeAmount?: number;
+}
 
 const DEFAULT_REPORT_COLUMNS = ["Category", "Item", "Qty", "Unit", "Unit Price", "Total"];
 
@@ -519,6 +531,42 @@ function ReportContent({ projectId }: { projectId: string }) {
                 <span className="text-[color:var(--rep-fg-strong)] font-bold">{t("Final Total", "Total Final")}</span>
                 <span className="text-[color:var(--rep-fg-strong)] text-xl font-bold">${costPlus.finalTotal.toLocaleString()}</span>
               </div>
+              {!isClientView && contractorEst && (
+                <div
+                  className="mt-3 pt-3 border-t border-dashed border-[color:var(--rep-border)] space-y-1.5"
+                  data-testid="report-contractor-rollup"
+                >
+                  <p className="text-[11px] uppercase tracking-widest text-[color:var(--rep-fg-faint)]">
+                    {t("Contractor Estimate Rollup", "Resumen del Estimado del Contratista")}
+                  </p>
+                  <div className="flex justify-between text-sm text-[color:var(--rep-fg-muted)]">
+                    <span>{t("Contractor Subtotal", "Subtotal Contratista")}</span>
+                    <span className="text-[color:var(--rep-fg-strong)]">
+                      ${(contractorEst.subtotalMaterials + contractorEst.subtotalLabor + contractorEst.subtotalSubcontractor).toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm text-[color:var(--rep-fg-muted)]">
+                    <span>{t("Contingency", "Contingencia")} ({contractorEst.contingencyPercent}%)</span>
+                    <span className="text-[color:var(--rep-fg-strong)]">${contractorEst.contingency.toLocaleString()}</span>
+                  </div>
+                  {(contractorEst.marginPercent ?? 0) > 0 && (
+                    <div className="flex justify-between text-sm text-[color:var(--rep-fg-muted)]" data-testid="report-contractor-margin">
+                      <span>{t("Margin", "Margen")} ({contractorEst.marginPercent}%)</span>
+                      <span className="text-[color:var(--rep-fg-strong)]">${(contractorEst.marginAmount ?? 0).toLocaleString()}</span>
+                    </div>
+                  )}
+                  {(contractorEst.managementFeePercent ?? 0) > 0 && (
+                    <div className="flex justify-between text-sm text-[color:var(--rep-fg-muted)]" data-testid="report-contractor-mgmt-fee">
+                      <span>{t("Management Fee", "Honorarios de Administración")} ({contractorEst.managementFeePercent}%)</span>
+                      <span className="text-[color:var(--rep-fg-strong)]">${(contractorEst.managementFeeAmount ?? 0).toLocaleString()}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between border-t border-[color:var(--rep-border)] pt-2">
+                    <span className="text-[color:var(--rep-fg-strong)] font-semibold">{t("Contractor Grand Total", "Total Contratista")}</span>
+                    <span className="text-[color:var(--rep-fg-strong)] font-bold">${contractorEst.grandTotal.toLocaleString()}</span>
+                  </div>
+                </div>
+              )}
             </div>
           </section>
         )}

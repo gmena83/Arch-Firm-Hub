@@ -97,6 +97,9 @@ export const PROJECTS = [
     teamMembers: ["Carla Gautier", "Michelle Telon Sosa", "Jorge Rosa"],
     status: "active" as const,
     clientUserId: "user-client-1",
+    clientPhone: "+1 787-555-0142",
+    clientPostalAddress: "PO Box 4421, Rincón, PR 00677",
+    clientPhysicalAddress: "Carr. 413 Km 4.7, Bo. Puntas, Rincón, PR 00677",
   },
   {
     id: "proj-2",
@@ -122,6 +125,9 @@ export const PROJECTS = [
     teamMembers: ["Carla Gautier", "Michelle Telon Sosa", "Nainoshka", "Jorge Rosa"],
     status: "active" as const,
     clientUserId: "user-client-1",
+    clientPhone: "+1 787-555-0188",
+    clientPostalAddress: "PO Box 1882, Vega Alta, PR 00692",
+    clientPhysicalAddress: "Calle Luna 22, Vega Alta, PR 00692",
   },
   {
     id: "proj-3",
@@ -147,6 +153,9 @@ export const PROJECTS = [
     teamMembers: ["Carla Gautier", "Michelle Telon Sosa", "Jorge Rosa"],
     status: "completed" as const,
     clientUserId: "user-client-1",
+    clientPhone: "+1 787-555-0231",
+    clientPostalAddress: "Cond. Cervantes 1485 Apt 802, San Juan, PR 00907",
+    clientPhysicalAddress: "Calle Loíza 1830, Santurce, San Juan, PR 00911",
   },
 ];
 

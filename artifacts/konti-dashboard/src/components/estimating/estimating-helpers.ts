@@ -89,12 +89,18 @@ export interface ContractorEstimate {
   squareMeters: number;
   projectType: string;
   scope: string[];
+  bathrooms?: number;
+  kitchens?: number;
   lines: Array<{ id: string; category: string; description: string; descriptionEs: string; quantity: number; unit: string; unitPrice: number; lineTotal: number }>;
   subtotalMaterials: number;
   subtotalLabor: number;
   subtotalSubcontractor: number;
   contingencyPercent: number;
   contingency: number;
+  marginPercent?: number;
+  marginAmount?: number;
+  managementFeePercent?: number;
+  managementFeeAmount?: number;
   grandTotal: number;
   generatedAt: string;
   generatedBy: string;

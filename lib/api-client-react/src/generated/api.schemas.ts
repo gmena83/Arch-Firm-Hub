@@ -53,6 +53,25 @@ export interface UserUpdateRequest {
   physicalAddress?: string;
 }
 
+/**
+ * Patch payload for project-level client contact info.
+ */
+export interface ProjectClientContactUpdate {
+  clientPhone?: string;
+  clientPostalAddress?: string;
+  clientPhysicalAddress?: string;
+}
+
+/**
+ * Project-level client contact info snapshot.
+ */
+export interface ProjectClientContact {
+  projectId: string;
+  clientPhone: string;
+  clientPostalAddress: string;
+  clientPhysicalAddress: string;
+}
+
 export type ProjectInvoiceStatus =
   (typeof ProjectInvoiceStatus)[keyof typeof ProjectInvoiceStatus];
 
@@ -190,6 +209,12 @@ export interface Project {
   gammaReportUrl?: string;
   teamMembers?: string[];
   status: ProjectStatus;
+  /** Project-level contact phone for the client. Editable by the team. */
+  clientPhone?: string;
+  /** Project-level postal address for the client. Editable by the team. */
+  clientPostalAddress?: string;
+  /** Project-level physical (street) address for the client. Editable by the team. */
+  clientPhysicalAddress?: string;
 }
 
 export type ProjectTaskPriority =

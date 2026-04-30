@@ -72,6 +72,24 @@ export const ListProjectsResponseItem = zod.object({
   gammaReportUrl: zod.string().optional(),
   teamMembers: zod.array(zod.string()).optional(),
   status: zod.enum(["active", "on_hold", "completed"]),
+  clientPhone: zod
+    .string()
+    .optional()
+    .describe(
+      "Project-level contact phone for the client. Editable by the team.",
+    ),
+  clientPostalAddress: zod
+    .string()
+    .optional()
+    .describe(
+      "Project-level postal address for the client. Editable by the team.",
+    ),
+  clientPhysicalAddress: zod
+    .string()
+    .optional()
+    .describe(
+      "Project-level physical (street) address for the client. Editable by the team.",
+    ),
 });
 export const ListProjectsResponse = zod.array(ListProjectsResponseItem);
 
@@ -126,6 +144,24 @@ export const GetProjectResponse = zod.object({
   gammaReportUrl: zod.string().optional(),
   teamMembers: zod.array(zod.string()).optional(),
   status: zod.enum(["active", "on_hold", "completed"]),
+  clientPhone: zod
+    .string()
+    .optional()
+    .describe(
+      "Project-level contact phone for the client. Editable by the team.",
+    ),
+  clientPostalAddress: zod
+    .string()
+    .optional()
+    .describe(
+      "Project-level postal address for the client. Editable by the team.",
+    ),
+  clientPhysicalAddress: zod
+    .string()
+    .optional()
+    .describe(
+      "Project-level physical (street) address for the client. Editable by the team.",
+    ),
 });
 
 /**
@@ -544,6 +580,24 @@ export const AdvanceProjectPhaseResponse = zod.object({
     gammaReportUrl: zod.string().optional(),
     teamMembers: zod.array(zod.string()).optional(),
     status: zod.enum(["active", "on_hold", "completed"]),
+    clientPhone: zod
+      .string()
+      .optional()
+      .describe(
+        "Project-level contact phone for the client. Editable by the team.",
+      ),
+    clientPostalAddress: zod
+      .string()
+      .optional()
+      .describe(
+        "Project-level postal address for the client. Editable by the team.",
+      ),
+    clientPhysicalAddress: zod
+      .string()
+      .optional()
+      .describe(
+        "Project-level physical (street) address for the client. Editable by the team.",
+      ),
   }),
   advancedTo: zod.string(),
 });
@@ -595,6 +649,24 @@ export const DeclineProjectPhaseResponse = zod.object({
     gammaReportUrl: zod.string().optional(),
     teamMembers: zod.array(zod.string()).optional(),
     status: zod.enum(["active", "on_hold", "completed"]),
+    clientPhone: zod
+      .string()
+      .optional()
+      .describe(
+        "Project-level contact phone for the client. Editable by the team.",
+      ),
+    clientPostalAddress: zod
+      .string()
+      .optional()
+      .describe(
+        "Project-level postal address for the client. Editable by the team.",
+      ),
+    clientPhysicalAddress: zod
+      .string()
+      .optional()
+      .describe(
+        "Project-level physical (street) address for the client. Editable by the team.",
+      ),
   }),
   declinedAt: zod.string(),
 });
@@ -836,6 +908,24 @@ export const AdvanceDesignSubPhaseResponse = zod.object({
       gammaReportUrl: zod.string().optional(),
       teamMembers: zod.array(zod.string()).optional(),
       status: zod.enum(["active", "on_hold", "completed"]),
+      clientPhone: zod
+        .string()
+        .optional()
+        .describe(
+          "Project-level contact phone for the client. Editable by the team.",
+        ),
+      clientPostalAddress: zod
+        .string()
+        .optional()
+        .describe(
+          "Project-level postal address for the client. Editable by the team.",
+        ),
+      clientPhysicalAddress: zod
+        .string()
+        .optional()
+        .describe(
+          "Project-level physical (street) address for the client. Editable by the team.",
+        ),
     })
     .optional(),
 });
@@ -952,6 +1042,24 @@ export const ApproveProposalResponse = zod.object({
       gammaReportUrl: zod.string().optional(),
       teamMembers: zod.array(zod.string()).optional(),
       status: zod.enum(["active", "on_hold", "completed"]),
+      clientPhone: zod
+        .string()
+        .optional()
+        .describe(
+          "Project-level contact phone for the client. Editable by the team.",
+        ),
+      clientPostalAddress: zod
+        .string()
+        .optional()
+        .describe(
+          "Project-level postal address for the client. Editable by the team.",
+        ),
+      clientPhysicalAddress: zod
+        .string()
+        .optional()
+        .describe(
+          "Project-level physical (street) address for the client. Editable by the team.",
+        ),
     })
     .optional(),
 });
@@ -1260,6 +1368,30 @@ export const GetProjectAuditLogResponse = zod.object({
     }),
   ),
 });
+
+/**
+ * @summary Update the project-level client contact info (team only).
+ */
+export const UpdateProjectClientContactParams = zod.object({
+  projectId: zod.coerce.string(),
+});
+
+export const UpdateProjectClientContactBody = zod
+  .object({
+    clientPhone: zod.string().optional(),
+    clientPostalAddress: zod.string().optional(),
+    clientPhysicalAddress: zod.string().optional(),
+  })
+  .describe("Patch payload for project-level client contact info.");
+
+export const UpdateProjectClientContactResponse = zod
+  .object({
+    projectId: zod.string(),
+    clientPhone: zod.string(),
+    clientPostalAddress: zod.string(),
+    clientPhysicalAddress: zod.string(),
+  })
+  .describe("Project-level client contact info snapshot.");
 
 /**
  * @summary Get the authenticated user (refreshed from server-side state)
@@ -1801,6 +1933,24 @@ export const SetPermitItemStateResponse = zod.object({
     gammaReportUrl: zod.string().optional(),
     teamMembers: zod.array(zod.string()).optional(),
     status: zod.enum(["active", "on_hold", "completed"]),
+    clientPhone: zod
+      .string()
+      .optional()
+      .describe(
+        "Project-level contact phone for the client. Editable by the team.",
+      ),
+    clientPostalAddress: zod
+      .string()
+      .optional()
+      .describe(
+        "Project-level postal address for the client. Editable by the team.",
+      ),
+    clientPhysicalAddress: zod
+      .string()
+      .optional()
+      .describe(
+        "Project-level physical (street) address for the client. Editable by the team.",
+      ),
   }),
   advancedToConstruction: zod.boolean(),
 });
@@ -2027,6 +2177,24 @@ export const AcceptLeadResponse = zod.object({
     gammaReportUrl: zod.string().optional(),
     teamMembers: zod.array(zod.string()).optional(),
     status: zod.enum(["active", "on_hold", "completed"]),
+    clientPhone: zod
+      .string()
+      .optional()
+      .describe(
+        "Project-level contact phone for the client. Editable by the team.",
+      ),
+    clientPostalAddress: zod
+      .string()
+      .optional()
+      .describe(
+        "Project-level postal address for the client. Editable by the team.",
+      ),
+    clientPhysicalAddress: zod
+      .string()
+      .optional()
+      .describe(
+        "Project-level physical (street) address for the client. Editable by the team.",
+      ),
   }),
   asanaGid: zod.string(),
   asanaMessage: zod.string(),

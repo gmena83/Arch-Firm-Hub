@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useLang } from "@/hooks/use-lang";
 import { useToast } from "@/hooks/use-toast";
-import { useListProjects } from "@workspace/api-client-react";
+import { useListProjects, getGetProjectCalculationsQueryKey } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Upload, Receipt, FileText, Loader2, Eye, Check } from "lucide-react";
 import { getJson, postJson, readFileAsText, type LaborRate } from "./estimating-helpers";
 
@@ -26,7 +27,10 @@ export function ImportsPanel() {
   const { t, lang } = useLang();
   const { toast } = useToast();
   const { data: projects = [] } = useListProjects();
+  const queryClient = useQueryClient();
   const [projectId, setProjectId] = useState<string>("");
+  const [autoFillProject, setAutoFillProject] = useState<boolean>(true);
+  const [matProjectId, setMatProjectId] = useState<string>("");
   const [matCsv, setMatCsv] = useState(SAMPLE_MATERIALS);
   const [labCsv, setLabCsv] = useState(SAMPLE_LABOR);
   const [recCsv, setRecCsv] = useState(SAMPLE_RECEIPTS);
@@ -43,7 +47,8 @@ export function ImportsPanel() {
 
   useEffect(() => {
     if (!projectId && projects[0]) setProjectId(projects[0].id);
-  }, [projects, projectId]);
+    if (!matProjectId && projects[0]) setMatProjectId(projects[0].id);
+  }, [projects, projectId, matProjectId]);
 
   useEffect(() => {
     getJson<{ rates: LaborRate[] }>("/api/estimating/labor-rates").then((d) => setLabRates(d.rates)).catch(() => undefined);
@@ -58,8 +63,32 @@ export function ImportsPanel() {
   const importMaterials = async () => {
     setBusy("mat");
     try {
-      const r = await postJson<{ imported: number; skipped: number }>("/api/estimating/materials/import", { csv: matCsv });
-      setMatResult({ ok: true, message: t(`Imported ${r.imported} material(s)`, `Importados ${r.imported} material(es)`), details: r.skipped > 0 ? t(`${r.skipped} skipped`, `${r.skipped} omitidos`) : undefined });
+      const targetProject = autoFillProject && matProjectId ? matProjectId : undefined;
+      const r = await postJson<{ imported: number; skipped: number; addedToProjectCalculator?: number }>(
+        "/api/estimating/materials/import",
+        targetProject ? { csv: matCsv, projectId: targetProject } : { csv: matCsv },
+      );
+      const addedNote = (r.addedToProjectCalculator ?? 0) > 0
+        ? t(`${r.addedToProjectCalculator} added to project calculator`, `${r.addedToProjectCalculator} agregadas a la calculadora`)
+        : undefined;
+      const skippedNote = r.skipped > 0
+        ? t(`${r.skipped} skipped`, `${r.skipped} omitidos`)
+        : undefined;
+      setMatResult({
+        ok: true,
+        message: t(`Imported ${r.imported} material(s)`, `Importados ${r.imported} material(es)`),
+        details: [skippedNote, addedNote].filter(Boolean).join(" · ") || undefined,
+      });
+      if (targetProject && (r.addedToProjectCalculator ?? 0) > 0) {
+        queryClient.invalidateQueries({ queryKey: getGetProjectCalculationsQueryKey(targetProject) });
+        toast({
+          title: t("Calculator updated", "Calculadora actualizada"),
+          description: t(
+            `${r.addedToProjectCalculator} new line(s) added to the project calculator`,
+            `${r.addedToProjectCalculator} nueva(s) línea(s) en la calculadora del proyecto`,
+          ),
+        });
+      }
     } catch (e) { setMatResult({ ok: false, message: e instanceof Error ? e.message : "error" }); }
     finally { setBusy(null); }
   };
@@ -105,6 +134,38 @@ export function ImportsPanel() {
         onFile={(f) => handleFileSelect(f, setMatCsv)}
         textValue={matCsv} setText={setMatCsv}
         onImport={importMaterials} busy={busy === "mat"} result={matResult} testid="import-materials"
+        extra={
+          <div className="mt-3 border border-dashed border-border rounded-md p-3 bg-muted/20" data-testid="materials-target-project">
+            <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer">
+              <input
+                type="checkbox"
+                checked={autoFillProject}
+                onChange={(e) => setAutoFillProject(e.target.checked)}
+                data-testid="materials-autofill-toggle"
+                className="accent-konti-olive"
+              />
+              {t("Auto-populate calculator after import", "Auto-completar la calculadora tras importar")}
+            </label>
+            <p className="text-[11px] text-muted-foreground mt-1 mb-2">
+              {t(
+                "Each imported material is appended as a new calculator line (qty 1) for the selected project so the team can adjust quantities and overrides.",
+                "Cada material importado se agrega como una línea nueva (cant. 1) en la calculadora del proyecto seleccionado para que el equipo ajuste cantidades y sobrescrituras.",
+              )}
+            </p>
+            <label className="text-[11px] font-medium space-y-1 block">
+              {t("Target project", "Proyecto destino")}
+              <select
+                value={matProjectId}
+                onChange={(e) => setMatProjectId(e.target.value)}
+                disabled={!autoFillProject}
+                data-testid="materials-target-project-select"
+                className="w-full mt-1 px-2.5 py-1.5 rounded border border-input bg-background text-xs disabled:opacity-50"
+              >
+                {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </label>
+          </div>
+        }
       />
 
       {/* Labor rates */}
@@ -216,7 +277,7 @@ function parseCsvPreview(csv: string): { headers: string[]; rows: string[][] } {
 }
 
 function Section({
-  icon, title, description, onFile, textValue, setText, onImport, busy, result, testid,
+  icon, title, description, onFile, textValue, setText, onImport, busy, result, testid, extra,
 }: {
   icon: React.ReactNode;
   title: string;
@@ -228,6 +289,7 @@ function Section({
   busy: boolean;
   result: UploadResult | null;
   testid: string;
+  extra?: React.ReactNode;
 }) {
   const { t } = useLang();
   const [preview, setPreview] = useState<{ headers: string[]; rows: string[][] } | null>(null);
@@ -291,6 +353,7 @@ function Section({
         )}
         {result && <span className={`text-xs ${result.ok ? "text-konti-olive" : "text-destructive"}`}>{result.message}{result.details ? ` · ${result.details}` : ""}</span>}
       </div>
+      {extra}
     </div>
   );
 }

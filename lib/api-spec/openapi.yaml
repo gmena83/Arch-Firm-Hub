@@ -971,6 +971,43 @@ paths:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
         "404": { description: Not found }
 
+  /projects/{projectId}/client-contact:
+    patch:
+      operationId: updateProjectClientContact
+      tags: [projects]
+      summary: Update the project-level client contact info (team only).
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProjectClientContactUpdate" }
+      responses:
+        "200":
+          description: Updated client contact snapshot.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectClientContact" }
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Team-only operation
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
   /me:
     get:
       operationId: getMe
@@ -1731,6 +1768,24 @@ components:
         physicalAddress:
           type: string
 
+    ProjectClientContactUpdate:
+      type: object
+      description: Patch payload for project-level client contact info.
+      properties:
+        clientPhone: { type: string }
+        clientPostalAddress: { type: string }
+        clientPhysicalAddress: { type: string }
+
+    ProjectClientContact:
+      type: object
+      description: Project-level client contact info snapshot.
+      properties:
+        projectId: { type: string }
+        clientPhone: { type: string }
+        clientPostalAddress: { type: string }
+        clientPhysicalAddress: { type: string }
+      required: [projectId, clientPhone, clientPostalAddress, clientPhysicalAddress]
+
     ProjectInvoice:
       type: object
       properties:
@@ -1863,6 +1918,15 @@ components:
         status:
           type: string
           enum: [active, on_hold, completed]
+        clientPhone:
+          type: string
+          description: Project-level contact phone for the client. Editable by the team.
+        clientPostalAddress:
+          type: string
+          description: Project-level postal address for the client. Editable by the team.
+        clientPhysicalAddress:
+          type: string
+          description: Project-level physical (street) address for the client. Editable by the team.
       required:
         - id
         - name

@@ -114,6 +114,8 @@ export * from "./preDesignData";
 export * from "./project";
 export * from "./projectActivity";
 export * from "./projectAuditLogResponse";
+export * from "./projectClientContact";
+export * from "./projectClientContactUpdate";
 export * from "./projectCreateRequest";
 export * from "./projectInvoice";
 export * from "./projectInvoicesResponse";
