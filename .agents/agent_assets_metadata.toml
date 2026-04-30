@@ -36,3 +36,9 @@ id = "WnACH9NnMikfrg4piMDn0"
 uri = "file://reports/feedback-status-reconciled.md"
 type = "text"
 title = "Feedback status reconciliation report"
+
+[[outputs]]
+id = "gSy_WaVAGX8gVqRRNPLZF"
+uri = "file://attached_assets/reports/KONTi_Feedback_Status_2026-04-30.md"
+type = "text"
+title = "KONTi Feedback Status — 2026-04-30 (Fixed & Pending)"
