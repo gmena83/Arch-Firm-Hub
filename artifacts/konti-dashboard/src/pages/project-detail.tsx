@@ -1040,7 +1040,7 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
           {project.coverImage && (
             <img src={project.coverImage} alt={project.name} className="w-full h-full object-cover" />
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-konti-slate/90 via-konti-slate/60 to-konti-slate/10" />
+          <div className="absolute inset-0 bg-gradient-to-t from-konti-slate/65 via-konti-slate/35 to-konti-slate/0" />
           <div className="absolute bottom-4 left-4 right-4 sm:left-6 sm:right-6">
             <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
               <div className="min-w-0">

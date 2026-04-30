@@ -271,8 +271,8 @@ function ReportContent({ projectId }: { projectId: string }) {
       style={themeStyle as React.CSSProperties}
     >
       {/* Header */}
-      <div className="bg-[color:var(--rep-bg)] border-b border-[color:var(--rep-border)] px-4 sm:px-6 md:px-12 py-3 flex items-center justify-between gap-3 flex-wrap sticky top-0 z-10">
-        <img src={reportLogo} alt="KONTi" className="h-10 sm:h-12 w-auto shrink-0" data-testid="report-logo" />
+      <div className="bg-[color:var(--rep-bg)] border-b border-[color:var(--rep-border)] px-4 sm:px-6 md:px-12 py-4 sm:py-5 flex items-center justify-between gap-4 sm:gap-6 flex-wrap sticky top-0 z-10">
+        <img src={reportLogo} alt="KONTi" className="h-14 sm:h-16 md:h-20 w-auto shrink-0" data-testid="report-logo" />
         <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
           <span className="text-[color:var(--rep-fg-soft)] text-xs hidden sm:inline">
             {t("Progress Report", "Reporte de Progreso")} — {reportDate}
@@ -747,7 +747,7 @@ function ReportContent({ projectId }: { projectId: string }) {
 
       {/* Footer */}
       <footer className="border-t border-[color:var(--rep-border)] px-12 py-6 flex items-center justify-between mt-12">
-        <img src={reportLogo} alt="KONTi" className="h-7 w-auto opacity-70" />
+        <img src={reportLogo} alt="KONTi" className="h-10 w-auto opacity-70" />
         <p className="text-[color:var(--rep-fg-faint)] text-xs" data-testid="report-template-footer">
           {template?.footer
             ? template.footer
