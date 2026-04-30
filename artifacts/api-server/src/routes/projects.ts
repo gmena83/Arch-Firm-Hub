@@ -1882,4 +1882,40 @@ router.patch(
   },
 );
 
+// PATCH the plain-language "what's happening now" status sentence (EN + ES).
+// Team members can keep this paragraph fresh from the project page so clients
+// always see a friendly, current summary on their dashboard card.
+router.patch(
+  "/projects/:projectId/status-note",
+  requireRole(["team", "admin", "superadmin"]),
+  (req, res) => {
+    const project = PROJECTS.find((p) => p.id === req.params["projectId"]);
+    if (!project) return res.status(404).json({ error: "not_found", message: "Project not found" });
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const next = project as typeof project & {
+      currentStatusNote?: string;
+      currentStatusNoteEs?: string;
+    };
+    const apply = (key: "currentStatusNote" | "currentStatusNoteEs") => {
+      if (body[key] !== undefined) {
+        const raw = body[key];
+        next[key] = typeof raw === "string" ? raw.trim() : "";
+      }
+    };
+    apply("currentStatusNote");
+    apply("currentStatusNoteEs");
+    appendActivity(project.id, {
+      type: "status_note_updated",
+      actor: (req as { user?: { name?: string } }).user?.name ?? "Team",
+      description: `Status note updated for ${project.clientName}.`,
+      descriptionEs: `Nota de estado actualizada para ${project.clientName}.`,
+    });
+    return res.json({
+      projectId: project.id,
+      currentStatusNote: next.currentStatusNote ?? "",
+      currentStatusNoteEs: next.currentStatusNoteEs ?? "",
+    });
+  },
+);
+
 export default router;

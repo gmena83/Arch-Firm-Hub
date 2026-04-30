@@ -183,6 +183,8 @@ router.post("/leads/:id/accept", requireRole("admin", "architect", "superadmin")
     clientPhone: "",
     clientPostalAddress: "",
     clientPhysicalAddress: "",
+    currentStatusNote: "",
+    currentStatusNoteEs: "",
   };
   PROJECTS.push(newProject);
   ACCEPTED_LEAD_PROJECTS.set(lead.id, projectId);

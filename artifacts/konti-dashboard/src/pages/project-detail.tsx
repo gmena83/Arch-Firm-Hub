@@ -42,6 +42,7 @@ import PermitsPanel from "@/components/permits-panel";
 import { CostPlusBudget } from "@/components/cost-plus-budget";
 import { ProjectInvoices } from "@/components/project-invoices";
 import { ClientActivityCard } from "@/components/client-activity-card";
+import { StatusSentence } from "@/components/status-sentence";
 import { ContractorMonitoringSection } from "@/components/contractor-monitoring-section";
 import { InspectionsSection } from "@/components/inspections-section";
 import { PunchlistPanel } from "@/components/punchlist-panel";
@@ -1089,6 +1090,17 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
           </button>
         </div>
       )}
+
+      {/* Plain-language "what's happening now" — visible to client + team */}
+      <StatusSentence
+        projectId={projectId}
+        currentStatusNote={project.currentStatusNote}
+        currentStatusNoteEs={project.currentStatusNoteEs}
+        phaseLabel={project.phaseLabel}
+        phaseLabelEs={project.phaseLabelEs}
+        progressPercent={project.progressPercent}
+        canEdit
+      />
 
       <div className="grid md:grid-cols-3 gap-4 md:gap-6">
         {/* Left column */}

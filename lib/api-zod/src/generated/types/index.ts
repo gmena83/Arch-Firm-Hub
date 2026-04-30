@@ -131,6 +131,8 @@ export * from "./projectInvoicesResponse";
 export * from "./projectInvoiceStatus";
 export * from "./projectPhase";
 export * from "./projectStatus";
+export * from "./projectStatusNote";
+export * from "./projectStatusNoteUpdate";
 export * from "./projectTask";
 export * from "./projectTaskPriority";
 export * from "./proposal";

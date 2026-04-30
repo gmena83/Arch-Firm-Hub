@@ -1251,6 +1251,43 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
 
+  /projects/{projectId}/status-note:
+    patch:
+      operationId: updateProjectStatusNote
+      tags: [projects]
+      summary: Update the plain-language "what's happening now" status sentence (team only).
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProjectStatusNoteUpdate" }
+      responses:
+        "200":
+          description: Updated status-note snapshot.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectStatusNote" }
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Team-only operation
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
   /me:
     get:
       operationId: getMe
@@ -2083,6 +2120,22 @@ components:
         clientPhysicalAddress: { type: string }
       required: [projectId, clientPhone, clientPostalAddress, clientPhysicalAddress]
 
+    ProjectStatusNoteUpdate:
+      type: object
+      description: Patch payload for the plain-language status sentence (English + Spanish).
+      properties:
+        currentStatusNote: { type: string }
+        currentStatusNoteEs: { type: string }
+
+    ProjectStatusNote:
+      type: object
+      description: Snapshot of the plain-language status sentence after update.
+      properties:
+        projectId: { type: string }
+        currentStatusNote: { type: string }
+        currentStatusNoteEs: { type: string }
+      required: [projectId, currentStatusNote, currentStatusNoteEs]
+
     ProjectInvoice:
       type: object
       properties:
@@ -2224,6 +2277,12 @@ components:
         clientPhysicalAddress:
           type: string
           description: Project-level physical (street) address for the client. Editable by the team.
+        currentStatusNote:
+          type: string
+          description: Plain-language "what's happening now" sentence (English) shown on the client construction card. Editable by the team. When blank the UI falls back to a deterministic phase-based summary.
+        currentStatusNoteEs:
+          type: string
+          description: Plain-language "what's happening now" sentence (Spanish) shown on the client construction card. Editable by the team.
       required:
         - id
         - name

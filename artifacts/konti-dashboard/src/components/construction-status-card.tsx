@@ -11,6 +11,7 @@ import {
 } from "@workspace/api-client-react";
 import { useLang } from "@/hooks/use-lang";
 import { MilestonesTimeline } from "@/components/milestones-timeline";
+import { StatusSentence } from "@/components/status-sentence";
 import { HardHat, ClipboardCheck, FileSpreadsheet, ArrowRight, CheckCircle2, AlertTriangle, RotateCcw, ListChecks, TrendingUp } from "lucide-react";
 
 export function ConstructionStatusCard({
@@ -18,11 +19,19 @@ export function ConstructionStatusCard({
   projectName,
   progressPercent,
   variant = "team",
+  currentStatusNote,
+  currentStatusNoteEs,
+  phaseLabel,
+  phaseLabelEs,
 }: {
   projectId: string;
   projectName: string;
   progressPercent: number;
   variant?: "team" | "client";
+  currentStatusNote?: string;
+  currentStatusNoteEs?: string;
+  phaseLabel: string;
+  phaseLabelEs: string;
 }) {
   const { t, lang } = useLang();
   const isClient = variant === "client";
@@ -103,6 +112,16 @@ export function ConstructionStatusCard({
             {projectName} <ArrowRight className="w-3 h-3" />
           </Link>
         </div>
+
+        <StatusSentence
+          projectId={projectId}
+          currentStatusNote={currentStatusNote}
+          currentStatusNoteEs={currentStatusNoteEs}
+          phaseLabel={phaseLabel}
+          phaseLabelEs={phaseLabelEs}
+          progressPercent={progressPercent}
+          className="mb-4"
+        />
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
           <div className="bg-konti-olive/10 rounded-lg p-4 md:col-span-1">

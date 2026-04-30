@@ -105,6 +105,10 @@ export const PROJECTS = [
     clientPhone: "+1 787-555-0142",
     clientPostalAddress: "PO Box 4421, Rincón, PR 00677",
     clientPhysicalAddress: "Carr. 413 Km 4.7, Bo. Puntas, Rincón, PR 00677",
+    currentStatusNote:
+      "We're finalizing the structural review for the hilltop site and lining up the surveyor's visit so we can lock the foundation footprint.",
+    currentStatusNoteEs:
+      "Estamos finalizando la revisión estructural del lote en la loma y coordinando la visita del agrimensor para fijar la huella de la cimentación.",
   },
   {
     id: "proj-2",
@@ -133,6 +137,10 @@ export const PROJECTS = [
     clientPhone: "+1 787-555-0188",
     clientPostalAddress: "PO Box 1882, Vega Alta, PR 00692",
     clientPhysicalAddress: "Calle Luna 22, Vega Alta, PR 00692",
+    currentStatusNote:
+      "We're framing the second-floor walls this week and waiting on the structural inspection scheduled for next Monday.",
+    currentStatusNoteEs:
+      "Esta semana estamos levantando la estructura del segundo piso y esperando la inspección estructural programada para el próximo lunes.",
   },
   {
     id: "proj-3",
@@ -161,6 +169,10 @@ export const PROJECTS = [
     clientPhone: "+1 787-555-0231",
     clientPostalAddress: "Cond. Cervantes 1485 Apt 802, San Juan, PR 00907",
     clientPhysicalAddress: "Calle Loíza 1830, Santurce, San Juan, PR 00911",
+    currentStatusNote:
+      "Project complete. Final walkthrough delivered November 28, 2025 — café opened the following week.",
+    currentStatusNoteEs:
+      "Proyecto completado. Recorrido final entregado el 28 de noviembre de 2025 — el café abrió la siguiente semana.",
   },
 ];
 
@@ -1220,6 +1232,7 @@ export type ProjectActivityType =
   | "client_upload"
   | "profile_update"
   | "client_contact_updated"
+  | "status_note_updated"
   | "project_created"
   | "contractor_created"
   | "contractor_deleted"

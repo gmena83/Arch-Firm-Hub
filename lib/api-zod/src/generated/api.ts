@@ -90,6 +90,18 @@ export const ListProjectsResponseItem = zod.object({
     .describe(
       "Project-level physical (street) address for the client. Editable by the team.",
     ),
+  currentStatusNote: zod
+    .string()
+    .optional()
+    .describe(
+      'Plain-language \"what\'s happening now\" sentence (English) shown on the client construction card. Editable by the team. When blank the UI falls back to a deterministic phase-based summary.',
+    ),
+  currentStatusNoteEs: zod
+    .string()
+    .optional()
+    .describe(
+      'Plain-language \"what\'s happening now\" sentence (Spanish) shown on the client construction card. Editable by the team.',
+    ),
 });
 export const ListProjectsResponse = zod.array(ListProjectsResponseItem);
 
@@ -161,6 +173,18 @@ export const GetProjectResponse = zod.object({
     .optional()
     .describe(
       "Project-level physical (street) address for the client. Editable by the team.",
+    ),
+  currentStatusNote: zod
+    .string()
+    .optional()
+    .describe(
+      'Plain-language \"what\'s happening now\" sentence (English) shown on the client construction card. Editable by the team. When blank the UI falls back to a deterministic phase-based summary.',
+    ),
+  currentStatusNoteEs: zod
+    .string()
+    .optional()
+    .describe(
+      'Plain-language \"what\'s happening now\" sentence (Spanish) shown on the client construction card. Editable by the team.',
     ),
 });
 
@@ -653,6 +677,18 @@ export const AdvanceProjectPhaseResponse = zod.object({
       .describe(
         "Project-level physical (street) address for the client. Editable by the team.",
       ),
+    currentStatusNote: zod
+      .string()
+      .optional()
+      .describe(
+        'Plain-language \"what\'s happening now\" sentence (English) shown on the client construction card. Editable by the team. When blank the UI falls back to a deterministic phase-based summary.',
+      ),
+    currentStatusNoteEs: zod
+      .string()
+      .optional()
+      .describe(
+        'Plain-language \"what\'s happening now\" sentence (Spanish) shown on the client construction card. Editable by the team.',
+      ),
   }),
   advancedTo: zod.string(),
 });
@@ -936,6 +972,18 @@ export const DeclineProjectPhaseResponse = zod.object({
       .describe(
         "Project-level physical (street) address for the client. Editable by the team.",
       ),
+    currentStatusNote: zod
+      .string()
+      .optional()
+      .describe(
+        'Plain-language \"what\'s happening now\" sentence (English) shown on the client construction card. Editable by the team. When blank the UI falls back to a deterministic phase-based summary.',
+      ),
+    currentStatusNoteEs: zod
+      .string()
+      .optional()
+      .describe(
+        'Plain-language \"what\'s happening now\" sentence (Spanish) shown on the client construction card. Editable by the team.',
+      ),
   }),
   declinedAt: zod.string(),
 });
@@ -1195,6 +1243,18 @@ export const AdvanceDesignSubPhaseResponse = zod.object({
         .describe(
           "Project-level physical (street) address for the client. Editable by the team.",
         ),
+      currentStatusNote: zod
+        .string()
+        .optional()
+        .describe(
+          'Plain-language \"what\'s happening now\" sentence (English) shown on the client construction card. Editable by the team. When blank the UI falls back to a deterministic phase-based summary.',
+        ),
+      currentStatusNoteEs: zod
+        .string()
+        .optional()
+        .describe(
+          'Plain-language \"what\'s happening now\" sentence (Spanish) shown on the client construction card. Editable by the team.',
+        ),
     })
     .optional(),
 });
@@ -1328,6 +1388,18 @@ export const ApproveProposalResponse = zod.object({
         .optional()
         .describe(
           "Project-level physical (street) address for the client. Editable by the team.",
+        ),
+      currentStatusNote: zod
+        .string()
+        .optional()
+        .describe(
+          'Plain-language \"what\'s happening now\" sentence (English) shown on the client construction card. Editable by the team. When blank the UI falls back to a deterministic phase-based summary.',
+        ),
+      currentStatusNoteEs: zod
+        .string()
+        .optional()
+        .describe(
+          'Plain-language \"what\'s happening now\" sentence (Spanish) shown on the client construction card. Editable by the team.',
         ),
     })
     .optional(),
@@ -1661,6 +1733,30 @@ export const UpdateProjectClientContactResponse = zod
     clientPhysicalAddress: zod.string(),
   })
   .describe("Project-level client contact info snapshot.");
+
+/**
+ * @summary Update the plain-language "what's happening now" status sentence (team only).
+ */
+export const UpdateProjectStatusNoteParams = zod.object({
+  projectId: zod.coerce.string(),
+});
+
+export const UpdateProjectStatusNoteBody = zod
+  .object({
+    currentStatusNote: zod.string().optional(),
+    currentStatusNoteEs: zod.string().optional(),
+  })
+  .describe(
+    "Patch payload for the plain-language status sentence (English + Spanish).",
+  );
+
+export const UpdateProjectStatusNoteResponse = zod
+  .object({
+    projectId: zod.string(),
+    currentStatusNote: zod.string(),
+    currentStatusNoteEs: zod.string(),
+  })
+  .describe("Snapshot of the plain-language status sentence after update.");
 
 /**
  * @summary Get the authenticated user (refreshed from server-side state)
@@ -2220,6 +2316,18 @@ export const SetPermitItemStateResponse = zod.object({
       .describe(
         "Project-level physical (street) address for the client. Editable by the team.",
       ),
+    currentStatusNote: zod
+      .string()
+      .optional()
+      .describe(
+        'Plain-language \"what\'s happening now\" sentence (English) shown on the client construction card. Editable by the team. When blank the UI falls back to a deterministic phase-based summary.',
+      ),
+    currentStatusNoteEs: zod
+      .string()
+      .optional()
+      .describe(
+        'Plain-language \"what\'s happening now\" sentence (Spanish) shown on the client construction card. Editable by the team.',
+      ),
   }),
   advancedToConstruction: zod.boolean(),
 });
@@ -2463,6 +2571,18 @@ export const AcceptLeadResponse = zod.object({
       .optional()
       .describe(
         "Project-level physical (street) address for the client. Editable by the team.",
+      ),
+    currentStatusNote: zod
+      .string()
+      .optional()
+      .describe(
+        'Plain-language \"what\'s happening now\" sentence (English) shown on the client construction card. Editable by the team. When blank the UI falls back to a deterministic phase-based summary.',
+      ),
+    currentStatusNoteEs: zod
+      .string()
+      .optional()
+      .describe(
+        'Plain-language \"what\'s happening now\" sentence (Spanish) shown on the client construction card. Editable by the team.',
       ),
   }),
   asanaGid: zod.string(),

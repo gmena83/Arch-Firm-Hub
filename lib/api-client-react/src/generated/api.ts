@@ -75,6 +75,8 @@ import type {
   ProjectClientContactUpdate,
   ProjectCreateRequest,
   ProjectInvoicesResponse,
+  ProjectStatusNote,
+  ProjectStatusNoteUpdate,
   ProjectTask,
   PunchlistItemMutationResponse,
   PunchlistOpenError,
@@ -3767,6 +3769,97 @@ export const useUpdateProjectClientContact = <
   TContext
 > => {
   return useMutation(getUpdateProjectClientContactMutationOptions(options));
+};
+
+/**
+ * @summary Update the plain-language "what's happening now" status sentence (team only).
+ */
+export const getUpdateProjectStatusNoteUrl = (projectId: string) => {
+  return `/api/projects/${projectId}/status-note`;
+};
+
+export const updateProjectStatusNote = async (
+  projectId: string,
+  projectStatusNoteUpdate: ProjectStatusNoteUpdate,
+  options?: RequestInit,
+): Promise<ProjectStatusNote> => {
+  return customFetch<ProjectStatusNote>(
+    getUpdateProjectStatusNoteUrl(projectId),
+    {
+      ...options,
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(projectStatusNoteUpdate),
+    },
+  );
+};
+
+export const getUpdateProjectStatusNoteMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateProjectStatusNote>>,
+    TError,
+    { projectId: string; data: BodyType<ProjectStatusNoteUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateProjectStatusNote>>,
+  TError,
+  { projectId: string; data: BodyType<ProjectStatusNoteUpdate> },
+  TContext
+> => {
+  const mutationKey = ["updateProjectStatusNote"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateProjectStatusNote>>,
+    { projectId: string; data: BodyType<ProjectStatusNoteUpdate> }
+  > = (props) => {
+    const { projectId, data } = props ?? {};
+
+    return updateProjectStatusNote(projectId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateProjectStatusNoteMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateProjectStatusNote>>
+>;
+export type UpdateProjectStatusNoteMutationBody =
+  BodyType<ProjectStatusNoteUpdate>;
+export type UpdateProjectStatusNoteMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Update the plain-language "what's happening now" status sentence (team only).
+ */
+export const useUpdateProjectStatusNote = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateProjectStatusNote>>,
+    TError,
+    { projectId: string; data: BodyType<ProjectStatusNoteUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateProjectStatusNote>>,
+  TError,
+  { projectId: string; data: BodyType<ProjectStatusNoteUpdate> },
+  TContext
+> => {
+  return useMutation(getUpdateProjectStatusNoteMutationOptions(options));
 };
 
 /**

@@ -308,6 +308,10 @@ function DashboardContent() {
           projectName={p.name}
           progressPercent={p.progressPercent}
           variant={isClientUser ? "client" : "team"}
+          currentStatusNote={p.currentStatusNote}
+          currentStatusNoteEs={p.currentStatusNoteEs}
+          phaseLabel={p.phaseLabel}
+          phaseLabelEs={p.phaseLabelEs}
         />
       ))}
     </div>

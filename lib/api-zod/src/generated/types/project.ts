@@ -36,4 +36,8 @@ export interface Project {
   clientPostalAddress?: string;
   /** Project-level physical (street) address for the client. Editable by the team. */
   clientPhysicalAddress?: string;
+  /** Plain-language "what's happening now" sentence (English) shown on the client construction card. Editable by the team. When blank the UI falls back to a deterministic phase-based summary. */
+  currentStatusNote?: string;
+  /** Plain-language "what's happening now" sentence (Spanish) shown on the client construction card. Editable by the team. */
+  currentStatusNoteEs?: string;
 }
