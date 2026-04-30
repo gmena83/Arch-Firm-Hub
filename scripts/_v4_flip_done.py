@@ -1,12 +1,14 @@
 """
 Task #119 — Mirror the A-07 / E-01 / E-02 status flips into the v4 workbook
 that the dashboard's status report references, with bilingual EN | ES
-verification notes matching the v4 format. C-11 and G-01 are already 'Done'
-in v4, so we leave them alone.
+verification notes matching the v4 format. C-11 was already Done with a
+bilingual note in v4 (no change needed). G-01 was already Done in v4 but
+its verification note was English-only, so we refresh it here to the
+bilingual format for parity with the other four reconciled rows.
 
-This is a one-shot helper. The reconcile_feedback_status.py script remains
-the authoritative source of truth for the v3 workbook + markdown report;
-this file just keeps v4 in sync.
+The reconcile_feedback_status.py script remains the authoritative source
+of truth for the v3 workbook + markdown report; this file just keeps v4
+in sync.
 """
 import openpyxl
 from pathlib import Path
@@ -48,6 +50,19 @@ FLIPS = {
         "familia, replicando el Excel de permisos del equipo. Archivo: "
         "artifacts/konti-dashboard/src/pages/permits.tsx."
     ),
+    # G-01 was already Done in v4 but the verification note was English-only;
+    # refresh it to the bilingual EN | ES format for parity with the rest of
+    # the reconciled rows (Task #119).
+    "G-01": (
+        "Done",
+        "EN: Already shipped despite V2 scope — ContractorUploadModal "
+        "(single + CSV modes) on the Team Directory page. File: "
+        "artifacts/konti-dashboard/src/pages/team.tsx (~L69-115). "
+        "| ES: Ya implementado a pesar de estar en alcance V2 — "
+        "ContractorUploadModal (modos individual + CSV) en la página de "
+        "Directorio del Equipo. Archivo: "
+        "artifacts/konti-dashboard/src/pages/team.tsx (~L69-115)."
+    ),
 }
 
 ID_COL = 1
@@ -72,22 +87,87 @@ def flip_sheet(ws):
 
 
 def refresh_summary(ws_summary, ws_main):
+    """Update the Summary sheet's status counts based on the current main sheet.
+
+    The Summary sheet contains *three* sections that share the same row labels
+    ('Done', 'Open', 'In Progress', 'Needs Decision'):
+
+      1. 'By Status'                       — current totals (always refresh)
+      2. 'Audit snapshot (YYYY-MM-DD)'     — today's audit (refresh; the
+                                              snapshot date == today's date)
+      3. 'Previous snapshot (YYYY-MM-DD)'  — yesterday's audit (NEVER touch;
+                                              this is historical data)
+
+    A naive "first match wins" or "last match wins" loop will corrupt the
+    historical snapshot. We instead walk the section headers explicitly and
+    only update labels that appear after the current header but before the
+    next header.
+    """
     counts = {}
     for r in range(2, ws_main.max_row + 1):
         s = ws_main.cell(r, STATUS_COL).value
         if s:
             counts[s] = counts.get(s, 0) + 1
 
-    label_to_row = {}
+    section_starts = []
     for r in range(1, ws_summary.max_row + 1):
         label = ws_summary.cell(r, 1).value
-        if isinstance(label, str) and label in counts:
-            label_to_row[label] = r
+        if isinstance(label, str) and (
+            label == "By Status"
+            or label.startswith("Audit snapshot")
+            or label.startswith("Previous snapshot")
+        ):
+            section_starts.append((r, label))
 
-    for label, count in counts.items():
-        if label in label_to_row:
-            ws_summary.cell(label_to_row[label], 2).value = count
+    refreshable_starts = [
+        (r, lbl) for r, lbl in section_starts
+        if lbl == "By Status" or lbl.startswith("Audit snapshot")
+    ]
+
+    for idx, (start_row, _label) in enumerate(refreshable_starts):
+        next_starts = [
+            r for r, _ in section_starts if r > start_row
+        ]
+        end_row = min(next_starts) if next_starts else ws_summary.max_row + 1
+
+        for r in range(start_row + 1, end_row):
+            label = ws_summary.cell(r, 1).value
+            if isinstance(label, str) and label in counts:
+                ws_summary.cell(r, 2).value = counts[label]
+
     return counts
+
+
+PREVIOUS_SNAPSHOT_2026_04_29 = {
+    "Done": 16,
+    "In Progress": 16,
+    "Open": 18,
+    "Needs Decision": 7,
+}
+
+
+def restore_previous_snapshot(ws_summary):
+    """The first version of refresh_summary() in this helper accidentally
+    overwrote the 'Previous snapshot (2026-04-29)' section because it kept
+    re-binding labels on every match. Restore it to the original 2026-04-29
+    values so the workbook's history is intact again. Idempotent.
+    """
+    target_header = "Previous snapshot (2026-04-29)"
+    header_row = None
+    for r in range(1, ws_summary.max_row + 1):
+        if ws_summary.cell(r, 1).value == target_header:
+            header_row = r
+            break
+    if header_row is None:
+        return False
+    for r in range(header_row + 1, ws_summary.max_row + 2):
+        label = ws_summary.cell(r, 1).value
+        if not isinstance(label, str) or label not in PREVIOUS_SNAPSHOT_2026_04_29:
+            if label is None or (isinstance(label, str) and label.strip() == ""):
+                continue
+            break
+        ws_summary.cell(r, 2).value = PREVIOUS_SNAPSHOT_2026_04_29[label]
+    return True
 
 
 def main():
@@ -104,6 +184,9 @@ def main():
     if "Summary" in wb.sheetnames:
         counts = refresh_summary(wb["Summary"], main_ws)
         print(f"Summary counts: {counts}")
+        if restore_previous_snapshot(wb["Summary"]):
+            print(f"Restored 'Previous snapshot (2026-04-29)' to "
+                  f"{PREVIOUS_SNAPSHOT_2026_04_29}")
 
     wb.save(path)
     print(f"Wrote {path}")
