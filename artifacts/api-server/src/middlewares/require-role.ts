@@ -1,18 +1,28 @@
 import type { Request, Response, NextFunction } from "express";
+import jwt from "jsonwebtoken";
 import { USERS } from "../data/seed";
 
 type Role = "admin" | "architect" | "client" | "superadmin" | "team";
 
 export type AuthedRequest = Request & { user?: typeof USERS[number] };
 
-// Demo token format: `demo-token-${user.id}-${timestamp}`
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error("JWT_SECRET environment variable is required");
+}
+
 export function userFromAuthHeader(req: Request): typeof USERS[number] | undefined {
   const header = req.headers["authorization"];
   if (typeof header !== "string") return undefined;
-  const match = /^Bearer\s+demo-token-(user-[^\s-]+(?:-[^\s-]+)*?)-\d+$/.exec(header);
-  if (!match) return undefined;
-  const userId = match[1];
-  return USERS.find((u) => u.id === userId);
+  if (!header.startsWith("Bearer ")) return undefined;
+  const token = header.slice(7);
+  try {
+    const payload = jwt.verify(token, JWT_SECRET) as { sub?: string };
+    if (typeof payload.sub !== "string") return undefined;
+    return USERS.find((u) => u.id === payload.sub);
+  } catch {
+    return undefined;
+  }
 }
 
 // Map "team" role alias to all internal team-member roles.

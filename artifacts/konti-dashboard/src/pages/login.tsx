@@ -11,8 +11,8 @@ export default function LoginPage() {
   const [, setLocation] = useLocation();
   const { login } = useAuth();
   const { t, lang, toggleLang } = useLang();
-  const [email, setEmail] = useState("demo@konti.com");
-  const [password, setPassword] = useState("konti2026");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
   const loginMutation = useLogin({
@@ -158,19 +158,6 @@ export default function LoginPage() {
                   : t("Sign in", "Iniciar sesión")}
               </button>
             </form>
-
-            <div className="mt-6 p-4 rounded-md bg-muted/50 border border-border">
-              <p className="text-xs font-semibold text-muted-foreground mb-2">{t("Demo accounts:", "Cuentas demo:")}</p>
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">
-                  <span className="font-medium text-foreground">demo@konti.com</span> — {t("Admin / Team", "Admin / Equipo")}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  <span className="font-medium text-foreground">client@konti.com</span> — {t("Client Portal", "Portal del Cliente")}
-                </p>
-                <p className="text-xs text-muted-foreground/60">{t("Password: konti2026", "Contraseña: konti2026")}</p>
-              </div>
-            </div>
 
             <div className="mt-6 pt-6 border-t border-border text-center">
               <p className="text-xs text-muted-foreground mb-2">

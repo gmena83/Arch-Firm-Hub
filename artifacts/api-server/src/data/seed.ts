@@ -24,7 +24,7 @@ export const USERS: DemoUser[] = [
     email: "demo@konti.com",
     role: "admin",
     avatar: "CG",
-    password: "konti2026",
+    password: "$2b$12$yLarKXPiSaCiea9ZzXO2we0tqN0xmluTLokcItLRYMuoEvbLEN2Ji",
   },
   {
     id: "user-2",
@@ -32,7 +32,7 @@ export const USERS: DemoUser[] = [
     email: "michelle@konti.com",
     role: "architect",
     avatar: "MT",
-    password: "konti2026",
+    password: "$2b$12$yLarKXPiSaCiea9ZzXO2we0tqN0xmluTLokcItLRYMuoEvbLEN2Ji",
   },
   {
     id: "user-client-1",
@@ -40,7 +40,7 @@ export const USERS: DemoUser[] = [
     email: "client@konti.com",
     role: "client",
     avatar: "BA",
-    password: "konti2026",
+    password: "$2b$12$yLarKXPiSaCiea9ZzXO2we0tqN0xmluTLokcItLRYMuoEvbLEN2Ji",
     phone: "+1 787-555-0142",
     postalAddress: "PO Box 1402, Rincón, PR 00677",
     physicalAddress: "Calle Sol 12, Rincón, PR 00677",
@@ -51,7 +51,7 @@ export const USERS: DemoUser[] = [
     email: "client2@konti.com",
     role: "client",
     avatar: "IR",
-    password: "konti2026",
+    password: "$2b$12$yLarKXPiSaCiea9ZzXO2we0tqN0xmluTLokcItLRYMuoEvbLEN2Ji",
     phone: "+1 787-555-0188",
     postalAddress: "PO Box 88, San Juan, PR 00901",
     physicalAddress: "Ave. Ashford 1500, San Juan, PR 00907",
@@ -62,7 +62,7 @@ export const USERS: DemoUser[] = [
     email: "tatiana@menatech.cloud",
     role: "superadmin",
     avatar: "TM",
-    password: "Konti123",
+    password: "$2b$12$zNuNn.Wuil/tlwHkHMisXe2wSwybKsEPFuCDsEnybzFfxfmdSZptG",
   },
   {
     id: "user-super-2",
@@ -70,7 +70,7 @@ export const USERS: DemoUser[] = [
     email: "gonzalo@menatech.cloud",
     role: "superadmin",
     avatar: "GM",
-    password: "Konti123",
+    password: "$2b$12$zNuNn.Wuil/tlwHkHMisXe2wSwybKsEPFuCDsEnybzFfxfmdSZptG",
   },
 ];
 

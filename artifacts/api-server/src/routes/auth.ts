@@ -1,27 +1,42 @@
 import { Router, type IRouter } from "express";
+import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
 import { USERS, PROJECTS, appendActivity } from "../data/seed";
 import { userFromAuthHeader } from "../middlewares/require-role";
 
 const router: IRouter = Router();
 
-router.post("/auth/login", (req, res) => {
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error("JWT_SECRET environment variable is required");
+}
+
+router.post("/auth/login", async (req, res) => {
   const { email, password } = req.body as { email: string; password: string };
 
-  const user = USERS.find(
-    (u) => u.email.toLowerCase() === email.toLowerCase() && u.password === password
-  );
+  if (typeof email !== "string" || typeof password !== "string") {
+    res.status(400).json({ error: "bad_request", message: "Email and password are required" });
+    return;
+  }
 
-  if (!user) {
+  const user = USERS.find((u) => u.email.toLowerCase() === email.toLowerCase());
+
+  const passwordValid = user ? await bcrypt.compare(password, user.password) : false;
+
+  if (!user || !passwordValid) {
     res.status(401).json({ error: "unauthorized", message: "Invalid email or password" });
     return;
   }
 
+  const token = jwt.sign(
+    { sub: user.id, role: user.role },
+    JWT_SECRET,
+    { expiresIn: "8h" }
+  );
+
   const { password: _pw, ...safeUser } = user;
 
-  res.json({
-    token: `demo-token-${user.id}-${Date.now()}`,
-    user: safeUser,
-  });
+  res.json({ token, user: safeUser });
 });
 
 // Refresh the authenticated user (used by the dashboard after PATCH /me to
