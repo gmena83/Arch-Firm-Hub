@@ -890,6 +890,91 @@ export const RECENT_ACTIVITY: RecentActivityItem[] = [
 ];
 
 // ============================================================
+// AI Assistant — Project Notes & Spec Update Events (persisted)
+// ============================================================
+// These records back the four AI-assistant endpoints exposed in
+// `routes/ai.ts` (GET/POST /projects/:id/notes, POST /ai/confirm-classification,
+// GET /projects/:id/spec-updates-report). They live here — alongside the rest
+// of the project data — and are hydrated from JSON files on disk so notes
+// and spec-update events survive server restarts. The demo spec timeline is
+// used as the seed for `SPEC_EVENTS` on the very first boot only; subsequent
+// boots load the persisted file (which already contains the seed plus any
+// runtime-added events).
+
+import { loadJSON, saveJSON } from "./persistence";
+
+export interface NoteReply {
+  id: string;
+  by: string;
+  text: string;
+  lang: "en" | "es";
+  createdAt: string;
+}
+
+export interface ProjectNote {
+  id: string;
+  type: "voice_note" | "client_question" | "general";
+  text: string;
+  lang: "en" | "es";
+  createdAt: string;
+  createdBy: string;
+  createdByUserId?: string;
+  source: string;
+  status?: "open" | "answered";
+  replies?: NoteReply[];
+  // Default true for "general" + "voice_note" (team-only); false for
+  // "client_question" so the client always sees their own questions.
+  isPrivate?: boolean;
+}
+
+export interface SpecEvent {
+  id: string;
+  projectId: string;
+  kind: "added" | "resolved" | "opened";
+  title: string;
+  createdAt: string;
+}
+
+// Seed timeline used the first time the server boots (no on-disk file yet).
+const SPEC_EVENTS_SEED: SpecEvent[] = [
+  { id: "s1",  projectId: "proj-1", kind: "added",    title: "Bamboo decking spec",         createdAt: "2026-03-05T10:00:00Z" },
+  { id: "s2",  projectId: "proj-1", kind: "added",    title: "Solar PV inverter sizing",    createdAt: "2026-03-12T11:00:00Z" },
+  { id: "s3",  projectId: "proj-1", kind: "opened",   title: "Question: roof slope",        createdAt: "2026-03-15T13:00:00Z" },
+  { id: "s4",  projectId: "proj-1", kind: "added",    title: "Mineral wool R-30",           createdAt: "2026-03-22T09:00:00Z" },
+  { id: "s5",  projectId: "proj-1", kind: "resolved", title: "Question: roof slope",        createdAt: "2026-03-28T16:00:00Z" },
+  { id: "s6",  projectId: "proj-1", kind: "added",    title: "Tempered glass railings",     createdAt: "2026-04-02T10:00:00Z" },
+  { id: "s7",  projectId: "proj-1", kind: "opened",   title: "Question: pool tile color",   createdAt: "2026-04-05T11:00:00Z" },
+  { id: "s8",  projectId: "proj-1", kind: "added",    title: "Stainless steel anchors",     createdAt: "2026-04-09T14:00:00Z" },
+  { id: "s9",  projectId: "proj-1", kind: "resolved", title: "Question: pool tile color",   createdAt: "2026-04-14T10:00:00Z" },
+  { id: "s10", projectId: "proj-1", kind: "opened",   title: "Question: smart home",        createdAt: "2026-04-17T10:00:00Z" },
+];
+
+// Hydrate from disk. `loadJSON` returns the fallback when no file exists yet.
+const loadedNotes = loadJSON<Record<string, ProjectNote[]>>("project_notes", {});
+const loadedSpecEvents = loadJSON<SpecEvent[]>("spec_events", SPEC_EVENTS_SEED);
+
+// Mutable, in-memory caches that the rest of the app reads directly. After
+// every mutation the route layer calls `persistProjectNotes()` /
+// `persistSpecEvents()` to flush to disk. Using arrays/Records here (rather
+// than re-assigning the bindings) keeps the existing import contracts intact.
+export const PROJECT_NOTES: Record<string, ProjectNote[]> = loadedNotes;
+export const SPEC_EVENTS: SpecEvent[] = loadedSpecEvents;
+
+// On first boot (no on-disk file), persist the seed so the file exists from
+// the very next mutation onward.
+if (loadedSpecEvents === SPEC_EVENTS_SEED) {
+  void saveJSON("spec_events", SPEC_EVENTS);
+}
+
+export function persistProjectNotes(): Promise<void> {
+  return saveJSON("project_notes", PROJECT_NOTES);
+}
+
+export function persistSpecEvents(): Promise<void> {
+  return saveJSON("spec_events", SPEC_EVENTS);
+}
+
+// ============================================================
 // Phase 1 — Lead Intake & Discovery
 // ============================================================
 

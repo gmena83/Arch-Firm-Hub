@@ -1,44 +1,30 @@
 import { Router, type IRouter } from "express";
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
-import { PROJECTS, PROJECT_TASKS, DOCUMENTS, WEATHER_DATA, RECENT_ACTIVITY } from "../data/seed";
+import {
+  PROJECTS,
+  PROJECT_TASKS,
+  DOCUMENTS,
+  WEATHER_DATA,
+  RECENT_ACTIVITY,
+  PROJECT_NOTES,
+  SPEC_EVENTS,
+  persistProjectNotes,
+  persistSpecEvents,
+  type NoteReply,
+  type ProjectNote,
+} from "../data/seed";
 import { requireRole } from "../middlewares/require-role";
 
 const router: IRouter = Router();
 
-// In-memory per-project notes/questions/spec-events for the demo session.
-export interface NoteReply { id: string; by: string; text: string; lang: "en" | "es"; createdAt: string; }
-export interface ProjectNote {
-  id: string;
-  type: "voice_note" | "client_question" | "general";
-  text: string;
-  lang: "en" | "es";
-  createdAt: string;
-  createdBy: string;
-  createdByUserId?: string;
-  source: string;
-  status?: "open" | "answered";
-  replies?: NoteReply[];
-  // Default true for "general" + "voice_note" (team-only); false for
-  // "client_question" so the client always sees their own questions.
-  isPrivate?: boolean;
-}
-export const PROJECT_NOTES: Record<string, ProjectNote[]> = {};
-
-interface SpecEvent { id: string; projectId: string; kind: "added" | "resolved" | "opened"; title: string; createdAt: string; }
-const SPEC_EVENTS: SpecEvent[] = [
-  // Seed a demo timeline so the report is not empty.
-  { id: "s1", projectId: "proj-1", kind: "added", title: "Bamboo decking spec",         createdAt: "2026-03-05T10:00:00Z" },
-  { id: "s2", projectId: "proj-1", kind: "added", title: "Solar PV inverter sizing",    createdAt: "2026-03-12T11:00:00Z" },
-  { id: "s3", projectId: "proj-1", kind: "opened",  title: "Question: roof slope",      createdAt: "2026-03-15T13:00:00Z" },
-  { id: "s4", projectId: "proj-1", kind: "added", title: "Mineral wool R-30",           createdAt: "2026-03-22T09:00:00Z" },
-  { id: "s5", projectId: "proj-1", kind: "resolved", title: "Question: roof slope",     createdAt: "2026-03-28T16:00:00Z" },
-  { id: "s6", projectId: "proj-1", kind: "added", title: "Tempered glass railings",     createdAt: "2026-04-02T10:00:00Z" },
-  { id: "s7", projectId: "proj-1", kind: "opened",  title: "Question: pool tile color", createdAt: "2026-04-05T11:00:00Z" },
-  { id: "s8", projectId: "proj-1", kind: "added", title: "Stainless steel anchors",     createdAt: "2026-04-09T14:00:00Z" },
-  { id: "s9", projectId: "proj-1", kind: "resolved", title: "Question: pool tile color",createdAt: "2026-04-14T10:00:00Z" },
-  { id: "s10", projectId: "proj-1", kind: "opened", title: "Question: smart home",      createdAt: "2026-04-17T10:00:00Z" },
-];
+// PROJECT_NOTES, SPEC_EVENTS, NoteReply, and ProjectNote live in
+// `../data/seed` so they're stored alongside the rest of the project data
+// and so the demo spec timeline is preloaded on a fresh boot. Re-export the
+// types here for any downstream consumers that previously imported them
+// from this module.
+export type { NoteReply, ProjectNote };
+export { PROJECT_NOTES };
 
 function detectClientQuestion(message: string): boolean {
   const trimmed = message.trim();
@@ -218,6 +204,7 @@ router.post("/projects/:id/notes", requireRole(["team", "admin", "superadmin", "
   };
   if (!PROJECT_NOTES[id]) PROJECT_NOTES[id] = [];
   PROJECT_NOTES[id].push(note);
+  void persistProjectNotes();
 
   // Surface new client questions in the activity feed so the team gets notified.
   if (noteType === "client_question") {
@@ -256,6 +243,7 @@ router.post("/projects/:id/notes/:noteId/reply", requireRole(["team", "admin", "
   };
   note.replies = [...(note.replies ?? []), reply];
   note.status = "answered";
+  void persistProjectNotes();
 
   const project = PROJECTS.find((p) => p.id === id);
   RECENT_ACTIVITY.unshift({
@@ -280,6 +268,7 @@ router.post("/ai/confirm-classification", requireRole(["team", "admin", "superad
   for (const it of items) {
     SPEC_EVENTS.push({ id: `s-${Date.now()}-${Math.random().toString(36).slice(2,5)}`, projectId, kind: "added", title: `Classified: ${it}`, createdAt: new Date().toISOString() });
   }
+  void persistSpecEvents();
   res.json({ ok: true, classified: items.length, action: body.action ?? "classify_photos", at: new Date().toISOString() });
 });
 
@@ -435,6 +424,7 @@ router.post("/ai/chat", requireRole(["team", "admin", "superadmin", "architect",
       replies: [],
     };
     PROJECT_NOTES[projectId].push(newQ);
+    void persistProjectNotes();
     const project = PROJECTS.find((p) => p.id === projectId);
     RECENT_ACTIVITY.unshift({
       id: `act-q-${newQ.id}`,

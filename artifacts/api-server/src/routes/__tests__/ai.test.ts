@@ -1,8 +1,17 @@
+import { mkdtempSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { AddressInfo } from "node:net";
-import app from "../../app";
-import { PROJECT_NOTES } from "../ai";
+
+// Isolate persistence to a temp directory before importing app/seed so the
+// AI route's PROJECT_NOTES + SPEC_EVENTS stores don't read or write to the
+// real on-disk persistence file during test runs.
+process.env["KONTI_DATA_DIR"] = mkdtempSync(path.join(os.tmpdir(), "konti-test-"));
+
+const { default: app } = await import("../../app");
+const { PROJECT_NOTES } = await import("../ai");
 
 type LoginResponse = { token: string; user: { id: string; role: string } };
 
