@@ -278,6 +278,29 @@ export const GetProjectDocumentsResponseItem = zod.object({
     .enum(["schematic_design", "design_development", "construction_documents"])
     .optional()
     .describe("Optional Phase-3 sub-phase tag (SD\/DD\/CD)."),
+  photoCategory: zod
+    .enum([
+      "site_conditions",
+      "construction_progress",
+      "punchlist_evidence",
+      "final",
+    ])
+    .optional()
+    .describe(
+      'Site-photo bucket. Only meaningful when `type` is \"photo\"; controls grouping in the project gallery and report.',
+    ),
+  caption: zod
+    .string()
+    .optional()
+    .describe(
+      "Optional caption shown under the photo in the gallery and report.",
+    ),
+  imageUrl: zod
+    .string()
+    .optional()
+    .describe(
+      "Optional URL the gallery uses to render a thumbnail\/full-size image. When omitted, the gallery shows a generic photo tile.",
+    ),
   isClientVisible: zod.boolean(),
   uploadedBy: zod.string(),
   uploadedAt: zod.string(),
@@ -309,6 +332,8 @@ export const CreateProjectDocumentParams = zod.object({
 });
 
 export const createProjectDocumentBodyNameMax = 200;
+
+export const createProjectDocumentBodyCaptionMax = 500;
 
 export const CreateProjectDocumentBody = zod.object({
   name: zod
@@ -352,6 +377,26 @@ export const CreateProjectDocumentBody = zod.object({
     .string()
     .optional()
     .describe("Optional MIME type captured at upload time."),
+  photoCategory: zod
+    .enum([
+      "site_conditions",
+      "construction_progress",
+      "punchlist_evidence",
+      "final",
+    ])
+    .optional()
+    .describe(
+      "Required when uploading a photo; chooses which gallery section the image lands in.",
+    ),
+  caption: zod
+    .string()
+    .max(createProjectDocumentBodyCaptionMax)
+    .optional()
+    .describe("Optional photo caption (max 500 chars)."),
+  imageUrl: zod
+    .string()
+    .optional()
+    .describe("Optional URL for the photo thumbnail\/full-size image."),
 });
 
 /**
@@ -389,6 +434,29 @@ export const UpdateProjectDocumentResponse = zod.object({
     .enum(["schematic_design", "design_development", "construction_documents"])
     .optional()
     .describe("Optional Phase-3 sub-phase tag (SD\/DD\/CD)."),
+  photoCategory: zod
+    .enum([
+      "site_conditions",
+      "construction_progress",
+      "punchlist_evidence",
+      "final",
+    ])
+    .optional()
+    .describe(
+      'Site-photo bucket. Only meaningful when `type` is \"photo\"; controls grouping in the project gallery and report.',
+    ),
+  caption: zod
+    .string()
+    .optional()
+    .describe(
+      "Optional caption shown under the photo in the gallery and report.",
+    ),
+  imageUrl: zod
+    .string()
+    .optional()
+    .describe(
+      "Optional URL the gallery uses to render a thumbnail\/full-size image. When omitted, the gallery shows a generic photo tile.",
+    ),
   isClientVisible: zod.boolean(),
   uploadedBy: zod.string(),
   uploadedAt: zod.string(),

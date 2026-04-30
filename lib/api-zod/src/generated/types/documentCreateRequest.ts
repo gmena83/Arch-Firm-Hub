@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { DocumentCreateRequestCategory } from "./documentCreateRequestCategory";
+import type { DocumentCreateRequestPhotoCategory } from "./documentCreateRequestPhotoCategory";
 import type { DocumentCreateRequestType } from "./documentCreateRequestType";
 
 export interface DocumentCreateRequest {
@@ -27,4 +28,13 @@ export interface DocumentCreateRequest {
   description?: string;
   /** Optional MIME type captured at upload time. */
   mimeType?: string;
+  /** Required when uploading a photo; chooses which gallery section the image lands in. */
+  photoCategory?: DocumentCreateRequestPhotoCategory;
+  /**
+   * Optional photo caption (max 500 chars).
+   * @maxLength 500
+   */
+  caption?: string;
+  /** Optional URL for the photo thumbnail/full-size image. */
+  imageUrl?: string;
 }

@@ -43,6 +43,7 @@ import { CostPlusBudget } from "@/components/cost-plus-budget";
 import { ProjectInvoices } from "@/components/project-invoices";
 import { ClientActivityCard } from "@/components/client-activity-card";
 import { StatusSentence } from "@/components/status-sentence";
+import { SitePhotosGallery, PHOTO_CATEGORY_OPTIONS, type PhotoCategoryKey } from "@/components/site-photos-gallery";
 import { ContractorMonitoringSection } from "@/components/contractor-monitoring-section";
 import { InspectionsSection } from "@/components/inspections-section";
 import { PunchlistPanel } from "@/components/punchlist-panel";
@@ -150,13 +151,22 @@ function UploadModal({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [category, setCategory] = useState<DocCategory>("client_review");
+  // Photo-only fields (#105). Caption is shared across a multi-file upload —
+  // the team can upload a batch of "Week 32 framing" shots with one caption
+  // and category instead of editing each one individually.
+  const [photoCategory, setPhotoCategory] = useState<PhotoCategoryKey>("construction_progress");
+  const [caption, setCaption] = useState("");
+  // When true, the next picked file batch is uploaded as photos (multi-file
+  // <input> + photoCategory required). The dropzone changes its accept hint
+  // accordingly.
+  const [photoMode, setPhotoMode] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const createDocument = useCreateProjectDocument();
 
   const uploadFile = useCallback(
-    async (file: File) => {
+    async (file: File, isPhotoBatch: boolean) => {
       // Client-side guards: bilingual error toast on validation failure,
       // matching the bug-report row #82 acceptance criteria.
       const ext = fileExtension(file.name);
@@ -170,7 +180,20 @@ function UploadModal({
           ),
           variant: "destructive",
         });
-        return;
+        return false;
+      }
+      // In photo-batch mode, reject non-images outright so users don't
+      // accidentally drop a PDF in the photos dropzone.
+      if (isPhotoBatch && inferDocType(file) !== "photo") {
+        toast({
+          title: t("Photos only", "Solo fotos"),
+          description: t(
+            "Use the regular Documents upload for non-image files.",
+            "Usa la subida de Documentos para archivos que no sean imágenes.",
+          ),
+          variant: "destructive",
+        });
+        return false;
       }
       if (file.size > MAX_UPLOAD_BYTES) {
         toast({
@@ -181,33 +204,30 @@ function UploadModal({
           ),
           variant: "destructive",
         });
-        return;
+        return false;
       }
-      const effectiveCategory: DocCategory = lockedToClientReview ? "client_review" : category;
+      const docType = inferDocType(file);
+      const isPhoto = docType === "photo";
+      const effectiveCategory: DocCategory = lockedToClientReview
+        ? "client_review"
+        : isPhoto
+          ? "construction"
+          : category;
       try {
         await createDocument.mutateAsync({
           projectId,
           data: {
             name: file.name,
             category: effectiveCategory,
-            type: inferDocType(file),
-            isClientVisible: effectiveCategory === "client_review",
+            type: docType,
+            isClientVisible: lockedToClientReview ? true : effectiveCategory === "client_review" || isPhoto,
             fileSize: formatFileSize(file.size),
             mimeType: file.type || "application/octet-stream",
+            ...(isPhoto ? { photoCategory } : {}),
+            ...(isPhoto && caption.trim() ? { caption: caption.trim() } : {}),
           },
         });
-        // Refresh documents and project (which embeds the new activity entry).
-        await Promise.all([
-          queryClient.invalidateQueries({ queryKey: getGetProjectDocumentsQueryKey(projectId) }),
-          queryClient.invalidateQueries({ queryKey: getGetProjectQueryKey(projectId) }),
-        ]);
-        toast({
-          title: t("File uploaded successfully", "Archivo subido exitosamente"),
-          description: effectiveCategory === "client_review"
-            ? t("Email notification sent to client.", "Notificación enviada al cliente por correo.")
-            : t("File saved to internal documents.", "Archivo guardado en documentos internos."),
-        });
-        onClose();
+        return true;
       } catch (err) {
         // Bilingual destructive toast keyed by HTTP status.
         const status = (err as { status?: number }).status;
@@ -232,22 +252,57 @@ function UploadModal({
           description: t(descEn, descEs),
           variant: "destructive",
         });
+        return false;
       }
     },
-    [createDocument, projectId, category, lockedToClientReview, queryClient, toast, t, onClose],
+    [createDocument, projectId, category, photoCategory, caption, lockedToClientReview, toast, t],
+  );
+
+  const handleFiles = useCallback(
+    async (files: FileList | File[], isPhotoBatch: boolean) => {
+      const list = Array.from(files);
+      if (list.length === 0) return;
+      let successCount = 0;
+      for (const file of list) {
+        // eslint-disable-next-line no-await-in-loop
+        const ok = await uploadFile(file, isPhotoBatch);
+        if (ok) successCount += 1;
+      }
+      if (successCount > 0) {
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: getGetProjectDocumentsQueryKey(projectId) }),
+          queryClient.invalidateQueries({ queryKey: getGetProjectQueryKey(projectId) }),
+        ]);
+        toast({
+          title: isPhotoBatch
+            ? t(
+                successCount === 1 ? "Photo uploaded" : `${successCount} photos uploaded`,
+                successCount === 1 ? "Foto subida" : `${successCount} fotos subidas`,
+              )
+            : t("File uploaded successfully", "Archivo subido exitosamente"),
+          description: isPhotoBatch
+            ? t("Visible in the Site Photos gallery.", "Visibles en la galería de Fotos del Sitio.")
+            : (lockedToClientReview ? "client_review" : category) === "client_review"
+              ? t("Email notification sent to client.", "Notificación enviada al cliente por correo.")
+              : t("File saved to internal documents.", "Archivo guardado en documentos internos."),
+        });
+        onClose();
+      }
+    },
+    [uploadFile, queryClient, projectId, toast, t, lockedToClientReview, category, onClose],
   );
 
   const onPickFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+    const files = e.target.files;
     e.target.value = "";
-    if (file) void uploadFile(file);
+    if (files && files.length > 0) void handleFiles(files, photoMode);
   };
 
   const onDropFile = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setDragOver(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file) void uploadFile(file);
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) void handleFiles(files, photoMode);
   };
 
   const isUploading = createDocument.isPending;
@@ -261,41 +316,111 @@ function UploadModal({
         </div>
 
         <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-2">{t("Category", "Categoría")}</label>
-            {lockedToClientReview ? (
-              <div
-                data-testid="locked-category-client-review"
-                className="py-2 px-3 rounded-md text-sm font-medium border bg-konti-olive text-white border-konti-olive flex items-center justify-between"
-              >
-                <span>{t("Client Review", "Revisión del Cliente")}</span>
-                <span className="text-[11px] uppercase tracking-wider opacity-80">
-                  {t("Locked", "Bloqueado")}
-                </span>
-              </div>
-            ) : (
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value as DocCategory)}
-                data-testid="select-doc-category"
+          {!lockedToClientReview && (
+            <div className="flex rounded-md border border-input overflow-hidden text-sm">
+              <button
+                type="button"
+                onClick={() => setPhotoMode(false)}
                 disabled={isUploading}
-                className="w-full px-3 py-2 rounded-md border border-input bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                data-testid="btn-mode-document"
+                className={`flex-1 py-2 transition-colors ${
+                  !photoMode
+                    ? "bg-konti-olive text-white"
+                    : "bg-card text-muted-foreground hover:bg-muted"
+                }`}
               >
-                {DOC_CATEGORY_OPTIONS.map((opt) => (
-                  <option key={opt.key} value={opt.key} data-testid={`option-category-${opt.key}`}>
-                    {t(opt.label, opt.labelEs)}
-                  </option>
-                ))}
-              </select>
-            )}
-          </div>
+                {t("Document", "Documento")}
+              </button>
+              <button
+                type="button"
+                onClick={() => setPhotoMode(true)}
+                disabled={isUploading}
+                data-testid="btn-mode-photo"
+                className={`flex-1 py-2 transition-colors ${
+                  photoMode
+                    ? "bg-konti-olive text-white"
+                    : "bg-card text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                {t("Site Photo(s)", "Foto(s) del Sitio")}
+              </button>
+            </div>
+          )}
+
+          {photoMode && !lockedToClientReview ? (
+            <>
+              <div>
+                <label className="block text-sm font-medium mb-2">{t("Photo Category", "Categoría de Foto")}</label>
+                <select
+                  value={photoCategory}
+                  onChange={(e) => setPhotoCategory(e.target.value as PhotoCategoryKey)}
+                  data-testid="select-photo-category"
+                  disabled={isUploading}
+                  className="w-full px-3 py-2 rounded-md border border-input bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                >
+                  {PHOTO_CATEGORY_OPTIONS.map((opt) => (
+                    <option key={opt.key} value={opt.key} data-testid={`option-photo-category-${opt.key}`}>
+                      {t(opt.label, opt.labelEs)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  {t("Caption", "Descripción")}
+                  <span className="text-xs font-normal text-muted-foreground ml-1">{t("(optional)", "(opcional)")}</span>
+                </label>
+                <input
+                  type="text"
+                  value={caption}
+                  onChange={(e) => setCaption(e.target.value.slice(0, 500))}
+                  data-testid="input-photo-caption"
+                  disabled={isUploading}
+                  maxLength={500}
+                  placeholder={t("e.g. Pool excavation week 32", "ej. Excavación de piscina semana 32")}
+                  className="w-full px-3 py-2 rounded-md border border-input bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                />
+                <p className="text-[11px] text-muted-foreground mt-1">{caption.length}/500</p>
+              </div>
+            </>
+          ) : (
+            <div>
+              <label className="block text-sm font-medium mb-2">{t("Category", "Categoría")}</label>
+              {lockedToClientReview ? (
+                <div
+                  data-testid="locked-category-client-review"
+                  className="py-2 px-3 rounded-md text-sm font-medium border bg-konti-olive text-white border-konti-olive flex items-center justify-between"
+                >
+                  <span>{t("Client Review", "Revisión del Cliente")}</span>
+                  <span className="text-[11px] uppercase tracking-wider opacity-80">
+                    {t("Locked", "Bloqueado")}
+                  </span>
+                </div>
+              ) : (
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value as DocCategory)}
+                  data-testid="select-doc-category"
+                  disabled={isUploading}
+                  className="w-full px-3 py-2 rounded-md border border-input bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                >
+                  {DOC_CATEGORY_OPTIONS.map((opt) => (
+                    <option key={opt.key} value={opt.key} data-testid={`option-category-${opt.key}`}>
+                      {t(opt.label, opt.labelEs)}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+          )}
 
           <input
             ref={fileInputRef}
             type="file"
             className="hidden"
             data-testid="input-upload-file"
-            accept={ACCEPTED_EXTENSIONS.join(",")}
+            accept={photoMode ? "image/*" : ACCEPTED_EXTENSIONS.join(",")}
+            multiple={photoMode}
             onChange={onPickFile}
           />
 
@@ -316,12 +441,18 @@ function UploadModal({
             <p className="text-sm font-medium text-foreground">
               {isUploading
                 ? t("Uploading…", "Subiendo…")
-                : t("Drop a file here or click to browse", "Suelta un archivo aquí o haz clic para navegar")}
+                : photoMode
+                  ? t("Drop photos here or click to browse", "Suelta fotos aquí o haz clic para navegar")
+                  : t("Drop a file here or click to browse", "Suelta un archivo aquí o haz clic para navegar")}
             </p>
-            <p className="text-xs text-muted-foreground mt-1">{t("PDF, JPG, PNG, Excel, PPTX · max 10 MB", "PDF, JPG, PNG, Excel, PPTX · máx. 10 MB")}</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {photoMode
+                ? t("JPG, PNG · multiple files allowed · max 10 MB each", "JPG, PNG · varios archivos permitidos · máx. 10 MB c/u")
+                : t("PDF, JPG, PNG, Excel, PPTX · max 10 MB", "PDF, JPG, PNG, Excel, PPTX · máx. 10 MB")}
+            </p>
           </div>
 
-          {category === "client_review" && (
+          {!photoMode && category === "client_review" && (
             <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
               {t("Client will receive an email notification when files are added to Client Review.", "El cliente recibirá una notificación por correo al agregar archivos a Revisión del Cliente.")}
             </p>
@@ -329,11 +460,15 @@ function UploadModal({
 
           <button
             onClick={() => !isUploading && fileInputRef.current?.click()}
-            data-testid="btn-pick-upload"
+            data-testid={photoMode ? "btn-upload-photo" : "btn-pick-upload"}
             disabled={isUploading}
             className="w-full py-2.5 bg-konti-olive hover:bg-konti-olive/90 text-white text-sm font-semibold rounded-md transition-colors disabled:opacity-60"
           >
-            {isUploading ? t("Uploading…", "Subiendo…") : t("Choose File", "Elegir Archivo")}
+            {isUploading
+              ? t("Uploading…", "Subiendo…")
+              : photoMode
+                ? t("Choose Photos", "Elegir Fotos")
+                : t("Choose File", "Elegir Archivo")}
           </button>
         </div>
       </div>
@@ -1170,6 +1305,9 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
               onAdvanced={onProjectUpdated}
             />
           </div>
+
+          {/* Site Photos gallery (#105) */}
+          <SitePhotosGallery projectId={projectId} isClientView={isClientView} />
 
           {/* Weather widget */}
           {weather && (

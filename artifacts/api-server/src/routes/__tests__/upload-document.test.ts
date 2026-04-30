@@ -109,11 +109,13 @@ test("superadmin can upload JPG and PNG to seeded projects (no regression on pro
     await withServer(async (baseUrl) => {
       const token = await login(baseUrl, "tatiana@menatech.cloud", "Konti123");
 
-      // expectedType pins the Document.type enum normalization.
-      for (const [projectId, mime, ext, expectedType] of [
-        ["proj-1", "image/jpeg", "jpg", "photo"],
-        ["proj-2", "image/png", "png", "photo"],
-        ["proj-3", "application/pdf", "pdf", "pdf"],
+      // expectedType pins the Document.type enum normalization. Image uploads
+      // (#105) now require a photoCategory; the seed and gallery rely on this
+      // bucket so the server validates it on POST.
+      for (const [projectId, mime, ext, expectedType, photoCategory] of [
+        ["proj-1", "image/jpeg", "jpg", "photo", "construction_progress"],
+        ["proj-2", "image/png", "png", "photo", "site_conditions"],
+        ["proj-3", "application/pdf", "pdf", "pdf", undefined],
       ] as const) {
         const res = await fetch(`${baseUrl}/api/projects/${projectId}/documents`, {
           method: "POST",
@@ -124,13 +126,32 @@ test("superadmin can upload JPG and PNG to seeded projects (no regression on pro
             isClientVisible: false,
             fileSize: "2.5 MB",
             mimeType: mime,
+            ...(photoCategory ? { photoCategory } : {}),
           }),
         });
         assert.equal(res.status, 201, `${projectId} should accept ${ext} upload`);
-        const doc = (await res.json()) as { type: string; category: string };
+        const doc = (await res.json()) as { type: string; category: string; photoCategory?: string };
         assert.equal(doc.type, expectedType, `${ext} upload should normalize type to ${expectedType}`);
         assert.equal(doc.category, "internal");
+        if (photoCategory) {
+          assert.equal(doc.photoCategory, photoCategory, "photoCategory must round-trip on photo uploads");
+        }
       }
+
+      // Server-side validation (#105): a photo upload missing photoCategory
+      // must be rejected so the gallery never receives an uncategorized image.
+      const badPhoto = await fetch(`${baseUrl}/api/projects/proj-2/documents`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          name: "uncategorized-photo.jpg",
+          category: "internal",
+          isClientVisible: false,
+          fileSize: "1.0 MB",
+          mimeType: "image/jpeg",
+        }),
+      });
+      assert.equal(badPhoto.status, 400, "photo upload without photoCategory must be rejected");
 
       // Existing seed data must still be intact (no documents removed).
       for (const pid of original) {

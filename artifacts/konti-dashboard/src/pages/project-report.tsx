@@ -4,10 +4,13 @@ import {
   useGetProject, useGetProjectWeather, useGetProjectTasks,
   useGetProjectCalculations,
   useGetProjectCostPlus, useGetProjectInspections, useGetProjectMilestones,
+  useGetProjectDocuments,
   getGetProjectQueryKey, getGetProjectWeatherQueryKey,
   getGetProjectTasksQueryKey, getGetProjectCalculationsQueryKey,
   getGetProjectCostPlusQueryKey, getGetProjectInspectionsQueryKey, getGetProjectMilestonesQueryKey,
+  getGetProjectDocumentsQueryKey,
 } from "@workspace/api-client-react";
+import { PHOTO_CATEGORY_OPTIONS, photoCategoryLabel, type PhotoCategoryKey } from "@/components/site-photos-gallery";
 import { RequireAuth, useAuth } from "@/hooks/use-auth";
 import { useLang } from "@/hooks/use-lang";
 import { PunchlistPanel } from "@/components/punchlist-panel";
@@ -226,6 +229,37 @@ function ReportContent({ projectId }: { projectId: string }) {
   });
   const inspections = inspectionsData?.inspections ?? [];
   const milestones = milestonesData?.milestones ?? [];
+
+  // Site Photos block (#105). Mirror the gallery's role-based visibility filter
+  // so the PDF rasterized from this report doesn't leak internal-only photos
+  // when the report is opened by a client.
+  const { data: allDocs = [] } = useGetProjectDocuments(projectId, undefined, {
+    query: { enabled: !!projectId, queryKey: getGetProjectDocumentsQueryKey(projectId, undefined) },
+  });
+  type ReportPhoto = {
+    id: string;
+    name: string;
+    photoCategory?: string;
+    caption?: string;
+    imageUrl?: string;
+    isClientVisible: boolean;
+  };
+  const reportPhotos = useMemo<ReportPhoto[]>(() => (
+    (allDocs as ReportPhoto[] & { type?: string }[])
+      .filter((d) => (d as { type?: string }).type === "photo")
+      .filter((d) => !isClientView || d.isClientVisible)
+      .filter((d) => typeof d.photoCategory === "string")
+  ), [allDocs, isClientView]);
+  const photosByCategory = useMemo<Record<PhotoCategoryKey, ReportPhoto[]>>(() => {
+    const out: Record<PhotoCategoryKey, ReportPhoto[]> = {
+      site_conditions: [], construction_progress: [], punchlist_evidence: [], final: [],
+    };
+    for (const p of reportPhotos) {
+      const k = p.photoCategory as PhotoCategoryKey | undefined;
+      if (k && k in out) out[k].push(p);
+    }
+    return out;
+  }, [reportPhotos]);
 
   async function downloadPdf() {
     if (!project || isDownloading) return;
@@ -560,6 +594,68 @@ function ReportContent({ projectId }: { projectId: string }) {
             })}
           </div>
         </section>
+
+        {/* Site Photos block (#105). Up to 6 thumbs per category with caption,
+            linking back to the full gallery on the project detail page. */}
+        {reportPhotos.length > 0 && (
+          <section data-testid="report-photos-block">
+            <div className="flex items-end justify-between mb-6 gap-4">
+              <h2 className="text-[color:var(--rep-fg-faint)] text-xs font-semibold uppercase tracking-widest">
+                {t("Site Photos", "Fotos del Sitio")}
+              </h2>
+              <Link
+                href={`/projects/${projectId}#photos`}
+                data-testid="link-view-all-photos"
+                className="text-xs text-konti-olive hover:underline"
+              >
+                {t(`View all ${reportPhotos.length} photos →`, `Ver las ${reportPhotos.length} fotos →`)}
+              </Link>
+            </div>
+            <div className="space-y-6">
+              {PHOTO_CATEGORY_OPTIONS.map((cat) => {
+                const items = photosByCategory[cat.key].slice(0, 6);
+                if (items.length === 0) return null;
+                return (
+                  <div key={cat.key} data-testid={`report-photo-category-${cat.key}`}>
+                    <div className="flex items-baseline justify-between mb-2">
+                      <p className="text-[11px] uppercase tracking-wider font-semibold text-[color:var(--rep-fg-soft)]">
+                        {photoCategoryLabel(cat.key, lang)}
+                      </p>
+                      <span className="text-[11px] text-[color:var(--rep-fg-faint)]">
+                        {photosByCategory[cat.key].length}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
+                      {items.map((p) => (
+                        <div
+                          key={p.id}
+                          data-testid={`report-photo-thumb-${p.id}`}
+                          className="space-y-1"
+                        >
+                          <div className="aspect-square rounded-md overflow-hidden border border-[color:var(--rep-border)] bg-[color:var(--rep-surface-2)]">
+                            {p.imageUrl ? (
+                              <img
+                                src={p.imageUrl}
+                                alt={p.caption ?? p.name}
+                                loading="lazy"
+                                className="w-full h-full object-cover"
+                              />
+                            ) : null}
+                          </div>
+                          {p.caption && (
+                            <p className="text-[10px] leading-tight text-[color:var(--rep-fg-soft)] line-clamp-2">
+                              {p.caption}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         {/* Budget breakdown — pie by category */}
         <section className="grid md:grid-cols-2 gap-8 items-center">

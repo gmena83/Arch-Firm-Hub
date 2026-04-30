@@ -250,6 +250,7 @@ router.post("/projects/:projectId/documents", requireRole(["team", "admin", "sup
   const body = (req.body ?? {}) as {
     name?: string; type?: string; category?: string; isClientVisible?: boolean;
     fileSize?: string; description?: string; mimeType?: string;
+    photoCategory?: string; caption?: string; imageUrl?: string;
   };
   if (typeof body.name !== "string" || body.name.length === 0 || body.name.length > 200) {
     return res.status(400).json({ error: "bad_request", message: "name required" });
@@ -284,6 +285,23 @@ router.post("/projects/:projectId/documents", requireRole(["team", "admin", "sup
     (ALLOWED_TYPES as readonly string[]).includes(requestedType)
       ? (requestedType as typeof ALLOWED_TYPES[number])
       : inferTypeFromExt(ext);
+  // Photo-only fields (#105): require a photoCategory for image uploads so the
+  // gallery has a stable bucket to file the photo under. caption/imageUrl are
+  // both optional with a soft 500-char cap on caption to mirror the OpenAPI
+  // contract and keep storage tidy.
+  const PHOTO_CATEGORIES = [
+    "site_conditions", "construction_progress", "punchlist_evidence", "final",
+  ] as const;
+  let photoCategory: typeof PHOTO_CATEGORIES[number] | undefined;
+  if (normalizedType === "photo") {
+    if (typeof body.photoCategory !== "string" || !(PHOTO_CATEGORIES as readonly string[]).includes(body.photoCategory)) {
+      return res.status(400).json({ error: "bad_request", message: "photoCategory required for photo uploads" });
+    }
+    photoCategory = body.photoCategory as typeof PHOTO_CATEGORIES[number];
+  }
+  const caption = typeof body.caption === "string" ? body.caption.slice(0, 500) : undefined;
+  const imageUrl = typeof body.imageUrl === "string" && body.imageUrl.length > 0 ? body.imageUrl : undefined;
+
   const list = (DOCUMENTS as Record<string, unknown[]>)[projectId] ?? [];
   const doc = {
     id: `doc-${projectId}-${list.length + 1}-${Date.now()}`,
@@ -297,6 +315,9 @@ router.post("/projects/:projectId/documents", requireRole(["team", "admin", "sup
     fileSize: body.fileSize ?? "0 KB",
     mimeType: body.mimeType ?? "",
     description: body.description ?? "",
+    ...(photoCategory ? { photoCategory } : {}),
+    ...(caption ? { caption } : {}),
+    ...(imageUrl ? { imageUrl } : {}),
   };
   (DOCUMENTS as Record<string, unknown[]>)[projectId] = [...list, doc];
   // Surface upload in the project timeline. Use a dedicated audit type when

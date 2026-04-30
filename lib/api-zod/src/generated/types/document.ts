@@ -7,6 +7,7 @@
  */
 import type { DocumentCategory } from "./documentCategory";
 import type { DocumentDesignSubPhase } from "./documentDesignSubPhase";
+import type { DocumentPhotoCategory } from "./documentPhotoCategory";
 import type { DocumentType } from "./documentType";
 import type { DocumentVersion } from "./documentVersion";
 
@@ -18,6 +19,12 @@ export interface Document {
   category: DocumentCategory;
   /** Optional Phase-3 sub-phase tag (SD/DD/CD). */
   designSubPhase?: DocumentDesignSubPhase;
+  /** Site-photo bucket. Only meaningful when `type` is "photo"; controls grouping in the project gallery and report. */
+  photoCategory?: DocumentPhotoCategory;
+  /** Optional caption shown under the photo in the gallery and report. */
+  caption?: string;
+  /** Optional URL the gallery uses to render a thumbnail/full-size image. When omitted, the gallery shows a generic photo tile. */
+  imageUrl?: string;
   isClientVisible: boolean;
   uploadedBy: string;
   uploadedAt: string;

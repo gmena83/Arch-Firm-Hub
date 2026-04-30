@@ -344,6 +344,19 @@ export const DocumentDesignSubPhase = {
   construction_documents: "construction_documents",
 } as const;
 
+/**
+ * Site-photo bucket. Only meaningful when `type` is "photo"; controls grouping in the project gallery and report.
+ */
+export type DocumentPhotoCategory =
+  (typeof DocumentPhotoCategory)[keyof typeof DocumentPhotoCategory];
+
+export const DocumentPhotoCategory = {
+  site_conditions: "site_conditions",
+  construction_progress: "construction_progress",
+  punchlist_evidence: "punchlist_evidence",
+  final: "final",
+} as const;
+
 export interface Document {
   id: string;
   projectId: string;
@@ -352,6 +365,12 @@ export interface Document {
   category: DocumentCategory;
   /** Optional Phase-3 sub-phase tag (SD/DD/CD). */
   designSubPhase?: DocumentDesignSubPhase;
+  /** Site-photo bucket. Only meaningful when `type` is "photo"; controls grouping in the project gallery and report. */
+  photoCategory?: DocumentPhotoCategory;
+  /** Optional caption shown under the photo in the gallery and report. */
+  caption?: string;
+  /** Optional URL the gallery uses to render a thumbnail/full-size image. When omitted, the gallery shows a generic photo tile. */
+  imageUrl?: string;
   isClientVisible: boolean;
   uploadedBy: string;
   uploadedAt: string;
@@ -392,6 +411,19 @@ export const DocumentCreateRequestType = {
   other: "other",
 } as const;
 
+/**
+ * Required when uploading a photo; chooses which gallery section the image lands in.
+ */
+export type DocumentCreateRequestPhotoCategory =
+  (typeof DocumentCreateRequestPhotoCategory)[keyof typeof DocumentCreateRequestPhotoCategory];
+
+export const DocumentCreateRequestPhotoCategory = {
+  site_conditions: "site_conditions",
+  construction_progress: "construction_progress",
+  punchlist_evidence: "punchlist_evidence",
+  final: "final",
+} as const;
+
 export interface DocumentCreateRequest {
   /**
    * File name including extension (1-200 chars).
@@ -411,6 +443,15 @@ export interface DocumentCreateRequest {
   description?: string;
   /** Optional MIME type captured at upload time. */
   mimeType?: string;
+  /** Required when uploading a photo; chooses which gallery section the image lands in. */
+  photoCategory?: DocumentCreateRequestPhotoCategory;
+  /**
+   * Optional photo caption (max 500 chars).
+   * @maxLength 500
+   */
+  caption?: string;
+  /** Optional URL for the photo thumbnail/full-size image. */
+  imageUrl?: string;
 }
 
 export interface DocumentUpdateRequest {

@@ -2458,6 +2458,16 @@ components:
           type: string
           enum: [schematic_design, design_development, construction_documents]
           description: Optional Phase-3 sub-phase tag (SD/DD/CD).
+        photoCategory:
+          type: string
+          enum: [site_conditions, construction_progress, punchlist_evidence, final]
+          description: Site-photo bucket. Only meaningful when `type` is "photo"; controls grouping in the project gallery and report.
+        caption:
+          type: string
+          description: Optional caption shown under the photo in the gallery and report.
+        imageUrl:
+          type: string
+          description: Optional URL the gallery uses to render a thumbnail/full-size image. When omitted, the gallery shows a generic photo tile.
         isClientVisible:
           type: boolean
         uploadedBy:
@@ -2513,6 +2523,17 @@ components:
         mimeType:
           type: string
           description: Optional MIME type captured at upload time.
+        photoCategory:
+          type: string
+          enum: [site_conditions, construction_progress, punchlist_evidence, final]
+          description: Required when uploading a photo; chooses which gallery section the image lands in.
+        caption:
+          type: string
+          maxLength: 500
+          description: Optional photo caption (max 500 chars).
+        imageUrl:
+          type: string
+          description: Optional URL for the photo thumbnail/full-size image.
       required:
         - name
         - category
