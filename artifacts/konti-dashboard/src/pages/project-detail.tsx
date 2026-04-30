@@ -160,6 +160,10 @@ function UploadModal({
   // <input> + photoCategory required). The dropzone changes its accept hint
   // accordingly.
   const [photoMode, setPhotoMode] = useState(false);
+  // Photo internal-only toggle (#105 review feedback). Defaults to client-
+  // visible because that's the common case; the team can flip this to keep
+  // a punchlist-evidence shot internal at upload time.
+  const [photoInternalOnly, setPhotoInternalOnly] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -213,6 +217,34 @@ function UploadModal({
         : isPhoto
           ? "construction"
           : category;
+      // For photo uploads, read the file as a base64 data URL on the client
+      // and persist it as `imageUrl` so the gallery/lightbox/report can render
+      // the actual image without needing object storage. This mirrors the
+      // in-memory backend pattern used elsewhere in the demo and avoids the
+      // placeholder-thumbnail bug flagged in the #105 code review.
+      let dataUrl: string | undefined;
+      if (isPhoto) {
+        try {
+          dataUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result ?? ""));
+            reader.onerror = () => reject(reader.error ?? new Error("read failed"));
+            reader.readAsDataURL(file);
+          });
+        } catch {
+          toast({
+            title: t("Could not read photo", "No se pudo leer la foto"),
+            description: t("The image file could not be read in this browser.", "El navegador no pudo leer el archivo."),
+            variant: "destructive",
+          });
+          return false;
+        }
+      }
+      const isVisibleToClient = lockedToClientReview
+        ? true
+        : isPhoto
+          ? !photoInternalOnly
+          : effectiveCategory === "client_review";
       try {
         await createDocument.mutateAsync({
           projectId,
@@ -220,11 +252,12 @@ function UploadModal({
             name: file.name,
             category: effectiveCategory,
             type: docType,
-            isClientVisible: lockedToClientReview ? true : effectiveCategory === "client_review" || isPhoto,
+            isClientVisible: isVisibleToClient,
             fileSize: formatFileSize(file.size),
             mimeType: file.type || "application/octet-stream",
             ...(isPhoto ? { photoCategory } : {}),
             ...(isPhoto && caption.trim() ? { caption: caption.trim() } : {}),
+            ...(dataUrl ? { imageUrl: dataUrl } : {}),
           },
         });
         return true;
@@ -255,7 +288,7 @@ function UploadModal({
         return false;
       }
     },
-    [createDocument, projectId, category, photoCategory, caption, lockedToClientReview, toast, t],
+    [createDocument, projectId, category, photoCategory, caption, photoInternalOnly, lockedToClientReview, toast, t],
   );
 
   const handleFiles = useCallback(
@@ -382,6 +415,25 @@ function UploadModal({
                 />
                 <p className="text-[11px] text-muted-foreground mt-1">{caption.length}/500</p>
               </div>
+              <label className="flex items-start gap-2 text-sm cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={photoInternalOnly}
+                  onChange={(e) => setPhotoInternalOnly(e.target.checked)}
+                  data-testid="checkbox-photo-internal-only"
+                  disabled={isUploading}
+                  className="mt-0.5 accent-konti-olive"
+                />
+                <span>
+                  <span className="font-medium">{t("Internal only", "Solo interno")}</span>
+                  <span className="block text-xs text-muted-foreground">
+                    {t(
+                      "Hide from the client gallery and report.",
+                      "Ocultar de la galería y el reporte del cliente.",
+                    )}
+                  </span>
+                </span>
+              </label>
             </>
           ) : (
             <div>

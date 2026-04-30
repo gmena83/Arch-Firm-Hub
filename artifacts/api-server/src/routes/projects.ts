@@ -300,7 +300,18 @@ router.post("/projects/:projectId/documents", requireRole(["team", "admin", "sup
     photoCategory = body.photoCategory as typeof PHOTO_CATEGORIES[number];
   }
   const caption = typeof body.caption === "string" ? body.caption.slice(0, 500) : undefined;
-  const imageUrl = typeof body.imageUrl === "string" && body.imageUrl.length > 0 ? body.imageUrl : undefined;
+  // Restrict imageUrl to schemes the gallery actually renders (data: URLs from
+  // the client uploader, or http(s) seed URLs). This prevents a malformed
+  // payload from landing on the client as a broken <img src> or a javascript:
+  // URL on a stricter renderer.
+  let imageUrl: string | undefined;
+  if (typeof body.imageUrl === "string" && body.imageUrl.length > 0) {
+    if (/^data:image\//i.test(body.imageUrl) || /^https?:\/\//i.test(body.imageUrl)) {
+      imageUrl = body.imageUrl;
+    } else {
+      return res.status(400).json({ error: "bad_request", message: "imageUrl must be a data:image/* or http(s) URL" });
+    }
+  }
 
   const list = (DOCUMENTS as Record<string, unknown[]>)[projectId] ?? [];
   const doc = {
