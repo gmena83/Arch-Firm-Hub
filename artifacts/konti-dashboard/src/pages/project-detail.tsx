@@ -1041,12 +1041,14 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
             <img src={project.coverImage} alt={project.name} className="w-full h-full object-cover" />
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-konti-slate/65 via-konti-slate/35 to-konti-slate/0" />
+          {/* Localized darker bottom band guarantees contrast for the title block on bright cover photos without darkening the top of the image. */}
+          <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/55 via-black/20 to-transparent pointer-events-none" />
           <div className="absolute bottom-4 left-4 right-4 sm:left-6 sm:right-6">
             <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-white/70 text-sm mb-1">{project.clientName}</p>
-                <h1 className="text-white text-xl sm:text-2xl font-bold break-words">{project.name}</h1>
-                <p className="text-white/60 text-sm flex items-center gap-1 mt-1">
+                <p className="text-white/80 text-sm mb-1 [text-shadow:_0_1px_3px_rgb(0_0_0_/_0.55)]">{project.clientName}</p>
+                <h1 className="text-white text-xl sm:text-2xl font-bold break-words [text-shadow:_0_1px_4px_rgb(0_0_0_/_0.65)]">{project.name}</h1>
+                <p className="text-white/80 text-sm flex items-center gap-1 mt-1 [text-shadow:_0_1px_3px_rgb(0_0_0_/_0.55)]">
                   <MapPin className="w-3.5 h-3.5 shrink-0" /> {project.location}
                 </p>
               </div>
@@ -1056,7 +1058,7 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
                 </span>
                 <Link
                   href={`/projects/${projectId}/report`}
-                  className="text-xs flex items-center gap-1 text-white/70 hover:text-white transition-colors"
+                  className="text-xs flex items-center gap-1 text-white/80 hover:text-white transition-colors [text-shadow:_0_1px_3px_rgb(0_0_0_/_0.55)]"
                   data-testid="link-view-report"
                 >
                   {t("View Report", "Ver Reporte")} <ArrowRight className="w-3 h-3" />
