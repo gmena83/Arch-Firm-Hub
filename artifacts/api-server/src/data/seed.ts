@@ -56,13 +56,16 @@ export const USERS: DemoUser[] = [
     postalAddress: "PO Box 88, San Juan, PR 00901",
     physicalAddress: "Ave. Ashford 1500, San Juan, PR 00907",
   },
+  // Superadmin demo accounts (Task #103). Superadmin role lights up the full
+  // team sidebar AND the per-project Team/Client view toggle so they can
+  // review both surfaces. Password hashes below are demo-only — see replit.md.
   {
     id: "user-super-1",
     name: "Tatiana",
     email: "tatiana@menatech.cloud",
     role: "superadmin",
     avatar: "TM",
-    password: "$2b$12$zNuNn.Wuil/tlwHkHMisXe2wSwybKsEPFuCDsEnybzFfxfmdSZptG",
+    password: "$2b$12$02NEfBSRbaDihqYauPARMeNV1d02jyARFjZs3lNjkw4iQn5SP5Zc2",
   },
   {
     id: "user-super-2",
@@ -70,7 +73,7 @@ export const USERS: DemoUser[] = [
     email: "gonzalo@menatech.cloud",
     role: "superadmin",
     avatar: "GM",
-    password: "$2b$12$zNuNn.Wuil/tlwHkHMisXe2wSwybKsEPFuCDsEnybzFfxfmdSZptG",
+    password: "$2b$12$02NEfBSRbaDihqYauPARMeNV1d02jyARFjZs3lNjkw4iQn5SP5Zc2",
   },
 ];
 

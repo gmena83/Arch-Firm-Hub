@@ -57,8 +57,16 @@ A bilingual (EN/ES) project management and client dashboard for KONTi Design | B
   - `@assets` alias resolves to `./attached_assets/` at workspace root
 
 ### Auth
-- Demo: `demo@konti.com` / `konti2026` (admin role)
+- Demo (admin): `demo@konti.com` / `konti2026`
 - Client: `client@konti.com` / `konti2026` (client role)
+- Superadmin (Task #103): `tatiana@menatech.cloud` / `Konti_123`
+- Superadmin (Task #103): `gonzalo@menatech.cloud` / `Konti_123`
+  - Both superadmins get the full team sidebar (Leads, Audit, Team, etc.)
+    and a "Team View / Client View" toggle on each project detail page so
+    they can review what clients see without changing role.
+- **Demo credentials only — never reuse these passwords in production.**
+  All accounts live in the in-memory seed; rotate / move to a real
+  identity store before going live with real users.
 - Stored in `localStorage` key `konti_auth`
 - Language stored in `localStorage` key `konti_lang` (`en` or `es`)
 
