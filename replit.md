@@ -166,3 +166,49 @@ Repo is private (`private: true`, default branch `main`).
 
 Task #98 (proposed) will add an automated mirror so the GitHub copy stays
 in sync after every Replit commit instead of going stale.
+
+## Feedback bundle #3 — status reconcile + 7 polish wins (Task #113, Apr 30 2026)
+
+The v3 feedback workbook was reconciled into v4 and 7 small polish items were
+shipped in the same task.
+
+### Workbook
+- New file: `attached_assets/reports/KONTi_Dashboard_Feedback_Consolidated_v4.xlsx`
+- Verification-note column header bumped to `Verification Note (2026-04-30)`.
+- Status flips (8 reconciliation + 7 polish wins):
+  - **Done**: B-01, B-07, B-08, B-09, B-10, B-12, C-05, C-07, C-08, C-11, C-12, D-01, I-03
+  - **In Progress (partial)**: C-01 (punchlist photo-link rollup pending), I-01 (document blob storage still in-memory)
+- Summary sheet recomputed: Done 28 / In Progress 10 / Open 12 / Needs Decision 7.
+
+### Polish wins shipped
+- **B-07** Imports tab clarity — explainer banner inside `imports-panel.tsx`
+  (`data-testid="imports-explainer"`) on top of the existing renamed
+  "Imported Materials" tab + `title` attribute.
+- **B-08** Effective rate tooltip — `?` badge on the labor-baseline panel
+  (`data-testid="effective-rate-tooltip"`) explaining how the
+  receipts/import/default sources feed the hourly rate.
+- **B-09** Variance shortcut card — already shipped at
+  `project-detail.tsx` L1537 (`data-testid="variance-snapshot-link"`),
+  reconfirmed.
+- **C-05** Weather Status label — already shipped in both Key Metrics
+  (`project-report.tsx` L493) and the dedicated Weather panel (L967),
+  reconfirmed.
+- **C-07** Mgmt-fee tooltip + edit link — `?` badge with the formula
+  + olive "Edit →" link to `/calculator?tab=contractor` in the report
+  (`project-report.tsx` L803-828; testids `mgmt-fee-tooltip`,
+  `mgmt-fee-edit-link`).
+- **C-08** Bigger report logo — bumped from `h-14/16/20` → `h-20/24/28`
+  (~80/96/112 px) at `project-report.tsx` L415.
+- **C-12** White report background — `--rep-bg` in the light theme preset
+  switched from `#F4F2EE` to `#FFFFFF` (`project-report.tsx` L85). Dark mode
+  toggle preserved.
+
+### Verification
+- TypeScript (`pnpm --filter @workspace/konti-dashboard exec tsc -b`): clean.
+- E2E run via `runTest()` covered all 7 polish wins end-to-end (login,
+  tab, banner, tooltip title attrs, variance deep-link, report logo height,
+  white background, weather label, mgmt-fee row tooltip + edit link). Status:
+  success.
+- Playwright spec `e2e/csv-mapping-import.spec.ts` cannot run in this
+  environment (chromium-headless-shell missing libglib-2.0); the spec
+  itself is unmodified from Task #112 and was passing then.

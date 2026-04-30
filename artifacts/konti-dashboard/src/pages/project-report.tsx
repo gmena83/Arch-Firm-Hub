@@ -79,7 +79,7 @@ interface ThemeVars extends Record<string, string> {
 
 const THEME_VARS: Record<ReportTheme, ThemeVars> = {
   light: {
-    "--rep-bg": "#F4F2EE",
+    "--rep-bg": "#FFFFFF",
     "--rep-bg-strong": "#FFFFFF",
     "--rep-fg": "#1C1814",
     "--rep-fg-strong": "#1C1814",
@@ -409,7 +409,7 @@ function ReportContent({ projectId }: { projectId: string }) {
     >
       {/* Header */}
       <div className="bg-[color:var(--rep-bg)] border-b border-[color:var(--rep-border)] px-4 sm:px-6 md:px-12 py-4 sm:py-5 flex items-center justify-between gap-4 sm:gap-6 flex-wrap sticky top-0 z-10">
-        <img src={reportLogo} alt="KONTi" className="h-14 sm:h-16 md:h-20 w-auto shrink-0" data-testid="report-logo" />
+        <img src={reportLogo} alt="KONTi" className="h-20 sm:h-24 md:h-28 w-auto shrink-0" data-testid="report-logo" />
         <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
           <label className="hidden sm:flex items-center gap-1.5 text-[color:var(--rep-fg-soft)] text-xs">
             <span>{t("Progress Report", "Reporte de Progreso")} —</span>
@@ -798,9 +798,32 @@ function ReportContent({ projectId }: { projectId: string }) {
                     </div>
                   )}
                   {(contractorEst.managementFeePercent ?? 0) > 0 && (
-                    <div className="flex justify-between text-sm text-[color:var(--rep-fg-muted)]" data-testid="report-contractor-mgmt-fee">
-                      <span>{t("Management Fee", "Honorarios de Administración")} ({contractorEst.managementFeePercent}%)</span>
-                      <span className="text-[color:var(--rep-fg-strong)]">${(contractorEst.managementFeeAmount ?? 0).toLocaleString()}</span>
+                    <div className="flex justify-between gap-3 text-sm text-[color:var(--rep-fg-muted)]" data-testid="report-contractor-mgmt-fee">
+                      <span className="inline-flex flex-wrap items-center gap-x-1.5 gap-y-0.5 min-w-0">
+                        <span className="whitespace-nowrap">
+                          {t("Management Fee", "Honorarios de Administración")} ({contractorEst.managementFeePercent}%)
+                        </span>
+                        <button
+                          type="button"
+                          aria-label={t("Management fee explanation", "Explicación de honorarios")}
+                          title={t(
+                            `Computed as ${contractorEst.managementFeePercent}% of (Materials + Labor + Subcontractor + Contingency + Margin). Edit on the Contractor tab of the calculator.`,
+                            `Calculado como ${contractorEst.managementFeePercent}% de (Materiales + Mano de Obra + Subcontratistas + Contingencia + Margen). Editable en la pestaña Contratista de la calculadora.`,
+                          )}
+                          className="inline-flex shrink-0 items-center justify-center w-4 h-4 rounded-full border border-[color:var(--rep-border-strong)] text-[10px] font-semibold text-[color:var(--rep-fg-soft)] cursor-help leading-none focus:outline-none focus-visible:ring-2 focus-visible:ring-konti-olive focus-visible:ring-offset-1 hover:text-[color:var(--rep-fg-strong)] transition-colors"
+                          data-testid="mgmt-fee-tooltip"
+                        >
+                          ?
+                        </button>
+                        <Link
+                          href={`/calculator?projectId=${projectId}&tab=contractor`}
+                          data-testid="mgmt-fee-edit-link"
+                          className="shrink-0 text-[10px] uppercase tracking-wider text-konti-olive hover:text-konti-olive/80 font-semibold whitespace-nowrap"
+                        >
+                          {t("Edit", "Editar")} →
+                        </Link>
+                      </span>
+                      <span className="shrink-0 text-[color:var(--rep-fg-strong)] tabular-nums">${(contractorEst.managementFeeAmount ?? 0).toLocaleString()}</span>
                     </div>
                   )}
                   <div className="flex justify-between border-t border-[color:var(--rep-border)] pt-2">

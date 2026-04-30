@@ -248,6 +248,27 @@ export function ImportsPanel() {
 
   return (
     <div className="space-y-5" data-testid="imports-panel">
+      {/* What "Imports" means — banner so the team isn't guessing whether this
+          is a separate cost category or just a bulk-load tool. */}
+      <div
+        className="bg-konti-olive/5 border border-konti-olive/30 rounded-lg p-3 text-xs text-foreground flex items-start gap-2"
+        data-testid="imports-explainer"
+      >
+        <span
+          aria-hidden
+          className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-konti-olive/20 text-konti-olive text-[10px] font-bold shrink-0 mt-0.5"
+        >
+          ?
+        </span>
+        <span>
+          <span className="font-semibold">{t("What is this tab?", "¿Qué es esta pestaña?")}</span>{" "}
+          {t(
+            "Bulk-load your existing materials catalog, labor rates, paper receipts, and report templates. Imported items are not a separate cost line — they merge into the standard Materials, Labor, and Receipts buckets used by the calculator.",
+            "Carga masiva de tu catálogo de materiales, tarifas de mano de obra, recibos en papel y plantillas de reporte. Los elementos importados no son una categoría separada — se integran a Materiales, Mano de Obra y Recibos que usa la calculadora.",
+          )}
+        </span>
+      </div>
+
       {/* Materials import */}
       <Section
         icon={<Upload className="w-4 h-4 text-konti-olive" />}
@@ -303,7 +324,21 @@ export function ImportsPanel() {
       />
       {labRates.length > 0 && (
         <div className="bg-card rounded-lg border border-card-border p-4">
-          <p className="text-xs font-semibold text-foreground mb-2">{t("Current labor baseline", "Línea base de mano de obra actual")}</p>
+          <div className="flex items-center gap-1.5 mb-2">
+            <p className="text-xs font-semibold text-foreground">{t("Current labor baseline (effective rate)", "Línea base actual (tarifa efectiva)")}</p>
+            <button
+              type="button"
+              aria-label={t("Effective rate explanation", "Explicación de tarifa efectiva")}
+              title={t(
+                "The effective rate is the hourly cost actually used in estimates. When tagged 'receipts', it's recomputed from the 3 most recent uploaded receipts (total amount ÷ total hours). When tagged 'import', it comes from the latest CSV import. 'default' means no overrides yet.",
+                "La tarifa efectiva es el costo por hora usado en los estimados. Cuando aparece 'receipts', se recalcula con los 3 recibos más recientes (monto total ÷ horas totales). 'import' indica que viene del último CSV. 'default' significa que aún no hay sobrescrituras.",
+              )}
+              className="inline-flex items-center justify-center w-4 h-4 rounded-full border border-border text-[10px] font-semibold text-muted-foreground cursor-help leading-none focus:outline-none focus-visible:ring-2 focus-visible:ring-konti-olive focus-visible:ring-offset-1 hover:bg-muted hover:text-foreground transition-colors"
+              data-testid="effective-rate-tooltip"
+            >
+              ?
+            </button>
+          </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
             {labRates.map((r) => (
               <div key={r.trade} className="flex items-center justify-between bg-muted/40 px-2.5 py-1.5 rounded">
