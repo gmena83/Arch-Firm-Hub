@@ -982,7 +982,7 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
 
   const queryClient = useQueryClient();
   const onProjectUpdated = () => {
-    queryClient.invalidateQueries({ queryKey: getGetProjectQueryKey(projectId) });
+    return queryClient.invalidateQueries({ queryKey: getGetProjectQueryKey(projectId) });
   };
   const { data: project, isLoading: projectLoading } = useGetProject(projectId, {
     query: { enabled: !!projectId, queryKey: getGetProjectQueryKey(projectId) }

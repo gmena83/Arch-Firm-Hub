@@ -150,7 +150,7 @@ export function PunchlistPanel({
   projectId: string;
   currentPhase: string;
   isClientView: boolean;
-  onAdvanced?: () => void;
+  onAdvanced?: () => void | Promise<void>;
 }) {
   const { t, lang } = useLang();
   const { user } = useAuth();
@@ -227,8 +227,9 @@ export function PunchlistPanel({
     try {
       await customFetch(`/api/projects/${projectId}/advance-phase`, { method: "POST" });
       toast({ title: t("Phase advanced", "Fase avanzada") });
-      onAdvanced?.();
-      window.location.reload();
+      // Notify parent so it can invalidate the project query; the new phase will
+      // propagate down via the currentPhase prop and trigger a punchlist refresh.
+      await onAdvanced?.();
     } catch (err) {
       const e = err as { status?: number; data?: { error?: string; message?: string; messageEs?: string; openCount?: number } };
       const msg = lang === "es" ? e?.data?.messageEs : e?.data?.message;
