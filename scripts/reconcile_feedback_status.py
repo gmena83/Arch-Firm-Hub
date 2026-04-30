@@ -25,7 +25,7 @@ MAP = {
     "A-04": ("Done", "Done in #63 (document organization: contracts/agreements grouping)."),
     "A-05": ("Open", None),
     "A-06": ("Done", "Done in #61 (per-document client visibility) and reinforced by #88 (client ownership checks)."),
-    "A-07": ("Open", "Tracked as Task #47 (Site photo upload, categorization, links from report)."),
+    "A-07": ("Done", "Done in #105 (Site photos: upload, categorize, link them from the project report)."),
     "A-08": ("Done", "Done in #75 (ClientContactCard with phone, postal, physical addresses)."),
     "A-09": ("Open", None),
     "A-10": ("Needs Decision", None),
@@ -60,7 +60,7 @@ MAP = {
     "C-08": ("Done", "Done in #71 (P1 quick wins: report logo enlarged)."),
     "C-09": ("Done", "Done in #62 (KONTi brand pass replaced the dark/black palette)."),
     "C-10": ("Done", "Done in #99 (Reviewer feedback bundle #2): replaced auto-generated reportDate with an editable <input type='date'> in the sticky report header, persisted per project via localStorage."),
-    "C-11": ("Open", "Tracked as Task #47 (Site photo upload, categorization, links from report)."),
+    "C-11": ("Done", "Done in #105 (Site photos: upload, categorize, link them from the project report — bulk upload + Drive-compatible URL field)."),
     "C-12": ("Done", "Done in #62 (light backgrounds across the project report)."),
 
     # --- D. AI Assistant ---
@@ -68,8 +68,8 @@ MAP = {
     "D-02": ("Needs Decision", None),
 
     # --- E. Permits ---
-    "E-01": ("Open", "Tracked as Task #48 (Permits page: legal header + split by permit type)."),
-    "E-02": ("Open", "Tracked as Task #48 (Permits page: legal header + split by permit type)."),
+    "E-01": ("Done", "Done in #106 (Permits page: legal header + split by permit type)."),
+    "E-02": ("Done", "Done in #106 (Permits page: legal header + split by permit type)."),
     "E-03": ("Done", "Done in #71 (P1 quick wins: permits copy fixed)."),
     "E-04": ("Needs Decision", None),
     "E-05": ("Needs Decision", None),
@@ -79,7 +79,7 @@ MAP = {
     "F-02": ("Done", "Done in #61 (client home in client portal) and #72 (dashboard restructure)."),
 
     # --- G. Team Directory ---
-    "G-01": ("Open", None),
+    "G-01": ("Done", "Already shipped despite V2 scope: ContractorUploadModal (single + CSV modes) in artifacts/konti-dashboard/src/pages/team.tsx (~L69-115)."),
 
     # --- H. Leads / CRM ---
     "H-01": ("Done", "Done in #99 (Reviewer feedback bundle #2): leads page now renders an inline lead-score legend (Hot / Warm / Cold / New thresholds) right next to the table."),
@@ -253,10 +253,31 @@ def write_report(observed, counts):
     lines.append("- Sheet 4 (Legend & Guide) is preserved unchanged.")
     lines.append("- Sheet 2 (V2 Backlog) statuses are kept in sync with Sheet 1 for the same IDs (B-11, D-01, etc.).")
     lines.append("- 'Done' rows have a one-line justification appended to the Scope Rationale column linking to the merged task ref.")
-    lines.append("- Items A-07 / C-11 / E-01 / E-02 are proposed but not yet merged tasks (#47, #48); they remain Open.")
+    lines.append("- A-07, C-11 closed by #105 (site photos). E-01, E-02 closed by #106 (permits split + legal header). G-01 was already shipped despite V2 scope.")
 
-    Path(REPORT).parent.mkdir(parents=True, exist_ok=True)
-    Path(REPORT).write_text("\n".join(lines) + "\n")
+    new_body = "\n".join(lines) + "\n"
+
+    # Preserve the human-curated "Post-reconciliation fixes" appendix that
+    # tracks fixes which don't map to any numbered V1+V2 ID (e.g. Task #64
+    # came from Tatiana's live demo, not from the v2 workbook). The script
+    # only owns content above the marker; everything from the marker down is
+    # left untouched on regeneration.
+    appendix_marker = "## Post-reconciliation fixes"
+    appendix = ""
+    report_path = Path(REPORT)
+    if report_path.exists():
+        existing = report_path.read_text()
+        idx = existing.find(appendix_marker)
+        if idx != -1:
+            appendix = existing[idx:]
+            if not appendix.endswith("\n"):
+                appendix += "\n"
+
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    if appendix:
+        report_path.write_text(new_body + "\n" + appendix)
+    else:
+        report_path.write_text(new_body)
     print(f"Wrote {REPORT}")
 
 

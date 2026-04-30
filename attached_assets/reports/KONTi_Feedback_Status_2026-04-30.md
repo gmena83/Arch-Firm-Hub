@@ -14,14 +14,14 @@
 
 | Status | Count |
 |---|---:|
-| Done | 28 |
+| Done | 31 |
 | In Progress | 10 |
-| Open | 12 |
+| Open | 9 |
 | Needs Decision | 7 |
 
 ---
 
-## Fixed (Done) — 28 items
+## Fixed (Done) — 31 items
 
 Items shipped and verified. Each entry shows the issue ID, a short title, and a one-line note about what shipped (English; full bilingual notes live in the workbook).
 
@@ -36,12 +36,13 @@ Items shipped and verified. Each entry shows the issue ID, a short title, and a 
 - **B-12** — PDF export does not use the saved report template; it generates a generic layout. — PDF report uses saved template — renderTemplateCostReport now consumes PROJECT_REPORT_TEMPLATE[project.id] so the templated…
 - **B-13** — No 'Add Material' button on the Materials Library page; it is read-only. — AddMaterialModal in artifacts/konti-dashboard/src/pages/calculator.tsx (~L24-102).
 
-### Project Detail — Casa Solar Rincón (6)
+### Project Detail — Casa Solar Rincón (7)
 
 - **A-01** — No per-invoice columns for client view (total amount, paid, balance, invoice status). — Verified at artifacts/konti-dashboard/src/components/project-invoices.tsx (Total/Paid/Balance/Status columns + bilingual status badge).
 - **A-03** — Client cannot upload files; it is unclear whether they can and in which section. — Client UploadModal in artifacts/konti-dashboard/src/pages/project-detail.tsx (~L138-320) with category picker.
 - **A-04** — Documents are flat; no 'Contratos y Acuerdos de compra' grouping exists. — DOC_CATEGORY_OPTIONS in project-detail.tsx (~L96) includes 'contratos' and 'acuerdos_compra'.
 - **A-06** — Team cannot control which documents are visible to the client. — isClientVisible flag on every document (seed.ts L436+); per-row toggle UI in project-detail.tsx (~L605-700).
+- **A-07** — No photos, video, or photo-comment section exists inside the project. — Done in #105 — Photos & Media tab on project detail with bulk site-photo upload, category tags, and a per-project gallery rendered into the project report (site-photos-gallery.tsx + project-detail.tsx).
 - **A-08** — Client profile settings lack phone number, postal address, and physical address fields. — phone, postalAddress, physicalAddress wired in artifacts/konti-dashboard/src/pages/settings.tsx (L15-46, L146-167).
 - **A-13** — Dark gray color used in the project detail is too dark; does not match KONTi brand gray. — KONTi gray (#778894) defined in artifacts/konti-dashboard/src/index.css (L75) and consumed via konti-slate token.
 
@@ -54,8 +55,10 @@ Items shipped and verified. Each entry shows the issue ID, a short title, and a 
 - **C-11** — No place to import site photos for the weekly report and punchlist. — Site photos in report — site-photos-gallery component is rendered on the project report and PHOTO_CATEGORY_OPTIONS is wired into the…
 - **C-12** — Report background is white; users want a white or light background option. — Added a "White background" preset (3rd state) to the report theme cycle (light → white → dark → light); legacy light preset retains…
 
-### Permits (1)
+### Permits (3)
 
+- **E-01** — The legal/engineer header from the team's permit spreadsheet is not shown in the permits view. — Done in #106 — Permits page now renders the legal/engineer header block above the list, mirroring the team's spreadsheet (artifacts/konti-dashboard/src/pages/permits.tsx).
+- **E-02** — Permits are not separated by type (PCOC, USO, Consulta de Ubicación, etc.) as in the team's Excel. — Done in #106 — Permits are grouped by type (PCOC, USO, Consulta de Ubicación, etc.) with separate sections per family, matching the team's permit Excel (artifacts/konti-dashboard/src/pages/permits.tsx).
 - **E-03** — Section label reads incorrectly; should say 'Permit Documentation'. — Heading 'Permit Documentation' in artifacts/konti-dashboard/src/pages/permits.tsx (L34).
 
 ### Demo Project — General (2)
@@ -82,7 +85,7 @@ Items shipped and verified. Each entry shows the issue ID, a short title, and a 
 
 ---
 
-## Pending — 29 items
+## Pending — 26 items
 
 Items not yet Done, grouped by status. Each entry shows the issue ID, a short title, the area / module, and the priority.
 
@@ -99,16 +102,13 @@ Items not yet Done, grouped by status. Each entry shows the issue ID, a short ti
 - **C-04** — Phase chart should look like the 'phase pie chart' from the team's punchlist, not a budget chart. — _Project Report — Casa Solar Rincón_ — _Medium_
 - **C-10** — Report dates cannot be edited; generated reports cannot be accessed side-by-side for printing/download. — _Project Report — Casa Solar Rincón_ — _Medium_
 
-### Open — 12
+### Open — 9
 
 - **B-02** — Labor is calculated hourly, but the team works on lump-sum contracts. — _Cost Calculator_ — _High_
 - **B-05** — Contractor section shows project-level info (sq ft, bathrooms, contingency) instead of contractor-specific data. — _Cost Calculator_ — _Medium_
 - **B-14** — Labor rates in the calculator do not auto-update from the last 3 uploaded receipts. — _Cost Calculator_ — _Medium_
-- **E-01** — The legal/engineer header from the team's permit spreadsheet is not shown in the permits view. — _Permits_ — _High_
-- **E-02** — Permits are not separated by type (PCOC, USO, Consulta de Ubicación, etc.) as in the team's Excel. — _Permits_ — _High_
 - **A-02** — No 'Gastos no facturables' (non-billable expenses) tab exists. — _Project Detail — Casa Solar Rincón_ — _Medium_
 - **A-05** — No version history for documents; only the latest version is accessible. — _Project Detail — Casa Solar Rincón_ — _Medium_
-- **A-07** — No photos, video, or photo-comment section exists inside the project. — _Project Detail — Casa Solar Rincón_ — _High_
 - **A-09** — Images/media in the project are not self-manageable by the client. — _Project Detail — Casa Solar Rincón_ — _Medium_
 - **A-12** — No audit log of client actions on the platform. — _Project Detail — Casa Solar Rincón_ — _Medium_
 - **C-06** — Client report data does not match the categories and information sent in the team's regular reports. — _Project Report — Casa Solar Rincón_ — _High_

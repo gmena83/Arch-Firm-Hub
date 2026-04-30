@@ -8,9 +8,9 @@ Reconciled workbook: `attached_assets/KONTi_Dashboard_Feedback_Consolidated_v3_a
 
 | Status | Count |
 |---|---:|
-| Open | 13 |
+| Open | 8 |
 | In Progress | 0 |
-| Done | 36 |
+| Done | 41 |
 | Done — needs verification | 1 |
 | Needs Spec | 0 |
 | Needs Decision | 7 |
@@ -31,6 +31,7 @@ These rows look closed on paper but a PM should eyeball the live UI before promo
 | A-03 | Open | Done | Done in #61 (client portal expansion: client uploads enabled). |
 | A-04 | Open | Done | Done in #63 (document organization: contracts/agreements grouping). |
 | A-06 | Open | Done | Done in #61 (per-document client visibility) and reinforced by #88 (client ownership checks). |
+| A-07 | Open | Done | Done in #105 (Site photos: upload, categorize, link them from the project report). |
 | A-08 | Open | Done | Done in #75 (ClientContactCard with phone, postal, physical addresses). |
 | A-13 | Open | Done | Done in #62 (KONTi brand pass) and #74 (header text readable on bright cover photos). |
 | B-01 | Open | Done | Done in #75 (CSV header aliases: Description, UnitPrice, etc.). |
@@ -54,11 +55,15 @@ These rows look closed on paper but a PM should eyeball the live UI before promo
 | C-08 | Open | Done | Done in #71 (P1 quick wins: report logo enlarged). |
 | C-09 | Open | Done | Done in #62 (KONTi brand pass replaced the dark/black palette). |
 | C-10 | In Progress | Done | Done in #99 (Reviewer feedback bundle #2): replaced auto-generated reportDate with an editable <input type='date'> in the sticky report header, persisted per project via localStorage. |
+| C-11 | Open | Done | Done in #105 (Site photos: upload, categorize, link them from the project report — bulk upload + Drive-compatible URL field). |
 | C-12 | Open | Done | Done in #62 (light backgrounds across the project report). |
 | D-01 | In Progress | Done | Done in #30 (AI assistant notes/updates persist across restart). |
+| E-01 | Open | Done | Done in #106 (Permits page: legal header + split by permit type). |
+| E-02 | Open | Done | Done in #106 (Permits page: legal header + split by permit type). |
 | E-03 | Open | Done | Done in #71 (P1 quick wins: permits copy fixed). |
 | F-01 | Open | Done | Done in #71 (P1 quick wins: clickable activity). |
 | F-02 | In Progress | Done | Done in #61 (client home in client portal) and #72 (dashboard restructure). |
+| G-01 | Open | Done | Already shipped despite V2 scope: ContractorUploadModal (single + CSV modes) in artifacts/konti-dashboard/src/pages/team.tsx (~L69-115). |
 | H-01 | Open | Done | Done in #99 (Reviewer feedback bundle #2): leads page now renders an inline lead-score legend (Hot / Warm / Cold / New thresholds) right next to the table. |
 | I-01 | In Progress | Done | Done in #60 (file upload regression on the demo project fixed). |
 | I-02 | Open | Done | Done in #99 (Reviewer feedback bundle #2): document upload modal now requires a category dropdown so demo-project docs are sorted into the correct buckets. |
@@ -70,16 +75,11 @@ These rows look closed on paper but a PM should eyeball the live UI before promo
 |---|---|---|---|
 | A-02 | Open | Open | — |
 | A-05 | Open | Open | — |
-| A-07 | Open | Open | Tracked as Task #47 (Site photo upload, categorization, links from report). |
 | A-09 | Open | Open | — |
 | A-12 | Open | Open | Admin-side audit log shipped in #73; client-side audit log still V2. |
 | B-02 | Open | Open | — |
 | B-14 | Open | Open | — |
 | C-01 | Open | Open | Punchlist persistence shipped in #32; photo links + categories on the report still pending. |
-| C-11 | Open | Open | Tracked as Task #47 (Site photo upload, categorization, links from report). |
-| E-01 | Open | Open | Tracked as Task #48 (Permits page: legal header + split by permit type). |
-| E-02 | Open | Open | Tracked as Task #48 (Permits page: legal header + split by permit type). |
-| G-01 | Open | Open | — |
 | I-04 | Open | Open | — |
 
 ## Items needing a product decision
@@ -99,7 +99,7 @@ These rows look closed on paper but a PM should eyeball the live UI before promo
 - Sheet 4 (Legend & Guide) is preserved unchanged.
 - Sheet 2 (V2 Backlog) statuses are kept in sync with Sheet 1 for the same IDs (B-11, D-01, etc.).
 - 'Done' rows have a one-line justification appended to the Scope Rationale column linking to the merged task ref.
-- Items A-07 / C-11 / E-01 / E-02 are proposed but not yet merged tasks (#47, #48); they remain Open.
+- A-07, C-11 closed by #105 (site photos). E-01, E-02 closed by #106 (permits split + legal header). G-01 was already shipped despite V2 scope.
 
 ## Post-reconciliation fixes (Apr 30 2026)
 
