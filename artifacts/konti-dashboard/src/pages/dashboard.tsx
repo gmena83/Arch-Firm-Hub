@@ -194,7 +194,7 @@ function DashboardContent() {
         <p className="text-muted-foreground text-sm mt-1">{subtitle}</p>
       </div>
 
-      {/* Stats bar */}
+      {/* Stats bar — compact KPIs kept above the fold next to Active Projects */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {summaryStats.map((stat) => (
           <div key={stat.label} className="bg-card rounded-xl border border-card-border p-4 shadow-sm" data-testid={`stat-${stat.label.toLowerCase().replace(/\s+/g, "-")}`}>
@@ -207,18 +207,7 @@ function DashboardContent() {
         ))}
       </div>
 
-      {/* Construction status — show for any active construction project visible to the user */}
-      {projects.filter((p) => p.phase === "construction").map((p) => (
-        <ConstructionStatusCard
-          key={`cs-${p.id}`}
-          projectId={p.id}
-          projectName={p.name}
-          progressPercent={p.progressPercent}
-          variant={isClientUser ? "client" : "team"}
-        />
-      ))}
-
-      {/* Projects grid */}
+      {/* Projects grid — primary landing section, above the fold */}
       <div>
         <h2 className="text-lg font-bold text-foreground mb-4">
           {isClientUser ? t("My Project", "Mi Proyecto") : t("Active Projects", "Proyectos Activos")}
@@ -238,7 +227,7 @@ function DashboardContent() {
         )}
       </div>
 
-      {/* Recent Activity */}
+      {/* Recent Activity — high-traffic, kept directly under Active Projects */}
       <div>
         <h2 className="text-lg font-bold text-foreground mb-4">{t("Recent Activity", "Actividad Reciente")}</h2>
         <div className="bg-card rounded-xl border border-card-border shadow-sm divide-y divide-border">
@@ -284,6 +273,17 @@ function DashboardContent() {
           })}
         </div>
       </div>
+
+      {/* Construction status — secondary, large per-project detail. Lives below the fold. */}
+      {projects.filter((p) => p.phase === "construction").map((p) => (
+        <ConstructionStatusCard
+          key={`cs-${p.id}`}
+          projectId={p.id}
+          projectName={p.name}
+          progressPercent={p.progressPercent}
+          variant={isClientUser ? "client" : "team"}
+        />
+      ))}
     </div>
   );
 }
