@@ -58,9 +58,9 @@ export function MilestonesTimeline({ projectId, compact = false }: { projectId: 
 
   return (
     <div className="bg-card rounded-xl border border-card-border p-5 shadow-sm" data-testid="milestones-timeline">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
         <h2 className="font-bold text-foreground">{t("Construction Milestones", "Hitos de Construcción")}</h2>
-        <div className="flex items-center gap-3 text-xs">
+        <div className="flex items-center gap-x-3 gap-y-1 text-xs flex-wrap">
           <span className="flex items-center gap-1 text-konti-olive"><span className="w-2 h-2 rounded-full bg-konti-olive" />{t("Done", "Listo")}</span>
           <span className="flex items-center gap-1 text-amber-600"><span className="w-2 h-2 rounded-full bg-amber-500" />{t("In Progress", "En Progreso")}</span>
           <span className="flex items-center gap-1 text-slate-500"><span className="w-2 h-2 rounded-full border border-slate-300" />{t("Upcoming", "Próximo")}</span>
@@ -87,7 +87,7 @@ export function MilestonesTimeline({ projectId, compact = false }: { projectId: 
                 {s.icon}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2 mb-1">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-y-0.5 sm:gap-2 mb-1">
                   <p className="text-sm font-semibold text-foreground truncate">{lang === "es" ? m.titleEs : m.title}</p>
                   <span className="text-xs text-muted-foreground whitespace-nowrap">{m.startDate} → {m.endDate}</span>
                 </div>

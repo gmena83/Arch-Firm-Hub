@@ -202,7 +202,7 @@ export default function PermitsPanel({ projectId, projectPhase, onProjectUpdated
         data-testid={`permit-item-${it.id}`}
         className="border border-slate-200 rounded-lg p-3 bg-white"
       >
-        <div className="flex items-start gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-start gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <div className="font-medium text-sm text-slate-900">{lang === "es" ? it.nameEs : it.name}</div>
@@ -227,7 +227,7 @@ export default function PermitsPanel({ projectId, projectPhase, onProjectUpdated
             )}
           </div>
           {isStaff && (
-            <div className="flex flex-col gap-1.5 items-end">
+            <div className="flex flex-col gap-1.5 items-stretch sm:items-end w-full sm:w-auto">
               <select
                 value={it.state}
                 onChange={(e) => {
@@ -235,7 +235,7 @@ export default function PermitsPanel({ projectId, projectPhase, onProjectUpdated
                   if (next) void setItemState(it.id, next);
                 }}
                 disabled={busyId === `item-${it.id}`}
-                className="text-xs px-2 py-1 border border-slate-300 rounded-md bg-white focus:ring-2 focus:ring-emerald-500"
+                className="text-xs px-2 py-1 border border-slate-300 rounded-md bg-white focus:ring-2 focus:ring-emerald-500 w-full sm:w-auto"
                 aria-label={t("Change state", "Cambiar estado")}
               >
                 <option value={SetPermitItemStateBodyState.not_submitted}>{lang === "es" ? "No sometido" : "Not submitted"}</option>
@@ -249,7 +249,7 @@ export default function PermitsPanel({ projectId, projectPhase, onProjectUpdated
                 placeholder={t("Revision note (optional)", "Nota de revisión (opcional)")}
                 value={revNote[it.id] ?? ""}
                 onChange={(e) => setRevNote((r) => ({ ...r, [it.id]: e.target.value }))}
-                className="text-xs px-2 py-1 border border-slate-300 rounded-md w-48"
+                className="text-xs px-2 py-1 border border-slate-300 rounded-md w-full sm:w-48"
               />
             </div>
           )}

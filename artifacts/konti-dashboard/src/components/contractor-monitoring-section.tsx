@@ -41,13 +41,13 @@ export function ContractorMonitoringSection({ projectId, variant = "report" }: P
           const summary = lang === "es" ? row.summaryEs : row.summaryEn;
           const statusLabel = lang === "es" ? style.labelEs : style.labelEn;
           return (
-            <div key={row.id} className="px-4 py-3 flex items-start justify-between gap-3" data-testid={`monitoring-row-${row.type}`}>
+            <div key={row.id} className="px-4 py-3 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-3" data-testid={`monitoring-row-${row.type}`}>
               <div className="min-w-0">
                 <p className={isCard ? "text-konti-dark font-semibold text-sm" : "text-[color:var(--rep-fg-strong)] font-semibold text-sm"}>{label}</p>
                 <p className={isCard ? "text-konti-dark/70 text-xs mt-0.5 break-words" : "text-[color:var(--rep-fg-muted)] text-xs mt-0.5 break-words"}>{summary}</p>
                 <p className={isCard ? "text-konti-dark/40 text-[10px] mt-1" : "text-[color:var(--rep-fg-faint)] text-[10px] mt-1"}>{row.updatedAt}</p>
               </div>
-              <span className={`shrink-0 px-2 py-1 rounded-md border text-[10px] font-bold whitespace-nowrap inline-flex items-center gap-1 ${style.bg} ${style.text}`}>
+              <span className={`self-start shrink-0 px-2 py-1 rounded-md border text-[10px] font-bold whitespace-nowrap inline-flex items-center gap-1 ${style.bg} ${style.text}`}>
                 <style.Icon className="w-3 h-3" /> {statusLabel}
               </span>
             </div>

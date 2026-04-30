@@ -110,8 +110,8 @@ export function PermitsDesignSection({ projectId }: { projectId: string }) {
           const done = sp.deliverables.filter((d) => d.status === "done").length;
           return (
             <div key={sub} data-testid={`design-subphase-${sub}`} className="border border-slate-200 rounded-lg overflow-hidden">
-              <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-slate-50 border-b border-slate-200">
-                <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 bg-slate-50 border-b border-slate-200">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-sm font-semibold text-slate-900">{labelOf(sub)}</span>
                   {isCurrent && (
                     <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-konti-olive text-white">

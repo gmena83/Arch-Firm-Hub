@@ -305,14 +305,14 @@ export function PreDesignPanel({
         ) : data.structuredVariables ? (
           <>
             <div className="grid grid-cols-3 gap-2 mb-3 text-xs">
-              <div><div className="text-muted-foreground">{t("Area", "Área")}</div><div className="font-bold text-foreground" data-testid="vars-sqm">{data.structuredVariables.squareMeters} m²</div></div>
-              <div><div className="text-muted-foreground">{t("Zoning", "Zonificación")}</div><div className="font-bold text-foreground" data-testid="vars-zoning">{data.structuredVariables.zoningCode}</div></div>
-              <div><div className="text-muted-foreground">{t("Type", "Tipo")}</div><div className="font-bold text-foreground" data-testid="vars-type">{projectTypeLabel(data.structuredVariables.projectType)}</div></div>
+              <div className="min-w-0"><div className="text-muted-foreground">{t("Area", "Área")}</div><div className="font-bold text-foreground truncate" data-testid="vars-sqm">{data.structuredVariables.squareMeters} m²</div></div>
+              <div className="min-w-0"><div className="text-muted-foreground">{t("Zoning", "Zonificación")}</div><div className="font-bold text-foreground truncate" data-testid="vars-zoning">{data.structuredVariables.zoningCode}</div></div>
+              <div className="min-w-0"><div className="text-muted-foreground">{t("Type", "Tipo")}</div><div className="font-bold text-foreground truncate" data-testid="vars-type">{projectTypeLabel(data.structuredVariables.projectType)}</div></div>
             </div>
             {data.assistedBudgetRange && (
               <div className="rounded-lg bg-konti-olive/10 border border-konti-olive/30 p-3" data-testid="assisted-budget">
                 <div className="text-xs text-muted-foreground mb-1">{t("Assisted budget range", "Rango de presupuesto asistido")}</div>
-                <div className="flex items-baseline gap-2">
+                <div className="flex items-baseline gap-2 flex-wrap">
                   <span className="text-xs">${data.assistedBudgetRange.low.toLocaleString()}</span>
                   <span className="text-xl font-bold text-konti-olive">${data.assistedBudgetRange.mid.toLocaleString()}</span>
                   <span className="text-xs">${data.assistedBudgetRange.high.toLocaleString()}</span>

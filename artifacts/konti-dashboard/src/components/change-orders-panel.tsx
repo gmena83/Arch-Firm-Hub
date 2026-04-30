@@ -291,8 +291,9 @@ export function ChangeOrdersPanel({ projectId, isClientView, currentPhase }: { p
         )}
       </div>
 
-      {/* Totals strip */}
-      <div className="grid grid-cols-3 gap-2 mb-4">
+      {/* Totals strip — collapses to a single column on phones so the
+          currency strings don't overflow / clip. */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-4">
         <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-2 text-center">
           <p className="text-[11px] text-emerald-700 font-medium">{t("Approved Δ", "Aprobado Δ")}</p>
           <p className="text-sm font-bold text-emerald-800">{data.totals.approvedDelta >= 0 ? "+" : "−"}${Math.abs(data.totals.approvedDelta).toLocaleString()}</p>
@@ -320,25 +321,39 @@ export function ChangeOrdersPanel({ projectId, isClientView, currentPhase }: { p
               <div key={co.id} data-testid={`co-${co.id}`} className="border border-border rounded-lg">
                 <button
                   onClick={() => setExpandedId(expanded ? null : co.id)}
-                  className="w-full flex items-center gap-3 p-3 hover:bg-muted/30 transition-colors text-left"
+                  className="w-full p-3 hover:bg-muted/30 transition-colors text-left"
                   data-testid={`btn-toggle-co-${co.number}`}
                 >
-                  <span className="text-xs font-bold text-konti-olive shrink-0">{co.number}</span>
-                  <span className="flex-1 text-sm font-medium truncate flex items-center gap-2">
-                    {title}
-                    {co.outsideOfScope && (
-                      <span data-testid={`co-outside-scope-${co.number}`} className="shrink-0 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded border border-amber-300 bg-amber-50 text-amber-800">
-                        {t("Out of Scope", "Fuera de Alcance")}
-                      </span>
-                    )}
-                  </span>
-                  <span className={`text-xs font-semibold ${co.amountDelta >= 0 ? "text-foreground" : "text-emerald-700"}`}>
-                    {co.amountDelta >= 0 ? "+" : "−"}${Math.abs(co.amountDelta).toLocaleString()}
-                  </span>
-                  <span className={`text-[11px] px-1.5 py-0.5 rounded border font-semibold flex items-center gap-1 ${badge.bg}`}>
-                    {badge.icon} {lang === "es" ? badge.label.es : badge.label.en}
-                  </span>
-                  {expanded ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />}
+                  {/* Two-row layout on phones (title row + amount/badge row),
+                      collapses back to a single row from sm: upward. Keeps the
+                      title from being squeezed by the currency string + status
+                      badge at 375px. */}
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-bold text-konti-olive shrink-0">{co.number}</span>
+                    <span className="flex-1 min-w-0 text-sm font-medium truncate flex items-center gap-2">
+                      <span className="truncate">{title}</span>
+                      {co.outsideOfScope && (
+                        <span data-testid={`co-outside-scope-${co.number}`} className="shrink-0 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded border border-amber-300 bg-amber-50 text-amber-800">
+                          {t("Out of Scope", "Fuera de Alcance")}
+                        </span>
+                      )}
+                    </span>
+                    <span className={`hidden sm:inline text-xs font-semibold ${co.amountDelta >= 0 ? "text-foreground" : "text-emerald-700"}`}>
+                      {co.amountDelta >= 0 ? "+" : "−"}${Math.abs(co.amountDelta).toLocaleString()}
+                    </span>
+                    <span className={`hidden sm:inline-flex text-[11px] px-1.5 py-0.5 rounded border font-semibold items-center gap-1 ${badge.bg}`}>
+                      {badge.icon} {lang === "es" ? badge.label.es : badge.label.en}
+                    </span>
+                    {expanded ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />}
+                  </div>
+                  <div className="flex items-center gap-2 mt-2 sm:hidden pl-7">
+                    <span className={`text-xs font-semibold ${co.amountDelta >= 0 ? "text-foreground" : "text-emerald-700"}`}>
+                      {co.amountDelta >= 0 ? "+" : "−"}${Math.abs(co.amountDelta).toLocaleString()}
+                    </span>
+                    <span className={`text-[11px] px-1.5 py-0.5 rounded border font-semibold inline-flex items-center gap-1 ${badge.bg}`}>
+                      {badge.icon} {lang === "es" ? badge.label.es : badge.label.en}
+                    </span>
+                  </div>
                 </button>
                 {expanded && (
                   <div className="border-t border-border px-3 py-3 space-y-2 bg-muted/10">

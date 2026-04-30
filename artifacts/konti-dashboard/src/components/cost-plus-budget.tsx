@@ -33,7 +33,7 @@ export function CostPlusBudget({ projectId, isClientView = false }: { projectId:
       </div>
 
       {showNonBillableTab && (
-        <div className="flex gap-1 mb-3 border-b border-border" role="tablist">
+        <div className="flex gap-1 mb-3 border-b border-border overflow-x-auto whitespace-nowrap -mx-1 px-1" role="tablist">
           <button
             type="button"
             role="tab"

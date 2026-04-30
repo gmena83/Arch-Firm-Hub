@@ -186,11 +186,11 @@ export function SitePhotosGallery({ projectId, isClientView }: SitePhotosGallery
               )}
             </div>
             <div className="p-4 space-y-2">
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="font-bold text-foreground" data-testid="photo-lightbox-title">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
+                <h3 className="font-bold text-foreground min-w-0 break-words" data-testid="photo-lightbox-title">
                   {lightbox.name}
                 </h3>
-                <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-konti-olive/10 text-konti-olive border border-konti-olive/30">
+                <span className="self-start sm:self-auto text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-konti-olive/10 text-konti-olive border border-konti-olive/30">
                   {photoCategoryLabel(lightbox.photoCategory ?? "", lang)}
                 </span>
               </div>

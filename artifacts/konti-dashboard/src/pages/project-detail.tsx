@@ -1232,7 +1232,7 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
   };
 
   return (
-    <div className="space-y-6" data-testid="project-detail-page">
+    <div className="space-y-6 overflow-x-clip" data-testid="project-detail-page">
       {/* Header */}
       <div>
         <Link href="/dashboard" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors">
