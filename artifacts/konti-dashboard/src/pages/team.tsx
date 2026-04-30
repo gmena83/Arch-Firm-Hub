@@ -1,5 +1,14 @@
-import { useEffect, useState } from "react";
-import { Users, Mail, Award, Plus, X, HardHat, UserCheck, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Users, Mail, Award, Plus, X, HardHat, UserCheck, Trash2, Loader2 } from "lucide-react";
+import {
+  useListContractors,
+  useCreateContractors,
+  useDeleteContractor,
+  getListContractorsQueryKey,
+  type Contractor,
+  type ContractorCreateRequest,
+} from "@workspace/api-client-react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { RequireRole } from "@/hooks/use-auth";
 import { useLang } from "@/hooks/use-lang";
@@ -48,39 +57,6 @@ const TEAM = [
   },
 ];
 
-interface Contractor {
-  id: string;
-  name: string;
-  trade: string;
-  email: string;
-  phone: string;
-  notes: string;
-  uploadedAt: string;
-}
-
-const CONTRACTORS_STORAGE_KEY = "konti_contractors_v1";
-
-function loadContractors(): Contractor[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(CONTRACTORS_STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as Contractor[];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveContractors(list: Contractor[]) {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(CONTRACTORS_STORAGE_KEY, JSON.stringify(list));
-  } catch {
-    /* quota / privacy mode — fail silent */
-  }
-}
-
 function initials(name: string): string {
   return name
     .split(/\s+/)
@@ -92,10 +68,12 @@ function initials(name: string): string {
 
 function ContractorUploadModal({
   onClose,
-  onSave,
+  onSubmit,
+  isSubmitting,
 }: {
   onClose: () => void;
-  onSave: (contractors: Contractor[]) => void;
+  onSubmit: (rows: ContractorCreateRequest[]) => void;
+  isSubmitting: boolean;
 }) {
   const { t } = useLang();
   const { toast } = useToast();
@@ -115,18 +93,15 @@ function ContractorUploadModal({
       });
       return;
     }
-    const c: Contractor = {
-      id: `ctr-${Date.now()}`,
-      name: name.trim(),
-      trade: trade.trim(),
-      email: email.trim(),
-      phone: phone.trim(),
-      notes: notes.trim(),
-      uploadedAt: new Date().toISOString(),
-    };
-    onSave([c]);
-    toast({ title: t("Contractor added", "Contratista agregado") });
-    onClose();
+    onSubmit([
+      {
+        name: name.trim(),
+        trade: trade.trim(),
+        email: email.trim(),
+        phone: phone.trim(),
+        notes: notes.trim(),
+      },
+    ]);
   };
 
   const submitCsv = () => {
@@ -142,22 +117,19 @@ function ContractorUploadModal({
       });
       return;
     }
-    // Skip header row if it looks like one.
     const hasHeader = /name|nombre/i.test(lines[0] ?? "") && /trade|oficio/i.test(lines[0] ?? "");
     const rows = hasHeader ? lines.slice(1) : lines;
-    const accepted: Contractor[] = [];
-    rows.forEach((row, i) => {
+    const accepted: ContractorCreateRequest[] = [];
+    rows.forEach((row) => {
       const cells = row.split(",").map((c) => c.trim());
       const [n, tr, em, ph, no] = cells;
       if (!n || !tr) return;
       accepted.push({
-        id: `ctr-${Date.now()}-${i}`,
         name: n,
         trade: tr,
         email: em ?? "",
         phone: ph ?? "",
         notes: no ?? "",
-        uploadedAt: new Date().toISOString(),
       });
     });
     if (accepted.length === 0) {
@@ -168,11 +140,7 @@ function ContractorUploadModal({
       });
       return;
     }
-    onSave(accepted);
-    toast({
-      title: t(`Imported ${accepted.length} contractor(s)`, `Importado(s) ${accepted.length} contratista(s)`),
-    });
-    onClose();
+    onSubmit(accepted);
   };
 
   return (
@@ -274,12 +242,6 @@ function ContractorUploadModal({
                 placeholder={"Juan Pérez, Plumber, juan@vendor.pr, 787-555-0101, Insured\nMaría Soto, Mason, maria@vendor.pr, 787-555-0102, "}
                 className="w-full font-mono text-xs px-3 py-2 rounded-md border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
               />
-              <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2.5 py-1.5">
-                {t(
-                  "Demo only — contractors are stored in your browser, not the server.",
-                  "Solo demo — los contratistas se guardan en tu navegador, no en el servidor."
-                )}
-              </p>
             </>
           )}
         </div>
@@ -287,17 +249,19 @@ function ContractorUploadModal({
         <div className="px-5 py-4 border-t border-border flex justify-end gap-2">
           <button
             onClick={onClose}
+            disabled={isSubmitting}
             data-testid="btn-cancel-contractor"
-            className="px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted rounded-md"
+            className="px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted rounded-md disabled:opacity-50"
           >
             {t("Cancel", "Cancelar")}
           </button>
           <button
             onClick={mode === "single" ? submitSingle : submitCsv}
+            disabled={isSubmitting}
             data-testid="btn-save-contractor"
-            className="px-4 py-2 bg-konti-olive hover:bg-konti-olive/90 text-white text-sm font-semibold rounded-md flex items-center gap-1.5"
+            className="px-4 py-2 bg-konti-olive hover:bg-konti-olive/90 text-white text-sm font-semibold rounded-md flex items-center gap-1.5 disabled:opacity-60"
           >
-            <UserCheck className="w-4 h-4" />
+            {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserCheck className="w-4 h-4" />}
             {mode === "single" ? t("Save", "Guardar") : t("Import", "Importar")}
           </button>
         </div>
@@ -308,27 +272,64 @@ function ContractorUploadModal({
 
 export default function TeamPage() {
   const { t, lang } = useLang();
-  const [contractors, setContractors] = useState<Contractor[]>([]);
+  const { toast } = useToast();
+  const qc = useQueryClient();
   const [showUpload, setShowUpload] = useState(false);
 
-  useEffect(() => {
-    setContractors(loadContractors());
-  }, []);
+  const { data: contractors = [], isLoading, isError } = useListContractors();
 
-  const handleSaveContractors = (added: Contractor[]) => {
-    setContractors((prev) => {
-      const next = [...added, ...prev];
-      saveContractors(next);
-      return next;
-    });
+  const createMutation = useCreateContractors({
+    mutation: {
+      onSuccess: (res) => {
+        qc.invalidateQueries({ queryKey: getListContractorsQueryKey() });
+        const created = res?.created?.length ?? 0;
+        const skipped = res?.skipped?.length ?? 0;
+        toast({
+          title:
+            created === 1
+              ? t("Contractor added", "Contratista agregado")
+              : t(`Imported ${created} contractor(s)`, `Importado(s) ${created} contratista(s)`),
+          description:
+            skipped > 0
+              ? t(`${skipped} row(s) were skipped.`, `${skipped} fila(s) omitida(s).`)
+              : undefined,
+        });
+        setShowUpload(false);
+      },
+      onError: () => {
+        toast({
+          title: t("Could not save contractors", "No se pudieron guardar los contratistas"),
+          variant: "destructive",
+        });
+      },
+    },
+  });
+
+  const deleteMutation = useDeleteContractor({
+    mutation: {
+      onSuccess: () => {
+        qc.invalidateQueries({ queryKey: getListContractorsQueryKey() });
+        toast({ title: t("Contractor removed", "Contratista eliminado") });
+      },
+      onError: () => {
+        toast({
+          title: t("Could not remove contractor", "No se pudo eliminar el contratista"),
+          variant: "destructive",
+        });
+      },
+    },
+  });
+
+  const handleSubmit = (rows: ContractorCreateRequest[]) => {
+    if (rows.length === 1) {
+      createMutation.mutate({ data: rows[0]! });
+    } else {
+      createMutation.mutate({ data: { contractors: rows } });
+    }
   };
 
   const handleRemove = (id: string) => {
-    setContractors((prev) => {
-      const next = prev.filter((c) => c.id !== id);
-      saveContractors(next);
-      return next;
-    });
+    deleteMutation.mutate({ id });
   };
 
   return (
@@ -382,7 +383,6 @@ export default function TeamPage() {
             ))}
           </div>
 
-          {/* Contractors (#61) — locally-uploaded, no DB persistence */}
           <div className="space-y-3" data-testid="contractors-section">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
@@ -400,7 +400,15 @@ export default function TeamPage() {
               </button>
             </div>
 
-            {contractors.length === 0 ? (
+            {isLoading ? (
+              <div className="bg-card border border-card-border rounded-xl p-8 text-center" data-testid="contractors-loading">
+                <Loader2 className="w-6 h-6 mx-auto animate-spin text-muted-foreground/60" />
+              </div>
+            ) : isError ? (
+              <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-6 text-center text-sm text-destructive" data-testid="contractors-error">
+                {t("Could not load contractors.", "No se pudieron cargar los contratistas.")}
+              </div>
+            ) : contractors.length === 0 ? (
               <div className="bg-card border border-dashed border-card-border rounded-xl p-8 text-center">
                 <HardHat className="w-8 h-8 mx-auto text-muted-foreground/60 mb-2" />
                 <p className="text-sm text-muted-foreground">
@@ -412,7 +420,7 @@ export default function TeamPage() {
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {contractors.map((c) => (
+                {contractors.map((c: Contractor) => (
                   <div
                     key={c.id}
                     data-testid={`contractor-card-${c.id}`}
@@ -428,9 +436,10 @@ export default function TeamPage() {
                       </div>
                       <button
                         onClick={() => handleRemove(c.id)}
+                        disabled={deleteMutation.isPending}
                         data-testid={`btn-remove-contractor-${c.id}`}
                         title={t("Remove", "Eliminar")}
-                        className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                        className="text-muted-foreground hover:text-destructive transition-colors shrink-0 disabled:opacity-40"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -455,7 +464,8 @@ export default function TeamPage() {
         {showUpload && (
           <ContractorUploadModal
             onClose={() => setShowUpload(false)}
-            onSave={handleSaveContractors}
+            onSubmit={handleSubmit}
+            isSubmitting={createMutation.isPending}
           />
         )}
       </AppLayout>

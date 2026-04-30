@@ -2022,3 +2022,21 @@ export function scaffoldSynthesizedProjectState(projectId: string): void {
     ];
   }
 }
+
+
+export interface Contractor {
+  id: string;
+  name: string;
+  trade: string;
+  email: string;
+  phone: string;
+  notes: string;
+  uploadedAt: string;
+  uploadedBy: string;
+}
+
+export const CONTRACTORS: Contractor[] = [
+  { id: "ctr-seed-1", name: "Juan Pérez", trade: "Electrician", email: "juan@vendor.pr", phone: "+1-787-555-0101", notes: "Master license #PR-1234, insured", uploadedAt: new Date("2026-01-12T09:00:00Z").toISOString(), uploadedBy: "demo@konti.com" },
+  { id: "ctr-seed-2", name: "María Soto", trade: "Mason", email: "maria@vendor.pr", phone: "+1-787-555-0102", notes: "Concrete & block, 15 yrs", uploadedAt: new Date("2026-02-03T14:30:00Z").toISOString(), uploadedBy: "demo@konti.com" },
+  { id: "ctr-seed-3", name: "Luis Torres", trade: "Plumber", email: "luis@vendor.pr", phone: "+1-787-555-0103", notes: "PEX + copper", uploadedAt: new Date("2026-02-19T11:00:00Z").toISOString(), uploadedBy: "demo@konti.com" },
+];

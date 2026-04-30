@@ -395,6 +395,39 @@ export interface Material {
   category: MaterialCategory;
 }
 
+export interface Contractor {
+  id: string;
+  name: string;
+  trade: string;
+  email: string;
+  phone: string;
+  notes: string;
+  uploadedAt: string;
+  uploadedBy: string;
+}
+
+export interface ContractorCreateRequest {
+  name: string;
+  trade: string;
+  email?: string;
+  phone?: string;
+  notes?: string;
+}
+
+export interface ContractorBulkCreateRequest {
+  contractors: ContractorCreateRequest[];
+}
+
+export type ContractorBulkCreateResponseSkippedItem = {
+  index: number;
+  reason: string;
+};
+
+export interface ContractorBulkCreateResponse {
+  created: Contractor[];
+  skipped: ContractorBulkCreateResponseSkippedItem[];
+}
+
 export interface CalculatorEntry {
   id: string;
   projectId: string;

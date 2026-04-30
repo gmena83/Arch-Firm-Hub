@@ -26,6 +26,10 @@ import type {
   ChangeOrderResponse,
   ChatRequest,
   ChatResponse,
+  Contractor,
+  ContractorBulkCreateRequest,
+  ContractorBulkCreateResponse,
+  ContractorCreateRequest,
   ContractorMonitoringResponse,
   CostPlusBudget,
   CreateChangeOrder201,
@@ -4960,6 +4964,255 @@ export const useAcceptLead = <
   TContext
 > => {
   return useMutation(getAcceptLeadMutationOptions(options));
+};
+
+/**
+ * @summary List all contractors (newest first)
+ */
+export const getListContractorsUrl = () => {
+  return `/api/contractors`;
+};
+
+export const listContractors = async (
+  options?: RequestInit,
+): Promise<Contractor[]> => {
+  return customFetch<Contractor[]>(getListContractorsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListContractorsQueryKey = () => {
+  return [`/api/contractors`] as const;
+};
+
+export const getListContractorsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listContractors>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listContractors>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListContractorsQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listContractors>>> = ({
+    signal,
+  }) => listContractors({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listContractors>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListContractorsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listContractors>>
+>;
+export type ListContractorsQueryError = ErrorType<void>;
+
+/**
+ * @summary List all contractors (newest first)
+ */
+
+export function useListContractors<
+  TData = Awaited<ReturnType<typeof listContractors>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listContractors>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListContractorsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Add one or more contractors
+ */
+export const getCreateContractorsUrl = () => {
+  return `/api/contractors`;
+};
+
+export const createContractors = async (
+  contractorCreateRequestContractorBulkCreateRequest:
+    | ContractorCreateRequest
+    | ContractorBulkCreateRequest,
+  options?: RequestInit,
+): Promise<ContractorBulkCreateResponse> => {
+  return customFetch<ContractorBulkCreateResponse>(getCreateContractorsUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(contractorCreateRequestContractorBulkCreateRequest),
+  });
+};
+
+export const getCreateContractorsMutationOptions = <
+  TError = ErrorType<ErrorResponse | void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createContractors>>,
+    TError,
+    { data: BodyType<ContractorCreateRequest | ContractorBulkCreateRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createContractors>>,
+  TError,
+  { data: BodyType<ContractorCreateRequest | ContractorBulkCreateRequest> },
+  TContext
+> => {
+  const mutationKey = ["createContractors"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createContractors>>,
+    { data: BodyType<ContractorCreateRequest | ContractorBulkCreateRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createContractors(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateContractorsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createContractors>>
+>;
+export type CreateContractorsMutationBody = BodyType<
+  ContractorCreateRequest | ContractorBulkCreateRequest
+>;
+export type CreateContractorsMutationError = ErrorType<ErrorResponse | void>;
+
+/**
+ * @summary Add one or more contractors
+ */
+export const useCreateContractors = <
+  TError = ErrorType<ErrorResponse | void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createContractors>>,
+    TError,
+    { data: BodyType<ContractorCreateRequest | ContractorBulkCreateRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createContractors>>,
+  TError,
+  { data: BodyType<ContractorCreateRequest | ContractorBulkCreateRequest> },
+  TContext
+> => {
+  return useMutation(getCreateContractorsMutationOptions(options));
+};
+
+/**
+ * @summary Remove a contractor
+ */
+export const getDeleteContractorUrl = (id: string) => {
+  return `/api/contractors/${id}`;
+};
+
+export const deleteContractor = async (
+  id: string,
+  options?: RequestInit,
+): Promise<Contractor> => {
+  return customFetch<Contractor>(getDeleteContractorUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteContractorMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteContractor>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteContractor>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ["deleteContractor"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteContractor>>,
+    { id: string }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteContractor(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteContractorMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteContractor>>
+>;
+
+export type DeleteContractorMutationError = ErrorType<void>;
+
+/**
+ * @summary Remove a contractor
+ */
+export const useDeleteContractor = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteContractor>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteContractor>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  return useMutation(getDeleteContractorMutationOptions(options));
 };
 
 /**
