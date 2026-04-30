@@ -1,8 +1,24 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
 import type { AddressInfo } from "node:net";
 import app from "../../app";
-import { EXTRA_MATERIALS, LABOR_RATES, PROJECT_CONTRACTOR_ESTIMATE, PROJECT_RECEIPTS, PROJECT_REPORT_TEMPLATE } from "../estimating";
+import {
+  EXTRA_MATERIALS,
+  LABOR_RATES,
+  PROJECT_CONTRACTOR_ESTIMATE,
+  PROJECT_RECEIPTS,
+  PROJECT_REPORT_TEMPLATE,
+  applyEstimatingSnapshot,
+  persistEstimatingState,
+} from "../estimating";
+import {
+  getEstimatingPersistFile,
+  loadEstimatingFromDisk,
+  setEstimatingPersistFile,
+} from "../../lib/estimating-persistence";
 
 type LoginResponse = { token: string; user: { id: string; role: string } };
 
@@ -47,6 +63,9 @@ function restoreState(snap: ReturnType<typeof snapshotState>) {
   Object.assign(PROJECT_RECEIPTS, snap.receipts);
   Object.assign(PROJECT_REPORT_TEMPLATE, snap.template);
   Object.assign(PROJECT_CONTRACTOR_ESTIMATE, snap.estimates);
+  // Keep the persisted file aligned with the restored in-memory state so other
+  // tests in the same process don't see leftover mutations on disk.
+  persistEstimatingState();
 }
 
 test("estimating end-to-end: import → contractor estimate → receipts → variance report", async () => {
@@ -183,4 +202,124 @@ test("client cannot import materials", async () => {
     });
     assert.equal(res.status, 403);
   });
+});
+
+test("estimating state survives a server restart (persists to disk and reloads)", async () => {
+  // Use an isolated persist file so this test can simulate a "fresh" server.
+  const tmpFile = path.join(
+    os.tmpdir(),
+    `konti-estimating-persist-${process.pid}-${Date.now()}.json`,
+  );
+  const previousFile = getEstimatingPersistFile();
+  const snap = snapshotState();
+  setEstimatingPersistFile(tmpFile);
+  // Reset in-memory state so we know what's on disk came from this test.
+  applyEstimatingSnapshot(null);
+
+  try {
+    await withServer(async (baseUrl) => {
+      const token = await login(baseUrl, "demo@konti.com");
+      const auth = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
+
+      // Imported material
+      const importRes = await fetch(`${baseUrl}/api/estimating/materials/import`, {
+        method: "POST",
+        headers: auth,
+        body: JSON.stringify({
+          csv: "item,item_es,category,unit,base_price\nPersist Test Tile,Loseta Persistente,finishes,sqft,12.50",
+        }),
+      });
+      assert.equal(importRes.status, 200);
+
+      // Imported labor rate
+      const labRes = await fetch(`${baseUrl}/api/estimating/labor-rates/import`, {
+        method: "POST",
+        headers: auth,
+        body: JSON.stringify({ rates: [{ trade: "Persist Trade", hourly_rate: 77 }] }),
+      });
+      assert.equal(labRes.status, 200);
+
+      // Contractor estimate
+      const estRes = await fetch(`${baseUrl}/api/projects/proj-1/contractor-estimate`, {
+        method: "POST",
+        headers: auth,
+        body: JSON.stringify({ squareMeters: 120, projectType: "residencial", scope: ["roof"] }),
+      });
+      assert.equal(estRes.status, 200);
+
+      // Receipts
+      const recRes = await fetch(`${baseUrl}/api/projects/proj-1/receipts`, {
+        method: "POST",
+        headers: auth,
+        body: JSON.stringify({
+          receipts: [
+            { vendor: "Persist Vendor", date: "2026-04-20", trade: "Carpenter", amount: 500, hours: 10 },
+          ],
+        }),
+      });
+      assert.equal(recRes.status, 200);
+
+      // Report template
+      const tplRes = await fetch(`${baseUrl}/api/projects/proj-1/report-template`, {
+        method: "POST",
+        headers: auth,
+        body: JSON.stringify({
+          name: "Persist Template",
+          columns: ["Category", "Item", "Total"],
+          headerLines: ["KONTi", "Persist Test"],
+          footer: "Footer-Persist",
+        }),
+      });
+      assert.equal(tplRes.status, 200);
+    });
+
+    // The persist file should now exist with all five stores represented.
+    assert.ok(fs.existsSync(tmpFile), "persist file should exist after mutations");
+    const onDisk = JSON.parse(fs.readFileSync(tmpFile, "utf8")) as {
+      extraMaterials: Array<{ item: string }>;
+      laborRates: Array<{ trade: string; hourlyRate: number }>;
+      receipts: Record<string, Array<{ vendor: string }>>;
+      reportTemplates: Record<string, { name: string; footer: string }>;
+      contractorEstimates: Record<string, { grandTotal: number; lines: unknown[] }>;
+    };
+    assert.ok(onDisk.extraMaterials.some((m) => m.item === "Persist Test Tile"));
+    assert.ok(onDisk.laborRates.some((r) => r.trade === "Persist Trade" && r.hourlyRate === 77));
+    assert.ok(onDisk.receipts["proj-1"]?.some((r) => r.vendor === "Persist Vendor"));
+    assert.equal(onDisk.reportTemplates["proj-1"]?.name, "Persist Template");
+    assert.ok((onDisk.contractorEstimates["proj-1"]?.grandTotal ?? 0) > 0);
+
+    // Simulate a server restart: blow away in-memory state, then reload from disk.
+    applyEstimatingSnapshot(null);
+    assert.equal(EXTRA_MATERIALS.length, 0);
+    assert.equal(Object.keys(PROJECT_RECEIPTS).length, 0);
+    assert.equal(Object.keys(PROJECT_REPORT_TEMPLATE).length, 0);
+    assert.equal(Object.keys(PROJECT_CONTRACTOR_ESTIMATE).length, 0);
+
+    applyEstimatingSnapshot(loadEstimatingFromDisk());
+
+    assert.ok(EXTRA_MATERIALS.some((m) => m.item === "Persist Test Tile"));
+    assert.ok(LABOR_RATES.some((r) => r.trade === "Persist Trade" && r.hourlyRate === 77));
+    assert.ok(PROJECT_RECEIPTS["proj-1"]?.some((r) => r.vendor === "Persist Vendor"));
+    assert.equal(PROJECT_REPORT_TEMPLATE["proj-1"]?.name, "Persist Template");
+    assert.ok((PROJECT_CONTRACTOR_ESTIMATE["proj-1"]?.grandTotal ?? 0) > 0);
+
+    // Variance report continues to work end-to-end against the reloaded data.
+    await withServer(async (baseUrl) => {
+      const token = await login(baseUrl, "demo@konti.com");
+      const varRes = await fetch(`${baseUrl}/api/projects/proj-1/variance-report`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      assert.equal(varRes.status, 200);
+      const v = (await varRes.json()) as {
+        estimateSource: string;
+        buckets: Array<{ key: string; estimated: number }>;
+      };
+      assert.equal(v.estimateSource, "contractor_estimate");
+      assert.ok(v.buckets.length === 3);
+    });
+  } finally {
+    fs.rmSync(tmpFile, { force: true });
+    setEstimatingPersistFile(previousFile);
+    restoreState(snap);
+  }
 });

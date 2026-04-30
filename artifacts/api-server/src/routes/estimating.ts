@@ -8,6 +8,10 @@ import {
 } from "../data/seed";
 import { requireRole } from "../middlewares/require-role";
 import { enforceClientOwnership } from "../middlewares/client-ownership";
+import {
+  loadEstimatingFromDisk,
+  saveEstimatingToDisk,
+} from "../lib/estimating-persistence";
 
 const router: IRouter = Router();
 
@@ -96,11 +100,61 @@ const DEFAULT_LABOR_RATES: LaborRate[] = [
   { trade: "Welder", tradeEs: "Soldador", unit: "hour", hourlyRate: 48, source: "seed", updatedAt: "2026-01-01T00:00:00Z" },
 ];
 
-export const LABOR_RATES: LaborRate[] = [...DEFAULT_LABOR_RATES];
+export const LABOR_RATES: LaborRate[] = [];
 
 export const PROJECT_RECEIPTS: Record<string, Receipt[]> = {};
 export const PROJECT_REPORT_TEMPLATE: Record<string, ReportTemplate> = {};
 export const PROJECT_CONTRACTOR_ESTIMATE: Record<string, ContractorEstimate> = {};
+
+// ---------------------------------------------------------------------------
+// Persistence — receipts, contractor estimates, report templates, imported
+// materials, and labor-rate overrides survive an API server restart.
+// ---------------------------------------------------------------------------
+
+interface PersistedSnapshot {
+  extraMaterials: ImportedMaterial[];
+  laborRates: LaborRate[];
+  receipts: Record<string, Receipt[]>;
+  reportTemplates: Record<string, ReportTemplate>;
+  contractorEstimates: Record<string, ContractorEstimate>;
+}
+
+function snapshotEstimatingState(): PersistedSnapshot {
+  return {
+    extraMaterials: EXTRA_MATERIALS,
+    laborRates: LABOR_RATES,
+    receipts: PROJECT_RECEIPTS,
+    reportTemplates: PROJECT_REPORT_TEMPLATE,
+    contractorEstimates: PROJECT_CONTRACTOR_ESTIMATE,
+  };
+}
+
+export function applyEstimatingSnapshot(snap: PersistedSnapshot | null): void {
+  EXTRA_MATERIALS.length = 0;
+  LABOR_RATES.length = 0;
+  for (const k of Object.keys(PROJECT_RECEIPTS)) delete PROJECT_RECEIPTS[k];
+  for (const k of Object.keys(PROJECT_REPORT_TEMPLATE)) delete PROJECT_REPORT_TEMPLATE[k];
+  for (const k of Object.keys(PROJECT_CONTRACTOR_ESTIMATE)) delete PROJECT_CONTRACTOR_ESTIMATE[k];
+
+  if (snap && Array.isArray(snap.laborRates) && snap.laborRates.length > 0) {
+    LABOR_RATES.push(...snap.laborRates);
+  } else {
+    LABOR_RATES.push(...DEFAULT_LABOR_RATES);
+  }
+  if (snap) {
+    if (Array.isArray(snap.extraMaterials)) EXTRA_MATERIALS.push(...snap.extraMaterials);
+    if (snap.receipts && typeof snap.receipts === "object") Object.assign(PROJECT_RECEIPTS, snap.receipts);
+    if (snap.reportTemplates && typeof snap.reportTemplates === "object") Object.assign(PROJECT_REPORT_TEMPLATE, snap.reportTemplates);
+    if (snap.contractorEstimates && typeof snap.contractorEstimates === "object") Object.assign(PROJECT_CONTRACTOR_ESTIMATE, snap.contractorEstimates);
+  }
+}
+
+export function persistEstimatingState(): void {
+  saveEstimatingToDisk(snapshotEstimatingState());
+}
+
+// Hydrate from disk on import; falls back to defaults when no file exists yet.
+applyEstimatingSnapshot(loadEstimatingFromDisk<PersistedSnapshot>());
 
 // ---------------------------------------------------------------------------
 // CSV helper — strict, header-row required, comma-delimited, quoted strings OK.
@@ -237,6 +291,8 @@ router.post("/estimating/materials/import", requireRole(["team", "admin", "super
     });
   }
 
+  persistEstimatingState();
+
   res.json({
     imported: accepted.length,
     skipped: skipped.length,
@@ -288,6 +344,7 @@ router.post("/estimating/labor-rates/import", requireRole(["team", "admin", "sup
     else LABOR_RATES.push(next);
     updated.push(next);
   }
+  persistEstimatingState();
   res.json({ imported: updated.length, skipped: skipped.length, skippedDetails: skipped, rates: LABOR_RATES });
 });
 
@@ -366,6 +423,8 @@ router.post("/projects/:id/receipts", requireRole(["team", "admin", "superadmin"
     descriptionEs: `Se subieron los últimos ${lastThree.length} recibos; tarifas de mano de obra actualizadas para ${updatedTrades.length} oficio(s).`,
   });
 
+  persistEstimatingState();
+
   res.json({ projectId: project.id, receipts: lastThree, updatedTrades, rates: LABOR_RATES });
 });
 
@@ -398,6 +457,7 @@ router.post("/projects/:id/report-template", requireRole(["team", "admin", "supe
     description: `Report template "${name}" uploaded for export reuse.`,
     descriptionEs: `Plantilla de reporte "${name}" subida para reutilización en exportaciones.`,
   });
+  persistEstimatingState();
   res.json({ projectId: project.id, template: tpl });
 });
 
@@ -591,6 +651,8 @@ router.post("/projects/:id/contractor-estimate", requireRole(["team", "admin", "
     descriptionEs: `Estimado de contratista generado: $${grandTotal.toLocaleString()} (${lines.length} líneas).`,
   });
 
+  persistEstimatingState();
+
   res.json(estimate);
 });
 
@@ -663,6 +725,7 @@ router.put("/projects/:id/contractor-estimate/lines", requireRole(["team", "admi
     description: `Contractor estimate edited: ${updatedLines.length} lines · $${grandTotal.toLocaleString()}`,
     descriptionEs: `Estimado de contratista editado: ${updatedLines.length} líneas · $${grandTotal.toLocaleString()}`,
   });
+  persistEstimatingState();
   res.json(updated);
 });
 
