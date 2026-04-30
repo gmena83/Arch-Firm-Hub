@@ -48,7 +48,7 @@ import {
   type PunchlistItemStatus,
 } from "../data/seed";
 import { requireRole } from "../middlewares/require-role";
-import { EXTRA_MATERIALS, PROJECT_REPORT_TEMPLATE } from "./estimating";
+import { EXTRA_MATERIALS, PROJECT_REPORT_TEMPLATE, PROJECT_CONTRACTOR_ESTIMATE, type ContractorEstimateLine, type ReportTemplate } from "./estimating";
 
 const router: IRouter = Router();
 
@@ -66,6 +66,63 @@ const VALID_ZONING = /^[A-Z]{1,3}-[0-9]{1,2}$/;
 // callers that previously imported from this module keep working.
 import { enforceClientOwnership } from "../middlewares/client-ownership";
 export { enforceClientOwnership };
+
+// HTML escaping for any value that ends up inside the PDF report template
+// to keep saved template strings (header/footer/columns) and project fields
+// from breaking the markup or injecting tags.
+function escapeHtml(value: string | number | undefined | null): string {
+  if (value === undefined || value === null) return "";
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+// Render a cost-report table for the PDF using the template's column list
+// against the saved contractor estimate (if any). Unknown column names render
+// as empty cells so KONTi can use any header text without crashing the export.
+function renderTemplateCostReport(
+  template: ReportTemplate,
+  estimate: { lines: ContractorEstimateLine[]; grandTotal: number } | undefined,
+): string {
+  if (!estimate || template.columns.length === 0) return "";
+  const lookups: Record<string, (l: ContractorEstimateLine) => string> = {
+    category: (l) => l.category,
+    item: (l) => l.description,
+    description: (l) => l.description,
+    qty: (l) => String(l.quantity),
+    quantity: (l) => String(l.quantity),
+    unit: (l) => l.unit,
+    "unit price": (l) => `$${l.unitPrice.toFixed(2)}`,
+    price: (l) => `$${l.unitPrice.toFixed(2)}`,
+    total: (l) => `$${l.lineTotal.toFixed(2)}`,
+    "line total": (l) => `$${l.lineTotal.toFixed(2)}`,
+  };
+  const headerCells = template.columns
+    .map((c) => `<th align="left" style="padding:4px 8px;border-bottom:1px solid #ccc;">${escapeHtml(c)}</th>`)
+    .join("");
+  const bodyRows = estimate.lines
+    .map((line) => {
+      const cells = template.columns
+        .map((col) => {
+          const fn = lookups[col.toLowerCase()];
+          return `<td style="padding:4px 8px;border-bottom:1px solid #eee;">${escapeHtml(fn ? fn(line) : "")}</td>`;
+        })
+        .join("");
+      return `<tr>${cells}</tr>`;
+    })
+    .join("");
+  const grandTotalRow =
+    `<tr><td colspan="${template.columns.length}" style="padding:6px 8px;text-align:right;font-weight:600;border-top:1px solid #999;">` +
+    `Grand Total: $${estimate.grandTotal.toFixed(2)}</td></tr>`;
+  return (
+    `<h2>${escapeHtml(template.name)}</h2>` +
+    `<table><thead><tr>${headerCells}</tr></thead>` +
+    `<tbody>${bodyRows || `<tr><td colspan="${template.columns.length}" style="padding:8px;color:#888;">No estimate lines.</td></tr>`}${bodyRows ? grandTotalRow : ""}</tbody></table>`
+  );
+}
 
 // Local helper retained for the PDF route at the bottom of this file.
 function clientCanAccessProject(userId: string, projectId: string): boolean {
@@ -492,23 +549,57 @@ router.post("/projects/:id/pdf", async (req, res) => {
   const phaseLabel = String(project.phase ?? "discovery").replace(/_/g, " ").toUpperCase();
   const generatedAt = new Date().toLocaleString("en-US", { timeZone: "America/Puerto_Rico" });
   const taskRows = tasks.slice(0, 12).map((t) =>
-    `<tr><td style="padding:4px 8px;border-bottom:1px solid #eee;">${t.title}</td>` +
-    `<td style="padding:4px 8px;border-bottom:1px solid #eee;color:#666;">${t.phase ?? ""}</td>` +
-    `<td style="padding:4px 8px;border-bottom:1px solid #eee;">${t.status}</td></tr>`).join("");
+    `<tr><td style="padding:4px 8px;border-bottom:1px solid #eee;">${escapeHtml(t.title)}</td>` +
+    `<td style="padding:4px 8px;border-bottom:1px solid #eee;color:#666;">${escapeHtml(t.phase ?? "")}</td>` +
+    `<td style="padding:4px 8px;border-bottom:1px solid #eee;">${escapeHtml(t.status)}</td></tr>`).join("");
   const docRows = docs.slice(0, 20).map((d) =>
-    `<tr><td style="padding:4px 8px;border-bottom:1px solid #eee;">${d.name}</td>` +
-    `<td style="padding:4px 8px;border-bottom:1px solid #eee;color:#666;">${d.category}</td></tr>`).join("");
-  const html = `<!doctype html><html><head><meta charset="utf-8"><title>KONTi Status Report — ${project.name}</title>` +
+    `<tr><td style="padding:4px 8px;border-bottom:1px solid #eee;">${escapeHtml(d.name)}</td>` +
+    `<td style="padding:4px 8px;border-bottom:1px solid #eee;color:#666;">${escapeHtml(d.category)}</td></tr>`).join("");
+
+  // Saved report template (if any) overrides the default header/footer and
+  // adds a Cost Report table built from the saved contractor estimate using
+  // the template's column list. When no template exists, fall back to the
+  // hard-coded default layout.
+  const template: ReportTemplate | undefined = PROJECT_REPORT_TEMPLATE[project.id];
+  const estimate = PROJECT_CONTRACTOR_ESTIMATE[project.id];
+
+  const defaultHeaderHtml =
+    `<h1>KONTi Project Status Report</h1>` +
+    `<div class="meta"><b>Project:</b> ${escapeHtml(project.name)}<br>` +
+    `<b>Location:</b> ${escapeHtml(project.location ?? "—")}<br>` +
+    `<b>Phase:</b> ${escapeHtml(phaseLabel)}<br>` +
+    `<b>Date:</b> ${escapeHtml(generatedAt)}</div>`;
+  const defaultFooterHtml =
+    `<div class="sig"><b>Authorized Signature</b><br>KONTi Project Lead</div>`;
+
+  let headerHtml = defaultHeaderHtml;
+  let footerHtml = defaultFooterHtml;
+  let costReportHtml = "";
+
+  if (template) {
+    const [titleLine, ...metaLines] = template.headerLines.length > 0
+      ? template.headerLines
+      : ["KONTi Project Status Report"];
+    const metaHtml = [
+      ...metaLines.map((l) => escapeHtml(l)),
+      `<b>Phase:</b> ${escapeHtml(phaseLabel)}`,
+      `<b>Date:</b> ${escapeHtml(generatedAt)}`,
+    ].join("<br>");
+    headerHtml =
+      `<h1>${escapeHtml(titleLine ?? project.name)}</h1>` +
+      `<div class="meta">${metaHtml}</div>`;
+    footerHtml = `<div class="footer">${escapeHtml(template.footer)}</div>`;
+    costReportHtml = renderTemplateCostReport(template, estimate);
+  }
+
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>KONTi Status Report — ${escapeHtml(project.name)}</title>` +
     `<style>body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;color:#222;margin:32px;}` +
     `h1{color:#4F5E2A;margin:0 0 4px;}h2{font-size:14px;margin:24px 0 8px;color:#333;border-bottom:1px solid #ddd;padding-bottom:4px;}` +
     `.meta{color:#555;font-size:12px;margin:8px 0 16px;}.meta b{color:#222;}` +
     `table{width:100%;border-collapse:collapse;font-size:12px;}` +
-    `.sig{margin-top:48px;border-top:1px solid #999;padding-top:8px;width:300px;font-size:12px;color:#444;}</style></head><body>` +
-    `<h1>KONTi Project Status Report</h1>` +
-    `<div class="meta"><b>Project:</b> ${project.name}<br>` +
-    `<b>Location:</b> ${project.location ?? "—"}<br>` +
-    `<b>Phase:</b> ${phaseLabel}<br>` +
-    `<b>Date:</b> ${generatedAt}</div>` +
+    `.sig{margin-top:48px;border-top:1px solid #999;padding-top:8px;width:300px;font-size:12px;color:#444;}` +
+    `.footer{margin-top:48px;border-top:1px solid #999;padding-top:8px;font-size:11px;color:#444;text-align:center;}</style></head><body>` +
+    headerHtml +
     `<h2>Open Tasks (${tasks.length} total)</h2>` +
     `<table><thead><tr><th align="left" style="padding:4px 8px;border-bottom:1px solid #ccc;">Task</th>` +
     `<th align="left" style="padding:4px 8px;border-bottom:1px solid #ccc;">Phase</th>` +
@@ -518,7 +609,8 @@ router.post("/projects/:id/pdf", async (req, res) => {
     `<table><thead><tr><th align="left" style="padding:4px 8px;border-bottom:1px solid #ccc;">Name</th>` +
     `<th align="left" style="padding:4px 8px;border-bottom:1px solid #ccc;">Category</th></tr></thead>` +
     `<tbody>${docRows || '<tr><td colspan=2 style="padding:8px;color:#888;">No documents on file.</td></tr>'}</tbody></table>` +
-    `<div class="sig"><b>Authorized Signature</b><br>KONTi Project Lead</div>` +
+    costReportHtml +
+    footerHtml +
     `</body></html>`;
 
   try {

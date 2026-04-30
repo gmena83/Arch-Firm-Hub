@@ -182,6 +182,122 @@ test("estimating end-to-end: import → contractor estimate → receipts → var
   }
 });
 
+test("PDF export uses saved report template header/columns/footer", async () => {
+  const snap = snapshotState();
+  const originalFetch = globalThis.fetch;
+  const originalKey = process.env["PDF_CO_API_KEY"];
+  process.env["PDF_CO_API_KEY"] = "test-key";
+
+  let capturedBody: string | null = null;
+  globalThis.fetch = (async (input: Parameters<typeof originalFetch>[0], init?: RequestInit) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : (input as Request).url;
+    if (url.includes("api.pdf.co")) {
+      capturedBody = (init?.body as string) ?? null;
+      return new Response(JSON.stringify({ url: "https://example.invalid/test.pdf", error: false }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    }
+    if (url.startsWith("https://example.invalid/")) {
+      const fakePdf = new TextEncoder().encode("%PDF-1.4 fake pdf bytes for test\n%%EOF\n");
+      return new Response(fakePdf, { status: 200, headers: { "content-type": "application/pdf" } });
+    }
+    return originalFetch(input, init);
+  }) as typeof fetch;
+
+  try {
+    await withServer(async (baseUrl) => {
+      const token = await login(baseUrl, "demo@konti.com");
+      const auth = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
+
+      // Seed a contractor estimate so the template's columns have data to render.
+      const estRes = await fetch(`${baseUrl}/api/projects/proj-1/contractor-estimate`, {
+        method: "POST", headers: auth,
+        body: JSON.stringify({ squareMeters: 120, projectType: "residencial", scope: [] }),
+      });
+      assert.equal(estRes.status, 200);
+
+      const footerText = "© KONTi 2026 — Confidential cost report do-not-redistribute";
+      const headerLine = "KONTi Design | Build Studio — Cost Report";
+      const tplRes = await fetch(`${baseUrl}/api/projects/proj-1/report-template`, {
+        method: "POST", headers: auth,
+        body: JSON.stringify({
+          name: "KONTi Cost Report v1",
+          columns: ["Category", "Item", "Qty", "Unit", "Unit Price", "Total"],
+          headerLines: [headerLine, "Casa Solar Rincón", "Rincón, PR"],
+          footer: footerText,
+        }),
+      });
+      assert.equal(tplRes.status, 200);
+
+      const pdfRes = await fetch(`${baseUrl}/api/projects/proj-1/pdf`, {
+        method: "POST", headers: { Authorization: `Bearer ${token}` },
+      });
+      assert.equal(pdfRes.status, 200);
+
+      assert.ok(capturedBody, "PDF.co should have been called");
+      const parsed = JSON.parse(capturedBody as string) as { html: string };
+      assert.ok(
+        parsed.html.includes(footerText),
+        `exported PDF html should include the saved template footer; got:\n${parsed.html.slice(0, 500)}`,
+      );
+      assert.ok(parsed.html.includes(headerLine), "exported html should include the saved header line");
+      assert.ok(parsed.html.includes("KONTi Cost Report v1"), "exported html should include the template name as a section heading");
+      // Default signature block must NOT appear when a custom footer is in use.
+      assert.ok(!parsed.html.includes("Authorized Signature"), "default signature should be replaced by template footer");
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalKey === undefined) delete process.env["PDF_CO_API_KEY"];
+    else process.env["PDF_CO_API_KEY"] = originalKey;
+    restoreState(snap);
+  }
+});
+
+test("PDF export falls back to default layout when no template is saved", async () => {
+  const snap = snapshotState();
+  const originalFetch = globalThis.fetch;
+  const originalKey = process.env["PDF_CO_API_KEY"];
+  process.env["PDF_CO_API_KEY"] = "test-key";
+
+  let capturedBody: string | null = null;
+  globalThis.fetch = (async (input: Parameters<typeof originalFetch>[0], init?: RequestInit) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : (input as Request).url;
+    if (url.includes("api.pdf.co")) {
+      capturedBody = (init?.body as string) ?? null;
+      return new Response(JSON.stringify({ url: "https://example.invalid/test.pdf", error: false }), {
+        status: 200, headers: { "content-type": "application/json" },
+      });
+    }
+    if (url.startsWith("https://example.invalid/")) {
+      return new Response(new TextEncoder().encode("%PDF-1.4 fake\n%%EOF\n"), {
+        status: 200, headers: { "content-type": "application/pdf" },
+      });
+    }
+    return originalFetch(input, init);
+  }) as typeof fetch;
+
+  try {
+    await withServer(async (baseUrl) => {
+      const token = await login(baseUrl, "demo@konti.com");
+      // Make sure no template exists for proj-2.
+      delete PROJECT_REPORT_TEMPLATE["proj-2"];
+      const pdfRes = await fetch(`${baseUrl}/api/projects/proj-2/pdf`, {
+        method: "POST", headers: { Authorization: `Bearer ${token}` },
+      });
+      assert.equal(pdfRes.status, 200);
+      const parsed = JSON.parse(capturedBody as string) as { html: string };
+      assert.ok(parsed.html.includes("KONTi Project Status Report"), "default header should be used");
+      assert.ok(parsed.html.includes("Authorized Signature"), "default signature footer should be used");
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalKey === undefined) delete process.env["PDF_CO_API_KEY"];
+    else process.env["PDF_CO_API_KEY"] = originalKey;
+    restoreState(snap);
+  }
+});
+
 test("contractor estimate requires auth", async () => {
   await withServer(async (baseUrl) => {
     const res = await fetch(`${baseUrl}/api/projects/proj-1/contractor-estimate`, {
