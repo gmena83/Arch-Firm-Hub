@@ -199,6 +199,20 @@ function UploadModal({
         });
         return false;
       }
+      // Conversely, in Document mode reject images so they can't silently
+      // sneak into the doc list with a default photoCategory. The team must
+      // switch to Site Photo(s) mode to pick a real category and caption.
+      if (!isPhotoBatch && !lockedToClientReview && inferDocType(file) === "photo") {
+        toast({
+          title: t("Switch to Site Photo(s) mode", "Cambia a modo Foto(s) del Sitio"),
+          description: t(
+            "Image files must be uploaded as Site Photos so they get a category and appear in the gallery.",
+            "Las imágenes deben subirse como Fotos del Sitio para asignarles una categoría y aparecer en la galería.",
+          ),
+          variant: "destructive",
+        });
+        return false;
+      }
       if (file.size > MAX_UPLOAD_BYTES) {
         toast({
           title: t("File too large", "Archivo muy grande"),
