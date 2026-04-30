@@ -248,8 +248,10 @@ function DashboardContent() {
               addSuffix: true,
               locale: lang === "es" ? dateEs : undefined,
             });
-            return (
-              <div key={item.id} className="flex items-start gap-3 p-4" data-testid={`activity-${item.id}`}>
+            const targetProject = projects.find((p) => p.id === item.projectId || p.name === item.projectName);
+            const href = targetProject ? `/projects/${targetProject.id}` : null;
+            const inner = (
+              <>
                 <div className="mt-0.5 w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground shrink-0">
                   <ActivityIcon type={item.type} />
                 </div>
@@ -259,6 +261,24 @@ function DashboardContent() {
                     <span className="font-medium text-konti-olive">{item.projectName}</span> — {timeAgo}
                   </p>
                 </div>
+                {href && <ArrowRight className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-2 opacity-0 group-hover:opacity-100 transition-opacity" />}
+              </>
+            );
+            if (href) {
+              return (
+                <Link
+                  key={item.id}
+                  href={href}
+                  data-testid={`activity-link-${item.id}`}
+                  className="group flex items-start gap-3 p-4 hover:bg-muted/40 transition-colors"
+                >
+                  {inner}
+                </Link>
+              );
+            }
+            return (
+              <div key={item.id} className="flex items-start gap-3 p-4" data-testid={`activity-${item.id}`}>
+                {inner}
               </div>
             );
           })}

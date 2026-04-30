@@ -31,7 +31,7 @@ export default function PermitsPage() {
             <div>
               <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
                 <FileCheck className="w-6 h-6 text-emerald-700" />
-                {t("Permits", "Permisos")}
+                {t("Permit Documentation", "Documentación de Permisos")}
               </h1>
               <p className="text-sm text-slate-600 mt-1">
                 {t(
