@@ -160,6 +160,49 @@ export interface ProjectStatusNote {
   currentStatusNoteEs: string;
 }
 
+export type ProjectMetadataUpdateProjectType =
+  (typeof ProjectMetadataUpdateProjectType)[keyof typeof ProjectMetadataUpdateProjectType];
+
+export const ProjectMetadataUpdateProjectType = {
+  residencial: "residencial",
+  comercial: "comercial",
+  mixto: "mixto",
+  contenedor: "contenedor",
+} as const;
+
+/**
+ * Patch payload for project-level metadata consumed by the Contractor Calculator (B-05).
+ */
+export interface ProjectMetadataUpdate {
+  squareMeters?: number;
+  bathrooms?: number;
+  kitchens?: number;
+  projectType?: ProjectMetadataUpdateProjectType;
+  contingencyPercent?: number;
+}
+
+export type ProjectMetadataProjectType =
+  (typeof ProjectMetadataProjectType)[keyof typeof ProjectMetadataProjectType];
+
+export const ProjectMetadataProjectType = {
+  residencial: "residencial",
+  comercial: "comercial",
+  mixto: "mixto",
+  contenedor: "contenedor",
+} as const;
+
+/**
+ * Snapshot of project-level metadata after update.
+ */
+export interface ProjectMetadata {
+  projectId: string;
+  squareMeters: number;
+  bathrooms: number;
+  kitchens: number;
+  projectType: ProjectMetadataProjectType;
+  contingencyPercent: number;
+}
+
 export type ProjectInvoiceStatus =
   (typeof ProjectInvoiceStatus)[keyof typeof ProjectInvoiceStatus];
 
@@ -275,6 +318,19 @@ export const ProjectStatus = {
   completed: "completed",
 } as const;
 
+/**
+ * Project type bucket (residencial | comercial | mixto | contenedor). Project-level; consumed read-only by the Contractor Calculator (B-05).
+ */
+export type ProjectProjectType =
+  (typeof ProjectProjectType)[keyof typeof ProjectProjectType];
+
+export const ProjectProjectType = {
+  residencial: "residencial",
+  comercial: "comercial",
+  mixto: "mixto",
+  contenedor: "contenedor",
+} as const;
+
 export interface Project {
   id: string;
   name: string;
@@ -307,6 +363,16 @@ export interface Project {
   currentStatusNote?: string;
   /** Plain-language "what's happening now" sentence (Spanish) shown on the client construction card. Editable by the team. */
   currentStatusNoteEs?: string;
+  /** Project size in square meters. Edited from Project Detail and consumed (read-only) by the Contractor Calculator (B-05). */
+  squareMeters?: number;
+  /** Number of bathrooms. Project-level; consumed read-only by the Contractor Calculator (B-05). */
+  bathrooms?: number;
+  /** Number of kitchens. Project-level; consumed read-only by the Contractor Calculator (B-05). */
+  kitchens?: number;
+  /** Project type bucket (residencial | comercial | mixto | contenedor). Project-level; consumed read-only by the Contractor Calculator (B-05). */
+  projectType?: ProjectProjectType;
+  /** Default contingency percentage applied to contractor estimates for this project. Project-level; consumed read-only by the Contractor Calculator (B-05). */
+  contingencyPercent?: number;
 }
 
 export type ProjectTaskPriority =

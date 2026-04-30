@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { useLang } from "@/hooks/use-lang";
 import { useToast } from "@/hooks/use-toast";
-import { useListProjects } from "@workspace/api-client-react";
+import { useListProjects, useGetProject, getGetProjectQueryKey } from "@workspace/api-client-react";
 import { FileSpreadsheet, Sparkles, Loader2, Save, Plus, Trash2 } from "lucide-react";
+import { ProjectMetadataCard } from "@/components/project-metadata-card";
 import { getJson, postJson, putJson, type ContractorEstimate } from "./estimating-helpers";
 
 type EditableLine = ContractorEstimate["lines"][number];
@@ -15,18 +16,21 @@ const SCOPE_PRESETS = [
   { key: "bathroom", labelEn: "Bathroom remodel", labelEs: "Remodelación de baño" },
 ];
 
+/**
+ * B-05: The Contractor Calculator owns *contractor-only* commercial inputs —
+ * scope, source, target margin %, and management fee %. Project metadata
+ * (square meters, bathrooms, kitchens, project type, contingency %) lives on
+ * the Project record and is shown here read-only via `ProjectMetadataCard`.
+ * Generating an estimate reads those fields from the project so the math
+ * stays unchanged regardless of where they're entered.
+ */
 export function ContractorCalculator({ defaultProjectId }: { defaultProjectId?: string }) {
   const { t, lang } = useLang();
   const { toast } = useToast();
   const { data: projects = [] } = useListProjects();
   const [projectId, setProjectId] = useState<string>(defaultProjectId ?? "");
-  const [squareMeters, setSquareMeters] = useState<string>("180");
-  const [projectType, setProjectType] = useState<string>("residencial");
   const [scope, setScope] = useState<string[]>(["pool", "solar"]);
   const [source, setSource] = useState<string>("Preliminary project doc — site visit notes");
-  const [contingency, setContingency] = useState<string>("8");
-  const [bathrooms, setBathrooms] = useState<string>("2");
-  const [kitchens, setKitchens] = useState<string>("1");
   const [marginPercent, setMarginPercent] = useState<string>("12");
   const [managementFeePercent, setManagementFeePercent] = useState<string>("5");
   const [estimate, setEstimate] = useState<ContractorEstimate | null>(null);
@@ -37,6 +41,12 @@ export function ContractorCalculator({ defaultProjectId }: { defaultProjectId?: 
   useEffect(() => {
     if (!projectId && projects[0]) setProjectId(projects[0].id);
   }, [projects, projectId]);
+
+  // Hydrate the read-only metadata summary from the live project record so the
+  // user can confirm what will feed the estimate before clicking Generate.
+  const { data: project } = useGetProject(projectId, {
+    query: { enabled: !!projectId, queryKey: getGetProjectQueryKey(projectId) },
+  });
 
   useEffect(() => {
     if (!projectId) return;
@@ -74,21 +84,24 @@ export function ContractorCalculator({ defaultProjectId }: { defaultProjectId?: 
 
   const generate = async () => {
     if (!projectId) return;
-    const sm = Number(squareMeters);
-    if (!isFinite(sm) || sm <= 0) {
-      toast({ title: t("Invalid square meters", "Metros cuadrados inválidos"), variant: "destructive" });
+    if (!project || !project.squareMeters || project.squareMeters <= 0) {
+      toast({
+        title: t("Project metadata required", "Se requieren los metadatos del proyecto"),
+        description: t(
+          "Open Project Detail and set square meters before generating an estimate.",
+          "Abre el Detalle del Proyecto y define los metros cuadrados antes de generar un estimado.",
+        ),
+        variant: "destructive",
+      });
       return;
     }
     setLoading(true);
     try {
+      // Project metadata fields are intentionally omitted from the body so the
+      // server reads them from the project record (B-05 single source of truth).
       const est = await postJson<ContractorEstimate>(`/api/projects/${projectId}/contractor-estimate`, {
-        squareMeters: sm,
-        projectType,
         scope,
         source,
-        contingencyPercent: Number(contingency) || 0,
-        bathrooms: Math.max(0, Math.floor(Number(bathrooms) || 0)),
-        kitchens: Math.max(0, Math.floor(Number(kitchens) || 0)),
         marginPercent: Number(marginPercent) || 0,
         managementFeePercent: Number(managementFeePercent) || 0,
       });
@@ -109,17 +122,17 @@ export function ContractorCalculator({ defaultProjectId }: { defaultProjectId?: 
       <div className="bg-card rounded-xl border border-card-border p-5 shadow-sm">
         <div className="flex items-center gap-2 mb-3">
           <FileSpreadsheet className="w-5 h-5 text-konti-olive" />
-          <h2 className="font-bold text-foreground" data-testid="project-information-heading">{t("Project Information", "Información del Proyecto")}</h2>
+          <h2 className="font-bold text-foreground" data-testid="project-information-heading">{t("Contractor Estimate Inputs", "Datos del Estimado del Contratista")}</h2>
         </div>
         <p className="text-xs text-muted-foreground mb-4">
           {t(
-            "Capture the project's vital stats — size, bathrooms, kitchens, contingency, and target margin — to generate a draft contractor estimate from the current materials and labor rates.",
-            "Captura los datos clave del proyecto — tamaño, baños, cocinas, contingencia y margen objetivo — para generar un estimado borrador del contratista desde los materiales y tarifas actuales."
+            "Pick the project, set the contractor-only inputs (scope, target margin, management fee), and we'll pull project metadata from the Project Detail to generate a draft estimate.",
+            "Elige el proyecto, define los datos exclusivos del contratista (alcance, margen objetivo, honorarios admin.) y tomaremos los metadatos desde el Detalle del Proyecto para generar un estimado borrador.",
           )}
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <label className="text-xs font-medium space-y-1 block">
+          <label className="text-xs font-medium space-y-1 block md:col-span-2">
             {t("Project", "Proyecto")}
             <select
               value={projectId}
@@ -129,31 +142,6 @@ export function ContractorCalculator({ defaultProjectId }: { defaultProjectId?: 
             >
               {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
-          </label>
-          <label className="text-xs font-medium space-y-1 block">
-            {t("Project type", "Tipo de proyecto")}
-            <select value={projectType} onChange={(e) => setProjectType(e.target.value)} className="w-full mt-1 px-3 py-2 rounded-md border border-input bg-background text-sm">
-              <option value="residencial">{t("Residential", "Residencial")}</option>
-              <option value="comercial">{t("Commercial", "Comercial")}</option>
-              <option value="mixto">{t("Mixed-use", "Mixto")}</option>
-              <option value="contenedor">{t("Container", "Contenedor")}</option>
-            </select>
-          </label>
-          <label className="text-xs font-medium space-y-1 block">
-            {t("Square meters", "Metros cuadrados")}
-            <input type="number" min={1} value={squareMeters} onChange={(e) => setSquareMeters(e.target.value)} data-testid="contractor-sqm" className="w-full mt-1 px-3 py-2 rounded-md border border-input bg-background text-sm" />
-          </label>
-          <label className="text-xs font-medium space-y-1 block">
-            {t("Bathrooms", "Baños")}
-            <input type="number" min={0} step={1} value={bathrooms} onChange={(e) => setBathrooms(e.target.value)} data-testid="contractor-bathrooms" className="w-full mt-1 px-3 py-2 rounded-md border border-input bg-background text-sm" />
-          </label>
-          <label className="text-xs font-medium space-y-1 block">
-            {t("Kitchens", "Cocinas")}
-            <input type="number" min={0} step={1} value={kitchens} onChange={(e) => setKitchens(e.target.value)} data-testid="contractor-kitchens" className="w-full mt-1 px-3 py-2 rounded-md border border-input bg-background text-sm" />
-          </label>
-          <label className="text-xs font-medium space-y-1 block">
-            {t("Contingency %", "Contingencia %")}
-            <input type="number" min={0} max={30} value={contingency} onChange={(e) => setContingency(e.target.value)} data-testid="contractor-contingency" className="w-full mt-1 px-3 py-2 rounded-md border border-input bg-background text-sm" />
           </label>
           <label className="text-xs font-medium space-y-1 block">
             {t("Margin %", "Margen %")}
@@ -194,6 +182,20 @@ export function ContractorCalculator({ defaultProjectId }: { defaultProjectId?: 
           {loading ? t("Generating...", "Generando...") : t("Generate Estimate", "Generar Estimado")}
         </button>
       </div>
+
+      {/* Read-only project metadata summary (single source of truth lives on
+          the project record, edited from Project Detail). */}
+      {projectId && (
+        <ProjectMetadataCard
+          projectId={projectId}
+          variant="readonly"
+          squareMeters={project?.squareMeters}
+          bathrooms={project?.bathrooms}
+          kitchens={project?.kitchens}
+          projectType={project?.projectType}
+          contingencyPercent={project?.contingencyPercent}
+        />
+      )}
 
       {estimate && (
         <div className="bg-card rounded-xl border border-card-border p-5 shadow-sm" data-testid="contractor-estimate-result">

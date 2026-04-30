@@ -651,17 +651,40 @@ router.get("/projects/:id/report-template", requireRole(["team","admin","superad
 });
 
 // POST contractor estimate (from preliminary doc).
+//
+// B-05 split: project metadata (squareMeters, projectType, bathrooms, kitchens,
+// contingencyPercent) lives on the Project record and is edited from the
+// Project Detail page. The Contractor Calculator no longer collects those
+// inputs — when they are missing from the request body we read them from the
+// project so the estimate math stays unchanged.
 router.post("/projects/:id/contractor-estimate", requireRole(["team", "admin", "superadmin"]), (req, res) => {
-  const project = PROJECTS.find((p) => p.id === req.params["id"]);
+  const project = PROJECTS.find((p) => p.id === req.params["id"]) as
+    | (typeof PROJECTS[number] & {
+        squareMeters?: number;
+        bathrooms?: number;
+        kitchens?: number;
+        projectType?: string;
+        contingencyPercent?: number;
+      })
+    | undefined;
   if (!project) { res.status(404).json({ error: "not_found" }); return; }
   const body = (req.body ?? {}) as Record<string, unknown>;
-  const squareMeters = Number(body["squareMeters"] ?? 0);
-  const projectType = typeof body["projectType"] === "string" ? body["projectType"] : "residencial";
+
+  const pickNumber = (key: string, fallback: number): number => {
+    if (body[key] === undefined) return fallback;
+    const n = Number(body[key]);
+    return isFinite(n) ? n : fallback;
+  };
+
+  const squareMeters = pickNumber("squareMeters", project.squareMeters ?? 0);
+  const projectType = typeof body["projectType"] === "string"
+    ? body["projectType"]
+    : (project.projectType ?? "residencial");
   const scope = Array.isArray(body["scope"]) ? (body["scope"] as unknown[]).map(String) : [];
   const source = typeof body["source"] === "string" ? body["source"] : "Preliminary project doc (manual entry)";
-  const contingencyPercent = Number(body["contingencyPercent"] ?? 8);
-  const bathrooms = Math.max(0, Math.floor(Number(body["bathrooms"] ?? 0)) || 0);
-  const kitchens = Math.max(0, Math.floor(Number(body["kitchens"] ?? 0)) || 0);
+  const contingencyPercent = pickNumber("contingencyPercent", project.contingencyPercent ?? 8);
+  const bathrooms = Math.max(0, Math.floor(pickNumber("bathrooms", project.bathrooms ?? 0)) || 0);
+  const kitchens = Math.max(0, Math.floor(pickNumber("kitchens", project.kitchens ?? 0)) || 0);
   const marginPercent = Math.max(0, Number(body["marginPercent"] ?? 0) || 0);
   const managementFeePercent = Math.max(0, Number(body["managementFeePercent"] ?? 0) || 0);
 

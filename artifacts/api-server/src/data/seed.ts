@@ -109,6 +109,13 @@ export const PROJECTS = [
       "We're finalizing the structural review for the hilltop site and lining up the surveyor's visit so we can lock the foundation footprint.",
     currentStatusNoteEs:
       "Estamos finalizando la revisión estructural del lote en la loma y coordinando la visita del agrimensor para fijar la huella de la cimentación.",
+    // Project metadata consumed (read-only) by the Contractor Calculator (B-05).
+    // Edited from Project Detail → Project Metadata card.
+    squareMeters: 180,
+    bathrooms: 2,
+    kitchens: 1,
+    projectType: "residencial" as "residencial" | "comercial" | "mixto" | "contenedor",
+    contingencyPercent: 10,
   },
   {
     id: "proj-2",
@@ -141,6 +148,11 @@ export const PROJECTS = [
       "We're framing the second-floor walls this week and waiting on the structural inspection scheduled for next Monday.",
     currentStatusNoteEs:
       "Esta semana estamos levantando la estructura del segundo piso y esperando la inspección estructural programada para el próximo lunes.",
+    squareMeters: 320,
+    bathrooms: 4,
+    kitchens: 1,
+    projectType: "residencial" as "residencial" | "comercial" | "mixto" | "contenedor",
+    contingencyPercent: 10,
   },
   {
     id: "proj-3",
@@ -173,6 +185,11 @@ export const PROJECTS = [
       "Project complete. Final walkthrough delivered November 28, 2025 — café opened the following week.",
     currentStatusNoteEs:
       "Proyecto completado. Recorrido final entregado el 28 de noviembre de 2025 — el café abrió la siguiente semana.",
+    squareMeters: 95,
+    bathrooms: 2,
+    kitchens: 1,
+    projectType: "comercial" as "residencial" | "comercial" | "mixto" | "contenedor",
+    contingencyPercent: 10,
   },
 ];
 
@@ -1339,6 +1356,7 @@ export type ProjectActivityType =
   | "profile_update"
   | "client_contact_updated"
   | "status_note_updated"
+  | "project_metadata_updated"
   | "project_created"
   | "contractor_created"
   | "contractor_deleted"
@@ -1425,6 +1443,8 @@ const ACTIVITY_TYPE_TO_ENTITY: Record<string, AuditEntity> = {
   client_view: "client",
   profile_update: "client",
   client_contact_updated: "client",
+  status_note_updated: "project",
+  project_metadata_updated: "project",
   contractor_created: "contractor",
   contractor_deleted: "contractor",
 };

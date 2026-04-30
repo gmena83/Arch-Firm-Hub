@@ -439,3 +439,168 @@ test("estimating state survives a server restart (persists to disk and reloads)"
     restoreState(snap);
   }
 });
+
+// B-05: project metadata (squareMeters, projectType, bathrooms, kitchens,
+// contingencyPercent) lives on the Project record and should produce the
+// SAME estimate whether sent in the request body (legacy clients) or read
+// from the project (new Cost Calculator UI which only sends contractor-only
+// inputs like scope, source, marginPercent, managementFeePercent).
+test("B-05: contractor estimate math is unchanged when metadata is read from the project record", async () => {
+  const snap = snapshotState();
+  try {
+    await withServer(async (baseUrl) => {
+      const token = await login(baseUrl, "demo@konti.com");
+      const auth = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
+
+      // proj-1 is seeded with squareMeters=180, projectType=residencial,
+      // bathrooms=2, kitchens=1, contingencyPercent=10.
+      const sharedScope = ["pool", "solar"];
+      const sharedExtras = { scope: sharedScope, source: "B-05 parity check", marginPercent: 12, managementFeePercent: 5 };
+
+      // Path A: project metadata sent explicitly (legacy body).
+      const explicitRes = await fetch(`${baseUrl}/api/projects/proj-1/contractor-estimate`, {
+        method: "POST",
+        headers: auth,
+        body: JSON.stringify({
+          ...sharedExtras,
+          squareMeters: 180,
+          projectType: "residencial",
+          bathrooms: 2,
+          kitchens: 1,
+          contingencyPercent: 10,
+        }),
+      });
+      assert.equal(explicitRes.status, 200);
+      const explicit = (await explicitRes.json()) as {
+        grandTotal: number;
+        contingencyPercent: number;
+        contingency: number;
+        subtotalMaterials: number;
+        subtotalLabor: number;
+        subtotalSubcontractor: number;
+      };
+
+      // Path B: project metadata omitted — server falls back to the project record.
+      const fromProjectRes = await fetch(`${baseUrl}/api/projects/proj-1/contractor-estimate`, {
+        method: "POST",
+        headers: auth,
+        body: JSON.stringify(sharedExtras),
+      });
+      assert.equal(fromProjectRes.status, 200);
+      const fromProject = (await fromProjectRes.json()) as typeof explicit;
+
+      assert.equal(
+        fromProject.contingencyPercent,
+        explicit.contingencyPercent,
+        "contingency % must match the project's seeded value when omitted from body",
+      );
+      assert.equal(fromProject.contingencyPercent, 10);
+      assert.equal(fromProject.subtotalMaterials, explicit.subtotalMaterials);
+      assert.equal(fromProject.subtotalLabor, explicit.subtotalLabor);
+      assert.equal(fromProject.subtotalSubcontractor, explicit.subtotalSubcontractor);
+      assert.equal(fromProject.contingency, explicit.contingency);
+      assert.equal(
+        fromProject.grandTotal,
+        explicit.grandTotal,
+        "grand total must be identical whether metadata is sent in the body or read from the project",
+      );
+    });
+  } finally {
+    restoreState(snap);
+  }
+});
+
+// B-05: PATCH /projects/:id/metadata persists project-level metadata so the
+// next contractor estimate (without those fields in the body) reflects the
+// updated values.
+test("B-05: PATCH /projects/:id/metadata updates Project and feeds the next estimate", async () => {
+  const snap = snapshotState();
+  try {
+    await withServer(async (baseUrl) => {
+      const token = await login(baseUrl, "demo@konti.com");
+      const auth = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
+
+      // Patch proj-1 metadata to known values.
+      const patchRes = await fetch(`${baseUrl}/api/projects/proj-1/metadata`, {
+        method: "PATCH",
+        headers: auth,
+        body: JSON.stringify({
+          squareMeters: 240,
+          bathrooms: 3,
+          kitchens: 2,
+          projectType: "mixto",
+          contingencyPercent: 15,
+        }),
+      });
+      assert.equal(patchRes.status, 200);
+      const patched = (await patchRes.json()) as {
+        projectId: string;
+        squareMeters: number;
+        bathrooms: number;
+        kitchens: number;
+        projectType: string;
+        contingencyPercent: number;
+      };
+      assert.equal(patched.squareMeters, 240);
+      assert.equal(patched.contingencyPercent, 15);
+      assert.equal(patched.projectType, "mixto");
+
+      // GET project should reflect the patch (single source of truth).
+      const projRes = await fetch(`${baseUrl}/api/projects/proj-1`, { headers: auth });
+      assert.equal(projRes.status, 200);
+      const proj = (await projRes.json()) as {
+        squareMeters?: number;
+        bathrooms?: number;
+        kitchens?: number;
+        projectType?: string;
+        contingencyPercent?: number;
+      };
+      assert.equal(proj.squareMeters, 240);
+      assert.equal(proj.bathrooms, 3);
+      assert.equal(proj.kitchens, 2);
+      assert.equal(proj.projectType, "mixto");
+      assert.equal(proj.contingencyPercent, 15);
+
+      // Generating an estimate without body metadata should pick up the patched values.
+      const estRes = await fetch(`${baseUrl}/api/projects/proj-1/contractor-estimate`, {
+        method: "POST",
+        headers: auth,
+        body: JSON.stringify({ scope: [], source: "B-05 patch parity", marginPercent: 0, managementFeePercent: 0 }),
+      });
+      assert.equal(estRes.status, 200);
+      const est = (await estRes.json()) as { contingencyPercent: number; grandTotal: number };
+      assert.equal(est.contingencyPercent, 15, "estimate should use the patched contingency from the project");
+      assert.ok(est.grandTotal > 0);
+
+      // Bad payload (negative sqm) should 400.
+      const bad = await fetch(`${baseUrl}/api/projects/proj-1/metadata`, {
+        method: "PATCH",
+        headers: auth,
+        body: JSON.stringify({ squareMeters: -5 }),
+      });
+      assert.equal(bad.status, 400);
+    });
+  } finally {
+    // Restore seeded project metadata so other tests aren't affected.
+    const restore = await fetch("http://placeholder").catch(() => null);
+    void restore;
+    restoreState(snap);
+    // Reset the in-memory project metadata back to seed values so this test
+    // doesn't bleed into others that rely on proj-1's defaults.
+    const { PROJECTS: liveProjects } = await import("../../data/seed");
+    const p1 = liveProjects.find((p) => p.id === "proj-1") as
+      | (typeof liveProjects[number] & {
+          squareMeters?: number; bathrooms?: number; kitchens?: number;
+          projectType?: "residencial" | "comercial" | "mixto" | "contenedor";
+          contingencyPercent?: number;
+        })
+      | undefined;
+    if (p1) {
+      p1.squareMeters = 180;
+      p1.bathrooms = 2;
+      p1.kitchens = 1;
+      p1.projectType = "residencial";
+      p1.contingencyPercent = 10;
+    }
+  }
+});

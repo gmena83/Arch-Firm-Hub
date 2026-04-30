@@ -185,6 +185,12 @@ router.post("/leads/:id/accept", requireRole("admin", "architect", "superadmin")
     clientPhysicalAddress: "",
     currentStatusNote: "",
     currentStatusNoteEs: "",
+    // B-05: project metadata defaults — team can refine on Project Detail.
+    squareMeters: 0,
+    bathrooms: 0,
+    kitchens: 0,
+    projectType: lead.projectType,
+    contingencyPercent: 10,
   };
   PROJECTS.push(newProject);
   ACCEPTED_LEAD_PROJECTS.set(lead.id, projectId);

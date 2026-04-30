@@ -46,6 +46,7 @@ import { ClientActivityCard } from "@/components/client-activity-card";
 import { StatusSentence } from "@/components/status-sentence";
 import { SitePhotosGallery, PHOTO_CATEGORY_OPTIONS, type PhotoCategoryKey } from "@/components/site-photos-gallery";
 import { ContractorMonitoringSection } from "@/components/contractor-monitoring-section";
+import { ProjectMetadataCard } from "@/components/project-metadata-card";
 import { InspectionsSection } from "@/components/inspections-section";
 import { PunchlistPanel } from "@/components/punchlist-panel";
 import { MilestonesTimeline } from "@/components/milestones-timeline";
@@ -1678,6 +1679,21 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
               initialPhone={(project as { clientPhone?: string }).clientPhone ?? ""}
               initialPostal={(project as { clientPostalAddress?: string }).clientPostalAddress ?? ""}
               initialPhysical={(project as { clientPhysicalAddress?: string }).clientPhysicalAddress ?? ""}
+            />
+          )}
+
+          {/* Team-only: project-level metadata (B-05) — single source of truth
+              for square meters, bathrooms, kitchens, project type, and
+              contingency, consumed read-only by the Contractor Calculator. */}
+          {!isClientView && (
+            <ProjectMetadataCard
+              projectId={projectId}
+              variant="editable"
+              squareMeters={project.squareMeters}
+              bathrooms={project.bathrooms}
+              kitchens={project.kitchens}
+              projectType={project.projectType}
+              contingencyPercent={project.contingencyPercent}
             />
           )}
 

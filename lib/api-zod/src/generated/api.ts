@@ -102,6 +102,36 @@ export const ListProjectsResponseItem = zod.object({
     .describe(
       'Plain-language \"what\'s happening now\" sentence (Spanish) shown on the client construction card. Editable by the team.',
     ),
+  squareMeters: zod
+    .number()
+    .optional()
+    .describe(
+      "Project size in square meters. Edited from Project Detail and consumed (read-only) by the Contractor Calculator (B-05).",
+    ),
+  bathrooms: zod
+    .number()
+    .optional()
+    .describe(
+      "Number of bathrooms. Project-level; consumed read-only by the Contractor Calculator (B-05).",
+    ),
+  kitchens: zod
+    .number()
+    .optional()
+    .describe(
+      "Number of kitchens. Project-level; consumed read-only by the Contractor Calculator (B-05).",
+    ),
+  projectType: zod
+    .enum(["residencial", "comercial", "mixto", "contenedor"])
+    .optional()
+    .describe(
+      "Project type bucket (residencial | comercial | mixto | contenedor). Project-level; consumed read-only by the Contractor Calculator (B-05).",
+    ),
+  contingencyPercent: zod
+    .number()
+    .optional()
+    .describe(
+      "Default contingency percentage applied to contractor estimates for this project. Project-level; consumed read-only by the Contractor Calculator (B-05).",
+    ),
 });
 export const ListProjectsResponse = zod.array(ListProjectsResponseItem);
 
@@ -185,6 +215,36 @@ export const GetProjectResponse = zod.object({
     .optional()
     .describe(
       'Plain-language \"what\'s happening now\" sentence (Spanish) shown on the client construction card. Editable by the team.',
+    ),
+  squareMeters: zod
+    .number()
+    .optional()
+    .describe(
+      "Project size in square meters. Edited from Project Detail and consumed (read-only) by the Contractor Calculator (B-05).",
+    ),
+  bathrooms: zod
+    .number()
+    .optional()
+    .describe(
+      "Number of bathrooms. Project-level; consumed read-only by the Contractor Calculator (B-05).",
+    ),
+  kitchens: zod
+    .number()
+    .optional()
+    .describe(
+      "Number of kitchens. Project-level; consumed read-only by the Contractor Calculator (B-05).",
+    ),
+  projectType: zod
+    .enum(["residencial", "comercial", "mixto", "contenedor"])
+    .optional()
+    .describe(
+      "Project type bucket (residencial | comercial | mixto | contenedor). Project-level; consumed read-only by the Contractor Calculator (B-05).",
+    ),
+  contingencyPercent: zod
+    .number()
+    .optional()
+    .describe(
+      "Default contingency percentage applied to contractor estimates for this project. Project-level; consumed read-only by the Contractor Calculator (B-05).",
     ),
 });
 
@@ -765,6 +825,36 @@ export const AdvanceProjectPhaseResponse = zod.object({
       .describe(
         'Plain-language \"what\'s happening now\" sentence (Spanish) shown on the client construction card. Editable by the team.',
       ),
+    squareMeters: zod
+      .number()
+      .optional()
+      .describe(
+        "Project size in square meters. Edited from Project Detail and consumed (read-only) by the Contractor Calculator (B-05).",
+      ),
+    bathrooms: zod
+      .number()
+      .optional()
+      .describe(
+        "Number of bathrooms. Project-level; consumed read-only by the Contractor Calculator (B-05).",
+      ),
+    kitchens: zod
+      .number()
+      .optional()
+      .describe(
+        "Number of kitchens. Project-level; consumed read-only by the Contractor Calculator (B-05).",
+      ),
+    projectType: zod
+      .enum(["residencial", "comercial", "mixto", "contenedor"])
+      .optional()
+      .describe(
+        "Project type bucket (residencial | comercial | mixto | contenedor). Project-level; consumed read-only by the Contractor Calculator (B-05).",
+      ),
+    contingencyPercent: zod
+      .number()
+      .optional()
+      .describe(
+        "Default contingency percentage applied to contractor estimates for this project. Project-level; consumed read-only by the Contractor Calculator (B-05).",
+      ),
   }),
   advancedTo: zod.string(),
 });
@@ -1060,6 +1150,36 @@ export const DeclineProjectPhaseResponse = zod.object({
       .describe(
         'Plain-language \"what\'s happening now\" sentence (Spanish) shown on the client construction card. Editable by the team.',
       ),
+    squareMeters: zod
+      .number()
+      .optional()
+      .describe(
+        "Project size in square meters. Edited from Project Detail and consumed (read-only) by the Contractor Calculator (B-05).",
+      ),
+    bathrooms: zod
+      .number()
+      .optional()
+      .describe(
+        "Number of bathrooms. Project-level; consumed read-only by the Contractor Calculator (B-05).",
+      ),
+    kitchens: zod
+      .number()
+      .optional()
+      .describe(
+        "Number of kitchens. Project-level; consumed read-only by the Contractor Calculator (B-05).",
+      ),
+    projectType: zod
+      .enum(["residencial", "comercial", "mixto", "contenedor"])
+      .optional()
+      .describe(
+        "Project type bucket (residencial | comercial | mixto | contenedor). Project-level; consumed read-only by the Contractor Calculator (B-05).",
+      ),
+    contingencyPercent: zod
+      .number()
+      .optional()
+      .describe(
+        "Default contingency percentage applied to contractor estimates for this project. Project-level; consumed read-only by the Contractor Calculator (B-05).",
+      ),
   }),
   declinedAt: zod.string(),
 });
@@ -1331,6 +1451,36 @@ export const AdvanceDesignSubPhaseResponse = zod.object({
         .describe(
           'Plain-language \"what\'s happening now\" sentence (Spanish) shown on the client construction card. Editable by the team.',
         ),
+      squareMeters: zod
+        .number()
+        .optional()
+        .describe(
+          "Project size in square meters. Edited from Project Detail and consumed (read-only) by the Contractor Calculator (B-05).",
+        ),
+      bathrooms: zod
+        .number()
+        .optional()
+        .describe(
+          "Number of bathrooms. Project-level; consumed read-only by the Contractor Calculator (B-05).",
+        ),
+      kitchens: zod
+        .number()
+        .optional()
+        .describe(
+          "Number of kitchens. Project-level; consumed read-only by the Contractor Calculator (B-05).",
+        ),
+      projectType: zod
+        .enum(["residencial", "comercial", "mixto", "contenedor"])
+        .optional()
+        .describe(
+          "Project type bucket (residencial | comercial | mixto | contenedor). Project-level; consumed read-only by the Contractor Calculator (B-05).",
+        ),
+      contingencyPercent: zod
+        .number()
+        .optional()
+        .describe(
+          "Default contingency percentage applied to contractor estimates for this project. Project-level; consumed read-only by the Contractor Calculator (B-05).",
+        ),
     })
     .optional(),
 });
@@ -1476,6 +1626,36 @@ export const ApproveProposalResponse = zod.object({
         .optional()
         .describe(
           'Plain-language \"what\'s happening now\" sentence (Spanish) shown on the client construction card. Editable by the team.',
+        ),
+      squareMeters: zod
+        .number()
+        .optional()
+        .describe(
+          "Project size in square meters. Edited from Project Detail and consumed (read-only) by the Contractor Calculator (B-05).",
+        ),
+      bathrooms: zod
+        .number()
+        .optional()
+        .describe(
+          "Number of bathrooms. Project-level; consumed read-only by the Contractor Calculator (B-05).",
+        ),
+      kitchens: zod
+        .number()
+        .optional()
+        .describe(
+          "Number of kitchens. Project-level; consumed read-only by the Contractor Calculator (B-05).",
+        ),
+      projectType: zod
+        .enum(["residencial", "comercial", "mixto", "contenedor"])
+        .optional()
+        .describe(
+          "Project type bucket (residencial | comercial | mixto | contenedor). Project-level; consumed read-only by the Contractor Calculator (B-05).",
+        ),
+      contingencyPercent: zod
+        .number()
+        .optional()
+        .describe(
+          "Default contingency percentage applied to contractor estimates for this project. Project-level; consumed read-only by the Contractor Calculator (B-05).",
         ),
     })
     .optional(),
@@ -1809,6 +1989,38 @@ export const UpdateProjectClientContactResponse = zod
     clientPhysicalAddress: zod.string(),
   })
   .describe("Project-level client contact info snapshot.");
+
+/**
+ * @summary Update project-level metadata (square meters, bathrooms, kitchens, project type, contingency %) consumed by the Contractor Calculator (B-05).
+ */
+export const UpdateProjectMetadataParams = zod.object({
+  projectId: zod.coerce.string(),
+});
+
+export const UpdateProjectMetadataBody = zod
+  .object({
+    squareMeters: zod.number().optional(),
+    bathrooms: zod.number().optional(),
+    kitchens: zod.number().optional(),
+    projectType: zod
+      .enum(["residencial", "comercial", "mixto", "contenedor"])
+      .optional(),
+    contingencyPercent: zod.number().optional(),
+  })
+  .describe(
+    "Patch payload for project-level metadata consumed by the Contractor Calculator (B-05).",
+  );
+
+export const UpdateProjectMetadataResponse = zod
+  .object({
+    projectId: zod.string(),
+    squareMeters: zod.number(),
+    bathrooms: zod.number(),
+    kitchens: zod.number(),
+    projectType: zod.enum(["residencial", "comercial", "mixto", "contenedor"]),
+    contingencyPercent: zod.number(),
+  })
+  .describe("Snapshot of project-level metadata after update.");
 
 /**
  * @summary Update the plain-language "what's happening now" status sentence (team only).
@@ -2446,6 +2658,36 @@ export const SetPermitItemStateResponse = zod.object({
       .describe(
         'Plain-language \"what\'s happening now\" sentence (Spanish) shown on the client construction card. Editable by the team.',
       ),
+    squareMeters: zod
+      .number()
+      .optional()
+      .describe(
+        "Project size in square meters. Edited from Project Detail and consumed (read-only) by the Contractor Calculator (B-05).",
+      ),
+    bathrooms: zod
+      .number()
+      .optional()
+      .describe(
+        "Number of bathrooms. Project-level; consumed read-only by the Contractor Calculator (B-05).",
+      ),
+    kitchens: zod
+      .number()
+      .optional()
+      .describe(
+        "Number of kitchens. Project-level; consumed read-only by the Contractor Calculator (B-05).",
+      ),
+    projectType: zod
+      .enum(["residencial", "comercial", "mixto", "contenedor"])
+      .optional()
+      .describe(
+        "Project type bucket (residencial | comercial | mixto | contenedor). Project-level; consumed read-only by the Contractor Calculator (B-05).",
+      ),
+    contingencyPercent: zod
+      .number()
+      .optional()
+      .describe(
+        "Default contingency percentage applied to contractor estimates for this project. Project-level; consumed read-only by the Contractor Calculator (B-05).",
+      ),
   }),
   advancedToConstruction: zod.boolean(),
 });
@@ -2850,6 +3092,36 @@ export const AcceptLeadResponse = zod.object({
       .optional()
       .describe(
         'Plain-language \"what\'s happening now\" sentence (Spanish) shown on the client construction card. Editable by the team.',
+      ),
+    squareMeters: zod
+      .number()
+      .optional()
+      .describe(
+        "Project size in square meters. Edited from Project Detail and consumed (read-only) by the Contractor Calculator (B-05).",
+      ),
+    bathrooms: zod
+      .number()
+      .optional()
+      .describe(
+        "Number of bathrooms. Project-level; consumed read-only by the Contractor Calculator (B-05).",
+      ),
+    kitchens: zod
+      .number()
+      .optional()
+      .describe(
+        "Number of kitchens. Project-level; consumed read-only by the Contractor Calculator (B-05).",
+      ),
+    projectType: zod
+      .enum(["residencial", "comercial", "mixto", "contenedor"])
+      .optional()
+      .describe(
+        "Project type bucket (residencial | comercial | mixto | contenedor). Project-level; consumed read-only by the Contractor Calculator (B-05).",
+      ),
+    contingencyPercent: zod
+      .number()
+      .optional()
+      .describe(
+        "Default contingency percentage applied to contractor estimates for this project. Project-level; consumed read-only by the Contractor Calculator (B-05).",
       ),
   }),
   asanaGid: zod.string(),

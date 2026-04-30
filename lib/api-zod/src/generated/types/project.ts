@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ProjectPhase } from "./projectPhase";
+import type { ProjectProjectType } from "./projectProjectType";
 import type { ProjectStatus } from "./projectStatus";
 
 export interface Project {
@@ -40,4 +41,14 @@ export interface Project {
   currentStatusNote?: string;
   /** Plain-language "what's happening now" sentence (Spanish) shown on the client construction card. Editable by the team. */
   currentStatusNoteEs?: string;
+  /** Project size in square meters. Edited from Project Detail and consumed (read-only) by the Contractor Calculator (B-05). */
+  squareMeters?: number;
+  /** Number of bathrooms. Project-level; consumed read-only by the Contractor Calculator (B-05). */
+  bathrooms?: number;
+  /** Number of kitchens. Project-level; consumed read-only by the Contractor Calculator (B-05). */
+  kitchens?: number;
+  /** Project type bucket (residencial | comercial | mixto | contenedor). Project-level; consumed read-only by the Contractor Calculator (B-05). */
+  projectType?: ProjectProjectType;
+  /** Default contingency percentage applied to contractor estimates for this project. Project-level; consumed read-only by the Contractor Calculator (B-05). */
+  contingencyPercent?: number;
 }

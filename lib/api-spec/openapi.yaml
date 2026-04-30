@@ -1287,6 +1287,48 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
 
+  /projects/{projectId}/metadata:
+    patch:
+      operationId: updateProjectMetadata
+      tags: [projects]
+      summary: Update project-level metadata (square meters, bathrooms, kitchens, project type, contingency %) consumed by the Contractor Calculator (B-05).
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProjectMetadataUpdate" }
+      responses:
+        "200":
+          description: Updated project-metadata snapshot.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectMetadata" }
+        "400":
+          description: Invalid metadata payload
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Team-only operation
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
   /projects/{projectId}/status-note:
     patch:
       operationId: updateProjectStatusNote
@@ -2427,6 +2469,32 @@ components:
         currentStatusNoteEs: { type: string }
       required: [projectId, currentStatusNote, currentStatusNoteEs]
 
+    ProjectMetadataUpdate:
+      type: object
+      description: Patch payload for project-level metadata consumed by the Contractor Calculator (B-05).
+      properties:
+        squareMeters: { type: number }
+        bathrooms: { type: integer }
+        kitchens: { type: integer }
+        projectType:
+          type: string
+          enum: [residencial, comercial, mixto, contenedor]
+        contingencyPercent: { type: number }
+
+    ProjectMetadata:
+      type: object
+      description: Snapshot of project-level metadata after update.
+      properties:
+        projectId: { type: string }
+        squareMeters: { type: number }
+        bathrooms: { type: integer }
+        kitchens: { type: integer }
+        projectType:
+          type: string
+          enum: [residencial, comercial, mixto, contenedor]
+        contingencyPercent: { type: number }
+      required: [projectId, squareMeters, bathrooms, kitchens, projectType, contingencyPercent]
+
     ProjectInvoice:
       type: object
       properties:
@@ -2574,6 +2642,22 @@ components:
         currentStatusNoteEs:
           type: string
           description: Plain-language "what's happening now" sentence (Spanish) shown on the client construction card. Editable by the team.
+        squareMeters:
+          type: number
+          description: Project size in square meters. Edited from Project Detail and consumed (read-only) by the Contractor Calculator (B-05).
+        bathrooms:
+          type: integer
+          description: Number of bathrooms. Project-level; consumed read-only by the Contractor Calculator (B-05).
+        kitchens:
+          type: integer
+          description: Number of kitchens. Project-level; consumed read-only by the Contractor Calculator (B-05).
+        projectType:
+          type: string
+          description: Project type bucket (residencial | comercial | mixto | contenedor). Project-level; consumed read-only by the Contractor Calculator (B-05).
+          enum: [residencial, comercial, mixto, contenedor]
+        contingencyPercent:
+          type: number
+          description: Default contingency percentage applied to contractor estimates for this project. Project-level; consumed read-only by the Contractor Calculator (B-05).
       required:
         - id
         - name

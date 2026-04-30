@@ -80,6 +80,8 @@ import type {
   ProjectCreateRequest,
   ProjectCsvMappings,
   ProjectInvoicesResponse,
+  ProjectMetadata,
+  ProjectMetadataUpdate,
   ProjectStatusNote,
   ProjectStatusNoteUpdate,
   ProjectTask,
@@ -3864,6 +3866,93 @@ export const useUpdateProjectClientContact = <
   TContext
 > => {
   return useMutation(getUpdateProjectClientContactMutationOptions(options));
+};
+
+/**
+ * @summary Update project-level metadata (square meters, bathrooms, kitchens, project type, contingency %) consumed by the Contractor Calculator (B-05).
+ */
+export const getUpdateProjectMetadataUrl = (projectId: string) => {
+  return `/api/projects/${projectId}/metadata`;
+};
+
+export const updateProjectMetadata = async (
+  projectId: string,
+  projectMetadataUpdate: ProjectMetadataUpdate,
+  options?: RequestInit,
+): Promise<ProjectMetadata> => {
+  return customFetch<ProjectMetadata>(getUpdateProjectMetadataUrl(projectId), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(projectMetadataUpdate),
+  });
+};
+
+export const getUpdateProjectMetadataMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateProjectMetadata>>,
+    TError,
+    { projectId: string; data: BodyType<ProjectMetadataUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateProjectMetadata>>,
+  TError,
+  { projectId: string; data: BodyType<ProjectMetadataUpdate> },
+  TContext
+> => {
+  const mutationKey = ["updateProjectMetadata"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateProjectMetadata>>,
+    { projectId: string; data: BodyType<ProjectMetadataUpdate> }
+  > = (props) => {
+    const { projectId, data } = props ?? {};
+
+    return updateProjectMetadata(projectId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateProjectMetadataMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateProjectMetadata>>
+>;
+export type UpdateProjectMetadataMutationBody = BodyType<ProjectMetadataUpdate>;
+export type UpdateProjectMetadataMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Update project-level metadata (square meters, bathrooms, kitchens, project type, contingency %) consumed by the Contractor Calculator (B-05).
+ */
+export const useUpdateProjectMetadata = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateProjectMetadata>>,
+    TError,
+    { projectId: string; data: BodyType<ProjectMetadataUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateProjectMetadata>>,
+  TError,
+  { projectId: string; data: BodyType<ProjectMetadataUpdate> },
+  TContext
+> => {
+  return useMutation(getUpdateProjectMetadataMutationOptions(options));
 };
 
 /**

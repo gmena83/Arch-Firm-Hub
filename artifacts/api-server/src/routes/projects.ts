@@ -198,6 +198,12 @@ router.post("/projects", requireRole(["team", "admin", "superadmin"]), (req, res
     teamMembers: [(req as { user?: { name?: string } }).user?.name ?? "Team"],
     status: "active" as const,
     ...(clientUserId ? { clientUserId } : {}),
+    // B-05: project metadata defaults — team can refine on Project Detail.
+    squareMeters: 0,
+    bathrooms: 0,
+    kitchens: 0,
+    projectType: "residencial" as "residencial" | "comercial" | "mixto" | "contenedor",
+    contingencyPercent: 10,
   };
 
   (PROJECTS as Array<typeof newProject>).push(newProject);
@@ -1990,6 +1996,87 @@ router.patch(
       projectId: project.id,
       currentStatusNote: next.currentStatusNote ?? "",
       currentStatusNoteEs: next.currentStatusNoteEs ?? "",
+    });
+  },
+);
+
+// PATCH project-level metadata (B-05).
+// Square meters / bathrooms / kitchens / project type / contingency % live on
+// the Project record so the Contractor Calculator and other estimating tools
+// can read them as a single source of truth instead of being re-typed each
+// time an estimate is generated.
+const PROJECT_TYPE_VALUES = ["residencial", "comercial", "mixto", "contenedor"] as const;
+type ProjectType = (typeof PROJECT_TYPE_VALUES)[number];
+
+router.patch(
+  "/projects/:projectId/metadata",
+  requireRole(["team", "admin", "superadmin"]),
+  (req, res) => {
+    const project = PROJECTS.find((p) => p.id === req.params["projectId"]);
+    if (!project) return res.status(404).json({ error: "not_found", message: "Project not found" });
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const fieldErrors: Record<string, string> = {};
+
+    const next = project as typeof project & {
+      squareMeters?: number;
+      bathrooms?: number;
+      kitchens?: number;
+      projectType?: ProjectType;
+      contingencyPercent?: number;
+    };
+
+    if (body["squareMeters"] !== undefined) {
+      const n = Number(body["squareMeters"]);
+      if (!isFinite(n) || n <= 0) fieldErrors["squareMeters"] = "must be > 0";
+      else next.squareMeters = n;
+    }
+    if (body["bathrooms"] !== undefined) {
+      const n = Number(body["bathrooms"]);
+      if (!isFinite(n) || n < 0 || !Number.isInteger(n)) fieldErrors["bathrooms"] = "must be a non-negative integer";
+      else next.bathrooms = n;
+    }
+    if (body["kitchens"] !== undefined) {
+      const n = Number(body["kitchens"]);
+      if (!isFinite(n) || n < 0 || !Number.isInteger(n)) fieldErrors["kitchens"] = "must be a non-negative integer";
+      else next.kitchens = n;
+    }
+    if (body["projectType"] !== undefined) {
+      const v = String(body["projectType"]);
+      if (!PROJECT_TYPE_VALUES.includes(v as ProjectType)) {
+        fieldErrors["projectType"] = `must be one of ${PROJECT_TYPE_VALUES.join(", ")}`;
+      } else {
+        next.projectType = v as ProjectType;
+      }
+    }
+    if (body["contingencyPercent"] !== undefined) {
+      const n = Number(body["contingencyPercent"]);
+      if (!isFinite(n) || n < 0 || n > 50) fieldErrors["contingencyPercent"] = "must be between 0 and 50";
+      else next.contingencyPercent = n;
+    }
+
+    if (Object.keys(fieldErrors).length > 0) {
+      return res.status(400).json({
+        error: "invalid_payload",
+        message: "Missing or invalid fields",
+        messageEs: "Faltan campos requeridos o son inválidos",
+        fields: fieldErrors,
+      });
+    }
+
+    appendActivity(project.id, {
+      type: "project_metadata_updated",
+      actor: (req as { user?: { name?: string } }).user?.name ?? "Team",
+      description: `Project metadata updated for ${project.name}.`,
+      descriptionEs: `Metadatos del proyecto actualizados para ${project.name}.`,
+    });
+
+    return res.json({
+      projectId: project.id,
+      squareMeters: next.squareMeters ?? 0,
+      bathrooms: next.bathrooms ?? 0,
+      kitchens: next.kitchens ?? 0,
+      projectType: next.projectType ?? "residencial",
+      contingencyPercent: next.contingencyPercent ?? 0,
     });
   },
 );
