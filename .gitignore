@@ -5,6 +5,9 @@ dist
 tmp
 out-tsc
 *.tsbuildinfo
+
+# api-server runtime persistence (project notes + spec events)
+artifacts/api-server/data/*.json
 .expo
 .expo-shared
 
