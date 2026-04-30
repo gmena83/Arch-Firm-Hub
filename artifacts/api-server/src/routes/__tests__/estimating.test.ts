@@ -447,13 +447,33 @@ test("estimating state survives a server restart (persists to disk and reloads)"
 // inputs like scope, source, marginPercent, managementFeePercent).
 test("B-05: contractor estimate math is unchanged when metadata is read from the project record", async () => {
   const snap = snapshotState();
+  // Inject a fixed estimating state (labor rates + empty receipts/templates/
+  // estimates) so the hard baseline numbers below are stable regardless of
+  // prior tests in this process or persisted state on disk. These rates
+  // intentionally match DEFAULT_LABOR_RATES so this test doubles as a
+  // pre-refactor baseline check.
+  applyEstimatingSnapshot({
+    extraMaterials: [],
+    laborRates: [
+      { trade: "General Labor", tradeEs: "Mano de Obra General", unit: "hour", hourlyRate: 22, source: "seed", updatedAt: "2026-01-01T00:00:00Z" },
+      { trade: "Carpenter", tradeEs: "Carpintero", unit: "hour", hourlyRate: 38, source: "seed", updatedAt: "2026-01-01T00:00:00Z" },
+      { trade: "Electrician", tradeEs: "Electricista", unit: "hour", hourlyRate: 55, source: "seed", updatedAt: "2026-01-01T00:00:00Z" },
+      { trade: "Plumber", tradeEs: "Plomero", unit: "hour", hourlyRate: 52, source: "seed", updatedAt: "2026-01-01T00:00:00Z" },
+      { trade: "Mason", tradeEs: "Albañil", unit: "hour", hourlyRate: 34, source: "seed", updatedAt: "2026-01-01T00:00:00Z" },
+      { trade: "Welder", tradeEs: "Soldador", unit: "hour", hourlyRate: 48, source: "seed", updatedAt: "2026-01-01T00:00:00Z" },
+    ],
+    receipts: {},
+    reportTemplates: {},
+    contractorEstimates: {},
+  });
   try {
     await withServer(async (baseUrl) => {
       const token = await login(baseUrl, "demo@konti.com");
       const auth = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
 
       // proj-1 is seeded with squareMeters=180, projectType=residencial,
-      // bathrooms=2, kitchens=1, contingencyPercent=10.
+      // bathrooms=2, kitchens=1, contingencyPercent=8 (matches the
+      // pre-refactor server default so existing estimates aren't perturbed).
       const sharedScope = ["pool", "solar"];
       const sharedExtras = { scope: sharedScope, source: "B-05 parity check", marginPercent: 12, managementFeePercent: 5 };
 
@@ -467,7 +487,7 @@ test("B-05: contractor estimate math is unchanged when metadata is read from the
           projectType: "residencial",
           bathrooms: 2,
           kitchens: 1,
-          contingencyPercent: 10,
+          contingencyPercent: 8,
         }),
       });
       assert.equal(explicitRes.status, 200);
@@ -494,7 +514,7 @@ test("B-05: contractor estimate math is unchanged when metadata is read from the
         explicit.contingencyPercent,
         "contingency % must match the project's seeded value when omitted from body",
       );
-      assert.equal(fromProject.contingencyPercent, 10);
+      assert.equal(fromProject.contingencyPercent, 8);
       assert.equal(fromProject.subtotalMaterials, explicit.subtotalMaterials);
       assert.equal(fromProject.subtotalLabor, explicit.subtotalLabor);
       assert.equal(fromProject.subtotalSubcontractor, explicit.subtotalSubcontractor);
@@ -504,6 +524,19 @@ test("B-05: contractor estimate math is unchanged when metadata is read from the
         explicit.grandTotal,
         "grand total must be identical whether metadata is sent in the body or read from the project",
       );
+
+      // Hard baseline against the pre-refactor numbers captured for these
+      // exact inputs (proj-1 seed + DEFAULT_LABOR_RATES injected above +
+      // scope:[pool,solar], margin 12, mgmt 5, contingency 8). If any of
+      // these change, the estimate math has silently drifted and this test
+      // must be updated deliberately.
+      assert.equal(explicit.subtotalMaterials, 25980, "baseline: materials subtotal");
+      assert.equal(explicit.subtotalLabor, 27303, "baseline: labor subtotal");
+      assert.equal(explicit.subtotalSubcontractor, 68200, "baseline: subcontractor subtotal");
+      assert.equal(explicit.contingency, 9719, "baseline: contingency $");
+      assert.equal(explicit.marginAmount, 15744, "baseline: margin $");
+      assert.equal(explicit.managementFeeAmount, 7347, "baseline: management fee $");
+      assert.equal(explicit.grandTotal, 154293, "baseline: grand total");
     });
   } finally {
     restoreState(snap);
@@ -581,9 +614,6 @@ test("B-05: PATCH /projects/:id/metadata updates Project and feeds the next esti
       assert.equal(bad.status, 400);
     });
   } finally {
-    // Restore seeded project metadata so other tests aren't affected.
-    const restore = await fetch("http://placeholder").catch(() => null);
-    void restore;
     restoreState(snap);
     // Reset the in-memory project metadata back to seed values so this test
     // doesn't bleed into others that rely on proj-1's defaults.
@@ -600,7 +630,7 @@ test("B-05: PATCH /projects/:id/metadata updates Project and feeds the next esti
       p1.bathrooms = 2;
       p1.kitchens = 1;
       p1.projectType = "residencial";
-      p1.contingencyPercent = 10;
+      p1.contingencyPercent = 8;
     }
   }
 });

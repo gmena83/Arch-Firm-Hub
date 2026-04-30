@@ -203,7 +203,7 @@ router.post("/projects", requireRole(["team", "admin", "superadmin"]), (req, res
     bathrooms: 0,
     kitchens: 0,
     projectType: "residencial" as "residencial" | "comercial" | "mixto" | "contenedor",
-    contingencyPercent: 10,
+    contingencyPercent: 8,
   };
 
   (PROJECTS as Array<typeof newProject>).push(newProject);

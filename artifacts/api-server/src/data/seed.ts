@@ -115,7 +115,7 @@ export const PROJECTS = [
     bathrooms: 2,
     kitchens: 1,
     projectType: "residencial" as "residencial" | "comercial" | "mixto" | "contenedor",
-    contingencyPercent: 10,
+    contingencyPercent: 8,
   },
   {
     id: "proj-2",
@@ -152,7 +152,7 @@ export const PROJECTS = [
     bathrooms: 4,
     kitchens: 1,
     projectType: "residencial" as "residencial" | "comercial" | "mixto" | "contenedor",
-    contingencyPercent: 10,
+    contingencyPercent: 8,
   },
   {
     id: "proj-3",
@@ -189,7 +189,7 @@ export const PROJECTS = [
     bathrooms: 2,
     kitchens: 1,
     projectType: "comercial" as "residencial" | "comercial" | "mixto" | "contenedor",
-    contingencyPercent: 10,
+    contingencyPercent: 8,
   },
 ];
 

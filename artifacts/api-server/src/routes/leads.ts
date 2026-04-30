@@ -190,7 +190,7 @@ router.post("/leads/:id/accept", requireRole("admin", "architect", "superadmin")
     bathrooms: 0,
     kitchens: 0,
     projectType: lead.projectType,
-    contingencyPercent: 10,
+    contingencyPercent: 8,
   };
   PROJECTS.push(newProject);
   ACCEPTED_LEAD_PROJECTS.set(lead.id, projectId);
