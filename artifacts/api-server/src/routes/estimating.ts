@@ -552,7 +552,9 @@ router.post(
 
 // GET receipts
 router.get("/projects/:id/receipts", requireRole(["team","admin","superadmin","architect","client"]), (req, res) => {
-  res.json({ projectId: req.params["id"], receipts: PROJECT_RECEIPTS[req.params["id"] as string] ?? [] });
+  const id = req.params["id"] as string;
+  if (!enforceClientOwnership(req, res, id)) return;
+  res.json({ projectId: id, receipts: PROJECT_RECEIPTS[id] ?? [] });
 });
 
 // POST report template
@@ -853,7 +855,9 @@ router.put("/projects/:id/contractor-estimate/lines", requireRole(["team", "admi
 
 // GET variance report — estimated vs actual for a project.
 router.get("/projects/:id/variance-report", requireRole(["team","admin","superadmin","architect","client"]), (req, res) => {
-  const project = PROJECTS.find((p) => p.id === req.params["id"]);
+  const id = req.params["id"] as string;
+  if (!enforceClientOwnership(req, res, id)) return;
+  const project = PROJECTS.find((p) => p.id === id);
   if (!project) { res.status(404).json({ error: "not_found" }); return; }
 
   const calcEntries = (CALCULATOR_ENTRIES as Record<string, Array<{ category: string; lineTotal: number }>>)[project.id] ?? [];

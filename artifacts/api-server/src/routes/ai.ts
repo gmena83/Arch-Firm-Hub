@@ -265,6 +265,10 @@ router.post("/ai/confirm-classification", requireRole(["team", "admin", "superad
   const items = Array.isArray(body.items) ? body.items.slice(0, 20) : [];
   if (items.length === 0) { res.status(400).json({ error: "no_items" }); return; }
   const projectId = body.projectId ?? "proj-1";
+  const callerUser = (req as { user?: { id: string; role: string } }).user;
+  if (callerUser?.role === "client" && !clientOwnsProject(callerUser.id, projectId)) {
+    res.status(403).json({ error: "forbidden", message: "Client cannot access this project" }); return;
+  }
   for (const it of items) {
     SPEC_EVENTS.push({ id: `s-${Date.now()}-${Math.random().toString(36).slice(2,5)}`, projectId, kind: "added", title: `Classified: ${it}`, createdAt: new Date().toISOString() });
   }
@@ -276,6 +280,10 @@ router.post("/ai/confirm-classification", requireRole(["team", "admin", "superad
 router.get("/projects/:id/spec-updates-report", requireRole(["team", "admin", "superadmin", "architect", "client"]), (req, res) => {
   const id = req.params["id"] as string;
   if (!PROJECTS.find((p) => p.id === id)) { res.status(404).json({ error: "not_found" }); return; }
+  const specReportUser = (req as { user?: { id: string; role: string } }).user;
+  if (specReportUser?.role === "client" && !clientOwnsProject(specReportUser.id, id)) {
+    res.status(403).json({ error: "forbidden", message: "Client cannot access this project" }); return;
+  }
   const events = SPEC_EVENTS.filter((e) => e.projectId === id);
   // Bucket "added" by week (YYYY-Www).
   const week = (iso: string) => {
@@ -304,6 +312,10 @@ router.post("/projects/:id/spec-updates-report/pdf", requireRole(["team", "admin
   const id = req.params["id"] as string;
   const project = PROJECTS.find((p) => p.id === id);
   if (!project) { res.status(404).json({ error: "not_found" }); return; }
+  const pdfReportUser = (req as { user?: { id: string; role: string } }).user;
+  if (pdfReportUser?.role === "client" && !clientOwnsProject(pdfReportUser.id, id)) {
+    res.status(403).json({ error: "forbidden", message: "Client cannot access this project" }); return;
+  }
 
   const pdfApiKey = process.env["PDF_CO_API_KEY"];
   if (!pdfApiKey) { res.status(501).json({ error: "pdf_not_configured", message: "PDF export not configured" }); return; }
