@@ -186,7 +186,17 @@ function ReportContent({ projectId }: { projectId: string }) {
     if (!project || isDownloading) return;
     setIsDownloading(true);
     try {
-      const response = await fetch(`/api/projects/${project.id}/pdf`, { method: "POST" });
+      // The /pdf endpoint requires auth; raw fetch needs the Bearer header.
+      const stored = (() => {
+        try {
+          const raw = localStorage.getItem("konti_auth");
+          return raw ? (JSON.parse(raw) as { token?: string | null }) : null;
+        } catch { return null; }
+      })();
+      const headers: Record<string, string> = stored?.token
+        ? { Authorization: `Bearer ${stored.token}` }
+        : {};
+      const response = await fetch(`/api/projects/${project.id}/pdf`, { method: "POST", headers });
       if (!response.ok) {
         window.print();
         return;
