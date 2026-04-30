@@ -1,5 +1,13 @@
 import { useEffect, useState } from "react";
-import { useListProjects, useGetProjectCalculations, useListMaterials, getGetProjectCalculationsQueryKey } from "@workspace/api-client-react";
+import {
+  useListProjects,
+  useGetProjectCalculations,
+  useListMaterials,
+  getGetProjectCalculationsQueryKey,
+  useUpdateProjectCalculationLine,
+} from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 import { useSearch } from "wouter";
 import { AppLayout } from "@/components/layout/app-layout";
 import { RequireAuth } from "@/hooks/use-auth";
@@ -107,6 +115,7 @@ function AddMaterialModal({
 }
 
 interface LocalEntry {
+  id: string;
   materialName: string;
   category: string;
   unit: string;
@@ -249,6 +258,7 @@ function TemplatePreviewPanel({ projectId, entries, grandTotal }: { projectId: s
 function makeEntry(item: string, category: string, unit: string, qty: number, base: number, override: number | null): LocalEntry {
   const effective = override ?? base;
   return {
+    id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     materialName: item,
     category,
     unit,
@@ -277,12 +287,18 @@ export default function CalculatorPage() {
     if (tb) setActiveTab(tb);
   }, [search]);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [overrides, setOverrides] = useState<Record<number, string>>({});
-  const [basePriceEdits, setBasePriceEdits] = useState<Record<number, string>>({});
-  const [qtyEdits, setQtyEdits] = useState<Record<number, string>>({});
+  // Inline edits are keyed by entry.id (stable across refetches) so a server
+  // refresh after a successful save naturally clears the local draft via the
+  // "originalById" comparison below.
+  const [overrides, setOverrides] = useState<Record<string, string>>({});
+  const [basePriceEdits, setBasePriceEdits] = useState<Record<string, string>>({});
+  const [qtyEdits, setQtyEdits] = useState<Record<string, string>>({});
   const [localEntries, setLocalEntries] = useState<LocalEntry[]>([]);
 
   const projectId = selectedProject || projects[0]?.id || "";
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const updateLine = useUpdateProjectCalculationLine();
 
   useEffect(() => {
     setOverrides({});
@@ -293,13 +309,17 @@ export default function CalculatorPage() {
     query: { enabled: !!projectId, queryKey: getGetProjectCalculationsQueryKey(projectId) }
   });
 
-  const baseEntries: LocalEntry[] = (calc?.entries ?? []).map((e, i) => {
-    const overrideVal = overrides[i] !== undefined && overrides[i] !== "" ? Number(overrides[i]) : null;
-    const baseEditRaw = basePriceEdits[i];
+  const baseEntries: LocalEntry[] = (calc?.entries ?? []).map((e) => {
+    const id = e.id;
+    const overrideRaw = overrides[id];
+    const overrideVal = overrideRaw !== undefined && overrideRaw !== ""
+      ? Number(overrideRaw)
+      : (e.manualPriceOverride ?? null);
+    const baseEditRaw = basePriceEdits[id];
     const baseVal = baseEditRaw !== undefined && baseEditRaw !== "" && isFinite(Number(baseEditRaw))
       ? Number(baseEditRaw)
       : e.basePrice;
-    const qtyEditRaw = qtyEdits[i];
+    const qtyEditRaw = qtyEdits[id];
     const qtyVal = qtyEditRaw !== undefined && qtyEditRaw !== "" && isFinite(Number(qtyEditRaw))
       ? Number(qtyEditRaw)
       : e.quantity;
@@ -313,6 +333,68 @@ export default function CalculatorPage() {
       lineTotal: effective * qtyVal,
     };
   });
+
+  // Save an inline edit on blur. Compares the draft to the server value so
+  // we don't fire a no-op PATCH when the user just tabs through fields.
+  const saveLineEdit = (
+    field: "quantity" | "basePrice" | "manualPriceOverride",
+    lineId: string,
+  ) => {
+    const original = (calc?.entries ?? []).find((e) => e.id === lineId);
+    if (!original) return;
+
+    let body: { quantity?: number; basePrice?: number; manualPriceOverride?: number | null };
+    if (field === "quantity") {
+      const raw = qtyEdits[lineId];
+      if (raw === undefined || raw === "") return;
+      const next = Number(raw);
+      if (!isFinite(next) || next < 0 || next === original.quantity) {
+        setQtyEdits((p) => { const c = { ...p }; delete c[lineId]; return c; });
+        return;
+      }
+      body = { quantity: next };
+    } else if (field === "basePrice") {
+      const raw = basePriceEdits[lineId];
+      if (raw === undefined || raw === "") return;
+      const next = Number(raw);
+      if (!isFinite(next) || next < 0 || next === original.basePrice) {
+        setBasePriceEdits((p) => { const c = { ...p }; delete c[lineId]; return c; });
+        return;
+      }
+      body = { basePrice: next };
+    } else {
+      const raw = overrides[lineId];
+      const nextVal: number | null = raw === undefined || raw === ""
+        ? null
+        : (isFinite(Number(raw)) && Number(raw) >= 0 ? Number(raw) : null);
+      const prevVal = original.manualPriceOverride ?? null;
+      if (nextVal === prevVal) {
+        setOverrides((p) => { const c = { ...p }; delete c[lineId]; return c; });
+        return;
+      }
+      body = { manualPriceOverride: nextVal };
+    }
+
+    updateLine.mutate(
+      { projectId, lineId, data: body },
+      {
+        onSuccess: () => {
+          // Server refresh wins; clear the matching local draft.
+          if (field === "quantity") setQtyEdits((p) => { const c = { ...p }; delete c[lineId]; return c; });
+          if (field === "basePrice") setBasePriceEdits((p) => { const c = { ...p }; delete c[lineId]; return c; });
+          if (field === "manualPriceOverride") setOverrides((p) => { const c = { ...p }; delete c[lineId]; return c; });
+          queryClient.invalidateQueries({ queryKey: getGetProjectCalculationsQueryKey(projectId) });
+        },
+        onError: () => {
+          toast({
+            title: t("Could not save change", "No se pudo guardar el cambio"),
+            description: t("Please try again.", "Por favor inténtalo de nuevo."),
+            variant: "destructive",
+          });
+        },
+      },
+    );
+  };
 
   const allEntries: LocalEntry[] = [...baseEntries, ...localEntries];
 
@@ -437,8 +519,9 @@ export default function CalculatorPage() {
                                     type="number"
                                     min={0}
                                     step="0.01"
-                                    value={qtyEdits[globalIdx] ?? String(entry.quantity)}
-                                    onChange={(e) => setQtyEdits((prev) => ({ ...prev, [globalIdx]: e.target.value }))}
+                                    value={qtyEdits[entry.id] ?? String(entry.quantity)}
+                                    onChange={(e) => setQtyEdits((prev) => ({ ...prev, [entry.id]: e.target.value }))}
+                                    onBlur={() => saveLineEdit("quantity", entry.id)}
                                     data-testid={`calc-qty-${globalIdx}`}
                                     className="w-20 px-2 py-1 rounded border border-input text-right text-sm bg-background"
                                   />
@@ -452,8 +535,9 @@ export default function CalculatorPage() {
                                     type="number"
                                     min={0}
                                     step="0.01"
-                                    value={basePriceEdits[globalIdx] ?? String(entry.basePrice)}
-                                    onChange={(e) => setBasePriceEdits((prev) => ({ ...prev, [globalIdx]: e.target.value }))}
+                                    value={basePriceEdits[entry.id] ?? String(entry.basePrice)}
+                                    onChange={(e) => setBasePriceEdits((prev) => ({ ...prev, [entry.id]: e.target.value }))}
+                                    onBlur={() => saveLineEdit("basePrice", entry.id)}
                                     data-testid={`calc-base-${globalIdx}`}
                                     className="w-24 px-2 py-1 rounded border border-input text-right text-sm bg-background"
                                   />
@@ -466,8 +550,9 @@ export default function CalculatorPage() {
                                   <input
                                     type="number"
                                     min={0}
-                                    value={overrides[globalIdx] ?? ""}
-                                    onChange={(e) => setOverrides((prev) => ({ ...prev, [globalIdx]: e.target.value }))}
+                                    value={overrides[entry.id] ?? (entry.manualPriceOverride !== null && entry.manualPriceOverride !== undefined ? String(entry.manualPriceOverride) : "")}
+                                    onChange={(e) => setOverrides((prev) => ({ ...prev, [entry.id]: e.target.value }))}
+                                    onBlur={() => saveLineEdit("manualPriceOverride", entry.id)}
                                     placeholder="—"
                                     data-testid={`calc-override-${globalIdx}`}
                                     className="w-20 px-2 py-1 rounded border border-input text-right text-sm bg-background"

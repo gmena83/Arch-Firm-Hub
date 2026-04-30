@@ -23,6 +23,7 @@ import type {
   ApproveProposal200,
   AuditLogResponse,
   AuthorizePermits200,
+  CalculatorLineUpdate,
   CalculatorSummary,
   ChangeOrderResponse,
   ChatRequest,
@@ -100,6 +101,7 @@ import type {
   UpdateInspectionBody,
   UpdateMilestone200,
   UpdateMilestoneBody,
+  UpdateProjectCalculationLine200,
   UpdatePunchlistItemRequest,
   UpdatePunchlistStatusRequest,
   User,
@@ -1115,6 +1117,107 @@ export function useGetProjectCalculations<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Inline-edit a calculator line (quantity, base price, manual override)
+ */
+export const getUpdateProjectCalculationLineUrl = (
+  projectId: string,
+  lineId: string,
+) => {
+  return `/api/projects/${projectId}/calculations/${lineId}`;
+};
+
+export const updateProjectCalculationLine = async (
+  projectId: string,
+  lineId: string,
+  calculatorLineUpdate: CalculatorLineUpdate,
+  options?: RequestInit,
+): Promise<UpdateProjectCalculationLine200> => {
+  return customFetch<UpdateProjectCalculationLine200>(
+    getUpdateProjectCalculationLineUrl(projectId, lineId),
+    {
+      ...options,
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(calculatorLineUpdate),
+    },
+  );
+};
+
+export const getUpdateProjectCalculationLineMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateProjectCalculationLine>>,
+    TError,
+    { projectId: string; lineId: string; data: BodyType<CalculatorLineUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateProjectCalculationLine>>,
+  TError,
+  { projectId: string; lineId: string; data: BodyType<CalculatorLineUpdate> },
+  TContext
+> => {
+  const mutationKey = ["updateProjectCalculationLine"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateProjectCalculationLine>>,
+    { projectId: string; lineId: string; data: BodyType<CalculatorLineUpdate> }
+  > = (props) => {
+    const { projectId, lineId, data } = props ?? {};
+
+    return updateProjectCalculationLine(
+      projectId,
+      lineId,
+      data,
+      requestOptions,
+    );
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateProjectCalculationLineMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateProjectCalculationLine>>
+>;
+export type UpdateProjectCalculationLineMutationBody =
+  BodyType<CalculatorLineUpdate>;
+export type UpdateProjectCalculationLineMutationError =
+  ErrorType<ErrorResponse>;
+
+/**
+ * @summary Inline-edit a calculator line (quantity, base price, manual override)
+ */
+export const useUpdateProjectCalculationLine = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateProjectCalculationLine>>,
+    TError,
+    { projectId: string; lineId: string; data: BodyType<CalculatorLineUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateProjectCalculationLine>>,
+  TError,
+  { projectId: string; lineId: string; data: BodyType<CalculatorLineUpdate> },
+  TContext
+> => {
+  return useMutation(getUpdateProjectCalculationLineMutationOptions(options));
+};
 
 /**
  * @summary Get Phase-2 Pre-Design & Viability state for a project

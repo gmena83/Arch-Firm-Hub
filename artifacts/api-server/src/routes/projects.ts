@@ -389,6 +389,72 @@ router.get("/projects/:projectId/calculations", requireRole(["team", "admin", "s
   return res.json({ projectId, entries, subtotalByCategory, grandTotal });
 });
 
+// Inline-edit a calculator line (quantity, base price, manual override).
+// Recomputes effectivePrice and lineTotal server-side so the report rollup
+// always sees consistent values.
+router.patch(
+  "/projects/:projectId/calculations/:lineId",
+  requireRole(["team", "admin", "superadmin", "architect"]),
+  (req, res) => {
+    const projectId = req.params["projectId"] as string;
+    const lineId = req.params["lineId"] as string;
+    const list = CALCULATOR_ENTRIES[projectId as keyof typeof CALCULATOR_ENTRIES] as
+      | Array<Record<string, unknown>>
+      | undefined;
+    if (!list) return res.status(404).json({ error: "project_not_found" });
+    const entry = list.find((e) => (e["id"] as string) === lineId);
+    if (!entry) return res.status(404).json({ error: "line_not_found" });
+
+    const body = (req.body ?? {}) as {
+      quantity?: number | string;
+      basePrice?: number | string;
+      manualPriceOverride?: number | string | null;
+    };
+
+    const toNum = (v: unknown): number | null => {
+      if (v === null || v === undefined || v === "") return null;
+      const n = typeof v === "number" ? v : Number(v);
+      return Number.isFinite(n) ? n : null;
+    };
+
+    if (body.quantity !== undefined) {
+      const q = toNum(body.quantity);
+      if (q === null || q < 0) return res.status(400).json({ error: "invalid_quantity" });
+      entry["quantity"] = q;
+    }
+    if (body.basePrice !== undefined) {
+      const bp = toNum(body.basePrice);
+      if (bp === null || bp < 0) return res.status(400).json({ error: "invalid_base_price" });
+      entry["basePrice"] = bp;
+    }
+    if (body.manualPriceOverride !== undefined) {
+      if (body.manualPriceOverride === null || body.manualPriceOverride === "") {
+        entry["manualPriceOverride"] = null;
+      } else {
+        const ov = toNum(body.manualPriceOverride);
+        if (ov === null || ov < 0) return res.status(400).json({ error: "invalid_override" });
+        entry["manualPriceOverride"] = ov;
+      }
+    }
+
+    const basePrice = (entry["basePrice"] as number) ?? 0;
+    const override = entry["manualPriceOverride"] as number | null;
+    const quantity = (entry["quantity"] as number) ?? 0;
+    const effective = override !== null && override !== undefined ? override : basePrice;
+    entry["effectivePrice"] = effective;
+    entry["lineTotal"] = Math.round(effective * quantity * 100) / 100;
+
+    appendActivity(projectId, {
+      type: "calculator_line_updated",
+      actor: (req as { user?: { name?: string } }).user?.name ?? "Team",
+      description: `Calculator line "${entry["materialName"] ?? lineId}" updated`,
+      descriptionEs: `Línea de calculadora "${entry["materialNameEs"] ?? entry["materialName"] ?? lineId}" actualizada`,
+    });
+
+    return res.json({ entry });
+  },
+);
+
 router.get("/materials", (req, res) => {
   const category = req.query["category"] as string | undefined;
   const all = [...MATERIALS, ...EXTRA_MATERIALS];

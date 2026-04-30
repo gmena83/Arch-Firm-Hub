@@ -247,12 +247,12 @@ router.post("/estimating/materials/import", requireRole(["team", "admin", "super
   const skipped: Array<{ row: number; reason: string }> = [];
   for (let i = 0; i < rows.length; i++) {
     const r = rows[i] as Record<string, string>;
-    const item = (r["item"] ?? r["material"] ?? r["name"] ?? "").trim();
-    const itemEs = (r["item_es"] ?? r["itemes"] ?? r["nombre"] ?? item).trim();
-    const category = (r["category"] ?? r["categoria"] ?? "").trim().toLowerCase();
+    const item = (r["item"] ?? r["material"] ?? r["name"] ?? r["description"] ?? r["descripcion"] ?? r["descripción"] ?? "").trim();
+    const itemEs = (r["item_es"] ?? r["itemes"] ?? r["nombre"] ?? r["descripcion"] ?? r["descripción"] ?? item).trim();
+    const category = (r["category"] ?? r["categoria"] ?? r["categoría"] ?? "").trim().toLowerCase();
     const unit = (r["unit"] ?? r["unidad"] ?? "").trim();
     const qtyRaw = (r["qty"] ?? r["quantity"] ?? r["cantidad"] ?? "1").replace(/[^0-9.]/g, "");
-    const priceRaw = (r["base_price"] ?? r["baseprice"] ?? r["price"] ?? r["precio"] ?? "").replace(/[^0-9.]/g, "");
+    const priceRaw = (r["base_price"] ?? r["baseprice"] ?? r["unit_price"] ?? r["unitprice"] ?? r["price"] ?? r["precio"] ?? r["preciounitario"] ?? r["precio_unitario"] ?? "").replace(/[^0-9.]/g, "");
     const basePrice = Number(priceRaw);
     const qty = Number(qtyRaw) > 0 ? Number(qtyRaw) : 1;
     if (!item || !category || !unit || !isFinite(basePrice) || basePrice <= 0) {
@@ -300,7 +300,11 @@ router.post("/estimating/materials/import", requireRole(["team", "admin", "super
     skippedDetails: skipped,
     materials: accepted,
     totalCatalogSize: MATERIALS.length + EXTRA_MATERIALS.length,
-    addedToProjectCalculator: targetProject ? targetProject.id : null,
+    // Numeric count of lines auto-added to the target project's calculator
+    // (0 when no projectId was supplied). Frontend uses this to render the
+    // "N added to project calculator" toast detail.
+    addedToProjectCalculator: targetProject ? accepted.length : 0,
+    addedToProjectCalculatorId: targetProject ? targetProject.id : null,
   });
 });
 

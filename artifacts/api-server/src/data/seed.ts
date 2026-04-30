@@ -1209,6 +1209,7 @@ export type ProjectActivityType =
   | "report_template_upload"
   | "contractor_estimate"
   | "calculator_import"
+  | "calculator_line_updated"
   | "punchlist_change"
   | "document_visibility_change"
   | "client_view"

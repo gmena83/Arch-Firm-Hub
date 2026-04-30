@@ -415,6 +415,56 @@ export const GetProjectCalculationsResponse = zod.object({
 });
 
 /**
+ * @summary Inline-edit a calculator line (quantity, base price, manual override)
+ */
+export const UpdateProjectCalculationLineParams = zod.object({
+  projectId: zod.coerce.string(),
+  lineId: zod.coerce.string(),
+});
+
+export const updateProjectCalculationLineBodyQuantityMin = 0;
+
+export const updateProjectCalculationLineBodyBasePriceMin = 0;
+
+export const updateProjectCalculationLineBodyManualPriceOverrideMin = 0;
+
+export const UpdateProjectCalculationLineBody = zod
+  .object({
+    quantity: zod
+      .number()
+      .min(updateProjectCalculationLineBodyQuantityMin)
+      .optional(),
+    basePrice: zod
+      .number()
+      .min(updateProjectCalculationLineBodyBasePriceMin)
+      .optional(),
+    manualPriceOverride: zod
+      .number()
+      .min(updateProjectCalculationLineBodyManualPriceOverrideMin)
+      .nullish(),
+  })
+  .describe(
+    "Partial update for a calculator line. Any field omitted is left unchanged.\nmanualPriceOverride may be set to null to clear an existing override.\n",
+  );
+
+export const UpdateProjectCalculationLineResponse = zod.object({
+  entry: zod.object({
+    id: zod.string(),
+    projectId: zod.string(),
+    materialId: zod.string(),
+    materialName: zod.string(),
+    materialNameEs: zod.string(),
+    category: zod.string(),
+    unit: zod.string(),
+    quantity: zod.number(),
+    basePrice: zod.number(),
+    manualPriceOverride: zod.number().optional(),
+    effectivePrice: zod.number(),
+    lineTotal: zod.number(),
+  }),
+});
+
+/**
  * @summary Get Phase-2 Pre-Design & Viability state for a project
  */
 export const GetProjectPreDesignParams = zod.object({

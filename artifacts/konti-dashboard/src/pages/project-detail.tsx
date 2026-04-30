@@ -10,6 +10,7 @@ import {
   useGetProjectCalculations,
   useCreateProjectDocument,
   useUpdateProjectDocument,
+  useUpdateProjectClientContact,
   getGetProjectQueryKey,
   getGetProjectTasksQueryKey,
   getGetProjectWeatherQueryKey,
@@ -1279,6 +1280,17 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
             <ClientActivityCard projectId={projectId} />
           )}
 
+          {/* Team-only: editable client contact info (CSV item #20). */}
+          {!isClientView && (
+            <ClientContactCard
+              projectId={projectId}
+              clientName={project.clientName}
+              initialPhone={(project as { clientPhone?: string }).clientPhone ?? ""}
+              initialPostal={(project as { clientPostalAddress?: string }).clientPostalAddress ?? ""}
+              initialPhysical={(project as { clientPhysicalAddress?: string }).clientPhysicalAddress ?? ""}
+            />
+          )}
+
           {/* Team-only: contractor monitoring narrative card */}
           {!isClientView && (
             <div className="bg-card rounded-xl border border-card-border p-5 shadow-sm" data-testid="contractor-monitoring-card">
@@ -1395,6 +1407,153 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
           projectId={projectId}
           lockedToClientReview={isClientView}
         />
+      )}
+    </div>
+  );
+}
+
+function ClientContactCard({
+  projectId,
+  clientName,
+  initialPhone,
+  initialPostal,
+  initialPhysical,
+}: {
+  projectId: string;
+  clientName: string;
+  initialPhone: string;
+  initialPostal: string;
+  initialPhysical: string;
+}) {
+  const { t } = useLang();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [editing, setEditing] = useState(false);
+  const [phone, setPhone] = useState(initialPhone);
+  const [postal, setPostal] = useState(initialPostal);
+  const [physical, setPhysical] = useState(initialPhysical);
+
+  useEffect(() => { setPhone(initialPhone); }, [initialPhone]);
+  useEffect(() => { setPostal(initialPostal); }, [initialPostal]);
+  useEffect(() => { setPhysical(initialPhysical); }, [initialPhysical]);
+
+  const mutation = useUpdateProjectClientContact({
+    mutation: {
+      onSuccess: async () => {
+        await queryClient.invalidateQueries({ queryKey: getGetProjectQueryKey(projectId) });
+        toast({ title: t("Saved", "Guardado"), description: t("Client contact updated.", "Contacto del cliente actualizado.") });
+        setEditing(false);
+      },
+      onError: () => {
+        toast({ variant: "destructive", title: t("Save failed", "Error al guardar"), description: t("Could not update client contact.", "No se pudo actualizar el contacto del cliente.") });
+      },
+    },
+  });
+
+  const onSave = () => {
+    mutation.mutate({
+      projectId,
+      data: {
+        clientPhone: phone.trim(),
+        clientPostalAddress: postal.trim(),
+        clientPhysicalAddress: physical.trim(),
+      },
+    });
+  };
+
+  const onCancel = () => {
+    setPhone(initialPhone);
+    setPostal(initialPostal);
+    setPhysical(initialPhysical);
+    setEditing(false);
+  };
+
+  return (
+    <div className="bg-card rounded-xl border border-card-border p-5 shadow-sm" data-testid="client-contact-card">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="font-bold text-foreground flex items-center gap-1.5">
+          <Users className="w-4 h-4" /> {t("Client Contact", "Contacto del Cliente")}
+        </h2>
+        {!editing && (
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className="text-xs px-3 py-1 rounded-md border border-input hover:bg-muted text-muted-foreground"
+            data-testid="client-contact-edit"
+          >
+            {t("Edit", "Editar")}
+          </button>
+        )}
+      </div>
+      <p className="text-xs text-muted-foreground mb-3">{clientName}</p>
+      {!editing ? (
+        <dl className="space-y-2 text-sm">
+          <div>
+            <dt className="text-xs uppercase tracking-wide text-muted-foreground">{t("Phone", "Teléfono")}</dt>
+            <dd className="text-foreground" data-testid="client-contact-phone">{phone || t("—", "—")}</dd>
+          </div>
+          <div>
+            <dt className="text-xs uppercase tracking-wide text-muted-foreground">{t("Postal Address", "Dirección Postal")}</dt>
+            <dd className="text-foreground whitespace-pre-line" data-testid="client-contact-postal">{postal || t("—", "—")}</dd>
+          </div>
+          <div>
+            <dt className="text-xs uppercase tracking-wide text-muted-foreground">{t("Physical Address", "Dirección Física")}</dt>
+            <dd className="text-foreground whitespace-pre-line" data-testid="client-contact-physical">{physical || t("—", "—")}</dd>
+          </div>
+        </dl>
+      ) : (
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs uppercase tracking-wide text-muted-foreground">{t("Phone", "Teléfono")}</label>
+            <input
+              type="text"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className="w-full mt-1 px-3 py-2 rounded-md border border-input bg-background text-sm"
+              data-testid="client-contact-phone-input"
+            />
+          </div>
+          <div>
+            <label className="text-xs uppercase tracking-wide text-muted-foreground">{t("Postal Address", "Dirección Postal")}</label>
+            <textarea
+              value={postal}
+              onChange={(e) => setPostal(e.target.value)}
+              rows={2}
+              className="w-full mt-1 px-3 py-2 rounded-md border border-input bg-background text-sm"
+              data-testid="client-contact-postal-input"
+            />
+          </div>
+          <div>
+            <label className="text-xs uppercase tracking-wide text-muted-foreground">{t("Physical Address", "Dirección Física")}</label>
+            <textarea
+              value={physical}
+              onChange={(e) => setPhysical(e.target.value)}
+              rows={2}
+              className="w-full mt-1 px-3 py-2 rounded-md border border-input bg-background text-sm"
+              data-testid="client-contact-physical-input"
+            />
+          </div>
+          <div className="flex gap-2 pt-1">
+            <button
+              type="button"
+              onClick={onSave}
+              disabled={mutation.isPending}
+              className="px-3 py-1.5 rounded-md bg-konti-olive text-white text-sm hover:bg-konti-olive/90 disabled:opacity-50"
+              data-testid="client-contact-save"
+            >
+              {mutation.isPending ? t("Saving…", "Guardando…") : t("Save", "Guardar")}
+            </button>
+            <button
+              type="button"
+              onClick={onCancel}
+              disabled={mutation.isPending}
+              className="px-3 py-1.5 rounded-md border border-input text-sm hover:bg-muted"
+              data-testid="client-contact-cancel"
+            >
+              {t("Cancel", "Cancelar")}
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

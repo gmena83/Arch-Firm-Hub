@@ -180,6 +180,9 @@ router.post("/leads/:id/accept", requireRole("admin", "architect", "superadmin")
     teamMembers: ["Carla Gautier"],
     status: "active" as const,
     clientUserId: typeof acceptBody["clientUserId"] === "string" ? acceptBody["clientUserId"] : "user-client-1",
+    clientPhone: "",
+    clientPostalAddress: "",
+    clientPhysicalAddress: "",
   };
   PROJECTS.push(newProject);
   ACCEPTED_LEAD_PROJECTS.set(lead.id, projectId);

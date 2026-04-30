@@ -518,6 +518,20 @@ export interface CalculatorEntry {
   lineTotal: number;
 }
 
+/**
+ * Partial update for a calculator line. Any field omitted is left unchanged.
+manualPriceOverride may be set to null to clear an existing override.
+
+ */
+export interface CalculatorLineUpdate {
+  /** @minimum 0 */
+  quantity?: number;
+  /** @minimum 0 */
+  basePrice?: number;
+  /** @minimum 0 */
+  manualPriceOverride?: number | null;
+}
+
 export type CalculatorSummarySubtotalByCategory = { [key: string]: number };
 
 export interface CalculatorSummary {
@@ -1285,6 +1299,10 @@ export interface PunchlistOpenError {
 
 export type GetProjectDocumentsParams = {
   clientVisible?: boolean;
+};
+
+export type UpdateProjectCalculationLine200 = {
+  entry: CalculatorEntry;
 };
 
 export type ToggleChecklistItemBodyStatus =

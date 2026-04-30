@@ -161,8 +161,14 @@ function ReportContent({ projectId }: { projectId: string }) {
   const { data: tasks = [] } = useGetProjectTasks(projectId, {
     query: { enabled: !!projectId, queryKey: getGetProjectTasksQueryKey(projectId) }
   });
+  // Backend gates /projects/:id/calculations to team/admin/architect roles, so
+  // skip the request entirely for client viewers to avoid noisy 403s and to let
+  // downstream UI render the gated-empty state instead of stale fallback data.
   const { data: calc } = useGetProjectCalculations(projectId, {
-    query: { enabled: !!projectId, queryKey: getGetProjectCalculationsQueryKey(projectId) }
+    query: {
+      enabled: !!projectId && !isClientView,
+      queryKey: getGetProjectCalculationsQueryKey(projectId),
+    },
   });
   const { data: costPlus } = useGetProjectCostPlus(projectId, {
     query: { enabled: !!projectId, queryKey: getGetProjectCostPlusQueryKey(projectId) }
