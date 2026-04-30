@@ -1784,6 +1784,62 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /estimating/materials/import:
+    post:
+      operationId: importMaterialsCsv
+      tags: [estimating]
+      summary: Import a CSV of materials into the library (with optional column mapping)
+      description: |
+        Accepts raw CSV text plus an optional column mapping. When the
+        mapping is supplied, source-CSV headers are renamed to canonical
+        fields (item, category, unit, base_price, ...) before parsing.
+        Returns counts and per-row reasons for any rows that were
+        skipped because they did not pass validation.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CsvImportRequest"
+      responses:
+        "200":
+          description: Import result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MaterialsImportResponse"
+        "400":
+          description: All rows invalid (or malformed CSV) — body still includes skippedDetails
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CsvImportErrorResponse"
+
+  /estimating/labor-rates/import:
+    post:
+      operationId: importLaborRatesCsv
+      tags: [estimating]
+      summary: Import a CSV of labor rates (with optional column mapping)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CsvImportRequest"
+      responses:
+        "200":
+          description: Import result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CsvImportResponse"
+        "400":
+          description: All rows invalid (or malformed CSV)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CsvImportErrorResponse"
+
   /projects/{id}/csv-mappings:
     get:
       operationId: getProjectCsvMappings
@@ -2158,6 +2214,73 @@ components:
           $ref: "#/components/schemas/CsvColumnMapping"
       required:
         - mapping
+
+    CsvSkippedRow:
+      type: object
+      properties:
+        row:
+          type: integer
+          description: 1-based source CSV row number (header is row 1).
+        reason:
+          type: string
+          description: Short English reason code (e.g. "missing item/category/unit/price").
+      required:
+        - row
+        - reason
+
+    CsvImportRequest:
+      type: object
+      properties:
+        csv:
+          type: string
+          description: Raw CSV text.
+        mapping:
+          allOf:
+            - $ref: "#/components/schemas/CsvColumnMapping"
+          nullable: true
+          description: Optional canonical-field -> source-header rename map.
+      required:
+        - csv
+
+    CsvImportResponse:
+      type: object
+      properties:
+        imported:
+          type: integer
+        skipped:
+          type: integer
+        skippedDetails:
+          type: array
+          items:
+            $ref: "#/components/schemas/CsvSkippedRow"
+      required:
+        - imported
+        - skipped
+
+    MaterialsImportResponse:
+      allOf:
+        - $ref: "#/components/schemas/CsvImportResponse"
+        - type: object
+          properties:
+            addedToProjectCalculator:
+              type: integer
+              description: Number of lines pushed onto the project's calculator (0 unless projectId was supplied in the request).
+
+    CsvImportErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        messageEs:
+          type: string
+        skipped:
+          type: integer
+        skippedDetails:
+          type: array
+          items:
+            $ref: "#/components/schemas/CsvSkippedRow"
+      required:
+        - message
 
     PutCsvMappingResponse:
       type: object

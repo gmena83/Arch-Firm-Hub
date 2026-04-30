@@ -39,6 +39,9 @@ import type {
   CreateInspection201,
   CreateInspectionBody,
   CreatePunchlistItemRequest,
+  CsvImportErrorResponse,
+  CsvImportRequest,
+  CsvImportResponse,
   DashboardSummary,
   DeclineProjectPhase200,
   DeclineProjectPhaseBody,
@@ -66,6 +69,7 @@ import type {
   LoginResponse,
   Material,
   MaterialPriceRefreshResponse,
+  MaterialsImportResponse,
   MilestonesResponse,
   PermitsResponse,
   PreDesignData,
@@ -5435,6 +5439,185 @@ export const useRefreshMaterialPrices = <
   TContext
 > => {
   return useMutation(getRefreshMaterialPricesMutationOptions(options));
+};
+
+/**
+ * Accepts raw CSV text plus an optional column mapping. When the
+mapping is supplied, source-CSV headers are renamed to canonical
+fields (item, category, unit, base_price, ...) before parsing.
+Returns counts and per-row reasons for any rows that were
+skipped because they did not pass validation.
+
+ * @summary Import a CSV of materials into the library (with optional column mapping)
+ */
+export const getImportMaterialsCsvUrl = () => {
+  return `/api/estimating/materials/import`;
+};
+
+export const importMaterialsCsv = async (
+  csvImportRequest: CsvImportRequest,
+  options?: RequestInit,
+): Promise<MaterialsImportResponse> => {
+  return customFetch<MaterialsImportResponse>(getImportMaterialsCsvUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(csvImportRequest),
+  });
+};
+
+export const getImportMaterialsCsvMutationOptions = <
+  TError = ErrorType<CsvImportErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof importMaterialsCsv>>,
+    TError,
+    { data: BodyType<CsvImportRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof importMaterialsCsv>>,
+  TError,
+  { data: BodyType<CsvImportRequest> },
+  TContext
+> => {
+  const mutationKey = ["importMaterialsCsv"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof importMaterialsCsv>>,
+    { data: BodyType<CsvImportRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return importMaterialsCsv(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ImportMaterialsCsvMutationResult = NonNullable<
+  Awaited<ReturnType<typeof importMaterialsCsv>>
+>;
+export type ImportMaterialsCsvMutationBody = BodyType<CsvImportRequest>;
+export type ImportMaterialsCsvMutationError = ErrorType<CsvImportErrorResponse>;
+
+/**
+ * @summary Import a CSV of materials into the library (with optional column mapping)
+ */
+export const useImportMaterialsCsv = <
+  TError = ErrorType<CsvImportErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof importMaterialsCsv>>,
+    TError,
+    { data: BodyType<CsvImportRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof importMaterialsCsv>>,
+  TError,
+  { data: BodyType<CsvImportRequest> },
+  TContext
+> => {
+  return useMutation(getImportMaterialsCsvMutationOptions(options));
+};
+
+/**
+ * @summary Import a CSV of labor rates (with optional column mapping)
+ */
+export const getImportLaborRatesCsvUrl = () => {
+  return `/api/estimating/labor-rates/import`;
+};
+
+export const importLaborRatesCsv = async (
+  csvImportRequest: CsvImportRequest,
+  options?: RequestInit,
+): Promise<CsvImportResponse> => {
+  return customFetch<CsvImportResponse>(getImportLaborRatesCsvUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(csvImportRequest),
+  });
+};
+
+export const getImportLaborRatesCsvMutationOptions = <
+  TError = ErrorType<CsvImportErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof importLaborRatesCsv>>,
+    TError,
+    { data: BodyType<CsvImportRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof importLaborRatesCsv>>,
+  TError,
+  { data: BodyType<CsvImportRequest> },
+  TContext
+> => {
+  const mutationKey = ["importLaborRatesCsv"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof importLaborRatesCsv>>,
+    { data: BodyType<CsvImportRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return importLaborRatesCsv(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ImportLaborRatesCsvMutationResult = NonNullable<
+  Awaited<ReturnType<typeof importLaborRatesCsv>>
+>;
+export type ImportLaborRatesCsvMutationBody = BodyType<CsvImportRequest>;
+export type ImportLaborRatesCsvMutationError =
+  ErrorType<CsvImportErrorResponse>;
+
+/**
+ * @summary Import a CSV of labor rates (with optional column mapping)
+ */
+export const useImportLaborRatesCsv = <
+  TError = ErrorType<CsvImportErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof importLaborRatesCsv>>,
+    TError,
+    { data: BodyType<CsvImportRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof importLaborRatesCsv>>,
+  TError,
+  { data: BodyType<CsvImportRequest> },
+  TContext
+> => {
+  return useMutation(getImportLaborRatesCsvMutationOptions(options));
 };
 
 /**

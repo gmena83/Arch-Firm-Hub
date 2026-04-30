@@ -2497,6 +2497,89 @@ export const RefreshMaterialPricesResponse = zod.object({
 });
 
 /**
+ * Accepts raw CSV text plus an optional column mapping. When the
+mapping is supplied, source-CSV headers are renamed to canonical
+fields (item, category, unit, base_price, ...) before parsing.
+Returns counts and per-row reasons for any rows that were
+skipped because they did not pass validation.
+
+ * @summary Import a CSV of materials into the library (with optional column mapping)
+ */
+export const ImportMaterialsCsvBody = zod.object({
+  csv: zod.string().describe("Raw CSV text."),
+  mapping: zod
+    .record(zod.string(), zod.string().nullable())
+    .describe(
+      "Maps each canonical schema field name to either the source-CSV\nheader that should fill it, or null when intentionally unmapped.\n",
+    )
+    .nullish()
+    .describe("Optional canonical-field -> source-header rename map."),
+});
+
+export const ImportMaterialsCsvResponse = zod
+  .object({
+    imported: zod.number(),
+    skipped: zod.number(),
+    skippedDetails: zod
+      .array(
+        zod.object({
+          row: zod
+            .number()
+            .describe("1-based source CSV row number (header is row 1)."),
+          reason: zod
+            .string()
+            .describe(
+              'Short English reason code (e.g. \"missing item\/category\/unit\/price\").',
+            ),
+        }),
+      )
+      .optional(),
+  })
+  .and(
+    zod.object({
+      addedToProjectCalculator: zod
+        .number()
+        .optional()
+        .describe(
+          "Number of lines pushed onto the project's calculator (0 unless projectId was supplied in the request).",
+        ),
+    }),
+  );
+
+/**
+ * @summary Import a CSV of labor rates (with optional column mapping)
+ */
+export const ImportLaborRatesCsvBody = zod.object({
+  csv: zod.string().describe("Raw CSV text."),
+  mapping: zod
+    .record(zod.string(), zod.string().nullable())
+    .describe(
+      "Maps each canonical schema field name to either the source-CSV\nheader that should fill it, or null when intentionally unmapped.\n",
+    )
+    .nullish()
+    .describe("Optional canonical-field -> source-header rename map."),
+});
+
+export const ImportLaborRatesCsvResponse = zod.object({
+  imported: zod.number(),
+  skipped: zod.number(),
+  skippedDetails: zod
+    .array(
+      zod.object({
+        row: zod
+          .number()
+          .describe("1-based source CSV row number (header is row 1)."),
+        reason: zod
+          .string()
+          .describe(
+            'Short English reason code (e.g. \"missing item\/category\/unit\/price\").',
+          ),
+      }),
+    )
+    .optional(),
+});
+
+/**
  * Returns the stored per-import-kind column mappings (materials,
 labor, receipts) that were last confirmed when importing CSVs
 on the calculator imports tab. Used to preselect the mapping

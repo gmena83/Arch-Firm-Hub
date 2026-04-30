@@ -38,6 +38,38 @@ export interface PutCsvMappingRequest {
   mapping: CsvColumnMapping;
 }
 
+export interface CsvSkippedRow {
+  /** 1-based source CSV row number (header is row 1). */
+  row: number;
+  /** Short English reason code (e.g. "missing item/category/unit/price"). */
+  reason: string;
+}
+
+export interface CsvImportRequest {
+  /** Raw CSV text. */
+  csv: string;
+  /** Optional canonical-field -> source-header rename map. */
+  mapping?: CsvColumnMapping | null;
+}
+
+export interface CsvImportResponse {
+  imported: number;
+  skipped: number;
+  skippedDetails?: CsvSkippedRow[];
+}
+
+export type MaterialsImportResponse = CsvImportResponse & {
+  /** Number of lines pushed onto the project's calculator (0 unless projectId was supplied in the request). */
+  addedToProjectCalculator?: number;
+};
+
+export interface CsvImportErrorResponse {
+  message: string;
+  messageEs?: string;
+  skipped?: number;
+  skippedDetails?: CsvSkippedRow[];
+}
+
 export type PutCsvMappingResponseKind =
   (typeof PutCsvMappingResponseKind)[keyof typeof PutCsvMappingResponseKind];
 
