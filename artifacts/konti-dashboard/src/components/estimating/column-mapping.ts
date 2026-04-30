@@ -221,27 +221,30 @@ export function validateMapping(kind: ImportKind, mapping: Mapping): string[] {
     .map((f) => f.key);
 }
 
-// localStorage helpers — remember the last confirmed mapping per project +
-// importer kind so the next CSV from the same team member is preselected.
-const STORAGE_PREFIX = "konti_csv_mapping";
+// Server-backed mapping memory — remembered per project + importer kind on
+// the project's sidecar store so any team member opening the same project
+// gets the previously confirmed mapping. Falls back to null on any error.
+import { getJson, putJson } from "./estimating-helpers";
 
-export function loadSavedMapping(projectId: string, kind: ImportKind): Mapping | null {
+export async function loadSavedMapping(projectId: string, kind: ImportKind): Promise<Mapping | null> {
   if (!projectId) return null;
   try {
-    const raw = localStorage.getItem(`${STORAGE_PREFIX}:${projectId}:${kind}`);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Mapping;
-    return parsed && typeof parsed === "object" ? parsed : null;
+    const res = await getJson<{
+      projectId: string;
+      mappings: Partial<Record<ImportKind, Mapping>>;
+    }>(`/api/projects/${encodeURIComponent(projectId)}/csv-mappings`);
+    const m = res.mappings?.[kind];
+    return m && typeof m === "object" ? m : null;
   } catch {
     return null;
   }
 }
 
-export function saveMapping(projectId: string, kind: ImportKind, mapping: Mapping): void {
+export async function saveMapping(projectId: string, kind: ImportKind, mapping: Mapping): Promise<void> {
   if (!projectId) return;
   try {
-    localStorage.setItem(`${STORAGE_PREFIX}:${projectId}:${kind}`, JSON.stringify(mapping));
+    await putJson(`/api/projects/${encodeURIComponent(projectId)}/csv-mappings/${kind}`, { mapping });
   } catch {
-    // ignore quota / serialization errors
+    // best-effort; do not block import on persistence failure
   }
 }

@@ -1518,6 +1518,13 @@ export const PROJECT_ACTIVITIES: Record<string, ProjectActivity[]> = {
   ],
 };
 
+// Per-project remembered CSV column mappings keyed by import kind
+// (materials | labor | receipts). Values are flat objects mapping the
+// canonical schema field -> source-CSV header (or null when unmapped).
+// Stored as an in-memory sidecar — no Project schema change.
+export type CsvImportKind = "materials" | "labor" | "receipts";
+export const PROJECT_CSV_MAPPINGS: Record<string, Partial<Record<CsvImportKind, Record<string, string | null>>>> = {};
+
 export const PROJECT_STRUCTURED_VARS: Record<string, StructuredVariables | undefined> = {
   "proj-1": undefined,
   "proj-2": { squareMeters: 320, zoningCode: "R-3", projectType: "residencial", submittedAt: "2025-08-05T09:00:00Z", submittedBy: "Carla Gautier" },

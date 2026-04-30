@@ -610,12 +610,22 @@ function Section({
 }) {
   const { t } = useLang();
   const [open, setOpen] = useState(false);
+  const [savedMapping, setSavedMapping] = useState<Mapping | null>(null);
+  const [loadingSaved, setLoadingSaved] = useState(false);
 
   const parsed = parseMappingCsv(textValue);
   const canMap = parsed.headers.length > 0 && parsed.rows.length > 0;
 
-  const openDialog = () => {
+  const openDialog = async () => {
     if (!canMap) return;
+    if (projectId) {
+      setLoadingSaved(true);
+      const m = await loadSavedMapping(projectId, kind);
+      setSavedMapping(m);
+      setLoadingSaved(false);
+    } else {
+      setSavedMapping(null);
+    }
     setOpen(true);
   };
   const handleConfirm = async (mapping: Mapping) => {
@@ -648,11 +658,11 @@ function Section({
       <div className="flex items-center gap-3 mt-3 flex-wrap">
         <button
           onClick={openDialog}
-          disabled={!canMap || busy}
+          disabled={!canMap || busy || loadingSaved}
           data-testid={`${testid}-map-btn`}
           className="inline-flex items-center gap-2 px-3 py-1.5 bg-konti-olive hover:bg-konti-olive/90 text-white text-xs font-semibold rounded-md disabled:opacity-50"
         >
-          {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Columns3 className="w-3.5 h-3.5" />}
+          {busy || loadingSaved ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Columns3 className="w-3.5 h-3.5" />}
           {t("Map Columns & Import", "Mapear Columnas e Importar")}
         </button>
         {result && (
@@ -675,7 +685,7 @@ function Section({
         onConfirm={handleConfirm}
         kind={kind}
         parsed={parsed}
-        initialMapping={projectId ? loadSavedMapping(projectId, kind) : null}
+        initialMapping={savedMapping}
         busy={busy}
         testid={`${testid}-mapping-dialog`}
       />

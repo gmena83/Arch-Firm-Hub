@@ -74,6 +74,7 @@ import type {
   ProjectClientContact,
   ProjectClientContactUpdate,
   ProjectCreateRequest,
+  ProjectCsvMappings,
   ProjectInvoicesResponse,
   ProjectStatusNote,
   ProjectStatusNoteUpdate,
@@ -81,6 +82,8 @@ import type {
   PunchlistItemMutationResponse,
   PunchlistOpenError,
   PunchlistResponse,
+  PutCsvMappingRequest,
+  PutCsvMappingResponse,
   RefreshMaterialPricesParams,
   SendInspectionReport200,
   SendInspectionReportBody,
@@ -5432,6 +5435,217 @@ export const useRefreshMaterialPrices = <
   TContext
 > => {
   return useMutation(getRefreshMaterialPricesMutationOptions(options));
+};
+
+/**
+ * Returns the stored per-import-kind column mappings (materials,
+labor, receipts) that were last confirmed when importing CSVs
+on the calculator imports tab. Used to preselect the mapping
+the next time the same project imports a CSV.
+
+ * @summary Get the remembered CSV column mappings for a project
+ */
+export const getGetProjectCsvMappingsUrl = (id: string) => {
+  return `/api/projects/${id}/csv-mappings`;
+};
+
+export const getProjectCsvMappings = async (
+  id: string,
+  options?: RequestInit,
+): Promise<ProjectCsvMappings> => {
+  return customFetch<ProjectCsvMappings>(getGetProjectCsvMappingsUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetProjectCsvMappingsQueryKey = (id: string) => {
+  return [`/api/projects/${id}/csv-mappings`] as const;
+};
+
+export const getGetProjectCsvMappingsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getProjectCsvMappings>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getProjectCsvMappings>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetProjectCsvMappingsQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getProjectCsvMappings>>
+  > = ({ signal }) => getProjectCsvMappings(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getProjectCsvMappings>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetProjectCsvMappingsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getProjectCsvMappings>>
+>;
+export type GetProjectCsvMappingsQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Get the remembered CSV column mappings for a project
+ */
+
+export function useGetProjectCsvMappings<
+  TData = Awaited<ReturnType<typeof getProjectCsvMappings>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getProjectCsvMappings>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetProjectCsvMappingsQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Stores the user-confirmed mapping from canonical schema field to
+source-CSV header. Values are header strings (or null when the
+field is intentionally unmapped).
+
+ * @summary Persist a CSV column mapping for a project + import kind
+ */
+export const getPutProjectCsvMappingUrl = (
+  id: string,
+  kind: "materials" | "labor" | "receipts",
+) => {
+  return `/api/projects/${id}/csv-mappings/${kind}`;
+};
+
+export const putProjectCsvMapping = async (
+  id: string,
+  kind: "materials" | "labor" | "receipts",
+  putCsvMappingRequest: PutCsvMappingRequest,
+  options?: RequestInit,
+): Promise<PutCsvMappingResponse> => {
+  return customFetch<PutCsvMappingResponse>(
+    getPutProjectCsvMappingUrl(id, kind),
+    {
+      ...options,
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(putCsvMappingRequest),
+    },
+  );
+};
+
+export const getPutProjectCsvMappingMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof putProjectCsvMapping>>,
+    TError,
+    {
+      id: string;
+      kind: "materials" | "labor" | "receipts";
+      data: BodyType<PutCsvMappingRequest>;
+    },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof putProjectCsvMapping>>,
+  TError,
+  {
+    id: string;
+    kind: "materials" | "labor" | "receipts";
+    data: BodyType<PutCsvMappingRequest>;
+  },
+  TContext
+> => {
+  const mutationKey = ["putProjectCsvMapping"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof putProjectCsvMapping>>,
+    {
+      id: string;
+      kind: "materials" | "labor" | "receipts";
+      data: BodyType<PutCsvMappingRequest>;
+    }
+  > = (props) => {
+    const { id, kind, data } = props ?? {};
+
+    return putProjectCsvMapping(id, kind, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type PutProjectCsvMappingMutationResult = NonNullable<
+  Awaited<ReturnType<typeof putProjectCsvMapping>>
+>;
+export type PutProjectCsvMappingMutationBody = BodyType<PutCsvMappingRequest>;
+export type PutProjectCsvMappingMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Persist a CSV column mapping for a project + import kind
+ */
+export const usePutProjectCsvMapping = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof putProjectCsvMapping>>,
+    TError,
+    {
+      id: string;
+      kind: "materials" | "labor" | "receipts";
+      data: BodyType<PutCsvMappingRequest>;
+    },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof putProjectCsvMapping>>,
+  TError,
+  {
+    id: string;
+    kind: "materials" | "labor" | "receipts";
+    data: BodyType<PutCsvMappingRequest>;
+  },
+  TContext
+> => {
+  return useMutation(getPutProjectCsvMappingMutationOptions(options));
 };
 
 /**

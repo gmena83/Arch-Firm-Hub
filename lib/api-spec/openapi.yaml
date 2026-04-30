@@ -1784,6 +1784,83 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /projects/{id}/csv-mappings:
+    get:
+      operationId: getProjectCsvMappings
+      tags: [estimating]
+      summary: Get the remembered CSV column mappings for a project
+      description: |
+        Returns the stored per-import-kind column mappings (materials,
+        labor, receipts) that were last confirmed when importing CSVs
+        on the calculator imports tab. Used to preselect the mapping
+        the next time the same project imports a CSV.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Stored mappings (may be empty)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectCsvMappings"
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /projects/{id}/csv-mappings/{kind}:
+    put:
+      operationId: putProjectCsvMapping
+      tags: [estimating]
+      summary: Persist a CSV column mapping for a project + import kind
+      description: |
+        Stores the user-confirmed mapping from canonical schema field to
+        source-CSV header. Values are header strings (or null when the
+        field is intentionally unmapped).
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: kind
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [materials, labor, receipts]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PutCsvMappingRequest"
+      responses:
+        "200":
+          description: Mapping saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PutCsvMappingResponse"
+        "400":
+          description: Invalid kind or mapping
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /dashboard/summary:
     get:
       operationId: getDashboardSummary
@@ -2041,6 +2118,61 @@ components:
       required:
         - error
         - message
+
+    CsvColumnMapping:
+      type: object
+      description: |
+        Maps each canonical schema field name to either the source-CSV
+        header that should fill it, or null when intentionally unmapped.
+      additionalProperties:
+        type: string
+        nullable: true
+      example:
+        item: Producto
+        category: Categoria
+        unit: Unidad
+        base_price: Costo
+
+    ProjectCsvMappings:
+      type: object
+      properties:
+        projectId:
+          type: string
+        mappings:
+          type: object
+          properties:
+            materials:
+              $ref: "#/components/schemas/CsvColumnMapping"
+            labor:
+              $ref: "#/components/schemas/CsvColumnMapping"
+            receipts:
+              $ref: "#/components/schemas/CsvColumnMapping"
+      required:
+        - projectId
+        - mappings
+
+    PutCsvMappingRequest:
+      type: object
+      properties:
+        mapping:
+          $ref: "#/components/schemas/CsvColumnMapping"
+      required:
+        - mapping
+
+    PutCsvMappingResponse:
+      type: object
+      properties:
+        projectId:
+          type: string
+        kind:
+          type: string
+          enum: [materials, labor, receipts]
+        mapping:
+          $ref: "#/components/schemas/CsvColumnMapping"
+      required:
+        - projectId
+        - kind
+        - mapping
 
     LoginRequest:
       type: object

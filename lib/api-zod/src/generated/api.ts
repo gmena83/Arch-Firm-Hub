@@ -2497,6 +2497,72 @@ export const RefreshMaterialPricesResponse = zod.object({
 });
 
 /**
+ * Returns the stored per-import-kind column mappings (materials,
+labor, receipts) that were last confirmed when importing CSVs
+on the calculator imports tab. Used to preselect the mapping
+the next time the same project imports a CSV.
+
+ * @summary Get the remembered CSV column mappings for a project
+ */
+export const GetProjectCsvMappingsParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const GetProjectCsvMappingsResponse = zod.object({
+  projectId: zod.string(),
+  mappings: zod.object({
+    materials: zod
+      .record(zod.string(), zod.string().nullable())
+      .optional()
+      .describe(
+        "Maps each canonical schema field name to either the source-CSV\nheader that should fill it, or null when intentionally unmapped.\n",
+      ),
+    labor: zod
+      .record(zod.string(), zod.string().nullable())
+      .optional()
+      .describe(
+        "Maps each canonical schema field name to either the source-CSV\nheader that should fill it, or null when intentionally unmapped.\n",
+      ),
+    receipts: zod
+      .record(zod.string(), zod.string().nullable())
+      .optional()
+      .describe(
+        "Maps each canonical schema field name to either the source-CSV\nheader that should fill it, or null when intentionally unmapped.\n",
+      ),
+  }),
+});
+
+/**
+ * Stores the user-confirmed mapping from canonical schema field to
+source-CSV header. Values are header strings (or null when the
+field is intentionally unmapped).
+
+ * @summary Persist a CSV column mapping for a project + import kind
+ */
+export const PutProjectCsvMappingParams = zod.object({
+  id: zod.coerce.string(),
+  kind: zod.enum(["materials", "labor", "receipts"]),
+});
+
+export const PutProjectCsvMappingBody = zod.object({
+  mapping: zod
+    .record(zod.string(), zod.string().nullable())
+    .describe(
+      "Maps each canonical schema field name to either the source-CSV\nheader that should fill it, or null when intentionally unmapped.\n",
+    ),
+});
+
+export const PutProjectCsvMappingResponse = zod.object({
+  projectId: zod.string(),
+  kind: zod.enum(["materials", "labor", "receipts"]),
+  mapping: zod
+    .record(zod.string(), zod.string().nullable())
+    .describe(
+      "Maps each canonical schema field name to either the source-CSV\nheader that should fill it, or null when intentionally unmapped.\n",
+    ),
+});
+
+/**
  * @summary Get overall dashboard summary stats
  */
 export const GetDashboardSummaryResponse = zod.object({

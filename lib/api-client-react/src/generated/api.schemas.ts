@@ -14,6 +14,45 @@ export interface ErrorResponse {
   message: string;
 }
 
+/**
+ * Maps each canonical schema field name to either the source-CSV
+header that should fill it, or null when intentionally unmapped.
+
+ */
+export interface CsvColumnMapping {
+  [key: string]: string | null;
+}
+
+export type ProjectCsvMappingsMappings = {
+  materials?: CsvColumnMapping;
+  labor?: CsvColumnMapping;
+  receipts?: CsvColumnMapping;
+};
+
+export interface ProjectCsvMappings {
+  projectId: string;
+  mappings: ProjectCsvMappingsMappings;
+}
+
+export interface PutCsvMappingRequest {
+  mapping: CsvColumnMapping;
+}
+
+export type PutCsvMappingResponseKind =
+  (typeof PutCsvMappingResponseKind)[keyof typeof PutCsvMappingResponseKind];
+
+export const PutCsvMappingResponseKind = {
+  materials: "materials",
+  labor: "labor",
+  receipts: "receipts",
+} as const;
+
+export interface PutCsvMappingResponse {
+  projectId: string;
+  kind: PutCsvMappingResponseKind;
+  mapping: CsvColumnMapping;
+}
+
 export interface LoginRequest {
   email: string;
   password: string;

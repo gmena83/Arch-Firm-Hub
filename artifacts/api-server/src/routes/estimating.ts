@@ -4,6 +4,8 @@ import {
   MATERIALS,
   CALCULATOR_ENTRIES,
   PROJECT_COST_PLUS,
+  PROJECT_CSV_MAPPINGS,
+  type CsvImportKind,
   appendActivity,
 } from "../data/seed";
 import { requireRole } from "../middlewares/require-role";
@@ -996,5 +998,64 @@ router.get("/projects/:id/variance-report", requireRole(["team","admin","superad
     },
   });
 });
+
+// ---------------------------------------------------------------------------
+// Per-project remembered CSV column mappings (for the calculator imports tab)
+// ---------------------------------------------------------------------------
+
+const VALID_CSV_KINDS: ReadonlyArray<CsvImportKind> = ["materials", "labor", "receipts"];
+
+function isValidMappingValue(v: unknown): boolean {
+  return v === null || typeof v === "string";
+}
+function isValidMappingObject(obj: unknown): obj is Record<string, string | null> {
+  if (!obj || typeof obj !== "object" || Array.isArray(obj)) return false;
+  for (const v of Object.values(obj as Record<string, unknown>)) {
+    if (!isValidMappingValue(v)) return false;
+  }
+  return true;
+}
+
+router.get(
+  "/projects/:id/csv-mappings",
+  requireRole(["team", "admin", "superadmin", "architect", "client"]),
+  (req, res) => {
+    const id = req.params["id"];
+    if (!id || !PROJECTS.find((p) => p.id === id)) {
+      return res.status(404).json({ message: "project_not_found" });
+    }
+    if (!enforceClientOwnership(req, res, id)) return;
+    return res.json({ projectId: id, mappings: PROJECT_CSV_MAPPINGS[id] ?? {} });
+  },
+);
+
+router.put(
+  "/projects/:id/csv-mappings/:kind",
+  requireRole(["team", "admin", "superadmin"]),
+  (req, res) => {
+    const id = req.params["id"];
+    const kind = req.params["kind"] as CsvImportKind | undefined;
+    if (!id || !PROJECTS.find((p) => p.id === id)) {
+      return res.status(404).json({ message: "project_not_found" });
+    }
+    if (!kind || !VALID_CSV_KINDS.includes(kind)) {
+      return res.status(400).json({
+        message: "invalid_kind",
+        messageEs: "tipo de importación no válido",
+      });
+    }
+    const mapping = (req.body as { mapping?: unknown } | undefined)?.mapping;
+    if (!isValidMappingObject(mapping)) {
+      return res.status(400).json({
+        message: "invalid_mapping",
+        messageEs: "mapeo inválido",
+      });
+    }
+    const bucket = PROJECT_CSV_MAPPINGS[id] ?? {};
+    bucket[kind] = mapping;
+    PROJECT_CSV_MAPPINGS[id] = bucket;
+    return res.json({ projectId: id, kind, mapping });
+  },
+);
 
 export default router;
