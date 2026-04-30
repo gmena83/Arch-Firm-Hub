@@ -1016,6 +1016,26 @@ export const PermitItemState = {
   approved: "approved",
 } as const;
 
+/**
+ * Top-level permit family used to group items in the Permits page UI.
+Items with no explicit type fall into "other". Stable order on the
+client is: structural → electrical → plumbing → mechanical →
+environmental → use → other.
+
+ */
+export type PermitItemPermitType =
+  (typeof PermitItemPermitType)[keyof typeof PermitItemPermitType];
+
+export const PermitItemPermitType = {
+  structural: "structural",
+  electrical: "electrical",
+  plumbing: "plumbing",
+  mechanical: "mechanical",
+  environmental: "environmental",
+  use: "use",
+  other: "other",
+} as const;
+
 export interface PermitItem {
   id: string;
   name: string;
@@ -1023,6 +1043,12 @@ export interface PermitItem {
   agency: string;
   responsible: string;
   state: PermitItemState;
+  /** Top-level permit family used to group items in the Permits page UI.
+Items with no explicit type fall into "other". Stable order on the
+client is: structural → electrical → plumbing → mechanical →
+environmental → use → other.
+ */
+  permitType?: PermitItemPermitType;
   lastUpdatedAt?: string;
   revisionNote?: string;
   revisionNoteEs?: string;

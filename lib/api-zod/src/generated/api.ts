@@ -2179,6 +2179,20 @@ export const GetProjectPermitsResponse = zod.object({
         "revision_requested",
         "approved",
       ]),
+      permitType: zod
+        .enum([
+          "structural",
+          "electrical",
+          "plumbing",
+          "mechanical",
+          "environmental",
+          "use",
+          "other",
+        ])
+        .optional()
+        .describe(
+          'Top-level permit family used to group items in the Permits page UI.\nItems with no explicit type fall into \"other\". Stable order on the\nclient is: structural → electrical → plumbing → mechanical →\nenvironmental → use → other.\n',
+        ),
       lastUpdatedAt: zod.string().optional(),
       revisionNote: zod.string().optional(),
       revisionNoteEs: zod.string().optional(),
@@ -2279,6 +2293,20 @@ export const SubmitPermitsToOgpeResponse = zod.object({
         "revision_requested",
         "approved",
       ]),
+      permitType: zod
+        .enum([
+          "structural",
+          "electrical",
+          "plumbing",
+          "mechanical",
+          "environmental",
+          "use",
+          "other",
+        ])
+        .optional()
+        .describe(
+          'Top-level permit family used to group items in the Permits page UI.\nItems with no explicit type fall into \"other\". Stable order on the\nclient is: structural → electrical → plumbing → mechanical →\nenvironmental → use → other.\n',
+        ),
       lastUpdatedAt: zod.string().optional(),
       revisionNote: zod.string().optional(),
       revisionNoteEs: zod.string().optional(),
@@ -2326,6 +2354,20 @@ export const SetPermitItemStateResponse = zod.object({
       "revision_requested",
       "approved",
     ]),
+    permitType: zod
+      .enum([
+        "structural",
+        "electrical",
+        "plumbing",
+        "mechanical",
+        "environmental",
+        "use",
+        "other",
+      ])
+      .optional()
+      .describe(
+        'Top-level permit family used to group items in the Permits page UI.\nItems with no explicit type fall into \"other\". Stable order on the\nclient is: structural → electrical → plumbing → mechanical →\nenvironmental → use → other.\n',
+      ),
     lastUpdatedAt: zod.string().optional(),
     revisionNote: zod.string().optional(),
     revisionNoteEs: zod.string().optional(),

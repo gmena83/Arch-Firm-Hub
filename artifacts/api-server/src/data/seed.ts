@@ -1941,6 +1941,28 @@ export const PERMIT_ITEM_STATE_ORDER: PermitItemState[] = [
   "approved",
 ];
 
+// Top-level permit family used by the Permits page UI to group items into
+// sections. Anything seeded without an explicit type falls back to "other"
+// at read time so nothing disappears from the list.
+export type PermitType =
+  | "structural"
+  | "electrical"
+  | "plumbing"
+  | "mechanical"
+  | "environmental"
+  | "use"
+  | "other";
+
+export const PERMIT_TYPE_ORDER: PermitType[] = [
+  "structural",
+  "electrical",
+  "plumbing",
+  "mechanical",
+  "environmental",
+  "use",
+  "other",
+];
+
 export interface PermitItem {
   id: string;
   name: string;
@@ -1948,6 +1970,7 @@ export interface PermitItem {
   agency: string;
   responsible: string;
   state: PermitItemState;
+  permitType?: PermitType;
   lastUpdatedAt?: string;
   revisionNote?: string;
   revisionNoteEs?: string;
@@ -1964,14 +1987,18 @@ const standardSignatures = (): RequiredSignature[] => [
   { id: "sig-ogpe-cover", formName: "OGPE Submission Cover Letter", formNameEs: "Carta de Sometimiento OGPE", required: true },
 ];
 
+// Each seeded permit item carries an explicit `permitType` so the Permits
+// page can group items by family. The Building Permit and Fire & Safety
+// certificate intentionally fall under "use" because both are issued
+// against the building's intended occupancy/use, not a single trade.
 const permitItemsTemplate = (defaults: { state: PermitItemState; lastUpdatedAt?: string }): PermitItem[] => [
-  { id: "perm-pe-stamp", name: "Structural Engineering Stamp", nameEs: "Sello de Ingeniería Estructural", agency: "CIAPR", responsible: "Nainoshka", state: defaults.state, lastUpdatedAt: defaults.lastUpdatedAt, estimatedTime: "2–4 weeks", estimatedTimeEs: "2–4 semanas", notes: "Licensed PE stamp on structural drawings.", notesEs: "Sello PE licenciado en planos estructurales." },
-  { id: "perm-arpe-use", name: "ARPE Use Permit (Uso Conforme)", nameEs: "Permiso de Uso ARPE (Uso Conforme)", agency: "ARPE", responsible: "Nainoshka", state: defaults.state, lastUpdatedAt: defaults.lastUpdatedAt, estimatedTime: "4–8 weeks", estimatedTimeEs: "4–8 semanas", notes: "Land use conformity by ARPE.", notesEs: "Conformidad de uso de suelo por ARPE." },
-  { id: "perm-building", name: "Building Permit (Permiso de Construcción)", nameEs: "Permiso de Construcción", agency: "OGPE / Municipio", responsible: "Nainoshka", state: defaults.state, lastUpdatedAt: defaults.lastUpdatedAt, estimatedTime: "6–12 weeks", estimatedTimeEs: "6–12 semanas", notes: "Main construction permit issued by OGPE.", notesEs: "Permiso principal de construcción emitido por OGPE." },
-  { id: "perm-electrical", name: "Electrical Inspection Permit", nameEs: "Permiso de Inspección Eléctrica", agency: "AELEC / LUMA", responsible: "Jorge Rosa", state: defaults.state, lastUpdatedAt: defaults.lastUpdatedAt, estimatedTime: "1–3 weeks", estimatedTimeEs: "1–3 semanas", notes: "Electrical system inspection.", notesEs: "Inspección del sistema eléctrico." },
-  { id: "perm-plumbing", name: "Plumbing Inspection Permit", nameEs: "Permiso de Inspección de Plomería", agency: "Junta de Calidad Ambiental", responsible: "Jorge Rosa", state: defaults.state, lastUpdatedAt: defaults.lastUpdatedAt, estimatedTime: "1–2 weeks", estimatedTimeEs: "1–2 semanas", notes: "Potable water and sewage approvals.", notesEs: "Aprobaciones de agua potable y alcantarillado." },
-  { id: "perm-fire", name: "Fire & Safety Certificate", nameEs: "Certificado de Bomberos", agency: "Cuerpo de Bomberos PR", responsible: "Jorge Rosa", state: defaults.state, lastUpdatedAt: defaults.lastUpdatedAt, estimatedTime: "2–4 weeks", estimatedTimeEs: "2–4 semanas", notes: "Fire suppression and egress.", notesEs: "Supresión de incendios y salidas de emergencia." },
-  { id: "perm-environmental", name: "Environmental Clearance (DIA)", nameEs: "Autorización Ambiental (DIA)", agency: "Junta de Calidad Ambiental", responsible: "Nainoshka", state: defaults.state, lastUpdatedAt: defaults.lastUpdatedAt, estimatedTime: "8–16 weeks", estimatedTimeEs: "8–16 semanas", notes: "Environmental impact assessment.", notesEs: "Evaluación de impacto ambiental." },
+  { id: "perm-pe-stamp", name: "Structural Engineering Stamp", nameEs: "Sello de Ingeniería Estructural", agency: "CIAPR", responsible: "Nainoshka", state: defaults.state, permitType: "structural", lastUpdatedAt: defaults.lastUpdatedAt, estimatedTime: "2–4 weeks", estimatedTimeEs: "2–4 semanas", notes: "Licensed PE stamp on structural drawings.", notesEs: "Sello PE licenciado en planos estructurales." },
+  { id: "perm-arpe-use", name: "ARPE Use Permit (Uso Conforme)", nameEs: "Permiso de Uso ARPE (Uso Conforme)", agency: "ARPE", responsible: "Nainoshka", state: defaults.state, permitType: "use", lastUpdatedAt: defaults.lastUpdatedAt, estimatedTime: "4–8 weeks", estimatedTimeEs: "4–8 semanas", notes: "Land use conformity by ARPE.", notesEs: "Conformidad de uso de suelo por ARPE." },
+  { id: "perm-building", name: "Building Permit (Permiso de Construcción)", nameEs: "Permiso de Construcción", agency: "OGPE / Municipio", responsible: "Nainoshka", state: defaults.state, permitType: "use", lastUpdatedAt: defaults.lastUpdatedAt, estimatedTime: "6–12 weeks", estimatedTimeEs: "6–12 semanas", notes: "Main construction permit issued by OGPE.", notesEs: "Permiso principal de construcción emitido por OGPE." },
+  { id: "perm-electrical", name: "Electrical Inspection Permit", nameEs: "Permiso de Inspección Eléctrica", agency: "AELEC / LUMA", responsible: "Jorge Rosa", state: defaults.state, permitType: "electrical", lastUpdatedAt: defaults.lastUpdatedAt, estimatedTime: "1–3 weeks", estimatedTimeEs: "1–3 semanas", notes: "Electrical system inspection.", notesEs: "Inspección del sistema eléctrico." },
+  { id: "perm-plumbing", name: "Plumbing Inspection Permit", nameEs: "Permiso de Inspección de Plomería", agency: "Junta de Calidad Ambiental", responsible: "Jorge Rosa", state: defaults.state, permitType: "plumbing", lastUpdatedAt: defaults.lastUpdatedAt, estimatedTime: "1–2 weeks", estimatedTimeEs: "1–2 semanas", notes: "Potable water and sewage approvals.", notesEs: "Aprobaciones de agua potable y alcantarillado." },
+  { id: "perm-fire", name: "Fire & Safety Certificate", nameEs: "Certificado de Bomberos", agency: "Cuerpo de Bomberos PR", responsible: "Jorge Rosa", state: defaults.state, permitType: "use", lastUpdatedAt: defaults.lastUpdatedAt, estimatedTime: "2–4 weeks", estimatedTimeEs: "2–4 semanas", notes: "Fire suppression and egress.", notesEs: "Supresión de incendios y salidas de emergencia." },
+  { id: "perm-environmental", name: "Environmental Clearance (DIA)", nameEs: "Autorización Ambiental (DIA)", agency: "Junta de Calidad Ambiental", responsible: "Nainoshka", state: defaults.state, permitType: "environmental", lastUpdatedAt: defaults.lastUpdatedAt, estimatedTime: "8–16 weeks", estimatedTimeEs: "8–16 semanas", notes: "Environmental impact assessment.", notesEs: "Evaluación de impacto ambiental." },
 ];
 
 export const PROJECT_PERMIT_AUTHORIZATIONS: Record<string, PermitAuthorization> = {

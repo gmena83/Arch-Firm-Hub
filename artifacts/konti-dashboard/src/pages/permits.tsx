@@ -7,6 +7,7 @@ import { useLang } from "@/hooks/use-lang";
 import { useListProjects } from "@workspace/api-client-react";
 import PermitsPanel from "@/components/permits-panel";
 import { PermitsDesignSection } from "@/components/permits-design-section";
+import { PermitsLegalHeader } from "@/components/permits-legal-header";
 
 export default function PermitsPage() {
   const { t, lang } = useLang();
@@ -62,6 +63,11 @@ export default function PermitsPage() {
               </div>
             )}
           </div>
+
+          {/* Legal/disclaimer header sits above all per-project panels so
+              clients see the OGPE authorization & e-signature context BEFORE
+              they scroll into individual permit items. (Task #106) */}
+          <PermitsLegalHeader />
 
           {project ? (
             <>

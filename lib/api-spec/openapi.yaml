@@ -3182,6 +3182,14 @@ components:
         state:
           type: string
           enum: [not_submitted, submitted, in_review, revision_requested, approved]
+        permitType:
+          type: string
+          description: |
+            Top-level permit family used to group items in the Permits page UI.
+            Items with no explicit type fall into "other". Stable order on the
+            client is: structural → electrical → plumbing → mechanical →
+            environmental → use → other.
+          enum: [structural, electrical, plumbing, mechanical, environmental, use, other]
         lastUpdatedAt: { type: string }
         revisionNote: { type: string }
         revisionNoteEs: { type: string }

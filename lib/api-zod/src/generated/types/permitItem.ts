@@ -5,6 +5,7 @@
  * KONTi Design | Build Studio - Project Management API
  * OpenAPI spec version: 0.1.0
  */
+import type { PermitItemPermitType } from "./permitItemPermitType";
 import type { PermitItemState } from "./permitItemState";
 
 export interface PermitItem {
@@ -14,6 +15,12 @@ export interface PermitItem {
   agency: string;
   responsible: string;
   state: PermitItemState;
+  /** Top-level permit family used to group items in the Permits page UI.
+Items with no explicit type fall into "other". Stable order on the
+client is: structural → electrical → plumbing → mechanical →
+environmental → use → other.
+ */
+  permitType?: PermitItemPermitType;
   lastUpdatedAt?: string;
   revisionNote?: string;
   revisionNoteEs?: string;

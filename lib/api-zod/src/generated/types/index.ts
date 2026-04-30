@@ -115,6 +115,7 @@ export * from "./nonBillableExpense";
 export * from "./permitAuthorization";
 export * from "./permitAuthorizationStatus";
 export * from "./permitItem";
+export * from "./permitItemPermitType";
 export * from "./permitItemState";
 export * from "./permitsResponse";
 export * from "./permitsResponseMilestones";

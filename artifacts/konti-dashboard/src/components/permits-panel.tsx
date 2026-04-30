@@ -8,9 +8,11 @@ import {
   useSetPermitItemState,
   getGetProjectPermitsQueryKey,
   getGetProjectQueryKey,
+  type PermitItem,
   type RequiredSignature,
   type PermitsResponseMilestones,
   PermitItemState,
+  PermitItemPermitType,
   SetPermitItemStateBodyState,
 } from "@workspace/api-client-react";
 import { useLang } from "@/hooks/use-lang";
@@ -35,6 +37,40 @@ const STATE_BADGE: Record<PermitItemState, { bg: string; en: string; es: string 
   revision_requested: { bg: "bg-orange-100 text-orange-800 border-orange-200", en: "Revision requested", es: "Revisión solicitada" },
   approved: { bg: "bg-emerald-100 text-emerald-800 border-emerald-200", en: "Approved", es: "Aprobado" },
 };
+
+// Stable display order for the per-type sections inside the permit items
+// list (Task #106). Anything that arrives without a `permitType` (e.g. an
+// older/legacy seed item) is bucketed under "other" at render time so it
+// never disappears from the list.
+const PERMIT_TYPE_ORDER: PermitItemPermitType[] = [
+  PermitItemPermitType.structural,
+  PermitItemPermitType.electrical,
+  PermitItemPermitType.plumbing,
+  PermitItemPermitType.mechanical,
+  PermitItemPermitType.environmental,
+  PermitItemPermitType.use,
+  PermitItemPermitType.other,
+];
+
+const PERMIT_TYPE_LABEL: Record<PermitItemPermitType, { en: string; es: string }> = {
+  structural: { en: "Structural", es: "Estructural" },
+  electrical: { en: "Electrical", es: "Eléctrico" },
+  plumbing: { en: "Plumbing", es: "Plomería" },
+  mechanical: { en: "Mechanical", es: "Mecánico" },
+  environmental: { en: "Environmental", es: "Ambiental" },
+  use: { en: "Use & Occupancy", es: "Uso y Ocupación" },
+  other: { en: "Other", es: "Otros" },
+};
+
+// Status order matching the existing badge ordering, used to keep items
+// inside each per-type section in a predictable, status-grouped sequence.
+const STATE_DISPLAY_ORDER: PermitItemState[] = [
+  PermitItemState.revision_requested,
+  PermitItemState.in_review,
+  PermitItemState.submitted,
+  PermitItemState.not_submitted,
+  PermitItemState.approved,
+];
 
 const ITEM_STATE_VALUES = Object.values(SetPermitItemStateBodyState);
 const parseItemState = (value: string): SetPermitItemStateBodyState | null =>
@@ -153,6 +189,74 @@ export default function PermitsPanel({ projectId, projectPhase, onProjectUpdated
   if (!data) return null;
 
   const { authorization, requiredSignatures, permitItems, milestones, canSubmitToOgpe } = data;
+
+  // Closure helper that renders a single permit item card. Extracted so the
+  // per-type grouping section below can call into it for each item without
+  // duplicating the markup. Captures `lang`, `t`, `isStaff`, `busyId`, and
+  // the mutation handlers from the surrounding component scope.
+  const renderPermitItem = (it: PermitItem) => {
+    const badge = STATE_BADGE[it.state];
+    return (
+      <div
+        key={it.id}
+        data-testid={`permit-item-${it.id}`}
+        className="border border-slate-200 rounded-lg p-3 bg-white"
+      >
+        <div className="flex items-start gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="font-medium text-sm text-slate-900">{lang === "es" ? it.nameEs : it.name}</div>
+              <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full border ${badge.bg}`}>
+                {lang === "es" ? badge.es : badge.en}
+              </span>
+            </div>
+            <div className="text-xs text-slate-500 mt-1">
+              {it.agency} · {it.responsible} · {lang === "es" ? it.estimatedTimeEs : it.estimatedTime}
+            </div>
+            <div className="text-xs text-slate-600 mt-1">{lang === "es" ? it.notesEs : it.notes}</div>
+            {it.state === "revision_requested" && (it.revisionNote || it.revisionNoteEs) && (
+              <div className="mt-2 text-xs px-2 py-1.5 rounded bg-orange-50 border border-orange-200 text-orange-800">
+                <strong>{t("Revision note: ", "Nota de revisión: ")}</strong>
+                {lang === "es" ? (it.revisionNoteEs ?? it.revisionNote) : (it.revisionNote ?? it.revisionNoteEs)}
+              </div>
+            )}
+            {it.lastUpdatedAt && (
+              <div className="text-[11px] text-slate-400 mt-1">
+                {t("Updated", "Actualizado")}: {new Date(it.lastUpdatedAt).toLocaleString()}
+              </div>
+            )}
+          </div>
+          {isStaff && (
+            <div className="flex flex-col gap-1.5 items-end">
+              <select
+                value={it.state}
+                onChange={(e) => {
+                  const next = parseItemState(e.target.value);
+                  if (next) void setItemState(it.id, next);
+                }}
+                disabled={busyId === `item-${it.id}`}
+                className="text-xs px-2 py-1 border border-slate-300 rounded-md bg-white focus:ring-2 focus:ring-emerald-500"
+                aria-label={t("Change state", "Cambiar estado")}
+              >
+                <option value={SetPermitItemStateBodyState.not_submitted}>{lang === "es" ? "No sometido" : "Not submitted"}</option>
+                <option value={SetPermitItemStateBodyState.submitted}>{lang === "es" ? "Sometido" : "Submitted"}</option>
+                <option value={SetPermitItemStateBodyState.in_review}>{lang === "es" ? "En revisión" : "In review"}</option>
+                <option value={SetPermitItemStateBodyState.revision_requested}>{lang === "es" ? "Revisión solicitada" : "Revision requested"}</option>
+                <option value={SetPermitItemStateBodyState.approved}>{lang === "es" ? "Aprobado" : "Approved"}</option>
+              </select>
+              <input
+                type="text"
+                placeholder={t("Revision note (optional)", "Nota de revisión (opcional)")}
+                value={revNote[it.id] ?? ""}
+                onChange={(e) => setRevNote((r) => ({ ...r, [it.id]: e.target.value }))}
+                className="text-xs px-2 py-1 border border-slate-300 rounded-md w-48"
+              />
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
@@ -288,7 +392,10 @@ export default function PermitsPanel({ projectId, projectPhase, onProjectUpdated
         </div>
       </div>
 
-      {/* Permit items */}
+      {/* Permit items — grouped by permit type, then by status inside each
+          type (Task #106). The previous flat list mixed all permit families
+          together; clients/team couldn't see "where are we on Structural
+          vs Electrical?" at a glance. */}
       <div className="px-6 py-4">
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-semibold text-slate-900">{t("Permit Items", "Permisos")}</h3>
@@ -303,67 +410,80 @@ export default function PermitsPanel({ projectId, projectPhase, onProjectUpdated
             </button>
           )}
         </div>
-        <div className="space-y-2">
-          {permitItems.map((it) => {
-            const badge = STATE_BADGE[it.state];
+        {(() => {
+          // Bucket items by permitType, defaulting to "other" so newly added
+          // permits without an explicit type still surface in the UI.
+          const byType: Record<PermitItemPermitType, PermitItem[]> = {
+            structural: [], electrical: [], plumbing: [], mechanical: [],
+            environmental: [], use: [], other: [],
+          };
+          for (const it of permitItems) {
+            const key = (it.permitType ?? PermitItemPermitType.other) as PermitItemPermitType;
+            byType[key]?.push(it);
+          }
+          const presentTypes = PERMIT_TYPE_ORDER.filter((tp) => byType[tp].length > 0);
+          if (presentTypes.length === 0) {
             return (
-              <div key={it.id} className="border border-slate-200 rounded-lg p-3">
-                <div className="flex items-start gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <div className="font-medium text-sm text-slate-900">{lang === "es" ? it.nameEs : it.name}</div>
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full border ${badge.bg}`}>
-                        {lang === "es" ? badge.es : badge.en}
-                      </span>
-                    </div>
-                    <div className="text-xs text-slate-500 mt-1">
-                      {it.agency} · {it.responsible} · {lang === "es" ? it.estimatedTimeEs : it.estimatedTime}
-                    </div>
-                    <div className="text-xs text-slate-600 mt-1">{lang === "es" ? it.notesEs : it.notes}</div>
-                    {it.state === "revision_requested" && (it.revisionNote || it.revisionNoteEs) && (
-                      <div className="mt-2 text-xs px-2 py-1.5 rounded bg-orange-50 border border-orange-200 text-orange-800">
-                        <strong>{t("Revision note: ", "Nota de revisión: ")}</strong>
-                        {lang === "es" ? (it.revisionNoteEs ?? it.revisionNote) : (it.revisionNote ?? it.revisionNoteEs)}
-                      </div>
-                    )}
-                    {it.lastUpdatedAt && (
-                      <div className="text-[11px] text-slate-400 mt-1">
-                        {t("Updated", "Actualizado")}: {new Date(it.lastUpdatedAt).toLocaleString()}
-                      </div>
-                    )}
-                  </div>
-                  {isStaff && (
-                    <div className="flex flex-col gap-1.5 items-end">
-                      <select
-                        value={it.state}
-                        onChange={(e) => {
-                          const next = parseItemState(e.target.value);
-                          if (next) void setItemState(it.id, next);
-                        }}
-                        disabled={busyId === `item-${it.id}`}
-                        className="text-xs px-2 py-1 border border-slate-300 rounded-md bg-white focus:ring-2 focus:ring-emerald-500"
-                        aria-label={t("Change state", "Cambiar estado")}
-                      >
-                        <option value={SetPermitItemStateBodyState.not_submitted}>{lang === "es" ? "No sometido" : "Not submitted"}</option>
-                        <option value={SetPermitItemStateBodyState.submitted}>{lang === "es" ? "Sometido" : "Submitted"}</option>
-                        <option value={SetPermitItemStateBodyState.in_review}>{lang === "es" ? "En revisión" : "In review"}</option>
-                        <option value={SetPermitItemStateBodyState.revision_requested}>{lang === "es" ? "Revisión solicitada" : "Revision requested"}</option>
-                        <option value={SetPermitItemStateBodyState.approved}>{lang === "es" ? "Aprobado" : "Approved"}</option>
-                      </select>
-                      <input
-                        type="text"
-                        placeholder={t("Revision note (optional)", "Nota de revisión (opcional)")}
-                        value={revNote[it.id] ?? ""}
-                        onChange={(e) => setRevNote((r) => ({ ...r, [it.id]: e.target.value }))}
-                        className="text-xs px-2 py-1 border border-slate-300 rounded-md w-48"
-                      />
-                    </div>
-                  )}
-                </div>
+              <div className="text-sm text-slate-500 italic">
+                {t("No permit items for this project yet.", "Aún no hay permisos para este proyecto.")}
               </div>
             );
-          })}
-        </div>
+          }
+          return (
+            <div className="space-y-5">
+              {presentTypes.map((tp) => {
+                const list = byType[tp];
+                const approvedCount = list.filter((i) => i.state === "approved").length;
+                const totalCount = list.length;
+                const allApproved = approvedCount === totalCount;
+                const label = PERMIT_TYPE_LABEL[tp];
+                // Sort items inside the section by status priority so
+                // revision_requested / in_review float to the top.
+                const sortedList = [...list].sort(
+                  (a, b) =>
+                    STATE_DISPLAY_ORDER.indexOf(a.state) - STATE_DISPLAY_ORDER.indexOf(b.state),
+                );
+                return (
+                  <section
+                    key={tp}
+                    data-testid={`permit-type-section-${tp}`}
+                    className="border border-slate-200 rounded-lg overflow-hidden"
+                  >
+                    <header
+                      data-testid={`permit-type-header-${tp}`}
+                      className="px-3 py-2 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-2 flex-wrap"
+                    >
+                      <div className="text-sm font-semibold text-slate-800">
+                        {lang === "es" ? label.es : label.en}
+                      </div>
+                      <span
+                        data-testid={`permit-type-chip-${tp}`}
+                        className={
+                          "inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full border " +
+                          (allApproved
+                            ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                            : "bg-slate-100 text-slate-700 border-slate-200")
+                        }
+                        aria-label={t(
+                          `${approvedCount} of ${totalCount} approved`,
+                          `${approvedCount} de ${totalCount} aprobados`,
+                        )}
+                      >
+                        {t(
+                          `${approvedCount} of ${totalCount} approved`,
+                          `${approvedCount} de ${totalCount} aprobados`,
+                        )}
+                      </span>
+                    </header>
+                    <div className="p-2 space-y-2">
+                      {sortedList.map((it) => renderPermitItem(it))}
+                    </div>
+                  </section>
+                );
+              })}
+            </div>
+          );
+        })()}
       </div>
 
       {signDialogFor && (
