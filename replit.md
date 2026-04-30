@@ -225,3 +225,42 @@ the shared Radix `<Tooltip>` primitive for full popover semantics.
 - Playwright spec `e2e/csv-mapping-import.spec.ts` cannot run in this
   environment (chromium-headless-shell missing libglib-2.0); the spec
   itself is unmodified from Task #112 and was passing then.
+
+## Upload dialog — "Just uploaded" panel + Remove (Task #64, Apr 30 2026)
+
+The Upload Document modal in `project-detail.tsx` now:
+- **Stays open** after a successful upload (previously auto-closed) so the
+  user can verify the file landed and remove a wrong pick before closing.
+- Shows a per-session **"Just uploaded" panel** under the dropzone listing
+  every successful upload from this dialog session (newest first), each row
+  rendering thumbnail (image data URL) or `FileText` icon + name + size +
+  category badge + Remove button. State is held in the modal component, so
+  it resets cleanly on every re-open (mount/unmount).
+- Remove uses the new `useDeleteProjectDocument` orval hook with an
+  **optimistic remove + per-doc rollback by index** (not a whole-array
+  snapshot), so concurrent removes/uploads don't clobber each other.
+  Bilingual destructive toast on failure, success toast on success.
+- A **Done** button inside the panel and the existing **X** both close
+  the modal.
+
+### Server contract
+- New endpoint `DELETE /api/projects/:projectId/documents/:documentId`
+  declared in `lib/api-spec/openapi.yaml` (operationId
+  `deleteProjectDocument`, 204/401/403/404). Codegen produces the
+  `useDeleteProjectDocument` hook.
+- Handler in `artifacts/api-server/src/routes/projects.ts`:
+  - Role gate `team/admin/superadmin/client`.
+  - Order: project 404 → `enforceClientOwnership` → document 404 →
+    client-uploader 403 → splice + activity → 204 (empty body).
+  - Appends a new `document_removed` activity entry (added to
+    `ProjectActivityType` and the `ACTIVITY_TYPE_TO_ENTITY` audit map in
+    `data/seed.ts`).
+
+### Coverage
+- New regression suite
+  `artifacts/api-server/src/routes/__tests__/delete-document.test.ts`
+  (10 tests): admin happy path, activity-entry assertion, owning-client
+  vs non-owner-client RBAC, anonymous 401, project-404, doc-404 (with
+  ordering proof for owning client), 204-empty-body contract, and a
+  superadmin happy path that skips cleanly if the Tatiana auth fixture
+  is unavailable.

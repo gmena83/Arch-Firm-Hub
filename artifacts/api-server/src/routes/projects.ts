@@ -377,6 +377,50 @@ router.patch(
   },
 );
 
+// Delete a single document. Team/admin/superadmin can remove any document; a
+// client may only remove documents they uploaded themselves (matched on
+// `uploadedBy === req.user.id`). Returns 204 on success and writes a
+// `document_removed` activity entry so the timeline mirrors the upload event.
+router.delete(
+  "/projects/:projectId/documents/:documentId",
+  requireRole(["team", "admin", "superadmin", "client"]),
+  (req, res) => {
+    const projectId = req.params["projectId"] as string;
+    const documentId = req.params["documentId"] as string;
+    if (!PROJECTS.find((p) => p.id === projectId)) {
+      return res.status(404).json({ error: "not_found", message: "Project not found" });
+    }
+    if (!enforceClientOwnership(req, res, projectId)) return;
+    const list = (DOCUMENTS as Record<string, Array<{
+      id: string; name: string; category: string; uploadedBy: string;
+    }>>)[projectId] ?? [];
+    const idx = list.findIndex((d) => d.id === documentId);
+    if (idx < 0) {
+      return res.status(404).json({ error: "not_found", message: "Document not found" });
+    }
+    const doc = list[idx]!;
+    const user = (req as { user?: { id?: string; role?: string; name?: string } }).user;
+    const role = user?.role;
+    const isClient = role === "client";
+    if (isClient && doc.uploadedBy !== user?.id) {
+      return res.status(403).json({
+        error: "forbidden",
+        message: "Clients can only delete documents they uploaded themselves",
+      });
+    }
+    list.splice(idx, 1);
+    (DOCUMENTS as Record<string, unknown[]>)[projectId] = list;
+    const actor = user?.name ?? (isClient ? "Client" : "Team");
+    appendActivity(projectId, {
+      type: "document_removed",
+      actor,
+      description: `Document "${doc.name}" removed from ${doc.category}`,
+      descriptionEs: `Documento "${doc.name}" eliminado de ${doc.category}`,
+    });
+    return res.status(204).end();
+  },
+);
+
 // Documents listing — gated by role + ownership. Clients are server-side
 // restricted to docs flagged isClientVisible so internal documents never
 // leave the API even if the dashboard's filter is bypassed.

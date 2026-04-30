@@ -9,6 +9,7 @@ import {
   useGetProjectDocuments,
   useGetProjectCalculations,
   useCreateProjectDocument,
+  useDeleteProjectDocument,
   useUpdateProjectDocument,
   useUpdateProjectClientContact,
   getGetProjectQueryKey,
@@ -51,7 +52,7 @@ import { MilestonesTimeline } from "@/components/milestones-timeline";
 import {
   MapPin, Users, FileText, Upload, Check, Clock, ChevronLeft,
   Wind, Droplets, Thermometer, Eye, EyeOff, ArrowRight, X,
-  ChevronDown, ChevronUp, BarChart2, History,
+  ChevronDown, ChevronUp, BarChart2, History, Trash2,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -147,7 +148,7 @@ function UploadModal({
   projectId: string;
   lockedToClientReview?: boolean;
 }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [category, setCategory] = useState<DocCategory>("client_review");
@@ -167,7 +168,17 @@ function UploadModal({
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  // Per-session "Just uploaded" log (Task #64). Holds the Document objects
+  // returned by the create mutation in upload order (oldest first → newest
+  // last). State is component-local so it resets every time the dialog is
+  // re-opened — this is intentionally a session log, not a persistent feed.
+  const [recentlyUploaded, setRecentlyUploaded] = useState<Document[]>([]);
+  // Tracks which documents are mid-delete so the Remove button can show a
+  // disabled/“Removing…” state instead of letting the user click twice.
+  const [removingIds, setRemovingIds] = useState<Set<string>>(new Set());
+
   const createDocument = useCreateProjectDocument();
+  const deleteDocument = useDeleteProjectDocument();
 
   const uploadFile = useCallback(
     async (file: File, isPhotoBatch: boolean) => {
@@ -260,7 +271,7 @@ function UploadModal({
           ? !photoInternalOnly
           : effectiveCategory === "client_review";
       try {
-        await createDocument.mutateAsync({
+        const created = await createDocument.mutateAsync({
           projectId,
           data: {
             name: file.name,
@@ -274,7 +285,7 @@ function UploadModal({
             ...(dataUrl ? { imageUrl: dataUrl } : {}),
           },
         });
-        return true;
+        return created;
       } catch (err) {
         // Bilingual destructive toast keyed by HTTP status.
         const status = (err as { status?: number }).status;
@@ -299,7 +310,7 @@ function UploadModal({
           description: t(descEn, descEs),
           variant: "destructive",
         });
-        return false;
+        return null;
       }
     },
     [createDocument, projectId, category, photoCategory, caption, photoInternalOnly, lockedToClientReview, toast, t],
@@ -309,13 +320,16 @@ function UploadModal({
     async (files: FileList | File[], isPhotoBatch: boolean) => {
       const list = Array.from(files);
       if (list.length === 0) return;
-      let successCount = 0;
+      const created: Document[] = [];
       for (const file of list) {
         // eslint-disable-next-line no-await-in-loop
-        const ok = await uploadFile(file, isPhotoBatch);
-        if (ok) successCount += 1;
+        const doc = await uploadFile(file, isPhotoBatch);
+        if (doc) created.push(doc);
       }
-      if (successCount > 0) {
+      if (created.length > 0) {
+        // Append in upload order so the panel mirrors the timeline; the UI
+        // renders newest-first via slice().reverse() below.
+        setRecentlyUploaded((prev) => [...prev, ...created]);
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: getGetProjectDocumentsQueryKey(projectId) }),
           queryClient.invalidateQueries({ queryKey: getGetProjectQueryKey(projectId) }),
@@ -323,8 +337,8 @@ function UploadModal({
         toast({
           title: isPhotoBatch
             ? t(
-                successCount === 1 ? "Photo uploaded" : `${successCount} photos uploaded`,
-                successCount === 1 ? "Foto subida" : `${successCount} fotos subidas`,
+                created.length === 1 ? "Photo uploaded" : `${created.length} photos uploaded`,
+                created.length === 1 ? "Foto subida" : `${created.length} fotos subidas`,
               )
             : t("File uploaded successfully", "Archivo subido exitosamente"),
           description: isPhotoBatch
@@ -333,10 +347,84 @@ function UploadModal({
               ? t("Email notification sent to client.", "Notificación enviada al cliente por correo.")
               : t("File saved to internal documents.", "Archivo guardado en documentos internos."),
         });
-        onClose();
+        // NOTE: Task #64 — the dialog stays open after a successful upload so
+        // the user can see the "Just uploaded" panel and remove a wrong file
+        // before closing. Closing is now an explicit action (X / Done button).
       }
     },
-    [uploadFile, queryClient, projectId, toast, t, lockedToClientReview, category, onClose],
+    [uploadFile, queryClient, projectId, toast, t, lockedToClientReview, category],
+  );
+
+  const handleRemoveRecent = useCallback(
+    async (doc: Document) => {
+      // Optimistic remove with rollback on failure (#64). The user expects
+      // the row to disappear instantly because the dialog is modal — slow
+      // network feedback would feel broken. We capture only the original
+      // index for this single doc (not a whole-array snapshot) so concurrent
+      // removes/uploads can't clobber each other on rollback.
+      setRemovingIds((prev) => {
+        const next = new Set(prev);
+        next.add(doc.id);
+        return next;
+      });
+      const originalIndex = recentlyUploaded.findIndex((d) => d.id === doc.id);
+      setRecentlyUploaded((prev) => prev.filter((d) => d.id !== doc.id));
+      try {
+        await deleteDocument.mutateAsync({ projectId, documentId: doc.id });
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: getGetProjectDocumentsQueryKey(projectId) }),
+          queryClient.invalidateQueries({ queryKey: getGetProjectQueryKey(projectId) }),
+        ]);
+        toast({
+          title: t("File removed", "Archivo eliminado"),
+          description: t(
+            `“${doc.name}” was removed from this project.`,
+            `“${doc.name}” fue eliminado del proyecto.`,
+          ),
+        });
+      } catch (err) {
+        // Roll back the optimistic state by re-inserting only this doc at
+        // (approximately) its original position. Using a functional updater
+        // avoids clobbering any uploads/deletes that completed in the
+        // meantime. If the doc was already re-added (race), the dedupe
+        // guard keeps the list unique.
+        setRecentlyUploaded((prev) => {
+          if (prev.some((d) => d.id === doc.id)) return prev;
+          const next = prev.slice();
+          const insertAt = Math.min(
+            originalIndex >= 0 ? originalIndex : next.length,
+            next.length,
+          );
+          next.splice(insertAt, 0, doc);
+          return next;
+        });
+        const status = (err as { status?: number }).status;
+        let descEn = "Could not remove the file. Please try again.";
+        let descEs = "No se pudo eliminar el archivo. Inténtalo de nuevo.";
+        if (status === 403) {
+          descEn = "Your role cannot remove this file.";
+          descEs = "Tu rol no puede eliminar este archivo.";
+        } else if (status === 404) {
+          descEn = "The file no longer exists on the server.";
+          descEs = "El archivo ya no existe en el servidor.";
+        } else if (status === 401) {
+          descEn = "Session expired. Please sign in again.";
+          descEs = "Sesión expirada. Inicia sesión nuevamente.";
+        }
+        toast({
+          title: t("Remove failed", "No se pudo eliminar"),
+          description: t(descEn, descEs),
+          variant: "destructive",
+        });
+      } finally {
+        setRemovingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(doc.id);
+          return next;
+        });
+      }
+    },
+    [recentlyUploaded, deleteDocument, queryClient, projectId, toast, t],
   );
 
   const onPickFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -536,6 +624,92 @@ function UploadModal({
                 ? t("Choose Photos", "Elegir Fotos")
                 : t("Choose File", "Elegir Archivo")}
           </button>
+
+          {recentlyUploaded.length > 0 && (
+            <div
+              data-testid="recent-uploads-panel"
+              className="border border-border rounded-md bg-muted/30 p-3 space-y-2"
+            >
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  {t(
+                    `Just uploaded (${recentlyUploaded.length})`,
+                    `Recién subidos (${recentlyUploaded.length})`,
+                  )}
+                </h3>
+              </div>
+              <ul className="space-y-2 max-h-56 overflow-y-auto">
+                {recentlyUploaded
+                  .slice()
+                  .reverse()
+                  .map((doc) => {
+                    const isRemoving = removingIds.has(doc.id);
+                    const badgeColor = DOC_CATEGORY_COLORS[doc.category] ?? "bg-gray-100 text-gray-700";
+                    return (
+                      <li
+                        key={doc.id}
+                        data-testid={`recent-upload-row-${doc.id}`}
+                        className={`flex items-center gap-3 bg-card border border-card-border rounded-md p-2 transition-opacity ${
+                          isRemoving ? "opacity-60" : ""
+                        }`}
+                      >
+                        {doc.imageUrl ? (
+                          <img
+                            src={doc.imageUrl}
+                            alt={doc.name}
+                            className="w-10 h-10 rounded object-cover shrink-0 border border-border"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded bg-muted flex items-center justify-center shrink-0 border border-border">
+                            <FileText className="w-5 h-5 text-muted-foreground" />
+                          </div>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <p
+                            className="text-sm font-medium text-foreground truncate"
+                            title={doc.name}
+                            data-testid={`recent-upload-name-${doc.id}`}
+                          >
+                            {doc.name}
+                          </p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span
+                              className={`text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded ${badgeColor}`}
+                              data-testid={`recent-upload-category-${doc.id}`}
+                            >
+                              {categoryLabel(doc.category, lang)}
+                            </span>
+                            <span className="text-xs text-muted-foreground">{doc.fileSize}</span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => void handleRemoveRecent(doc)}
+                          disabled={isRemoving || isUploading}
+                          data-testid={`btn-remove-recent-${doc.id}`}
+                          aria-label={t(`Remove ${doc.name}`, `Eliminar ${doc.name}`)}
+                          className="shrink-0 inline-flex items-center gap-1 text-xs font-medium text-destructive hover:bg-destructive/10 px-2 py-1 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          {isRemoving
+                            ? t("Removing…", "Eliminando…")
+                            : t("Remove", "Eliminar")}
+                        </button>
+                      </li>
+                    );
+                  })}
+              </ul>
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={isUploading || removingIds.size > 0}
+                data-testid="btn-done-upload"
+                className="w-full py-2 bg-card hover:bg-muted text-sm font-medium rounded-md border border-border transition-colors disabled:opacity-60"
+              >
+                {t("Done", "Listo")}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

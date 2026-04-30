@@ -478,6 +478,14 @@ export const UpdateProjectDocumentResponse = zod.object({
 });
 
 /**
+ * @summary Delete a document (team/admin/superadmin or the owning client who uploaded it)
+ */
+export const DeleteProjectDocumentParams = zod.object({
+  projectId: zod.coerce.string(),
+  documentId: zod.coerce.string(),
+});
+
+/**
  * @summary Get material calculations for a project
  */
 export const GetProjectCalculationsParams = zod.object({

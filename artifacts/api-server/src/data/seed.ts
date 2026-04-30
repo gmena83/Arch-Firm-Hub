@@ -1335,6 +1335,7 @@ export type ProjectActivityType =
   | "client_view"
   | "document_download"
   | "client_upload"
+  | "document_removed"
   | "profile_update"
   | "client_contact_updated"
   | "status_note_updated"
@@ -1420,6 +1421,7 @@ const ACTIVITY_TYPE_TO_ENTITY: Record<string, AuditEntity> = {
   document_visibility_change: "document",
   document_download: "document",
   client_upload: "document",
+  document_removed: "document",
   client_view: "client",
   profile_update: "client",
   client_contact_updated: "client",

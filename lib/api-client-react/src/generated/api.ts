@@ -1033,6 +1033,94 @@ export const useUpdateProjectDocument = <
 };
 
 /**
+ * @summary Delete a document (team/admin/superadmin or the owning client who uploaded it)
+ */
+export const getDeleteProjectDocumentUrl = (
+  projectId: string,
+  documentId: string,
+) => {
+  return `/api/projects/${projectId}/documents/${documentId}`;
+};
+
+export const deleteProjectDocument = async (
+  projectId: string,
+  documentId: string,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteProjectDocumentUrl(projectId, documentId), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteProjectDocumentMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteProjectDocument>>,
+    TError,
+    { projectId: string; documentId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteProjectDocument>>,
+  TError,
+  { projectId: string; documentId: string },
+  TContext
+> => {
+  const mutationKey = ["deleteProjectDocument"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteProjectDocument>>,
+    { projectId: string; documentId: string }
+  > = (props) => {
+    const { projectId, documentId } = props ?? {};
+
+    return deleteProjectDocument(projectId, documentId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteProjectDocumentMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteProjectDocument>>
+>;
+
+export type DeleteProjectDocumentMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Delete a document (team/admin/superadmin or the owning client who uploaded it)
+ */
+export const useDeleteProjectDocument = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteProjectDocument>>,
+    TError,
+    { projectId: string; documentId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteProjectDocument>>,
+  TError,
+  { projectId: string; documentId: string },
+  TContext
+> => {
+  return useMutation(getDeleteProjectDocumentMutationOptions(options));
+};
+
+/**
  * @summary Get material calculations for a project
  */
 export const getGetProjectCalculationsUrl = (projectId: string) => {
