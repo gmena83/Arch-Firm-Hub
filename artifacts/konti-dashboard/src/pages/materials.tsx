@@ -1,9 +1,10 @@
 import { useState, useCallback } from "react";
-import { useListMaterials } from "@workspace/api-client-react";
+import { useListMaterials, getListMaterialsQueryKey } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout/app-layout";
 import { RequireAuth } from "@/hooks/use-auth";
 import { useLang } from "@/hooks/use-lang";
-import { Search, Package, RefreshCw, CheckCircle, AlertCircle, Upload, Plus } from "lucide-react";
+import { Search, Package, RefreshCw, CheckCircle, AlertCircle, Upload, Plus, X, Loader2 } from "lucide-react";
 import { Link } from "wouter";
 
 const CATEGORIES = [
@@ -41,6 +42,7 @@ function formatRelativeTime(isoString: string, lang: string): string {
 
 export default function MaterialsPage() {
   const { t, lang } = useLang();
+  const queryClient = useQueryClient();
   const { data: materials = [], isLoading } = useListMaterials();
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("all");
@@ -50,6 +52,86 @@ export default function MaterialsPage() {
   const [refreshError, setRefreshError] = useState<string | null>(null);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<string | null>(null);
   const [priceSource, setPriceSource] = useState<string | null>(null);
+
+  // Add-Material modal state (#B-13). Posts a single material via the existing
+  // /api/estimating/materials/import endpoint (which already accepts a JSON
+  // `materials` array) so we don't need a new backend route.
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addBusy, setAddBusy] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
+  const [addItem, setAddItem] = useState("");
+  const [addItemEs, setAddItemEs] = useState("");
+  const [addCategory, setAddCategory] = useState("steel");
+  const [addUnit, setAddUnit] = useState("unit");
+  const [addPrice, setAddPrice] = useState("");
+
+  const resetAddForm = () => {
+    setAddItem("");
+    setAddItemEs("");
+    setAddCategory("steel");
+    setAddUnit("unit");
+    setAddPrice("");
+    setAddError(null);
+  };
+
+  const submitAddMaterial = useCallback(async () => {
+    setAddError(null);
+    const trimmedItem = addItem.trim();
+    const trimmedEs = (addItemEs.trim() || trimmedItem);
+    const priceNum = Number(addPrice.replace(/[^0-9.]/g, ""));
+    if (!trimmedItem) {
+      setAddError(t("Item name is required.", "El nombre del material es obligatorio."));
+      return;
+    }
+    if (!addUnit.trim()) {
+      setAddError(t("Unit is required.", "La unidad es obligatoria."));
+      return;
+    }
+    if (!isFinite(priceNum) || priceNum <= 0) {
+      setAddError(t("Base price must be greater than zero.", "El precio base debe ser mayor que cero."));
+      return;
+    }
+    setAddBusy(true);
+    try {
+      const base = (import.meta.env.BASE_URL ?? "/").replace(/\/$/, "");
+      const raw = typeof window !== "undefined" ? window.localStorage.getItem("konti_auth") : null;
+      let token: string | undefined;
+      try { token = raw ? (JSON.parse(raw).token as string) : undefined; } catch { /* ignore */ }
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (token) headers.Authorization = `Bearer ${token}`;
+      const resp = await fetch(`${base}/api/estimating/materials/import`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          materials: [{
+            item: trimmedItem,
+            item_es: trimmedEs,
+            category: addCategory,
+            unit: addUnit.trim(),
+            base_price: priceNum,
+          }],
+        }),
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({})) as { message?: string };
+        setAddError(err.message ?? t("Failed to add material.", "Error al añadir el material."));
+        return;
+      }
+      const data = await resp.json() as { imported: number; skipped: number };
+      if (data.imported < 1) {
+        setAddError(t("Material was rejected — please check the values.", "Material rechazado — revise los valores."));
+        return;
+      }
+      // Refresh the catalog so the new material shows up immediately.
+      await queryClient.invalidateQueries({ queryKey: getListMaterialsQueryKey() });
+      resetAddForm();
+      setShowAddModal(false);
+    } catch {
+      setAddError(t("Network error while saving material.", "Error de red al guardar el material."));
+    } finally {
+      setAddBusy(false);
+    }
+  }, [addItem, addItemEs, addCategory, addUnit, addPrice, queryClient, t]);
 
   const handleRefreshPrices = useCallback(async () => {
     setIsRefreshing(true);
@@ -112,14 +194,15 @@ export default function MaterialsPage() {
             </div>
 
             <div className="flex items-center gap-2 shrink-0 flex-wrap">
-            <Link
-              href="/calculator?tab=imports"
+            <button
+              type="button"
+              onClick={() => { resetAddForm(); setShowAddModal(true); }}
               data-testid="btn-add-materials"
               className="flex items-center gap-2 px-4 py-2 bg-konti-olive hover:bg-konti-olive/90 text-white text-sm font-semibold rounded-md transition-colors"
             >
               <Plus className="w-4 h-4" />
-              {t("Add Materials", "Añadir Materiales")}
-            </Link>
+              {t("Add Material", "Añadir Material")}
+            </button>
             <Link
               href="/calculator?tab=imports"
               data-testid="btn-import-materials"
@@ -258,6 +341,160 @@ export default function MaterialsPage() {
 
           <p className="text-xs text-muted-foreground">{filtered.length} {t("items shown", "elementos mostrados")}</p>
         </div>
+
+        {/* Add Material modal (#B-13) — single-row counterpart to the bulk
+            CSV import flow on the calculator/imports tab. */}
+        {showAddModal && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+            data-testid="add-material-modal"
+            onClick={(e) => { if (e.target === e.currentTarget && !addBusy) setShowAddModal(false); }}
+          >
+            <div className="bg-card rounded-xl border border-card-border shadow-lg w-full max-w-md p-5 space-y-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+                    <Plus className="w-5 h-5 text-konti-olive" />
+                    {t("Add Material", "Añadir Material")}
+                  </h2>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {t(
+                      "Add a single material to the catalog. For bulk uploads, use Import CSV.",
+                      "Añade un solo material al catálogo. Para cargas masivas, usa Importar CSV.",
+                    )}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { if (!addBusy) setShowAddModal(false); }}
+                  data-testid="btn-add-material-close"
+                  aria-label={t("Close", "Cerrar")}
+                  className="p-1 rounded-md text-muted-foreground hover:bg-muted disabled:opacity-50"
+                  disabled={addBusy}
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs font-semibold text-foreground block mb-1">
+                    {t("Item name (English)", "Nombre del material (Inglés)")} *
+                  </label>
+                  <input
+                    type="text"
+                    value={addItem}
+                    onChange={(e) => setAddItem(e.target.value)}
+                    data-testid="input-add-material-item"
+                    placeholder={t("e.g. Bamboo Flooring", "p.ej. Piso de Bambú")}
+                    className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-konti-olive/40"
+                    disabled={addBusy}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-foreground block mb-1">
+                    {t("Item name (Spanish)", "Nombre del material (Español)")}
+                    <span className="text-muted-foreground font-normal ml-1">
+                      {t("(optional, defaults to English)", "(opcional, usa el inglés)")}
+                    </span>
+                  </label>
+                  <input
+                    type="text"
+                    value={addItemEs}
+                    onChange={(e) => setAddItemEs(e.target.value)}
+                    data-testid="input-add-material-item-es"
+                    className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-konti-olive/40"
+                    disabled={addBusy}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-semibold text-foreground block mb-1">
+                      {t("Category", "Categoría")} *
+                    </label>
+                    <select
+                      value={addCategory}
+                      onChange={(e) => setAddCategory(e.target.value)}
+                      data-testid="select-add-material-category"
+                      className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-konti-olive/40"
+                      disabled={addBusy}
+                    >
+                      {CATEGORIES.filter((c) => c.key !== "all").map((c) => (
+                        <option key={c.key} value={c.key}>
+                          {lang === "es" ? c.labelEs : c.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-foreground block mb-1">
+                      {t("Unit", "Unidad")} *
+                    </label>
+                    <input
+                      type="text"
+                      value={addUnit}
+                      onChange={(e) => setAddUnit(e.target.value)}
+                      data-testid="input-add-material-unit"
+                      placeholder={t("unit, sqft, roll…", "unidad, sqft, rollo…")}
+                      className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-konti-olive/40"
+                      disabled={addBusy}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-foreground block mb-1">
+                    {t("Base price (USD)", "Precio base (USD)")} *
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={addPrice}
+                      onChange={(e) => setAddPrice(e.target.value)}
+                      data-testid="input-add-material-price"
+                      placeholder="0.00"
+                      className="w-full pl-7 pr-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-konti-olive/40"
+                      disabled={addBusy}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {addError && (
+                <div
+                  data-testid="add-material-error"
+                  className="flex items-start gap-2 px-3 py-2 bg-destructive/10 border border-destructive/30 rounded-md text-xs text-destructive"
+                >
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>{addError}</span>
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => { if (!addBusy) setShowAddModal(false); }}
+                  data-testid="btn-add-material-cancel"
+                  className="px-3 py-2 text-sm font-medium text-foreground hover:bg-muted rounded-md disabled:opacity-50"
+                  disabled={addBusy}
+                >
+                  {t("Cancel", "Cancelar")}
+                </button>
+                <button
+                  type="button"
+                  onClick={submitAddMaterial}
+                  data-testid="btn-add-material-submit"
+                  className="flex items-center gap-2 px-4 py-2 bg-konti-olive hover:bg-konti-olive/90 text-white text-sm font-semibold rounded-md transition-colors disabled:opacity-50"
+                  disabled={addBusy}
+                >
+                  {addBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                  {addBusy ? t("Saving…", "Guardando…") : t("Save Material", "Guardar Material")}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </AppLayout>
     </RequireAuth>
   );

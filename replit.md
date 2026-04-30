@@ -62,6 +62,16 @@ A bilingual (EN/ES) project management and client dashboard for KONTi Design | B
 - Stored in `localStorage` key `konti_auth`
 - Language stored in `localStorage` key `konti_lang` (`en` or `es`)
 
+### Project Report — editable date (Task #99 / C-10)
+- The report header date is editable per project, persisted under
+  `localStorage` key `konti.report.date.<projectId>`.
+- `downloadPdf()` POSTs `{ reportDate: "yyyy-mm-dd" }` to
+  `/api/projects/:id/pdf`. The server validates the shape and stamps that
+  date into the PDF header (`generatedAt`); falls back to "now in PR" if
+  missing/invalid.
+- Cross-project navigation re-loads the per-project date via a
+  `loadedProjectId` guard — see `project-report.tsx`.
+
 ### Key Files
 - `artifacts/api-server/src/data/seed.ts` — all static project data
 - `artifacts/api-server/src/routes/` — API route handlers

@@ -35,11 +35,29 @@ const PHASE_BUDGET_WEIGHTS: Record<string, number> = {
 
 type ReportTheme = "light" | "dark";
 const REPORT_THEME_KEY = "konti.report.theme";
+const REPORT_DATE_KEY = "konti.report.date";
 
 function loadInitialTheme(): ReportTheme {
   if (typeof window === "undefined") return "light";
   const stored = window.localStorage.getItem(REPORT_THEME_KEY);
   return stored === "dark" ? "dark" : "light";
+}
+
+// ISO yyyy-mm-dd today in local time (avoids the toISOString UTC shift on
+// late-evening Puerto Rico timestamps).
+function todayIso(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function loadInitialReportDate(projectId: string): string {
+  if (typeof window === "undefined") return todayIso();
+  const stored = window.localStorage.getItem(`${REPORT_DATE_KEY}.${projectId}`);
+  // Validate yyyy-mm-dd shape.
+  return stored && /^\d{4}-\d{2}-\d{2}$/.test(stored) ? stored : todayIso();
 }
 
 interface ThemeVars extends Record<string, string> {
@@ -124,10 +142,37 @@ function ReportContent({ projectId }: { projectId: string }) {
   const [theme, setTheme] = useState<ReportTheme>(loadInitialTheme);
   const isLight = theme === "light";
 
+  // Editable report date (#C-10) — defaults to today, persisted per project so
+  // a team member can re-open the same report and continue editing the same
+  // weekly snapshot. Tracked alongside the loaded projectId so navigating
+  // between two project reports doesn't accidentally write project A's date
+  // into project B's storage key.
+  const [reportDateIso, setReportDateIso] = useState<string>(() => loadInitialReportDate(projectId));
+  const [loadedProjectId, setLoadedProjectId] = useState<string>(projectId);
+
+  // Reload the persisted date whenever the active projectId changes (route
+  // change between different project reports).
+  useEffect(() => {
+    if (projectId !== loadedProjectId) {
+      setReportDateIso(loadInitialReportDate(projectId));
+      setLoadedProjectId(projectId);
+    }
+  }, [projectId, loadedProjectId]);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     window.localStorage.setItem(REPORT_THEME_KEY, theme);
   }, [theme]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!reportDateIso) return;
+    // Only persist into the project the date is actually loaded for. This
+    // guards against a race where projectId has changed but the next render
+    // hasn't yet reloaded reportDateIso from the new project's storage key.
+    if (loadedProjectId !== projectId) return;
+    window.localStorage.setItem(`${REPORT_DATE_KEY}.${projectId}`, reportDateIso);
+  }, [reportDateIso, projectId, loadedProjectId]);
 
   useEffect(() => {
     if (!projectId) return;
@@ -194,9 +239,15 @@ function ReportContent({ projectId }: { projectId: string }) {
         } catch { return null; }
       })();
       const headers: Record<string, string> = stored?.token
-        ? { Authorization: `Bearer ${stored.token}` }
-        : {};
-      const response = await fetch(`/api/projects/${project.id}/pdf`, { method: "POST", headers });
+        ? { Authorization: `Bearer ${stored.token}`, "Content-Type": "application/json" }
+        : { "Content-Type": "application/json" };
+      // Pass the editable report date (#C-10) so the exported PDF stamps the
+      // same date the team selected in the report header instead of "today".
+      const response = await fetch(`/api/projects/${project.id}/pdf`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ reportDate: reportDateIso }),
+      });
       if (!response.ok) {
         window.print();
         return;
@@ -230,6 +281,23 @@ function ReportContent({ projectId }: { projectId: string }) {
     { key: "construction", label: t("Construction", "Construcción"), num: 8 },
     { key: "completed", label: t("Completed", "Completado"), num: 9 },
   ], [t]);
+
+  // Phase-completion data for the donut (#C-04) — completed phases count as
+  // 100% and the current phase counts as the project's overall progress so
+  // partial work is visible. Hoisted above the early `!project` return so the
+  // hook order stays stable across renders.
+  const projectPhaseNumber = project?.phaseNumber ?? 0;
+  const projectProgressPercent = project?.progressPercent ?? 0;
+  const phaseCompletionData = useMemo(() => {
+    return phases.map((p) => {
+      const pct = p.num < projectPhaseNumber
+        ? 100
+        : p.num === projectPhaseNumber
+          ? Math.max(0, Math.min(100, projectProgressPercent))
+          : 0;
+      return { key: p.key, name: p.label, value: pct };
+    });
+  }, [phases, projectPhaseNumber, projectProgressPercent]);
 
   const budgetAllocated = project?.budgetAllocated ?? 0;
   const phaseBudgetData = useMemo(() => {
@@ -279,9 +347,16 @@ function ReportContent({ projectId }: { projectId: string }) {
     : [];
   const categoryTotal = categoryRows.reduce((sum, r) => sum + r.total, 0);
 
-  const reportDate = new Date().toLocaleDateString(lang === "es" ? "es-PR" : "en-US", {
-    year: "numeric", month: "long", day: "numeric"
-  });
+  // Render the editable yyyy-mm-dd in the user's locale for display in the
+  // sticky header. Parse as local time (append T00:00) so the displayed day
+  // matches the picker exactly across timezones.
+  const reportDate = new Date(`${reportDateIso}T00:00:00`).toLocaleDateString(
+    lang === "es" ? "es-PR" : "en-US",
+    { year: "numeric", month: "long", day: "numeric" },
+  );
+
+  const phaseCompletionTotal = phaseCompletionData.reduce((a, b) => a + b.value, 0);
+  const phaseCompletionAvg = phases.length > 0 ? Math.round(phaseCompletionTotal / phases.length) : 0;
 
   // Recharts tooltip styled per active theme so it stays readable on light or dark.
   const tooltipContentStyle = isLight
@@ -302,9 +377,19 @@ function ReportContent({ projectId }: { projectId: string }) {
       <div className="bg-[color:var(--rep-bg)] border-b border-[color:var(--rep-border)] px-4 sm:px-6 md:px-12 py-4 sm:py-5 flex items-center justify-between gap-4 sm:gap-6 flex-wrap sticky top-0 z-10">
         <img src={reportLogo} alt="KONTi" className="h-14 sm:h-16 md:h-20 w-auto shrink-0" data-testid="report-logo" />
         <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-          <span className="text-[color:var(--rep-fg-soft)] text-xs hidden sm:inline">
-            {t("Progress Report", "Reporte de Progreso")} — {reportDate}
-          </span>
+          <label className="hidden sm:flex items-center gap-1.5 text-[color:var(--rep-fg-soft)] text-xs">
+            <span>{t("Progress Report", "Reporte de Progreso")} —</span>
+            <input
+              type="date"
+              value={reportDateIso}
+              onChange={(e) => setReportDateIso(e.target.value || todayIso())}
+              data-testid="input-report-date"
+              aria-label={t("Report date", "Fecha del reporte")}
+              title={t("Report date — saved per project", "Fecha del reporte — se guarda por proyecto")}
+              className="bg-transparent border border-[color:var(--rep-border-strong)] rounded-md px-1.5 py-0.5 text-[color:var(--rep-fg-strong)] text-xs focus:outline-none focus:ring-1 focus:ring-konti-olive [color-scheme:light] dark:[color-scheme:dark]"
+            />
+            <span className="text-[color:var(--rep-fg-faint)]">· {reportDate}</span>
+          </label>
           <button
             onClick={() => setTheme(isLight ? "dark" : "light")}
             data-testid="btn-toggle-theme"
@@ -371,7 +456,7 @@ function ReportContent({ projectId }: { projectId: string }) {
               { label: t("Overall Progress", "Progreso General"), value: `${project.progressPercent}%`, sub: t("completion", "completado") },
               { label: t("Budget Used", "Presupuesto Usado"), value: `${spendPct}%`, sub: `$${project.budgetUsed.toLocaleString()} / $${project.budgetAllocated.toLocaleString()}` },
               { label: t("Tasks Completed", "Tareas Completadas"), value: `${completedTasks.length}`, sub: `${t("of", "de")} ${tasks.length} ${t("total", "total")}` },
-              { label: t("Site Conditions", "Condiciones del Sitio"), value: weather?.buildSuitabilityLabel ?? "—", sub: weather?.city ?? "" },
+              { label: t("Weather Status", "Estado del Clima"), value: weather?.buildSuitabilityLabel ?? "—", sub: weather?.city ?? "" },
             ].map((metric) => (
               <div key={metric.label} className="bg-[color:var(--rep-surface)] rounded-xl border border-[color:var(--rep-border)] p-5">
                 <p className="text-[color:var(--rep-fg-faint)] text-xs mb-2">{metric.label}</p>
@@ -397,6 +482,51 @@ function ReportContent({ projectId }: { projectId: string }) {
           <div className="flex justify-between mt-3">
             <span className="text-[color:var(--rep-fg-faint)] text-xs">{project.startDate}</span>
             <span className="text-[color:var(--rep-fg-faint)] text-xs">{project.estimatedEndDate}</span>
+          </div>
+        </section>
+
+        {/* Phase progress donut (#C-04) — mirrors the team's punchlist
+            phase-pie style and replaces the older budget-only phase chart
+            as the headline phase visualization. Phase numbers are not
+            shown (#C-03) so the chart stays readable next to the punchlist. */}
+        <section className="grid md:grid-cols-2 gap-8 items-center" data-testid="report-phase-progress">
+          <div>
+            <h2 className="text-[color:var(--rep-fg-faint)] text-xs font-semibold uppercase tracking-widest mb-4">
+              {t("Phase Progress", "Progreso por Fase")}
+            </h2>
+            <p className="text-[color:var(--rep-fg-soft)] text-xs mb-3">
+              {t(
+                "Completion percentage per macro phase — completed phases count as 100%, the current phase reflects the project's overall progress.",
+                "Porcentaje de completado por fase — las fases completadas cuentan como 100% y la fase actual refleja el progreso general del proyecto.",
+              )}
+            </p>
+            <div className="space-y-1.5">
+              {phaseCompletionData.map((item, i) => (
+                <div key={item.key} className="flex items-center justify-between" data-testid={`phase-progress-row-${item.key}`}>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }} />
+                    <span className="text-xs text-[color:var(--rep-fg-muted)] truncate">{item.name}</span>
+                  </div>
+                  <span className="text-xs font-medium text-[color:var(--rep-fg-strong)] tabular-nums shrink-0 ml-2">{item.value}%</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="h-56 relative">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={phaseCompletionData} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={2} dataKey="value" nameKey="name">
+                  {phaseCompletionData.map((_, index) => (
+                    <Cell key={`phase-progress-cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value: number, name: string) => [`${value}%`, name]} contentStyle={tooltipContentStyle} />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+              <span className="text-3xl font-bold text-[color:var(--rep-fg-strong)] leading-none">{phaseCompletionAvg}%</span>
+              <span className="text-[10px] text-[color:var(--rep-fg-faint)] uppercase tracking-widest mt-1">{t("avg", "prom")}</span>
+            </div>
           </div>
         </section>
 
@@ -735,7 +865,7 @@ function ReportContent({ projectId }: { projectId: string }) {
         {weather && (
           <section className="bg-[color:var(--rep-surface)] rounded-xl border border-[color:var(--rep-border)] p-6">
             <h2 className="text-[color:var(--rep-fg-faint)] text-xs font-semibold uppercase tracking-widest mb-4">
-              {t("Site Conditions", "Condiciones del Sitio")} — {weather.city}
+              {t("Weather Status", "Estado del Clima")} — {weather.city}
             </h2>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div className="min-w-0">

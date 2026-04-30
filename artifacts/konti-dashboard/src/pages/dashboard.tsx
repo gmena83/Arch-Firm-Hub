@@ -9,7 +9,7 @@ import { RequireAuth, useAuth } from "@/hooks/use-auth";
 import { useLang } from "@/hooks/use-lang";
 import { WeatherBadge } from "@/components/weather-badge";
 import { useGetProjectWeather } from "@workspace/api-client-react";
-import { ArrowRight, TrendingUp, FolderOpen, FileText, Clock, Activity, BarChart3, CheckCircle } from "lucide-react";
+import { ArrowRight, TrendingUp, FolderOpen, FileText, Clock, Activity, BarChart3, CheckCircle, Receipt } from "lucide-react";
 import { ConstructionStatusCard } from "@/components/construction-status-card";
 import { formatDistanceToNow } from "date-fns";
 import { es as dateEs } from "date-fns/locale";
@@ -206,6 +206,32 @@ function DashboardContent() {
           </div>
         ))}
       </div>
+
+      {/* Receipts & Variance shortcut (#B-09) — surface the deeply-nested
+          variance tab so the team can jump straight from the dashboard. */}
+      {!isClientUser && (
+        <Link
+          href="/calculator?tab=variance"
+          data-testid="link-receipts-variance"
+          className="group flex items-start gap-3 p-4 bg-card rounded-xl border border-card-border shadow-sm hover:border-konti-olive/50 hover:bg-muted/30 transition-colors"
+        >
+          <div className="mt-0.5 w-9 h-9 rounded-md bg-konti-olive/10 flex items-center justify-center text-konti-olive shrink-0">
+            <Receipt className="w-4 h-4" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-foreground">
+              {t("Receipts & Variance", "Recibos y Varianza")}
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {t(
+                "Upload receipts, categorize spend, and compare actuals against the estimate.",
+                "Sube recibos, categoriza el gasto y compara real vs. estimado.",
+              )}
+            </p>
+          </div>
+          <ArrowRight className="w-4 h-4 text-muted-foreground shrink-0 mt-1 opacity-0 group-hover:opacity-100 transition-opacity" />
+        </Link>
+      )}
 
       {/* Projects grid — primary landing section, above the fold */}
       <div>

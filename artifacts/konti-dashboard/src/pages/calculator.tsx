@@ -431,7 +431,16 @@ export default function CalculatorPage() {
             <TabsList data-testid="calculator-tabs" className="flex flex-wrap h-auto">
               <TabsTrigger value="estimate" data-testid="tab-estimate">{t("Estimate", "Estimado")}</TabsTrigger>
               <TabsTrigger value="contractor" data-testid="tab-contractor">{t("Contractor", "Contratista")}</TabsTrigger>
-              <TabsTrigger value="imports" data-testid="tab-imports">{t("Imports", "Importaciones")}</TabsTrigger>
+              <TabsTrigger
+                value="imports"
+                data-testid="tab-imports"
+                title={t(
+                  "Bulk-import materials, labor rates, receipts, and report templates from CSV or Excel.",
+                  "Importa en lote materiales, tarifas de mano de obra, recibos y plantillas de reporte desde CSV o Excel.",
+                )}
+              >
+                {t("Imported Materials", "Materiales Importados")}
+              </TabsTrigger>
               <TabsTrigger value="variance" data-testid="tab-variance">{t("Variance", "Varianza")}</TabsTrigger>
             </TabsList>
 

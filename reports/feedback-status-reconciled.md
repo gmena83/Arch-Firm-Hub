@@ -8,9 +8,9 @@ Reconciled workbook: `attached_assets/KONTi_Dashboard_Feedback_Consolidated_v3_a
 
 | Status | Count |
 |---|---:|
-| Open | 26 |
+| Open | 13 |
 | In Progress | 0 |
-| Done | 23 |
+| Done | 36 |
 | Done — needs verification | 1 |
 | Needs Spec | 0 |
 | Needs Decision | 7 |
@@ -27,6 +27,7 @@ These rows look closed on paper but a PM should eyeball the live UI before promo
 
 | ID | Was | Now | Closed by |
 |---|---|---|---|
+| A-01 | Open | Done | Done in #99 (Reviewer feedback bundle #2): project-invoices.tsx Total/Paid/Balance/Status columns now render from invoice data. |
 | A-03 | Open | Done | Done in #61 (client portal expansion: client uploads enabled). |
 | A-04 | Open | Done | Done in #63 (document organization: contracts/agreements grouping). |
 | A-06 | Open | Done | Done in #61 (per-document client visibility) and reinforced by #88 (client ownership checks). |
@@ -36,50 +37,49 @@ These rows look closed on paper but a PM should eyeball the live UI before promo
 | B-03 | Open | Done | Done in #75 (calculator auto-populates from imported materials). |
 | B-04 | Open | Done | Done in #75 (inline edit + PATCH /projects/:id/calculations/:lineId persistence). |
 | B-05 | Open | Done | Done in #75 (Project Information panel with bathrooms/kitchens/margin/mgmt-fee inputs). |
+| B-06 | Open | Done | Done in #99 (Reviewer feedback bundle #2): calculator estimate table now groups by category with per-category subtotal cards, mirroring the team's external estimate format. |
+| B-07 | Open | Done | Done in #99 (Reviewer feedback bundle #2): renamed Imports tab to 'Imported Materials' / 'Materiales Importados' with hover tooltip describing CSV/Excel bulk import. |
 | B-08 | Open | Done | Done in #75 (renamed to 'Effective Price' with tooltip + legend). |
+| B-09 | Open | Done | Done in #99 (Reviewer feedback bundle #2): added 'Receipts & Variance' shortcut card on dashboard linking team users straight to /calculator?tab=variance. |
 | B-10 | In Progress | Done | Done in #27 (receipts and contractor estimates persist across restart). |
 | B-11 | In Progress | Done | Done in #28 (real PDF/image OCR replaces the mock). |
 | B-12 | In Progress | Done | Done in #29 (PDF export now uses the saved report template). |
+| B-13 | Open | Done | Done in #99 (Reviewer feedback bundle #2): Materials Library 'Add Material' button now opens a modal that POSTs a single material via the existing /api/estimating/materials/import endpoint and refreshes the catalog. |
+| C-02 | Open | Done | Done in #99 (Reviewer feedback bundle #2): contractor BOM detail now gated by !isClientView so client viewers only see the Cost-by-Category rollup and never the raw line items. |
+| C-03 | Open | Done | Done in #99 (Reviewer feedback bundle #2): phase numbers no longer rendered anywhere in the project report (phase chips, timeline, donut all show labels only). |
+| C-04 | Open | Done | Done in #99 (Reviewer feedback bundle #2): added Phase Progress donut on the project report mirroring the punchlist phase-pie style with per-phase % completion and an avg-completion centre label. |
+| C-05 | Open | Done | Done in #99 (Reviewer feedback bundle #2): renamed 'Site Conditions' to 'Weather Status' / 'Estado del Clima' in the report header tile and the dedicated weather section. |
+| C-06 | Open | Done | Done in #99 (Reviewer feedback bundle #2): Cost-by-Category card and the BOM detail are both driven from the same calc.subtotalByCategory data so totals always match. |
 | C-07 | Open | Done | Done in #75 (mgmt fee editable from the project report; flows through to the rollup). |
 | C-08 | Open | Done | Done in #71 (P1 quick wins: report logo enlarged). |
 | C-09 | Open | Done | Done in #62 (KONTi brand pass replaced the dark/black palette). |
+| C-10 | In Progress | Done | Done in #99 (Reviewer feedback bundle #2): replaced auto-generated reportDate with an editable <input type='date'> in the sticky report header, persisted per project via localStorage. |
 | C-12 | Open | Done | Done in #62 (light backgrounds across the project report). |
 | D-01 | In Progress | Done | Done in #30 (AI assistant notes/updates persist across restart). |
 | E-03 | Open | Done | Done in #71 (P1 quick wins: permits copy fixed). |
 | F-01 | Open | Done | Done in #71 (P1 quick wins: clickable activity). |
 | F-02 | In Progress | Done | Done in #61 (client home in client portal) and #72 (dashboard restructure). |
+| H-01 | Open | Done | Done in #99 (Reviewer feedback bundle #2): leads page now renders an inline lead-score legend (Hot / Warm / Cold / New thresholds) right next to the table. |
 | I-01 | In Progress | Done | Done in #60 (file upload regression on the demo project fixed). |
+| I-02 | Open | Done | Done in #99 (Reviewer feedback bundle #2): document upload modal now requires a category dropdown so demo-project docs are sorted into the correct buckets. |
 | I-03 | In Progress | Done | Done in #32 (punchlist persists across restart). |
 
 ## Items still **Open**
 
 | ID | Was | Now | Note |
 |---|---|---|---|
-| A-01 | Open | Open | — |
 | A-02 | Open | Open | — |
 | A-05 | Open | Open | — |
 | A-07 | Open | Open | Tracked as Task #47 (Site photo upload, categorization, links from report). |
 | A-09 | Open | Open | — |
 | A-12 | Open | Open | Admin-side audit log shipped in #73; client-side audit log still V2. |
 | B-02 | Open | Open | — |
-| B-06 | Open | Open | Partially mitigated by #75 contractor rollup; full categorical summary still pending. |
-| B-07 | Open | Open | — |
-| B-09 | Open | Open | — |
-| B-13 | Open | Open | — |
 | B-14 | Open | Open | — |
 | C-01 | Open | Open | Punchlist persistence shipped in #32; photo links + categories on the report still pending. |
-| C-02 | Open | Open | — |
-| C-03 | Open | Open | — |
-| C-04 | Open | Open | — |
-| C-05 | Open | Open | — |
-| C-06 | Open | Open | — |
-| C-10 | In Progress | Open | — |
 | C-11 | Open | Open | Tracked as Task #47 (Site photo upload, categorization, links from report). |
 | E-01 | Open | Open | Tracked as Task #48 (Permits page: legal header + split by permit type). |
 | E-02 | Open | Open | Tracked as Task #48 (Permits page: legal header + split by permit type). |
 | G-01 | Open | Open | — |
-| H-01 | Open | Open | — |
-| I-02 | Open | Open | — |
 | I-04 | Open | Open | — |
 
 ## Items needing a product decision

@@ -622,7 +622,22 @@ router.post("/projects/:id/pdf", requireRole(["team", "admin", "superadmin", "ar
     name: string; category: string; uploadedAt: string;
   }>;
   const phaseLabel = String(project.phase ?? "discovery").replace(/_/g, " ").toUpperCase();
-  const generatedAt = new Date().toLocaleString("en-US", { timeZone: "America/Puerto_Rico" });
+  // Honor a client-supplied report date (#C-10) when present and shaped as
+  // yyyy-mm-dd so the PDF matches what the team configured in the in-app
+  // report header. Fall back to "now" in PR time otherwise.
+  const requestedDate = (req.body && typeof req.body === "object")
+    ? (req.body as Record<string, unknown>)["reportDate"]
+    : undefined;
+  let generatedAt: string;
+  if (typeof requestedDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(requestedDate)) {
+    // Parse as PR-local midnight so the displayed date matches the picker.
+    const d = new Date(`${requestedDate}T12:00:00-04:00`);
+    generatedAt = isNaN(d.getTime())
+      ? new Date().toLocaleString("en-US", { timeZone: "America/Puerto_Rico" })
+      : d.toLocaleDateString("en-US", { timeZone: "America/Puerto_Rico", year: "numeric", month: "long", day: "numeric" });
+  } else {
+    generatedAt = new Date().toLocaleString("en-US", { timeZone: "America/Puerto_Rico" });
+  }
   const taskRows = tasks.slice(0, 12).map((t) =>
     `<tr><td style="padding:4px 8px;border-bottom:1px solid #eee;">${escapeHtml(t.title)}</td>` +
     `<td style="padding:4px 8px;border-bottom:1px solid #eee;color:#666;">${escapeHtml(t.phase ?? "")}</td>` +

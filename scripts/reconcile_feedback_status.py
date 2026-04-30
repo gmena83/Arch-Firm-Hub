@@ -19,7 +19,7 @@ REPORT = "reports/feedback-status-reconciled.md"
 # Status values: Done | In Progress | Open | Needs Decision | Needs Spec
 MAP = {
     # --- A. Project Detail ---
-    "A-01": ("Open", None),
+    "A-01": ("Done", "Done in #99 (Reviewer feedback bundle #2): project-invoices.tsx Total/Paid/Balance/Status columns now render from invoice data."),
     "A-02": ("Open", None),
     "A-03": ("Done", "Done in #61 (client portal expansion: client uploads enabled)."),
     "A-04": ("Done", "Done in #63 (document organization: contracts/agreements grouping)."),
@@ -39,27 +39,27 @@ MAP = {
     "B-03": ("Done", "Done in #75 (calculator auto-populates from imported materials)."),
     "B-04": ("Done", "Done in #75 (inline edit + PATCH /projects/:id/calculations/:lineId persistence)."),
     "B-05": ("Done", "Done in #75 (Project Information panel with bathrooms/kitchens/margin/mgmt-fee inputs)."),
-    "B-06": ("Open", "Partially mitigated by #75 contractor rollup; full categorical summary still pending."),
-    "B-07": ("Open", None),
+    "B-06": ("Done", "Done in #99 (Reviewer feedback bundle #2): calculator estimate table now groups by category with per-category subtotal cards, mirroring the team's external estimate format."),
+    "B-07": ("Done", "Done in #99 (Reviewer feedback bundle #2): renamed Imports tab to 'Imported Materials' / 'Materiales Importados' with hover tooltip describing CSV/Excel bulk import."),
     "B-08": ("Done", "Done in #75 (renamed to 'Effective Price' with tooltip + legend)."),
-    "B-09": ("Open", None),
+    "B-09": ("Done", "Done in #99 (Reviewer feedback bundle #2): added 'Receipts & Variance' shortcut card on dashboard linking team users straight to /calculator?tab=variance."),
     "B-10": ("Done", "Done in #27 (receipts and contractor estimates persist across restart)."),
     "B-11": ("Done", "Done in #28 (real PDF/image OCR replaces the mock)."),
     "B-12": ("Done", "Done in #29 (PDF export now uses the saved report template)."),
-    "B-13": ("Open", None),
+    "B-13": ("Done", "Done in #99 (Reviewer feedback bundle #2): Materials Library 'Add Material' button now opens a modal that POSTs a single material via the existing /api/estimating/materials/import endpoint and refreshes the catalog."),
     "B-14": ("Open", None),
 
     # --- C. Project Report ---
     "C-01": ("Open", "Punchlist persistence shipped in #32; photo links + categories on the report still pending."),
-    "C-02": ("Open", None),
-    "C-03": ("Open", None),
-    "C-04": ("Open", None),
-    "C-05": ("Open", None),
-    "C-06": ("Open", None),
+    "C-02": ("Done", "Done in #99 (Reviewer feedback bundle #2): contractor BOM detail now gated by !isClientView so client viewers only see the Cost-by-Category rollup and never the raw line items."),
+    "C-03": ("Done", "Done in #99 (Reviewer feedback bundle #2): phase numbers no longer rendered anywhere in the project report (phase chips, timeline, donut all show labels only)."),
+    "C-04": ("Done", "Done in #99 (Reviewer feedback bundle #2): added Phase Progress donut on the project report mirroring the punchlist phase-pie style with per-phase % completion and an avg-completion centre label."),
+    "C-05": ("Done", "Done in #99 (Reviewer feedback bundle #2): renamed 'Site Conditions' to 'Weather Status' / 'Estado del Clima' in the report header tile and the dedicated weather section."),
+    "C-06": ("Done", "Done in #99 (Reviewer feedback bundle #2): Cost-by-Category card and the BOM detail are both driven from the same calc.subtotalByCategory data so totals always match."),
     "C-07": ("Done", "Done in #75 (mgmt fee editable from the project report; flows through to the rollup)."),
     "C-08": ("Done", "Done in #71 (P1 quick wins: report logo enlarged)."),
     "C-09": ("Done", "Done in #62 (KONTi brand pass replaced the dark/black palette)."),
-    "C-10": ("Open", None),
+    "C-10": ("Done", "Done in #99 (Reviewer feedback bundle #2): replaced auto-generated reportDate with an editable <input type='date'> in the sticky report header, persisted per project via localStorage."),
     "C-11": ("Open", "Tracked as Task #47 (Site photo upload, categorization, links from report)."),
     "C-12": ("Done", "Done in #62 (light backgrounds across the project report)."),
 
@@ -82,13 +82,13 @@ MAP = {
     "G-01": ("Open", None),
 
     # --- H. Leads / CRM ---
-    "H-01": ("Open", None),
+    "H-01": ("Done", "Done in #99 (Reviewer feedback bundle #2): leads page now renders an inline lead-score legend (Hot / Warm / Cold / New thresholds) right next to the table."),
     "H-02": ("Needs Decision", None),
     "H-03": ("Needs Decision", None),
 
     # --- I. Demo Project ---
     "I-01": ("Done", "Done in #60 (file upload regression on the demo project fixed)."),
-    "I-02": ("Open", None),
+    "I-02": ("Done", "Done in #99 (Reviewer feedback bundle #2): document upload modal now requires a category dropdown so demo-project docs are sorted into the correct buckets."),
     "I-03": ("Done", "Done in #32 (punchlist persists across restart)."),
     "I-04": ("Open", None),
 
