@@ -18,6 +18,7 @@ import TeamPage from "@/pages/team";
 import PermitsPage from "@/pages/permits";
 import IntakePage from "@/pages/intake";
 import LeadsPage from "@/pages/leads";
+import AuditPage from "@/pages/audit";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -47,6 +48,7 @@ function Router() {
       <Route path="/permits" component={PermitsPage} />
       <Route path="/intake" component={IntakePage} />
       <Route path="/leads" component={LeadsPage} />
+      <Route path="/audit" component={AuditPage} />
       <Route component={NotFound} />
     </Switch>
   );

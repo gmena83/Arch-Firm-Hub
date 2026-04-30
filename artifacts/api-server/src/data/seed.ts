@@ -1184,13 +1184,154 @@ export interface PreDesignChecklistItem {
   completedAt?: string;
 }
 
+export type ProjectActivityType =
+  | "phase_change"
+  | "checklist_toggle"
+  | "gamma_generated"
+  | "email_sent"
+  | "invoice_sent"
+  | "weekly_report"
+  | "structured_variables"
+  | "proposal_decision"
+  | "change_order_created"
+  | "change_order_decision"
+  | "sub_phase_advanced"
+  | "permit_authorization"
+  | "permit_signature"
+  | "permit_submitted"
+  | "permit_state_change"
+  | "inspection_scheduled"
+  | "inspection_status_change"
+  | "inspection_report_sent"
+  | "inspection_removed"
+  | "milestone_status_change"
+  | "receipts_upload"
+  | "report_template_upload"
+  | "contractor_estimate"
+  | "calculator_import"
+  | "punchlist_change"
+  | "document_visibility_change"
+  | "client_view"
+  | "document_download"
+  | "client_upload"
+  | "profile_update"
+  | "client_contact_updated"
+  | "project_created"
+  | "contractor_created"
+  | "contractor_deleted"
+  | "lead_accepted";
+
 export interface ProjectActivity {
   id: string;
   timestamp: string;
-  type: "phase_change" | "checklist_toggle" | "gamma_generated" | "email_sent" | "invoice_sent" | "weekly_report" | "structured_variables" | "proposal_decision" | "change_order_created" | "change_order_decision" | "sub_phase_advanced" | "permit_authorization" | "permit_signature" | "permit_submitted" | "permit_state_change" | "inspection_scheduled" | "inspection_status_change" | "inspection_report_sent" | "inspection_removed" | "milestone_status_change" | "receipts_upload" | "report_template_upload" | "contractor_estimate" | "punchlist_change" | "document_visibility_change" | "client_view" | "document_download" | "client_upload" | "profile_update";
+  type: ProjectActivityType;
   actor: string;
   description: string;
   descriptionEs: string;
+}
+
+// ---------------------------------------------------------------------------
+// Audit log (Task #73)
+// A normalized, cross-project audit feed for admins. Every call to
+// `appendActivity` mirrors a row here; routes that mutate non-project state
+// (contractors, materials, …) call `appendAuditEntry` directly.
+// ---------------------------------------------------------------------------
+export type AuditEntity =
+  | "project"
+  | "document"
+  | "contractor"
+  | "permit"
+  | "calculator"
+  | "cost_plus"
+  | "design"
+  | "proposal"
+  | "change_order"
+  | "inspection"
+  | "milestone"
+  | "lead"
+  | "punchlist"
+  | "client"
+  | "system";
+
+export interface AuditEntry {
+  id: string;
+  timestamp: string;
+  actor: string;
+  actorRole?: string;
+  actorId?: string;
+  entity: AuditEntity;
+  entityId?: string;
+  projectId?: string;
+  type: string;
+  description: string;
+  descriptionEs: string;
+}
+
+const ACTIVITY_TYPE_TO_ENTITY: Record<string, AuditEntity> = {
+  phase_change: "project",
+  checklist_toggle: "project",
+  gamma_generated: "project",
+  email_sent: "project",
+  invoice_sent: "project",
+  weekly_report: "project",
+  structured_variables: "project",
+  project_created: "project",
+  lead_accepted: "lead",
+  proposal_decision: "proposal",
+  change_order_created: "change_order",
+  change_order_decision: "change_order",
+  sub_phase_advanced: "design",
+  permit_authorization: "permit",
+  permit_signature: "permit",
+  permit_submitted: "permit",
+  permit_state_change: "permit",
+  inspection_scheduled: "inspection",
+  inspection_status_change: "inspection",
+  inspection_report_sent: "inspection",
+  inspection_removed: "inspection",
+  milestone_status_change: "milestone",
+  receipts_upload: "calculator",
+  report_template_upload: "calculator",
+  contractor_estimate: "calculator",
+  calculator_import: "calculator",
+  punchlist_change: "punchlist",
+  document_visibility_change: "document",
+  document_download: "document",
+  client_upload: "document",
+  client_view: "client",
+  profile_update: "client",
+  client_contact_updated: "client",
+  contractor_created: "contractor",
+  contractor_deleted: "contractor",
+};
+
+export const AUDIT_LOG: AuditEntry[] = [];
+
+const AUDIT_LOG_LIMIT = 5000;
+
+export function appendAuditEntry(
+  entry: Omit<AuditEntry, "id" | "timestamp"> & { id?: string; timestamp?: string },
+): AuditEntry {
+  const e: AuditEntry = {
+    id: entry.id ?? `audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    timestamp: entry.timestamp ?? new Date().toISOString(),
+    actor: entry.actor,
+    ...(entry.actorRole !== undefined ? { actorRole: entry.actorRole } : {}),
+    ...(entry.actorId !== undefined ? { actorId: entry.actorId } : {}),
+    entity: entry.entity,
+    ...(entry.entityId !== undefined ? { entityId: entry.entityId } : {}),
+    ...(entry.projectId !== undefined ? { projectId: entry.projectId } : {}),
+    type: entry.type,
+    description: entry.description,
+    descriptionEs: entry.descriptionEs,
+  };
+  AUDIT_LOG.unshift(e);
+  if (AUDIT_LOG.length > AUDIT_LOG_LIMIT) AUDIT_LOG.length = AUDIT_LOG_LIMIT;
+  return e;
+}
+
+export function entityForActivityType(type: string): AuditEntity {
+  return ACTIVITY_TYPE_TO_ENTITY[type] ?? "project";
 }
 
 export interface StructuredVariables {
@@ -1305,7 +1446,11 @@ export const WEEKLY_REPORTS: Record<string, WeeklyReport[]> = {
   ],
 };
 
-export function appendActivity(projectId: string, activity: Omit<ProjectActivity, "id" | "timestamp">): ProjectActivity {
+export function appendActivity(
+  projectId: string,
+  activity: Omit<ProjectActivity, "id" | "timestamp">,
+  audit?: { actorId?: string; actorRole?: string; entity?: AuditEntity; entityId?: string },
+): ProjectActivity {
   const list = PROJECT_ACTIVITIES[projectId] ?? (PROJECT_ACTIVITIES[projectId] = []);
   const entry: ProjectActivity = {
     id: `act-${projectId}-${Date.now()}`,
@@ -1313,8 +1458,42 @@ export function appendActivity(projectId: string, activity: Omit<ProjectActivity
     ...activity,
   };
   list.unshift(entry);
+  // Mirror into the cross-project audit log so admins see this in /audit.
+  appendAuditEntry({
+    id: `audit-${entry.id}`,
+    timestamp: entry.timestamp,
+    actor: entry.actor,
+    ...(audit?.actorId !== undefined ? { actorId: audit.actorId } : {}),
+    ...(audit?.actorRole !== undefined ? { actorRole: audit.actorRole } : {}),
+    entity: audit?.entity ?? entityForActivityType(entry.type),
+    ...(audit?.entityId !== undefined ? { entityId: audit.entityId } : {}),
+    projectId,
+    type: entry.type,
+    description: entry.description,
+    descriptionEs: entry.descriptionEs,
+  });
   return entry;
 }
+
+// Seed the audit log from PROJECT_ACTIVITIES so the admin view has historical
+// content immediately after server start (rather than starting empty).
+(function seedAuditLogFromActivities() {
+  for (const [pid, list] of Object.entries(PROJECT_ACTIVITIES)) {
+    for (const a of list) {
+      AUDIT_LOG.push({
+        id: `audit-${a.id}`,
+        timestamp: a.timestamp,
+        actor: a.actor,
+        entity: entityForActivityType(a.type),
+        projectId: pid,
+        type: a.type,
+        description: a.description,
+        descriptionEs: a.descriptionEs,
+      });
+    }
+  }
+  AUDIT_LOG.sort((a, b) => (a.timestamp < b.timestamp ? 1 : -1));
+})();
 
 export type ProjectPhase =
   | "discovery"

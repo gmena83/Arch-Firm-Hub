@@ -30,6 +30,8 @@ tags:
     description: Lead intake & discovery
   - name: contractors
     description: Contractor / vendor directory
+  - name: audit
+    description: Cross-project audit log (admin / superadmin only)
   - name: permits
     description: Phase 4 — Permit authorization & OGPE submission
   - name: construction
@@ -1867,6 +1869,60 @@ paths:
         "404":
           description: Contractor not found
 
+  /audit:
+    get:
+      operationId: getAuditLog
+      tags: [audit]
+      summary: Cross-project audit log (admin / superadmin only)
+      description: Returns recent audit entries with optional filtering by project, actor (substring match), entity, and date range. Capped at 1000 entries per request.
+      parameters:
+        - in: query
+          name: projectId
+          required: false
+          schema: { type: string }
+          description: Restrict to a single project.
+        - in: query
+          name: actor
+          required: false
+          schema: { type: string }
+          description: Case-insensitive substring match against actor name.
+        - in: query
+          name: entity
+          required: false
+          schema: { type: string }
+          description: Restrict to a single entity bucket (project, document, contractor, permit, calculator, …).
+        - in: query
+          name: from
+          required: false
+          schema: { type: string }
+          description: ISO date or date-time. Lower bound (inclusive).
+        - in: query
+          name: to
+          required: false
+          schema: { type: string }
+          description: ISO date or date-time. Upper bound (inclusive — bare dates cover the whole day).
+        - in: query
+          name: limit
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 1000 }
+          description: Max entries to return (default 200).
+      responses:
+        "200":
+          description: Audit log page with filter metadata.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuditLogResponse" }
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Admin / superadmin only
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
   /ai/chat:
     post:
       operationId: sendChatMessage
@@ -2441,6 +2497,64 @@ components:
               reason: { type: string }
             required: [index, reason]
       required: [created, skipped]
+
+    AuditEntry:
+      type: object
+      description: A single normalized audit entry for the cross-project admin log.
+      properties:
+        id: { type: string }
+        timestamp: { type: string, description: "ISO timestamp the action happened." }
+        actor: { type: string, description: "Display name of the user / system that performed the action." }
+        actorId: { type: string }
+        actorRole: { type: string }
+        entity:
+          type: string
+          description: Bucket the entry belongs to (project, document, contractor, permit, calculator, …).
+        entityId: { type: string }
+        projectId: { type: string }
+        projectName: { type: string, description: "Server-resolved project name for convenience." }
+        type: { type: string, description: "Specific action type (e.g. phase_change, contractor_created)." }
+        description: { type: string }
+        descriptionEs: { type: string }
+      required: [id, timestamp, actor, entity, type, description, descriptionEs]
+
+    AuditLogResponse:
+      type: object
+      properties:
+        total:
+          type: integer
+          description: Total entries currently retained in the audit log (pre-filter).
+        matching:
+          type: integer
+          description: Number of entries matching the requested filters.
+        returned:
+          type: integer
+          description: Number of entries actually returned (after limit).
+        limit:
+          type: integer
+        entries:
+          type: array
+          items: { $ref: "#/components/schemas/AuditEntry" }
+        filters:
+          type: object
+          description: Distinct values present across the entire log (helpful for filter dropdowns).
+          properties:
+            actors:
+              type: array
+              items: { type: string }
+            entities:
+              type: array
+              items: { type: string }
+            projects:
+              type: array
+              items:
+                type: object
+                properties:
+                  id: { type: string }
+                  name: { type: string }
+                required: [id, name]
+          required: [actors, entities, projects]
+      required: [total, matching, returned, limit, entries, filters]
 
     CalculatorEntry:
       type: object

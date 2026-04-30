@@ -21,6 +21,7 @@ import type {
   AdvanceDesignSubPhase200,
   AdvanceProjectPhase200,
   ApproveProposal200,
+  AuditLogResponse,
   AuthorizePermits200,
   CalculatorSummary,
   ChangeOrderResponse,
@@ -48,6 +49,7 @@ import type {
   DocumentUpdateRequest,
   ErrorResponse,
   GammaReportResponse,
+  GetAuditLogParams,
   GetInspection200,
   GetProjectAuditLogParams,
   GetProjectDocumentsParams,
@@ -5869,6 +5871,101 @@ export const useDeleteContractor = <
 > => {
   return useMutation(getDeleteContractorMutationOptions(options));
 };
+
+/**
+ * Returns recent audit entries with optional filtering by project, actor (substring match), entity, and date range. Capped at 1000 entries per request.
+ * @summary Cross-project audit log (admin / superadmin only)
+ */
+export const getGetAuditLogUrl = (params?: GetAuditLogParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/audit?${stringifiedParams}`
+    : `/api/audit`;
+};
+
+export const getAuditLog = async (
+  params?: GetAuditLogParams,
+  options?: RequestInit,
+): Promise<AuditLogResponse> => {
+  return customFetch<AuditLogResponse>(getGetAuditLogUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetAuditLogQueryKey = (params?: GetAuditLogParams) => {
+  return [`/api/audit`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetAuditLogQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAuditLog>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  params?: GetAuditLogParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAuditLog>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetAuditLogQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getAuditLog>>> = ({
+    signal,
+  }) => getAuditLog(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAuditLog>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetAuditLogQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAuditLog>>
+>;
+export type GetAuditLogQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Cross-project audit log (admin / superadmin only)
+ */
+
+export function useGetAuditLog<
+  TData = Awaited<ReturnType<typeof getAuditLog>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  params?: GetAuditLogParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAuditLog>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetAuditLogQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary Send a message to the AI assistant

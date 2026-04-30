@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, FolderOpen, Calculator, Package, MessageSquare, LogOut, Menu, X, Users, FileCheck, Settings, Inbox } from "lucide-react";
+import { LayoutDashboard, FolderOpen, Calculator, Package, MessageSquare, LogOut, Menu, X, Users, FileCheck, Settings, Inbox, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { useListLeads } from "@workspace/api-client-react";
 import { useAuth } from "@/hooks/use-auth";
@@ -8,7 +8,16 @@ import { NotificationBell } from "./notification-bell";
 import logoWhite from "@assets/Horizontal02_WhitePNG_1776258303461.png";
 import menatechLogo from "@assets/menatech}_1776274281761.png";
 
-const ALL_NAV_ITEMS = [
+type NavItem = {
+  href: string;
+  icon: typeof LayoutDashboard;
+  label: string;
+  labelEs: string;
+  clientVisible: boolean;
+  adminOnly?: boolean;
+};
+
+const ALL_NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard", labelEs: "Panel", clientVisible: true },
   { href: "/projects", icon: FolderOpen, label: "Projects", labelEs: "Proyectos", clientVisible: true },
   { href: "/calculator", icon: Calculator, label: "Calculator", labelEs: "Calculadora", clientVisible: false },
@@ -17,6 +26,7 @@ const ALL_NAV_ITEMS = [
   { href: "/team", icon: Users, label: "Team", labelEs: "Equipo", clientVisible: false },
   { href: "/permits", icon: FileCheck, label: "Permits", labelEs: "Permisos", clientVisible: false },
   { href: "/leads", icon: Inbox, label: "Leads", labelEs: "Leads", clientVisible: false },
+  { href: "/audit", icon: ShieldCheck, label: "Audit Log", labelEs: "Auditoría", clientVisible: false, adminOnly: true },
 ];
 
 export function Sidebar() {
@@ -26,8 +36,13 @@ export function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const isClient = user?.role === "client";
+  const isAdmin = user?.role === "admin" || user?.role === "superadmin";
   const showNotifications = true;
-  const navItems = ALL_NAV_ITEMS.filter((item) => !isClient || item.clientVisible);
+  const navItems = ALL_NAV_ITEMS.filter((item) => {
+    if (isClient && !item.clientVisible) return false;
+    if (item.adminOnly && !isAdmin) return false;
+    return true;
+  });
 
   const { data: leads = [] } = useListLeads({
     query: {

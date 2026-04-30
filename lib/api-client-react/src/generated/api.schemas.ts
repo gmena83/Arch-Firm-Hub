@@ -453,6 +453,56 @@ export interface ContractorBulkCreateResponse {
   skipped: ContractorBulkCreateResponseSkippedItem[];
 }
 
+/**
+ * A single normalized audit entry for the cross-project admin log.
+ */
+export interface AuditEntry {
+  id: string;
+  /** ISO timestamp the action happened. */
+  timestamp: string;
+  /** Display name of the user / system that performed the action. */
+  actor: string;
+  actorId?: string;
+  actorRole?: string;
+  /** Bucket the entry belongs to (project, document, contractor, permit, calculator, …). */
+  entity: string;
+  entityId?: string;
+  projectId?: string;
+  /** Server-resolved project name for convenience. */
+  projectName?: string;
+  /** Specific action type (e.g. phase_change, contractor_created). */
+  type: string;
+  description: string;
+  descriptionEs: string;
+}
+
+export type AuditLogResponseFiltersProjectsItem = {
+  id: string;
+  name: string;
+};
+
+/**
+ * Distinct values present across the entire log (helpful for filter dropdowns).
+ */
+export type AuditLogResponseFilters = {
+  actors: string[];
+  entities: string[];
+  projects: AuditLogResponseFiltersProjectsItem[];
+};
+
+export interface AuditLogResponse {
+  /** Total entries currently retained in the audit log (pre-filter). */
+  total: number;
+  /** Number of entries matching the requested filters. */
+  matching: number;
+  /** Number of entries actually returned (after limit). */
+  returned: number;
+  limit: number;
+  entries: AuditEntry[];
+  /** Distinct values present across the entire log (helpful for filter dropdowns). */
+  filters: AuditLogResponseFilters;
+}
+
 export interface CalculatorEntry {
   id: string;
   projectId: string;
@@ -1569,4 +1619,33 @@ export type ListMaterialsParams = {
 
 export type RefreshMaterialPricesParams = {
   category?: string;
+};
+
+export type GetAuditLogParams = {
+  /**
+   * Restrict to a single project.
+   */
+  projectId?: string;
+  /**
+   * Case-insensitive substring match against actor name.
+   */
+  actor?: string;
+  /**
+   * Restrict to a single entity bucket (project, document, contractor, permit, calculator, …).
+   */
+  entity?: string;
+  /**
+   * ISO date or date-time. Lower bound (inclusive).
+   */
+  from?: string;
+  /**
+   * ISO date or date-time. Upper bound (inclusive — bare dates cover the whole day).
+   */
+  to?: string;
+  /**
+   * Max entries to return (default 200).
+   * @minimum 1
+   * @maximum 1000
+   */
+  limit?: number;
 };

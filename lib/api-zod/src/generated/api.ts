@@ -2477,6 +2477,109 @@ export const DeleteContractorResponse = zod.object({
 });
 
 /**
+ * Returns recent audit entries with optional filtering by project, actor (substring match), entity, and date range. Capped at 1000 entries per request.
+ * @summary Cross-project audit log (admin / superadmin only)
+ */
+export const getAuditLogQueryLimitMax = 1000;
+
+export const GetAuditLogQueryParams = zod.object({
+  projectId: zod.coerce
+    .string()
+    .optional()
+    .describe("Restrict to a single project."),
+  actor: zod.coerce
+    .string()
+    .optional()
+    .describe("Case-insensitive substring match against actor name."),
+  entity: zod.coerce
+    .string()
+    .optional()
+    .describe(
+      "Restrict to a single entity bucket (project, document, contractor, permit, calculator, …).",
+    ),
+  from: zod.coerce
+    .string()
+    .optional()
+    .describe("ISO date or date-time. Lower bound (inclusive)."),
+  to: zod.coerce
+    .string()
+    .optional()
+    .describe(
+      "ISO date or date-time. Upper bound (inclusive — bare dates cover the whole day).",
+    ),
+  limit: zod.coerce
+    .number()
+    .min(1)
+    .max(getAuditLogQueryLimitMax)
+    .optional()
+    .describe("Max entries to return (default 200)."),
+});
+
+export const GetAuditLogResponse = zod.object({
+  total: zod
+    .number()
+    .describe(
+      "Total entries currently retained in the audit log (pre-filter).",
+    ),
+  matching: zod
+    .number()
+    .describe("Number of entries matching the requested filters."),
+  returned: zod
+    .number()
+    .describe("Number of entries actually returned (after limit)."),
+  limit: zod.number(),
+  entries: zod.array(
+    zod
+      .object({
+        id: zod.string(),
+        timestamp: zod.string().describe("ISO timestamp the action happened."),
+        actor: zod
+          .string()
+          .describe(
+            "Display name of the user \/ system that performed the action.",
+          ),
+        actorId: zod.string().optional(),
+        actorRole: zod.string().optional(),
+        entity: zod
+          .string()
+          .describe(
+            "Bucket the entry belongs to (project, document, contractor, permit, calculator, …).",
+          ),
+        entityId: zod.string().optional(),
+        projectId: zod.string().optional(),
+        projectName: zod
+          .string()
+          .optional()
+          .describe("Server-resolved project name for convenience."),
+        type: zod
+          .string()
+          .describe(
+            "Specific action type (e.g. phase_change, contractor_created).",
+          ),
+        description: zod.string(),
+        descriptionEs: zod.string(),
+      })
+      .describe(
+        "A single normalized audit entry for the cross-project admin log.",
+      ),
+  ),
+  filters: zod
+    .object({
+      actors: zod.array(zod.string()),
+      entities: zod.array(zod.string()),
+      projects: zod.array(
+        zod.object({
+          id: zod.string(),
+          name: zod.string(),
+        }),
+      ),
+    })
+    .describe(
+      "Distinct values present across the entire log (helpful for filter dropdowns).",
+    ),
+});
+
+/**
  * @summary Send a message to the AI assistant
  */
 export const SendChatMessageBody = zod.object({

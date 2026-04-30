@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { CONTRACTORS, type Contractor } from "../data/seed";
+import { CONTRACTORS, appendAuditEntry, type Contractor } from "../data/seed";
 import { requireRole } from "../middlewares/require-role";
 
 const router: IRouter = Router();
@@ -33,7 +33,9 @@ router.post(
       res.status(400).json({ error: "Provide a contractor object or { contractors: [...] }." });
       return;
     }
-    const userEmail = (req as { user?: { email?: string } }).user?.email ?? "system";
+    const authUser = (req as { user?: { email?: string; name?: string; id?: string; role?: string } }).user;
+    const userEmail = authUser?.email ?? "system";
+    const actorName = authUser?.name ?? authUser?.email ?? "system";
     const created: Contractor[] = [];
     const errors: { index: number; reason: string }[] = [];
     incoming.forEach((raw, i) => {
@@ -60,6 +62,16 @@ router.post(
       };
       CONTRACTORS.push(c);
       created.push(c);
+      appendAuditEntry({
+        actor: actorName,
+        ...(authUser?.id !== undefined ? { actorId: authUser.id } : {}),
+        ...(authUser?.role !== undefined ? { actorRole: authUser.role } : {}),
+        entity: "contractor",
+        entityId: c.id,
+        type: "contractor_created",
+        description: `Contractor "${c.name}" (${c.trade}) added`,
+        descriptionEs: `Contratista "${c.name}" (${c.trade}) agregado`,
+      });
     });
     if (created.length === 0) {
       res.status(400).json({ error: "No valid contractors in payload.", details: errors });
@@ -79,6 +91,19 @@ router.delete(
       return;
     }
     const [removed] = CONTRACTORS.splice(idx, 1);
+    if (removed) {
+      const authUser = (req as { user?: { id?: string; name?: string; email?: string; role?: string } }).user;
+      appendAuditEntry({
+        actor: authUser?.name ?? authUser?.email ?? "system",
+        ...(authUser?.id !== undefined ? { actorId: authUser.id } : {}),
+        ...(authUser?.role !== undefined ? { actorRole: authUser.role } : {}),
+        entity: "contractor",
+        entityId: removed.id,
+        type: "contractor_deleted",
+        description: `Contractor "${removed.name}" (${removed.trade}) removed`,
+        descriptionEs: `Contratista "${removed.name}" (${removed.trade}) eliminado`,
+      });
+    }
     res.json(removed);
   },
 );
