@@ -115,3 +115,22 @@ patched in 0.20.3:
 The scanner appears to match by package name without consulting advisory
 version ranges, likely because the npm registry only knows about 0.18.5.
 
+
+## GitHub Backup (Task #96)
+
+The repo is mirrored to a private GitHub repo for safekeeping:
+**https://github.com/gmena83/konti-dashboard-backup**
+
+To push subsequent updates, the user can authorize the GitHub integration
+once (already done at `connection:conn_github_01KQE5WDMH98BBX68KHP36KKGG`)
+and the agent (or any Replit code-execution sandbox) can fetch a short-lived
+access token via `listConnections('github')[0].settings.access_token`, then:
+
+```
+git push https://x-access-token:${TOKEN}@github.com/gmena83/konti-dashboard-backup.git main
+```
+
+Never write the token into `.git/config` — use a one-shot URL like above so
+the token leaves no trace on disk.
+
+Initial backup commit: `f9c80999f5ff647da4ef341cc859b14fa68a0a7f` (Apr 30 2026).
