@@ -23,6 +23,19 @@ export async function putJson<T>(path: string, body: unknown): Promise<T> {
   return await sendJson<T>("PUT", path, body);
 }
 
+// Carries the full server JSON payload so callers can surface structured
+// fields (e.g. skippedDetails) when an import fails.
+export class ApiError extends Error {
+  status: number;
+  payload: Record<string, unknown>;
+  constructor(message: string, status: number, payload: Record<string, unknown>) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.payload = payload;
+  }
+}
+
 async function sendJson<T>(method: "POST" | "PUT", path: string, body: unknown): Promise<T> {
   const res = await fetch(`${apiBase()}${path}`, {
     method,
@@ -30,8 +43,9 @@ async function sendJson<T>(method: "POST" | "PUT", path: string, body: unknown):
     body: JSON.stringify(body),
   });
   if (!res.ok) {
-    const err = (await res.json().catch(() => ({}))) as { message?: string };
-    throw new Error(err.message ?? `Request failed (${res.status})`);
+    const err = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+    const msg = (typeof err["message"] === "string" ? (err["message"] as string) : undefined) ?? `Request failed (${res.status})`;
+    throw new ApiError(msg, res.status, err);
   }
   return (await res.json()) as T;
 }

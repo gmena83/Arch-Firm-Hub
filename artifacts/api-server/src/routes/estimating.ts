@@ -201,6 +201,40 @@ function splitCsvRow(line: string): string[] {
   return out.map((s) => s.trim());
 }
 
+// When the importer ships an explicit { canonicalKey: sourceHeader } mapping
+// (Task #112), rewrite each parsed row so the canonical keys are populated
+// from the user-selected source columns. This lets the existing synonym
+// fallback code in each endpoint keep working unchanged for un-mapped fields.
+type ColumnMapping = Record<string, string | null | undefined>;
+
+function applyMappingToRows(
+  rows: Array<Record<string, string>>,
+  mapping: ColumnMapping | undefined,
+): Array<Record<string, string>> {
+  if (!mapping || Object.keys(mapping).length === 0) return rows;
+  return rows.map((row) => {
+    const next: Record<string, string> = { ...row };
+    for (const [canonical, source] of Object.entries(mapping)) {
+      if (!source) continue;
+      const sourceLower = source.toLowerCase();
+      if (Object.prototype.hasOwnProperty.call(row, sourceLower)) {
+        next[canonical.toLowerCase()] = row[sourceLower] ?? "";
+      }
+    }
+    return next;
+  });
+}
+
+function readMapping(body: Record<string, unknown>): ColumnMapping | undefined {
+  const m = body["mapping"];
+  if (!m || typeof m !== "object" || Array.isArray(m)) return undefined;
+  const out: ColumnMapping = {};
+  for (const [k, v] of Object.entries(m as Record<string, unknown>)) {
+    if (typeof v === "string" && v.trim()) out[k] = v.trim();
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
 // ---------------------------------------------------------------------------
 // Endpoints
 // ---------------------------------------------------------------------------
@@ -230,6 +264,8 @@ router.post("/estimating/materials/import", requireRole(["team", "admin", "super
     res.status(400).json({ error: "invalid_payload", message: "Provide csv (string) or materials (array)." });
     return;
   }
+
+  rows = applyMappingToRows(rows, readMapping(body));
 
   if (rows.length === 0) {
     res.status(400).json({ error: "empty_import", message: "No rows parsed.", messageEs: "No se procesaron filas." });
@@ -330,6 +366,8 @@ router.post("/estimating/labor-rates/import", requireRole(["team", "admin", "sup
     return;
   }
 
+  rows = applyMappingToRows(rows, readMapping(body));
+
   const updated: LaborRate[] = [];
   const skipped: Array<{ row: number; reason: string }> = [];
   for (let i = 0; i < rows.length; i++) {
@@ -423,7 +461,10 @@ router.post("/projects/:id/receipts", requireRole(["team", "admin", "superadmin"
     return;
   }
 
+  rows = applyMappingToRows(rows, readMapping(body));
+
   const parsed: Receipt[] = [];
+  const skipped: Array<{ row: number; reason: string }> = [];
   for (let i = 0; i < rows.length; i++) {
     const r = rows[i] as Record<string, string>;
     const vendor = (r["vendor"] ?? r["proveedor"] ?? "").trim();
@@ -431,16 +472,26 @@ router.post("/projects/:id/receipts", requireRole(["team", "admin", "superadmin"
     const trade = (r["trade"] ?? r["oficio"] ?? "").trim();
     const amount = Number((r["amount"] ?? r["monto"] ?? "").replace(/[^0-9.]/g, ""));
     const hours = Number((r["hours"] ?? r["horas"] ?? "0").replace(/[^0-9.]/g, ""));
-    if (!vendor || !trade || !isFinite(amount) || amount <= 0 || !isFinite(hours) || hours <= 0) continue;
+    if (!vendor || !trade || !isFinite(amount) || amount <= 0 || !isFinite(hours) || hours <= 0) {
+      skipped.push({ row: i + 2, reason: "missing vendor/trade or non-positive amount/hours" });
+      continue;
+    }
     parsed.push({ id: `rec-${Date.now()}-${i}`, vendor, date: date || new Date().toISOString().slice(0, 10), trade, amount, hours });
   }
   if (parsed.length === 0) {
-    res.status(400).json({ error: "no_valid_receipts", message: "No valid receipts parsed (need vendor, trade, amount > 0, hours > 0).", messageEs: "No se procesaron recibos válidos." });
+    res.status(400).json({
+      error: "no_valid_receipts",
+      message: "No valid receipts parsed (need vendor, trade, amount > 0, hours > 0).",
+      messageEs: "No se procesaron recibos válidos.",
+      skipped: skipped.length,
+      skippedDetails: skipped,
+    });
     return;
   }
 
   const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
-  res.json(applyReceipts(project.id, parsed, actor, "csv"));
+  const result = applyReceipts(project.id, parsed, actor, "csv");
+  res.json({ ...result, imported: parsed.length, skipped: skipped.length, skippedDetails: skipped });
 });
 
 // POST a single receipt PDF or image to OCR. Extracts vendor/date/amount/hours

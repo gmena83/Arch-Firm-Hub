@@ -3,8 +3,16 @@ import { useLang } from "@/hooks/use-lang";
 import { useToast } from "@/hooks/use-toast";
 import { useListProjects, getGetProjectCalculationsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Upload, Receipt, FileText, Loader2, Eye, Check, ScanLine } from "lucide-react";
-import { getJson, postJson, readFileAsText, type LaborRate } from "./estimating-helpers";
+import { Upload, Receipt, FileText, Loader2, Check, ScanLine, Columns3, ChevronDown, ChevronRight } from "lucide-react";
+import { getJson, postJson, readFileAsText, ApiError, type LaborRate } from "./estimating-helpers";
+import {
+  type ImportKind,
+  type Mapping,
+  parseCsv as parseMappingCsv,
+  loadSavedMapping,
+  saveMapping,
+} from "./column-mapping";
+import { MappingDialog } from "./mapping-dialog";
 
 const SAMPLE_MATERIALS = `item,item_es,category,unit,base_price
 Bamboo Flooring,Piso de Bambú,finishes,sqft,8.50
@@ -21,7 +29,13 @@ Home Depot,2026-04-10,Carpenter,820,20
 Ferretería PR,2026-04-12,Carpenter,880,22
 Home Depot,2026-04-15,Carpenter,900,21`;
 
-interface UploadResult { ok: boolean; message: string; details?: string; }
+interface SkippedRow { row: number; reason: string; }
+interface UploadResult {
+  ok: boolean;
+  message: string;
+  details?: string;
+  skipped?: SkippedRow[];
+}
 
 export function ImportsPanel() {
   const { t, lang } = useLang();
@@ -70,25 +84,47 @@ export function ImportsPanel() {
     catch { toast({ title: t("Could not read file", "No se pudo leer el archivo"), variant: "destructive" }); }
   };
 
-  const importMaterials = async () => {
+  const skippedSummary = (n: number) => (n ? t(`${n} skipped`, `${n} omitidos`) : undefined);
+
+  const failureFromError = (e: unknown): UploadResult => {
+    if (e instanceof ApiError) {
+      const skippedDetails = Array.isArray(e.payload["skippedDetails"])
+        ? (e.payload["skippedDetails"] as SkippedRow[])
+        : undefined;
+      const messageEs = typeof e.payload["messageEs"] === "string" ? (e.payload["messageEs"] as string) : undefined;
+      return {
+        ok: false,
+        message: t(e.message, messageEs ?? e.message),
+        skipped: skippedDetails,
+        details: skippedDetails && skippedDetails.length > 0 ? skippedSummary(skippedDetails.length) : undefined,
+      };
+    }
+    return { ok: false, message: e instanceof Error ? e.message : "error" };
+  };
+
+  const importMaterials = async (mapping: Mapping | null) => {
     setBusy("mat");
     try {
       const targetProject = autoFillProject && matProjectId ? matProjectId : undefined;
-      const r = await postJson<{ imported: number; skipped: number; addedToProjectCalculator?: number }>(
-        "/api/estimating/materials/import",
-        targetProject ? { csv: matCsv, projectId: targetProject } : { csv: matCsv },
-      );
+      const payload: Record<string, unknown> = { csv: matCsv };
+      if (targetProject) payload["projectId"] = targetProject;
+      if (mapping) payload["mapping"] = mapping;
+      const r = await postJson<{
+        imported: number;
+        skipped: number;
+        skippedDetails?: SkippedRow[];
+        addedToProjectCalculator?: number;
+      }>("/api/estimating/materials/import", payload);
       const addedNote = (r.addedToProjectCalculator ?? 0) > 0
         ? t(`${r.addedToProjectCalculator} added to project calculator`, `${r.addedToProjectCalculator} agregadas a la calculadora`)
-        : undefined;
-      const skippedNote = r.skipped > 0
-        ? t(`${r.skipped} skipped`, `${r.skipped} omitidos`)
         : undefined;
       setMatResult({
         ok: true,
         message: t(`Imported ${r.imported} material(s)`, `Importados ${r.imported} material(es)`),
-        details: [skippedNote, addedNote].filter(Boolean).join(" · ") || undefined,
+        details: [skippedSummary(r.skipped), addedNote].filter(Boolean).join(" · ") || undefined,
+        skipped: r.skippedDetails,
       });
+      if (mapping && matProjectId) saveMapping(matProjectId, "materials", mapping);
       if (targetProject && (r.addedToProjectCalculator ?? 0) > 0) {
         queryClient.invalidateQueries({ queryKey: getGetProjectCalculationsQueryKey(targetProject) });
         toast({
@@ -99,24 +135,51 @@ export function ImportsPanel() {
           ),
         });
       }
-    } catch (e) { setMatResult({ ok: false, message: e instanceof Error ? e.message : "error" }); }
+    } catch (e) { setMatResult(failureFromError(e)); }
     finally { setBusy(null); }
   };
-  const importLabor = async () => {
+  const importLabor = async (mapping: Mapping | null) => {
     setBusy("lab");
     try {
-      const r = await postJson<{ imported: number; skipped: number }>("/api/estimating/labor-rates/import", { csv: labCsv });
-      setLabResult({ ok: true, message: t(`Imported ${r.imported} labor rate(s)`, `Importadas ${r.imported} tarifa(s)`), details: r.skipped > 0 ? t(`${r.skipped} skipped`, `${r.skipped} omitidas`) : undefined });
-    } catch (e) { setLabResult({ ok: false, message: e instanceof Error ? e.message : "error" }); }
+      const payload: Record<string, unknown> = { csv: labCsv };
+      if (mapping) payload["mapping"] = mapping;
+      const r = await postJson<{
+        imported: number;
+        skipped: number;
+        skippedDetails?: SkippedRow[];
+      }>("/api/estimating/labor-rates/import", payload);
+      setLabResult({
+        ok: true,
+        message: t(`Imported ${r.imported} labor rate(s)`, `Importadas ${r.imported} tarifa(s)`),
+        details: skippedSummary(r.skipped),
+        skipped: r.skippedDetails,
+      });
+      if (mapping && projectId) saveMapping(projectId, "labor", mapping);
+    } catch (e) { setLabResult(failureFromError(e)); }
     finally { setBusy(null); }
   };
-  const uploadReceipts = async () => {
+  const uploadReceipts = async (mapping: Mapping | null) => {
     if (!projectId) return;
     setBusy("rec");
     try {
-      const r = await postJson<{ receipts: unknown[]; updatedTrades: string[] }>(`/api/projects/${projectId}/receipts`, { csv: recCsv });
-      setRecResult({ ok: true, message: t(`Saved ${r.receipts.length} receipt(s)`, `${r.receipts.length} recibo(s) guardado(s)`), details: t(`Refreshed labor for: ${r.updatedTrades.join(", ") || "—"}`, `Tarifas actualizadas: ${r.updatedTrades.join(", ") || "—"}`) });
-    } catch (e) { setRecResult({ ok: false, message: e instanceof Error ? e.message : "error" }); }
+      const payload: Record<string, unknown> = { csv: recCsv };
+      if (mapping) payload["mapping"] = mapping;
+      const r = await postJson<{
+        receipts: unknown[];
+        updatedTrades: string[];
+        imported?: number;
+        skipped?: number;
+        skippedDetails?: SkippedRow[];
+      }>(`/api/projects/${projectId}/receipts`, payload);
+      const tradesNote = t(`Refreshed labor for: ${r.updatedTrades.join(", ") || "—"}`, `Tarifas actualizadas: ${r.updatedTrades.join(", ") || "—"}`);
+      setRecResult({
+        ok: true,
+        message: t(`Saved ${r.receipts.length} receipt(s)`, `${r.receipts.length} recibo(s) guardado(s)`),
+        details: [tradesNote, skippedSummary(r.skipped ?? 0)].filter(Boolean).join(" · "),
+        skipped: r.skippedDetails,
+      });
+      if (mapping && projectId) saveMapping(projectId, "receipts", mapping);
+    } catch (e) { setRecResult(failureFromError(e)); }
     finally { setBusy(null); }
   };
   const uploadOcrReceipt = async () => {
@@ -189,10 +252,11 @@ export function ImportsPanel() {
       <Section
         icon={<Upload className="w-4 h-4 text-konti-olive" />}
         title={t("Import Materials & Categories", "Importar Materiales y Categorías")}
-        description={t("Paste a CSV with columns item, item_es, category, unit, base_price. Excel files (.xlsx) and CSV both work — first sheet is used.", "Pega un CSV con columnas item, item_es, category, unit, base_price. Soporta Excel (.xlsx) o CSV — usa la primera hoja.")}
+        description={t("Pick a spreadsheet (CSV or Excel). KONTi auto-matches your column headers to item, category, unit, and base price — review or override before confirming.", "Elige una hoja (CSV o Excel). KONTi auto-detecta tus columnas (artículo, categoría, unidad y precio base) — revisa o ajusta antes de confirmar.")}
         onFile={(f) => handleFileSelect(f, setMatCsv)}
         textValue={matCsv} setText={setMatCsv}
         onImport={importMaterials} busy={busy === "mat"} result={matResult} testid="import-materials"
+        kind="materials" projectId={matProjectId}
         extra={
           <div className="mt-3 border border-dashed border-border rounded-md p-3 bg-muted/20" data-testid="materials-target-project">
             <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer">
@@ -231,10 +295,11 @@ export function ImportsPanel() {
       <Section
         icon={<FileText className="w-4 h-4 text-konti-olive" />}
         title={t("Import Labor Rates", "Importar Tarifas de Mano de Obra")}
-        description={t("Columns: trade, trade_es, unit, hourly_rate. Existing trades are updated; new trades appended.", "Columnas: trade, trade_es, unit, hourly_rate. Los oficios existentes se actualizan y los nuevos se agregan.")}
+        description={t("Pick a spreadsheet of trades and hourly rates — KONTi auto-detects the columns. Existing trades update in place; new trades are appended.", "Elige una hoja de oficios y tarifas — KONTi detecta las columnas. Los oficios existentes se actualizan y los nuevos se agregan.")}
         onFile={(f) => handleFileSelect(f, setLabCsv)}
         textValue={labCsv} setText={setLabCsv}
         onImport={importLabor} busy={busy === "lab"} result={labResult} testid="import-labor"
+        kind="labor" projectId={projectId}
       />
       {labRates.length > 0 && (
         <div className="bg-card rounded-lg border border-card-border p-4">
@@ -375,26 +440,33 @@ export function ImportsPanel() {
       </div>
 
       {/* Receipts — CSV fallback (kept for batch entry / spreadsheets) */}
-      <div className="bg-card rounded-xl border border-card-border p-5 shadow-sm">
-        <div className="flex items-center gap-2 mb-2">
-          <Receipt className="w-4 h-4 text-konti-olive" />
-          <h3 className="font-bold text-sm">{t("Bulk Receipts (CSV)", "Recibos en Lote (CSV)")}</h3>
-        </div>
-        <p className="text-xs text-muted-foreground mb-3">
-          {t(
-            "For typing in a batch from a spreadsheet — provide a CSV with columns vendor, date, trade, amount, hours. The system keeps the 3 most recent and recomputes the labor baseline.",
-            "Para ingresar un lote desde una hoja de cálculo — provee un CSV con columnas vendor, date, trade, amount, hours. El sistema conserva los 3 más recientes y recalcula la línea base."
-          )}
-        </p>
-        <textarea value={recCsv} onChange={(e) => setRecCsv(e.target.value)} rows={5} className="w-full font-mono text-xs px-3 py-2 rounded border border-input bg-background" data-testid="receipts-textarea" />
-        <div className="flex items-center gap-3 mt-3">
-          <button onClick={uploadReceipts} disabled={busy === "rec" || !projectId} data-testid="btn-upload-receipts" className="inline-flex items-center gap-2 px-3 py-1.5 bg-konti-olive hover:bg-konti-olive/90 text-white text-xs font-semibold rounded-md disabled:opacity-50">
-            {busy === "rec" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Receipt className="w-3.5 h-3.5" />}
-            {t("Upload Receipts", "Subir Recibos")}
-          </button>
-          {recResult && <span className={`text-xs ${recResult.ok ? "text-konti-olive" : "text-destructive"}`}>{recResult.message}{recResult.details ? ` · ${recResult.details}` : ""}</span>}
-        </div>
-      </div>
+      <Section
+        icon={<Receipt className="w-4 h-4 text-konti-olive" />}
+        title={t("Bulk Receipts (CSV)", "Recibos en Lote (CSV)")}
+        description={t(
+          "Pick a spreadsheet of vendor receipts. KONTi auto-matches vendor, date, trade, amount, and hours columns. The 3 most recent are kept and the labor baseline is recomputed.",
+          "Elige una hoja de recibos. KONTi detecta vendor, date, trade, amount y hours. Se conservan los 3 más recientes y se recalcula la línea base."
+        )}
+        onFile={(f) => handleFileSelect(f, setRecCsv)}
+        textValue={recCsv} setText={setRecCsv}
+        onImport={uploadReceipts} busy={busy === "rec"} result={recResult} testid="import-receipts"
+        kind="receipts" projectId={projectId}
+        extra={
+          <div className="mt-3 border border-dashed border-border rounded-md p-3 bg-muted/20">
+            <label className="text-[11px] font-medium space-y-1 block">
+              {t("Project", "Proyecto")}
+              <select
+                value={projectId}
+                onChange={(e) => setProjectId(e.target.value)}
+                data-testid="receipts-csv-project"
+                className="w-full mt-1 px-2.5 py-1.5 rounded border border-input bg-background text-xs"
+              >
+                {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </label>
+          </div>
+        }
+      />
 
       {/* Report template */}
       <div className="bg-card rounded-xl border border-card-border p-5 shadow-sm">
@@ -467,17 +539,60 @@ function Field({ label, value }: { label: string; value: string }) {
   );
 }
 
-function parseCsvPreview(csv: string): { headers: string[]; rows: string[][] } {
-  const lines = csv.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-  if (lines.length === 0) return { headers: [], rows: [] };
-  const split = (l: string) => l.split(",").map((c) => c.trim());
-  const headers = split(lines[0] ?? "");
-  const rows = lines.slice(1).map(split);
-  return { headers, rows };
+// Translate a few well-known server reason codes into bilingual user copy.
+// Anything unknown falls back to the raw server string in both languages.
+function translateSkipReason(raw: string, lang: "en" | "es"): string {
+  const r = raw.toLowerCase();
+  if (r.includes("missing item") || r.includes("item/category/unit/price")) {
+    return lang === "es"
+      ? "faltan artículo, categoría, unidad o precio"
+      : "missing item, category, unit, or price";
+  }
+  if (r.includes("missing trade") && r.includes("rate")) {
+    return lang === "es" ? "falta el oficio o la tarifa" : "missing trade or rate";
+  }
+  if (r.includes("vendor") || r.includes("amount/hours")) {
+    return lang === "es"
+      ? "faltan proveedor/oficio o monto/horas no son positivos"
+      : "missing vendor/trade or non-positive amount/hours";
+  }
+  return raw;
+}
+
+function SkippedDetails({ rows, testid }: { rows: SkippedRow[]; testid: string }) {
+  const { t, lang } = useLang();
+  const [open, setOpen] = useState(false);
+  if (!rows || rows.length === 0) return null;
+  return (
+    <div className="mt-2 border border-amber-300/50 bg-amber-50 rounded-md text-xs" data-testid={testid}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        data-testid={`${testid}-toggle`}
+        className="w-full flex items-center justify-between gap-2 px-3 py-1.5 font-semibold text-amber-900 hover:bg-amber-100/60 rounded-md"
+      >
+        <span className="flex items-center gap-1.5">
+          {open ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+          {t(`${rows.length} row(s) skipped — see why`, `${rows.length} fila(s) omitida(s) — ver por qué`)}
+        </span>
+      </button>
+      {open && (
+        <ul className="px-3 pb-2 space-y-1 list-none" data-testid={`${testid}-list`}>
+          {rows.map((r, i) => (
+            <li key={i} className="flex items-start gap-2 text-amber-900">
+              <span className="font-mono shrink-0">{t(`Row ${r.row}`, `Fila ${r.row}`)}:</span>
+              <span>{translateSkipReason(r.reason, lang)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
 }
 
 function Section({
   icon, title, description, onFile, textValue, setText, onImport, busy, result, testid, extra,
+  kind, projectId,
 }: {
   icon: React.ReactNode;
   title: string;
@@ -485,16 +600,29 @@ function Section({
   onFile: (file?: File) => void;
   textValue: string;
   setText: (s: string) => void;
-  onImport: () => void;
+  onImport: (mapping: Mapping | null) => Promise<void> | void;
   busy: boolean;
   result: UploadResult | null;
   testid: string;
   extra?: React.ReactNode;
+  kind: ImportKind;
+  projectId: string;
 }) {
   const { t } = useLang();
-  const [preview, setPreview] = useState<{ headers: string[]; rows: string[][] } | null>(null);
-  const showPreview = () => setPreview(parseCsvPreview(textValue));
-  const confirmImport = () => { onImport(); setPreview(null); };
+  const [open, setOpen] = useState(false);
+
+  const parsed = parseMappingCsv(textValue);
+  const canMap = parsed.headers.length > 0 && parsed.rows.length > 0;
+
+  const openDialog = () => {
+    if (!canMap) return;
+    setOpen(true);
+  };
+  const handleConfirm = async (mapping: Mapping) => {
+    await onImport(mapping);
+    setOpen(false);
+  };
+
   return (
     <div className="bg-card rounded-xl border border-card-border p-5 shadow-sm" data-testid={testid}>
       <div className="flex items-center gap-2 mb-2">{icon}<h3 className="font-bold text-sm">{title}</h3></div>
@@ -503,57 +631,54 @@ function Section({
         <input
           type="file"
           accept=".csv,.xlsx,.xls,text/csv,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-          onChange={(e) => { onFile(e.target.files?.[0]); setPreview(null); }}
+          onChange={(e) => onFile(e.target.files?.[0])}
           className="text-xs"
           data-testid={`${testid}-file`}
         />
         <span className="text-[10px] text-muted-foreground">{t("or paste below", "o pega abajo")}</span>
       </div>
-      <textarea value={textValue} onChange={(e) => { setText(e.target.value); setPreview(null); }} rows={5} className="w-full font-mono text-xs px-3 py-2 rounded border border-input bg-background" data-testid={`${testid}-textarea`} />
-
-      {preview && preview.headers.length > 0 && (
-        <div className="mt-3 border border-konti-olive/30 bg-konti-olive/5 rounded-md p-3" data-testid={`${testid}-preview`}>
-          <p className="text-xs font-semibold text-foreground mb-2">
-            {t(`Preview — ${preview.rows.length} row(s) ready to import`, `Vista previa — ${preview.rows.length} fila(s) lista(s) para importar`)}
-          </p>
-          <div className="overflow-x-auto">
-            <table className="w-full text-[11px] min-w-[400px]">
-              <thead className="bg-muted/60">
-                <tr>{preview.headers.map((h, i) => <th key={i} className="text-left px-2 py-1 font-semibold">{h}</th>)}</tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {preview.rows.slice(0, 10).map((row, i) => (
-                  <tr key={i}>{preview.headers.map((_, j) => <td key={j} className="px-2 py-1">{row[j] ?? ""}</td>)}</tr>
-                ))}
-                {preview.rows.length > 10 && (
-                  <tr><td colSpan={preview.headers.length} className="px-2 py-1 italic text-muted-foreground">{t(`…and ${preview.rows.length - 10} more rows`, `…y ${preview.rows.length - 10} filas más`)}</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+      <textarea
+        value={textValue}
+        onChange={(e) => setText(e.target.value)}
+        rows={5}
+        className="w-full font-mono text-xs px-3 py-2 rounded border border-input bg-background"
+        data-testid={`${testid}-textarea`}
+      />
 
       <div className="flex items-center gap-3 mt-3 flex-wrap">
-        {!preview ? (
-          <button onClick={showPreview} disabled={!textValue.trim()} data-testid={`${testid}-preview-btn`} className="inline-flex items-center gap-2 px-3 py-1.5 border border-konti-olive text-konti-olive hover:bg-konti-olive/10 text-xs font-semibold rounded-md disabled:opacity-50">
-            <Eye className="w-3.5 h-3.5" />
-            {t("Preview", "Vista Previa")}
-          </button>
-        ) : (
-          <>
-            <button onClick={() => setPreview(null)} className="inline-flex items-center gap-2 px-3 py-1.5 border border-border text-xs font-semibold rounded-md hover:bg-muted">
-              {t("Edit", "Editar")}
-            </button>
-            <button onClick={confirmImport} disabled={busy} data-testid={`${testid}-btn`} className="inline-flex items-center gap-2 px-3 py-1.5 bg-konti-olive hover:bg-konti-olive/90 text-white text-xs font-semibold rounded-md disabled:opacity-50">
-              {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-              {t("Confirm Import", "Confirmar Importación")}
-            </button>
-          </>
+        <button
+          onClick={openDialog}
+          disabled={!canMap || busy}
+          data-testid={`${testid}-map-btn`}
+          className="inline-flex items-center gap-2 px-3 py-1.5 bg-konti-olive hover:bg-konti-olive/90 text-white text-xs font-semibold rounded-md disabled:opacity-50"
+        >
+          {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Columns3 className="w-3.5 h-3.5" />}
+          {t("Map Columns & Import", "Mapear Columnas e Importar")}
+        </button>
+        {result && (
+          <span
+            className={`text-xs ${result.ok ? "text-konti-olive" : "text-destructive"}`}
+            data-testid={`${testid}-result`}
+          >
+            {result.message}{result.details ? ` · ${result.details}` : ""}
+          </span>
         )}
-        {result && <span className={`text-xs ${result.ok ? "text-konti-olive" : "text-destructive"}`}>{result.message}{result.details ? ` · ${result.details}` : ""}</span>}
       </div>
+      {result?.skipped && result.skipped.length > 0 && (
+        <SkippedDetails rows={result.skipped} testid={`${testid}-skipped`} />
+      )}
       {extra}
+
+      <MappingDialog
+        open={open}
+        onClose={() => setOpen(false)}
+        onConfirm={handleConfirm}
+        kind={kind}
+        parsed={parsed}
+        initialMapping={projectId ? loadSavedMapping(projectId, kind) : null}
+        busy={busy}
+        testid={`${testid}-mapping-dialog`}
+      />
     </div>
   );
 }
