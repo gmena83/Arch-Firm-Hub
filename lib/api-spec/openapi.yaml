@@ -28,6 +28,8 @@ tags:
     description: Dashboard summaries
   - name: leads
     description: Lead intake & discovery
+  - name: contractors
+    description: Contractor / vendor directory
   - name: permits
     description: Phase 4 — Permit authorization & OGPE submission
   - name: construction
@@ -1556,6 +1558,79 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /contractors:
+    get:
+      operationId: listContractors
+      tags: [contractors]
+      summary: List all contractors (newest first)
+      responses:
+        "200":
+          description: List of contractors
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Contractor"
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+    post:
+      operationId: createContractors
+      tags: [contractors]
+      summary: Add one or more contractors
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "#/components/schemas/ContractorCreateRequest"
+                - $ref: "#/components/schemas/ContractorBulkCreateRequest"
+      responses:
+        "201":
+          description: Contractors created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContractorBulkCreateResponse"
+        "400":
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+
+  /contractors/{id}:
+    delete:
+      operationId: deleteContractor
+      tags: [contractors]
+      summary: Remove a contractor
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Contractor removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Contractor"
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Contractor not found
+
   /ai/chat:
     post:
       operationId: sendChatMessage
@@ -2054,6 +2129,55 @@ components:
         - unit
         - basePrice
         - category
+
+    Contractor:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        trade: { type: string }
+        email: { type: string }
+        phone: { type: string }
+        notes: { type: string }
+        uploadedAt: { type: string, format: date-time }
+        uploadedBy: { type: string }
+      required: [id, name, trade, email, phone, notes, uploadedAt, uploadedBy]
+
+    ContractorCreateRequest:
+      type: object
+      properties:
+        name: { type: string }
+        trade: { type: string }
+        email: { type: string }
+        phone: { type: string }
+        notes: { type: string }
+      required: [name, trade]
+
+    ContractorBulkCreateRequest:
+      type: object
+      properties:
+        contractors:
+          type: array
+          items:
+            $ref: "#/components/schemas/ContractorCreateRequest"
+      required: [contractors]
+
+    ContractorBulkCreateResponse:
+      type: object
+      properties:
+        created:
+          type: array
+          items:
+            $ref: "#/components/schemas/Contractor"
+        skipped:
+          type: array
+          items:
+            type: object
+            properties:
+              index: { type: integer }
+              reason: { type: string }
+            required: [index, reason]
+      required: [created, skipped]
 
     CalculatorEntry:
       type: object

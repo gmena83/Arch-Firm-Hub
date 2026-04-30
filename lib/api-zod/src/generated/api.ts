@@ -2033,6 +2033,63 @@ export const AcceptLeadResponse = zod.object({
 });
 
 /**
+ * @summary List all contractors (newest first)
+ */
+export const ListContractorsResponseItem = zod.object({
+  id: zod.string(),
+  name: zod.string(),
+  trade: zod.string(),
+  email: zod.string(),
+  phone: zod.string(),
+  notes: zod.string(),
+  uploadedAt: zod.coerce.date(),
+  uploadedBy: zod.string(),
+});
+export const ListContractorsResponse = zod.array(ListContractorsResponseItem);
+
+/**
+ * @summary Add one or more contractors
+ */
+export const CreateContractorsBody = zod.union([
+  zod.object({
+    name: zod.string(),
+    trade: zod.string(),
+    email: zod.string().optional(),
+    phone: zod.string().optional(),
+    notes: zod.string().optional(),
+  }),
+  zod.object({
+    contractors: zod.array(
+      zod.object({
+        name: zod.string(),
+        trade: zod.string(),
+        email: zod.string().optional(),
+        phone: zod.string().optional(),
+        notes: zod.string().optional(),
+      }),
+    ),
+  }),
+]);
+
+/**
+ * @summary Remove a contractor
+ */
+export const DeleteContractorParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const DeleteContractorResponse = zod.object({
+  id: zod.string(),
+  name: zod.string(),
+  trade: zod.string(),
+  email: zod.string(),
+  phone: zod.string(),
+  notes: zod.string(),
+  uploadedAt: zod.coerce.date(),
+  uploadedBy: zod.string(),
+});
+
+/**
  * @summary Send a message to the AI assistant
  */
 export const SendChatMessageBody = zod.object({
