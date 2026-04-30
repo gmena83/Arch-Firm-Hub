@@ -12,6 +12,7 @@ import {
   loadEstimatingFromDisk,
   saveEstimatingToDisk,
 } from "../lib/estimating-persistence";
+import { extractAndParseReceipt } from "../lib/receipt-ocr";
 
 const router: IRouter = Router();
 
@@ -348,6 +349,56 @@ router.post("/estimating/labor-rates/import", requireRole(["team", "admin", "sup
   res.json({ imported: updated.length, skipped: skipped.length, skippedDetails: skipped, rates: LABOR_RATES });
 });
 
+// Internal helper: persist receipts (last 3 by date), recompute labor baseline,
+// log activity, and return the response payload. Used by both the CSV/JSON
+// endpoint and the OCR file-upload endpoint.
+function applyReceipts(projectId: string, parsed: Receipt[], actor: string, source: "csv" | "ocr") {
+  // Keep most recent 3 (by date string desc).
+  const sorted = [...parsed].sort((a, b) => (a.date < b.date ? 1 : -1));
+  const lastThree = sorted.slice(0, 3);
+  PROJECT_RECEIPTS[projectId] = lastThree;
+
+  // Update labor rates: average effective hourly rate across receipts per trade.
+  const byTrade: Record<string, { totalAmount: number; totalHours: number }> = {};
+  for (const r of lastThree) {
+    const key = r.trade;
+    if (!byTrade[key]) byTrade[key] = { totalAmount: 0, totalHours: 0 };
+    (byTrade[key] as { totalAmount: number; totalHours: number }).totalAmount += r.amount;
+    (byTrade[key] as { totalAmount: number; totalHours: number }).totalHours += r.hours;
+  }
+  const updatedTrades: string[] = [];
+  for (const trade of Object.keys(byTrade)) {
+    const v = byTrade[trade] as { totalAmount: number; totalHours: number };
+    if (v.totalHours <= 0) continue;
+    const newRate = Math.round((v.totalAmount / v.totalHours) * 100) / 100;
+    const idx = LABOR_RATES.findIndex((lr) => lr.trade.toLowerCase() === trade.toLowerCase());
+    const next: LaborRate = {
+      trade,
+      tradeEs: idx >= 0 ? (LABOR_RATES[idx] as LaborRate).tradeEs : trade,
+      unit: "hour",
+      hourlyRate: newRate,
+      source: "receipts",
+      updatedAt: new Date().toISOString(),
+    };
+    if (idx >= 0) LABOR_RATES[idx] = next;
+    else LABOR_RATES.push(next);
+    updatedTrades.push(trade);
+  }
+
+  const sourceLabel = source === "ocr" ? "via OCR upload" : "from CSV import";
+  const sourceLabelEs = source === "ocr" ? "vía subida con OCR" : "desde importación CSV";
+  appendActivity(projectId, {
+    type: "receipts_upload",
+    actor,
+    description: `Last ${lastThree.length} receipts uploaded ${sourceLabel}; labor baseline refreshed for ${updatedTrades.length} trade(s).`,
+    descriptionEs: `Se subieron los últimos ${lastThree.length} recibos ${sourceLabelEs}; tarifas de mano de obra actualizadas para ${updatedTrades.length} oficio(s).`,
+  });
+
+  persistEstimatingState();
+
+  return { projectId, receipts: lastThree, updatedTrades, rates: LABOR_RATES };
+}
+
 // POST receipts for a project — recomputes labor baseline from last 3 receipts.
 router.post("/projects/:id/receipts", requireRole(["team", "admin", "superadmin"]), (req, res) => {
   const project = PROJECTS.find((p) => p.id === req.params["id"]);
@@ -384,49 +435,120 @@ router.post("/projects/:id/receipts", requireRole(["team", "admin", "superadmin"
     return;
   }
 
-  // Keep most recent 3 (by date string desc).
-  const sorted = [...parsed].sort((a, b) => (a.date < b.date ? 1 : -1));
-  const lastThree = sorted.slice(0, 3);
-  PROJECT_RECEIPTS[project.id] = lastThree;
-
-  // Update labor rates: average effective hourly rate across receipts per trade.
-  const byTrade: Record<string, { totalAmount: number; totalHours: number }> = {};
-  for (const r of lastThree) {
-    const key = r.trade;
-    if (!byTrade[key]) byTrade[key] = { totalAmount: 0, totalHours: 0 };
-    (byTrade[key] as { totalAmount: number; totalHours: number }).totalAmount += r.amount;
-    (byTrade[key] as { totalAmount: number; totalHours: number }).totalHours += r.hours;
-  }
-  const updatedTrades: string[] = [];
-  for (const trade of Object.keys(byTrade)) {
-    const v = byTrade[trade] as { totalAmount: number; totalHours: number };
-    if (v.totalHours <= 0) continue;
-    const newRate = Math.round((v.totalAmount / v.totalHours) * 100) / 100;
-    const idx = LABOR_RATES.findIndex((lr) => lr.trade.toLowerCase() === trade.toLowerCase());
-    const next: LaborRate = {
-      trade,
-      tradeEs: idx >= 0 ? (LABOR_RATES[idx] as LaborRate).tradeEs : trade,
-      unit: "hour",
-      hourlyRate: newRate,
-      source: "receipts",
-      updatedAt: new Date().toISOString(),
-    };
-    if (idx >= 0) LABOR_RATES[idx] = next;
-    else LABOR_RATES.push(next);
-    updatedTrades.push(trade);
-  }
-
-  appendActivity(project.id, {
-    type: "receipts_upload",
-    actor: (req as { user?: { name?: string } }).user?.name ?? "Team",
-    description: `Last ${lastThree.length} receipts uploaded; labor baseline refreshed for ${updatedTrades.length} trade(s).`,
-    descriptionEs: `Se subieron los últimos ${lastThree.length} recibos; tarifas de mano de obra actualizadas para ${updatedTrades.length} oficio(s).`,
-  });
-
-  persistEstimatingState();
-
-  res.json({ projectId: project.id, receipts: lastThree, updatedTrades, rates: LABOR_RATES });
+  const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
+  res.json(applyReceipts(project.id, parsed, actor, "csv"));
 });
+
+// POST a single receipt PDF or image to OCR. Extracts vendor/date/amount/hours
+// via PDF.co, merges with any user-supplied overrides, then persists the same
+// way the CSV path does.
+router.post(
+  "/projects/:id/receipts/upload-file",
+  requireRole(["team", "admin", "superadmin"]),
+  async (req, res) => {
+    const project = PROJECTS.find((p) => p.id === req.params["id"]);
+    if (!project) { res.status(404).json({ error: "not_found" }); return; }
+
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const fileBase64Raw = typeof body["fileBase64"] === "string" ? (body["fileBase64"] as string) : "";
+    const filename = typeof body["filename"] === "string" && body["filename"]
+      ? (body["filename"] as string)
+      : "receipt.pdf";
+    // Strip any data: URL prefix the client may have included.
+    const fileBase64 = fileBase64Raw.replace(/^data:[^;]+;base64,/, "");
+    if (!fileBase64) {
+      res.status(400).json({ error: "missing_file", message: "Provide fileBase64 (base64 of a PDF or image)." });
+      return;
+    }
+    const tradeOverride = typeof body["trade"] === "string" ? (body["trade"] as string).trim() : "";
+    if (!tradeOverride) {
+      res.status(400).json({ error: "missing_trade", message: "Pick the trade this receipt belongs to.", messageEs: "Selecciona el oficio al que corresponde el recibo." });
+      return;
+    }
+    const vendorOverride = typeof body["vendor"] === "string" ? (body["vendor"] as string).trim() : "";
+    const dateOverride = typeof body["date"] === "string" ? (body["date"] as string).trim() : "";
+    const amountOverride = body["amount"] !== undefined && body["amount"] !== null && body["amount"] !== ""
+      ? Number(body["amount"])
+      : undefined;
+    const hoursOverride = body["hours"] !== undefined && body["hours"] !== null && body["hours"] !== ""
+      ? Number(body["hours"])
+      : undefined;
+
+    const apiKey = process.env["PDF_CO_API_KEY"];
+    if (!apiKey) {
+      res.status(500).json({
+        error: "ocr_not_configured",
+        message: "PDF_CO_API_KEY is not set on the server. Ask an admin to configure it before uploading receipt images.",
+        messageEs: "PDF_CO_API_KEY no está configurado. Pide al administrador configurarlo antes de subir recibos.",
+      });
+      return;
+    }
+
+    let extracted;
+    try {
+      extracted = await extractAndParseReceipt({ fileBase64, filename }, apiKey);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "OCR extraction failed.";
+      res.status(502).json({ error: "ocr_failed", message, messageEs: "Falló la extracción con OCR." });
+      return;
+    }
+
+    const vendor = vendorOverride || extracted.vendor || "";
+    const date = (dateOverride || extracted.date || new Date().toISOString().slice(0, 10)).trim();
+    const amount = amountOverride !== undefined && isFinite(amountOverride) && amountOverride > 0
+      ? amountOverride
+      : (extracted.amount ?? NaN);
+    const hours = hoursOverride !== undefined && isFinite(hoursOverride) && hoursOverride > 0
+      ? hoursOverride
+      : (extracted.hours ?? NaN);
+
+    const missing: string[] = [];
+    if (!vendor) missing.push("vendor");
+    if (!isFinite(amount) || amount <= 0) missing.push("amount");
+    if (!isFinite(hours) || hours <= 0) missing.push("hours");
+    if (missing.length > 0) {
+      res.status(422).json({
+        error: "incomplete_extraction",
+        message: `Could not extract ${missing.join(", ")} from the receipt. Re-upload a clearer image or fill the field manually.`,
+        messageEs: `No se pudo extraer ${missing.join(", ")} del recibo. Sube una imagen más nítida o ingresa el campo manualmente.`,
+        extracted: {
+          vendor: extracted.vendor,
+          date: extracted.date,
+          amount: extracted.amount,
+          hours: extracted.hours,
+        },
+      });
+      return;
+    }
+
+    // Append to the existing receipts list (keep up to 3 most recent overall),
+    // matching the CSV path behavior so a single OCR upload doesn't wipe out
+    // previously entered receipts.
+    const previous = PROJECT_RECEIPTS[project.id] ?? [];
+    const newReceipt: Receipt = {
+      id: `rec-${Date.now()}-ocr`,
+      vendor,
+      date,
+      trade: tradeOverride,
+      amount: Math.round(amount * 100) / 100,
+      hours: Math.round(hours * 100) / 100,
+    };
+    const combined = [...previous, newReceipt];
+
+    const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
+    const result = applyReceipts(project.id, combined, actor, "ocr");
+    res.json({
+      ...result,
+      ocrExtracted: {
+        vendor: extracted.vendor,
+        date: extracted.date,
+        amount: extracted.amount,
+        hours: extracted.hours,
+      },
+      newReceipt,
+    });
+  },
+);
 
 // GET receipts
 router.get("/projects/:id/receipts", requireRole(["team","admin","superadmin","architect","client"]), (req, res) => {

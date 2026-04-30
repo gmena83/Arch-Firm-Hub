@@ -3,7 +3,7 @@ import { useLang } from "@/hooks/use-lang";
 import { useToast } from "@/hooks/use-toast";
 import { useListProjects, getGetProjectCalculationsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Upload, Receipt, FileText, Loader2, Eye, Check } from "lucide-react";
+import { Upload, Receipt, FileText, Loader2, Eye, Check, ScanLine } from "lucide-react";
 import { getJson, postJson, readFileAsText, type LaborRate } from "./estimating-helpers";
 
 const SAMPLE_MATERIALS = `item,item_es,category,unit,base_price
@@ -44,6 +44,16 @@ export function ImportsPanel() {
   const [tplResult, setTplResult] = useState<UploadResult | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [labRates, setLabRates] = useState<LaborRate[]>([]);
+
+  // OCR file upload state
+  const [ocrFile, setOcrFile] = useState<File | null>(null);
+  const [ocrTrade, setOcrTrade] = useState<string>("");
+  const [ocrHours, setOcrHours] = useState<string>("");
+  const [ocrAmount, setOcrAmount] = useState<string>("");
+  const [ocrVendor, setOcrVendor] = useState<string>("");
+  const [ocrDate, setOcrDate] = useState<string>("");
+  const [ocrResult, setOcrResult] = useState<UploadResult | null>(null);
+  const [ocrExtracted, setOcrExtracted] = useState<{ vendor?: string; date?: string; amount?: number; hours?: number } | null>(null);
 
   useEffect(() => {
     if (!projectId && projects[0]) setProjectId(projects[0].id);
@@ -109,6 +119,55 @@ export function ImportsPanel() {
     } catch (e) { setRecResult({ ok: false, message: e instanceof Error ? e.message : "error" }); }
     finally { setBusy(null); }
   };
+  const uploadOcrReceipt = async () => {
+    if (!projectId || !ocrFile || !ocrTrade) return;
+    setBusy("ocr");
+    setOcrResult(null);
+    setOcrExtracted(null);
+    try {
+      const fileBase64 = await fileToBase64(ocrFile);
+      const payload: Record<string, unknown> = {
+        fileBase64,
+        filename: ocrFile.name,
+        trade: ocrTrade,
+      };
+      if (ocrVendor.trim()) payload["vendor"] = ocrVendor.trim();
+      if (ocrDate.trim()) payload["date"] = ocrDate.trim();
+      if (ocrAmount.trim()) payload["amount"] = Number(ocrAmount);
+      if (ocrHours.trim()) payload["hours"] = Number(ocrHours);
+
+      type UploadResp = {
+        receipts: Array<{ vendor: string; amount: number; hours: number }>;
+        updatedTrades: string[];
+        ocrExtracted?: { vendor?: string; date?: string; amount?: number; hours?: number };
+      };
+      const r = await postJson<UploadResp>(`/api/projects/${projectId}/receipts/upload-file`, payload);
+      setOcrExtracted(r.ocrExtracted ?? null);
+      setOcrResult({
+        ok: true,
+        message: t(
+          `Receipt saved (${r.receipts.length} on file). Trades refreshed: ${r.updatedTrades.join(", ") || "—"}.`,
+          `Recibo guardado (${r.receipts.length} en total). Tarifas actualizadas: ${r.updatedTrades.join(", ") || "—"}.`,
+        ),
+      });
+      // Reset file/inputs but keep the trade selection for the next upload.
+      setOcrFile(null);
+      setOcrHours("");
+      setOcrAmount("");
+      setOcrVendor("");
+      setOcrDate("");
+      toast({
+        title: t("Receipt processed", "Recibo procesado"),
+        description: t("Labor baseline updated from the new receipt.", "La línea base de mano de obra fue actualizada."),
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "error";
+      setOcrResult({ ok: false, message: msg });
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const uploadTemplate = async () => {
     if (!projectId) return;
     setBusy("tpl");
@@ -192,12 +251,12 @@ export function ImportsPanel() {
         </div>
       )}
 
-      {/* Receipts */}
-      <div className="bg-card rounded-xl border border-card-border p-5 shadow-sm">
+      {/* Receipts — OCR upload (PDF or image) */}
+      <div className="bg-card rounded-xl border border-card-border p-5 shadow-sm" data-testid="receipts-ocr-panel">
         <div className="flex items-center justify-between flex-wrap gap-3 mb-2">
           <div className="flex items-center gap-2">
-            <Receipt className="w-4 h-4 text-konti-olive" />
-            <h3 className="font-bold text-sm">{t("Last 3 Receipts (Demo Upload)", "Últimos 3 Recibos (Subida Demo)")}</h3>
+            <ScanLine className="w-4 h-4 text-konti-olive" />
+            <h3 className="font-bold text-sm">{t("Scan Paper Receipt (PDF or Photo)", "Escanear Recibo (PDF o Foto)")}</h3>
           </div>
           <select value={projectId} onChange={(e) => setProjectId(e.target.value)} className="px-2.5 py-1.5 rounded border border-input bg-background text-xs" data-testid="receipts-project">
             {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -205,8 +264,126 @@ export function ImportsPanel() {
         </div>
         <p className="text-xs text-muted-foreground mb-3">
           {t(
-            "OCR is mocked for the demo — provide a CSV (vendor, date, trade, amount, hours). The system keeps the 3 most recent and recomputes the labor baseline.",
-            "OCR es simulado en esta demo — provee un CSV (vendor, date, trade, amount, hours). El sistema conserva los 3 más recientes y recalcula la línea base de mano de obra."
+            "Upload a PDF or photo of a paper receipt. The server runs OCR (PDF.co) and extracts vendor, date, and total. Pick the trade and (if not auto-detected) enter hours. The labor baseline is recomputed from the 3 most recent receipts.",
+            "Sube un PDF o foto del recibo. El servidor ejecuta OCR (PDF.co) y extrae proveedor, fecha y total. Selecciona el oficio y (si no se detecta) ingresa las horas. La línea base de mano de obra se recalcula con los 3 recibos más recientes."
+          )}
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+          <label className="space-y-1 block md:col-span-2">
+            <span className="font-medium">{t("Receipt file (PDF, JPG, PNG)", "Archivo de recibo (PDF, JPG, PNG)")}</span>
+            <input
+              type="file"
+              accept="application/pdf,image/png,image/jpeg,image/jpg,image/webp,image/gif"
+              onChange={(e) => setOcrFile(e.target.files?.[0] ?? null)}
+              data-testid="receipt-ocr-file"
+              className="block w-full text-xs"
+            />
+            {ocrFile && (
+              <span className="text-[11px] text-muted-foreground">
+                {ocrFile.name} · {(ocrFile.size / 1024).toFixed(0)} KB
+              </span>
+            )}
+          </label>
+          <label className="space-y-1 block">
+            <span className="font-medium">{t("Trade (required)", "Oficio (requerido)")}</span>
+            <select
+              value={ocrTrade}
+              onChange={(e) => setOcrTrade(e.target.value)}
+              data-testid="receipt-ocr-trade"
+              className="w-full mt-1 px-2.5 py-1.5 rounded border border-input bg-background"
+            >
+              <option value="">{t("— select trade —", "— selecciona oficio —")}</option>
+              {labRates.map((r) => (
+                <option key={r.trade} value={r.trade}>{lang === "es" ? r.tradeEs : r.trade}</option>
+              ))}
+            </select>
+          </label>
+          <label className="space-y-1 block">
+            <span className="font-medium">{t("Hours (optional override)", "Horas (sobrescribir opcional)")}</span>
+            <input
+              type="number"
+              min="0"
+              step="0.25"
+              value={ocrHours}
+              onChange={(e) => setOcrHours(e.target.value)}
+              placeholder={t("e.g. 8", "ej. 8")}
+              data-testid="receipt-ocr-hours"
+              className="w-full mt-1 px-2.5 py-1.5 rounded border border-input bg-background"
+            />
+          </label>
+          <label className="space-y-1 block">
+            <span className="font-medium">{t("Vendor (optional override)", "Proveedor (opcional)")}</span>
+            <input
+              value={ocrVendor}
+              onChange={(e) => setOcrVendor(e.target.value)}
+              placeholder={t("Auto-detected if blank", "Auto-detectado si está vacío")}
+              data-testid="receipt-ocr-vendor"
+              className="w-full mt-1 px-2.5 py-1.5 rounded border border-input bg-background"
+            />
+          </label>
+          <label className="space-y-1 block">
+            <span className="font-medium">{t("Date (optional override)", "Fecha (opcional)")}</span>
+            <input
+              type="date"
+              value={ocrDate}
+              onChange={(e) => setOcrDate(e.target.value)}
+              data-testid="receipt-ocr-date"
+              className="w-full mt-1 px-2.5 py-1.5 rounded border border-input bg-background"
+            />
+          </label>
+          <label className="space-y-1 block md:col-span-2">
+            <span className="font-medium">{t("Amount (optional override)", "Monto (opcional)")}</span>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={ocrAmount}
+              onChange={(e) => setOcrAmount(e.target.value)}
+              placeholder={t("Auto-detected if blank", "Auto-detectado si está vacío")}
+              data-testid="receipt-ocr-amount"
+              className="w-full mt-1 px-2.5 py-1.5 rounded border border-input bg-background"
+            />
+          </label>
+        </div>
+        <div className="flex items-center gap-3 mt-3 flex-wrap">
+          <button
+            onClick={uploadOcrReceipt}
+            disabled={busy === "ocr" || !projectId || !ocrFile || !ocrTrade}
+            data-testid="btn-upload-ocr-receipt"
+            className="inline-flex items-center gap-2 px-3 py-1.5 bg-konti-olive hover:bg-konti-olive/90 text-white text-xs font-semibold rounded-md disabled:opacity-50"
+          >
+            {busy === "ocr" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ScanLine className="w-3.5 h-3.5" />}
+            {t("Scan & Save Receipt", "Escanear y Guardar Recibo")}
+          </button>
+          {ocrResult && (
+            <span className={`text-xs ${ocrResult.ok ? "text-konti-olive" : "text-destructive"}`} data-testid="receipt-ocr-result">
+              {ocrResult.message}
+            </span>
+          )}
+        </div>
+        {ocrExtracted && (ocrExtracted.vendor || ocrExtracted.date || ocrExtracted.amount || ocrExtracted.hours) && (
+          <div className="mt-3 border border-dashed border-border rounded-md p-3 bg-muted/20 text-xs" data-testid="receipt-ocr-extracted">
+            <p className="font-semibold mb-1">{t("Extracted from OCR", "Extraído por OCR")}</p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              <Field label={t("Vendor", "Proveedor")} value={ocrExtracted.vendor ?? "—"} />
+              <Field label={t("Date", "Fecha")} value={ocrExtracted.date ?? "—"} />
+              <Field label={t("Amount", "Monto")} value={ocrExtracted.amount !== undefined ? `$${ocrExtracted.amount.toFixed(2)}` : "—"} />
+              <Field label={t("Hours", "Horas")} value={ocrExtracted.hours !== undefined ? String(ocrExtracted.hours) : "—"} />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Receipts — CSV fallback (kept for batch entry / spreadsheets) */}
+      <div className="bg-card rounded-xl border border-card-border p-5 shadow-sm">
+        <div className="flex items-center gap-2 mb-2">
+          <Receipt className="w-4 h-4 text-konti-olive" />
+          <h3 className="font-bold text-sm">{t("Bulk Receipts (CSV)", "Recibos en Lote (CSV)")}</h3>
+        </div>
+        <p className="text-xs text-muted-foreground mb-3">
+          {t(
+            "For typing in a batch from a spreadsheet — provide a CSV with columns vendor, date, trade, amount, hours. The system keeps the 3 most recent and recomputes the labor baseline.",
+            "Para ingresar un lote desde una hoja de cálculo — provee un CSV con columnas vendor, date, trade, amount, hours. El sistema conserva los 3 más recientes y recalcula la línea base."
           )}
         </p>
         <textarea value={recCsv} onChange={(e) => setRecCsv(e.target.value)} rows={5} className="w-full font-mono text-xs px-3 py-2 rounded border border-input bg-background" data-testid="receipts-textarea" />
@@ -263,6 +440,29 @@ export function ImportsPanel() {
           {tplResult && <span className={`text-xs ${tplResult.ok ? "text-konti-olive" : "text-destructive"}`}>{tplResult.message}</span>}
         </div>
       </div>
+    </div>
+  );
+}
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => {
+      const result = String(r.result ?? "");
+      // strip "data:<mime>;base64," prefix to send a raw base64 payload
+      const idx = result.indexOf(",");
+      resolve(idx >= 0 ? result.slice(idx + 1) : result);
+    };
+    r.onerror = () => reject(new Error("file_read_error"));
+    r.readAsDataURL(file);
+  });
+}
+
+function Field({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex flex-col">
+      <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</span>
+      <span className="font-mono">{value}</span>
     </div>
   );
 }

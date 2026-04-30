@@ -30,7 +30,8 @@ A bilingual (EN/ES) project management and client dashboard for KONTi Design | B
 
 ### Artifacts
 1. **API Server** (`artifacts/api-server`) — Express 5 API on port 8080
-   - Routes: `/api/auth/login`, `/api/projects`, `/api/projects/:id`, `/api/projects/:id/tasks`, `/api/projects/:id/weather`, `/api/projects/:id/documents`, `/api/projects/:id/calculations`, `/api/materials`, `/api/dashboard/summary`, `/api/dashboard/activity`, `/api/ai/chat`
+   - Routes: `/api/auth/login`, `/api/projects`, `/api/projects/:id`, `/api/projects/:id/tasks`, `/api/projects/:id/weather`, `/api/projects/:id/documents`, `/api/projects/:id/calculations`, `/api/projects/:id/receipts`, `/api/projects/:id/receipts/upload-file` (real OCR via PDF.co), `/api/materials`, `/api/dashboard/summary`, `/api/dashboard/activity`, `/api/ai/chat`
+   - Receipt OCR: `POST /api/projects/:id/receipts/upload-file` accepts JSON `{fileBase64, filename, trade, hours?, vendor?, date?, amount?}`. Server uploads via PDF.co (`PDF_CO_API_KEY`), runs OCR (image→PDF→text with `eng+spa`), parses vendor/date/amount/hours heuristically, merges with overrides, persists into `PROJECT_RECEIPTS` and recomputes labor baseline (last 3 receipts per trade). The original CSV/JSON `POST /api/projects/:id/receipts` endpoint is kept as a bulk-entry fallback.
    - All static seed data (no live DB) — 3 synthetic Puerto Rico projects
    - Claude AI chat via Anthropic API (ANTHROPIC_API_KEY env var)
 
