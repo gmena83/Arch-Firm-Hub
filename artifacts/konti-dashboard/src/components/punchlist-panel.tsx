@@ -1,35 +1,21 @@
 import { useState, useEffect, useCallback } from "react";
-import { customFetch } from "@workspace/api-client-react";
+import {
+  advanceProjectPhase,
+  createProjectPunchlistItem,
+  deleteProjectPunchlistItem,
+  listProjectPunchlist,
+  setProjectPunchlistItemStatus,
+  type PunchlistItem,
+  type PunchlistItemStatus,
+  type PunchlistOpenError,
+  type PunchlistResponse,
+} from "@workspace/api-client-react";
 import { useLang } from "@/hooks/use-lang";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { ListChecks, Plus, X, Check, Clock, AlertCircle, ShieldOff, Trash2, ArrowRight, Loader2 } from "lucide-react";
 
-type PunchlistStatus = "open" | "in_progress" | "done" | "waived";
-
-interface PunchlistItem {
-  id: string;
-  projectId: string;
-  phase: string;
-  label: string;
-  labelEs: string;
-  owner: string;
-  dueDate?: string;
-  status: PunchlistStatus;
-  waiverReason?: string;
-  completedAt?: string;
-  updatedAt: string;
-}
-
-interface PunchlistResponse {
-  projectId: string;
-  phase: string;
-  items: PunchlistItem[];
-  openCount: number;
-  totalCount: number;
-  doneCount: number;
-  waivedCount: number;
-}
+type PunchlistStatus = PunchlistItemStatus;
 
 function StatusPill({ status }: { status: PunchlistStatus }) {
   const { t } = useLang();
@@ -63,10 +49,12 @@ function AddItemDialog({ projectId, phase, onClose, onCreated }: { projectId: st
     }
     setBusy(true);
     try {
-      await customFetch(`/api/projects/${projectId}/punchlist`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ label, labelEs, owner, dueDate: dueDate || undefined, phase }),
+      await createProjectPunchlistItem(projectId, {
+        label,
+        labelEs,
+        owner,
+        dueDate: dueDate || undefined,
+        phase,
       });
       toast({ title: t("Punchlist item added", "Ítem de punchlist agregado") });
       onCreated();
@@ -166,7 +154,7 @@ export function PunchlistPanel({
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const d = await customFetch<PunchlistResponse>(`/api/projects/${projectId}/punchlist?phase=${encodeURIComponent(currentPhase)}`);
+      const d: PunchlistResponse = await listProjectPunchlist(projectId, { phase: currentPhase });
       setData(d);
     } catch {
       setData(null);
@@ -195,11 +183,7 @@ export function PunchlistPanel({
     }
     setBusyItemId(item.id);
     try {
-      await customFetch(`/api/projects/${projectId}/punchlist/${item.id}/status`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status, waiverReason }),
-      });
+      await setProjectPunchlistItemStatus(projectId, item.id, { status, waiverReason });
       toast({ title: t("Item updated", "Ítem actualizado") });
       await refresh();
     } catch {
@@ -213,7 +197,7 @@ export function PunchlistPanel({
     if (!window.confirm(t(`Delete "${item.label}"?`, `¿Eliminar "${item.labelEs}"?`))) return;
     setBusyItemId(item.id);
     try {
-      await customFetch(`/api/projects/${projectId}/punchlist/${item.id}`, { method: "DELETE" });
+      await deleteProjectPunchlistItem(projectId, item.id);
       await refresh();
     } catch {
       toast({ title: t("Delete failed", "Eliminación falló"), variant: "destructive" });
@@ -225,13 +209,15 @@ export function PunchlistPanel({
   async function advancePhase() {
     setAdvancing(true);
     try {
-      await customFetch(`/api/projects/${projectId}/advance-phase`, { method: "POST" });
+      await advanceProjectPhase(projectId);
       toast({ title: t("Phase advanced", "Fase avanzada") });
       // Notify parent so it can invalidate the project query; the new phase will
       // propagate down via the currentPhase prop and trigger a punchlist refresh.
       await onAdvanced?.();
     } catch (err) {
-      const e = err as { status?: number; data?: { error?: string; message?: string; messageEs?: string; openCount?: number } };
+      // The structured 400 from advance-phase may be either a generic
+      // ErrorResponse or a PunchlistOpenError — read whichever fields exist.
+      const e = err as { status?: number; data?: Partial<PunchlistOpenError> & { message?: string; messageEs?: string } };
       const msg = lang === "es" ? e?.data?.messageEs : e?.data?.message;
       toast({
         title: t("Cannot advance phase", "No se puede avanzar la fase"),

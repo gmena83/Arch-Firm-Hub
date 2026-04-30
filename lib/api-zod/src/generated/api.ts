@@ -541,6 +541,11 @@ export const SubmitStructuredVariablesResponse = zod.object({
 });
 
 /**
+ * Refuses to advance when the current phase has any open punchlist items
+(status not in `done`/`waived`). In that case the response is a structured
+`PunchlistOpenError` with `error="punchlist_open"`, the open count, and
+the open items themselves so the client can render a targeted message.
+
  * @summary Advance the project to the next canonical phase (client may only approve the consultation gate)
  */
 export const AdvanceProjectPhaseParams = zod.object({
@@ -600,6 +605,220 @@ export const AdvanceProjectPhaseResponse = zod.object({
       ),
   }),
   advancedTo: zod.string(),
+});
+
+/**
+ * Returns the items recorded against the given phase (defaults to the
+project's current phase) along with rolled-up counts used by the UI to
+render progress.
+
+ * @summary List punchlist items for a project phase
+ */
+export const ListProjectPunchlistParams = zod.object({
+  projectId: zod.coerce.string(),
+});
+
+export const ListProjectPunchlistQueryParams = zod.object({
+  phase: zod.coerce
+    .string()
+    .optional()
+    .describe(
+      "Phase to read items for. Defaults to the project's current phase.",
+    ),
+});
+
+export const ListProjectPunchlistResponse = zod.object({
+  projectId: zod.string(),
+  phase: zod.string(),
+  items: zod.array(
+    zod.object({
+      id: zod.string(),
+      projectId: zod.string(),
+      phase: zod
+        .string()
+        .describe(
+          "Project phase the item belongs to (e.g. construction, completed)",
+        ),
+      label: zod.string(),
+      labelEs: zod.string(),
+      owner: zod.string(),
+      dueDate: zod
+        .string()
+        .optional()
+        .describe("ISO date (YYYY-MM-DD); omitted if no due date is set"),
+      status: zod
+        .enum(["open", "in_progress", "done", "waived"])
+        .describe(
+          "Lifecycle states for a punchlist item. `done` and `waived` count as\ncleared for the purpose of advancing the project phase.\n",
+        ),
+      waiverReason: zod
+        .string()
+        .optional()
+        .describe("Justification recorded when the item was waived"),
+      completedAt: zod
+        .string()
+        .optional()
+        .describe("ISO timestamp the item was marked done"),
+      updatedAt: zod.string(),
+    }),
+  ),
+  openCount: zod.number(),
+  totalCount: zod.number(),
+  doneCount: zod.number(),
+  waivedCount: zod.number(),
+});
+
+/**
+ * @summary Add a punchlist item to a project phase (team/admin/superadmin)
+ */
+export const CreateProjectPunchlistItemParams = zod.object({
+  projectId: zod.coerce.string(),
+});
+
+export const CreateProjectPunchlistItemBody = zod.object({
+  label: zod
+    .string()
+    .describe("English label (truncated to 200 chars server-side)"),
+  labelEs: zod
+    .string()
+    .describe("Spanish label (truncated to 200 chars server-side)"),
+  owner: zod
+    .string()
+    .describe("Person or subcontractor responsible (truncated to 100 chars)"),
+  dueDate: zod.string().optional().describe("Optional ISO date (YYYY-MM-DD)"),
+  phase: zod
+    .string()
+    .optional()
+    .describe(
+      "Phase to attach the item to. Defaults to the project's current phase.",
+    ),
+});
+
+/**
+ * @summary Edit the label, owner or due date of a punchlist item (team/admin/superadmin)
+ */
+export const UpdateProjectPunchlistItemParams = zod.object({
+  projectId: zod.coerce.string(),
+  itemId: zod.coerce.string(),
+});
+
+export const UpdateProjectPunchlistItemBody = zod
+  .object({
+    label: zod.string().optional(),
+    labelEs: zod.string().optional(),
+    owner: zod.string().optional(),
+    dueDate: zod
+      .string()
+      .optional()
+      .describe("ISO date (YYYY-MM-DD); pass empty string to clear"),
+  })
+  .describe("Partial update; only provided fields are written.");
+
+export const UpdateProjectPunchlistItemResponse = zod.object({
+  projectId: zod.string(),
+  item: zod.object({
+    id: zod.string(),
+    projectId: zod.string(),
+    phase: zod
+      .string()
+      .describe(
+        "Project phase the item belongs to (e.g. construction, completed)",
+      ),
+    label: zod.string(),
+    labelEs: zod.string(),
+    owner: zod.string(),
+    dueDate: zod
+      .string()
+      .optional()
+      .describe("ISO date (YYYY-MM-DD); omitted if no due date is set"),
+    status: zod
+      .enum(["open", "in_progress", "done", "waived"])
+      .describe(
+        "Lifecycle states for a punchlist item. `done` and `waived` count as\ncleared for the purpose of advancing the project phase.\n",
+      ),
+    waiverReason: zod
+      .string()
+      .optional()
+      .describe("Justification recorded when the item was waived"),
+    completedAt: zod
+      .string()
+      .optional()
+      .describe("ISO timestamp the item was marked done"),
+    updatedAt: zod.string(),
+  }),
+});
+
+/**
+ * @summary Remove a punchlist item from the project (team/admin/superadmin)
+ */
+export const DeleteProjectPunchlistItemParams = zod.object({
+  projectId: zod.coerce.string(),
+  itemId: zod.coerce.string(),
+});
+
+export const DeleteProjectPunchlistItemResponse = zod.object({
+  projectId: zod.string(),
+  removedId: zod.string(),
+});
+
+/**
+ * Transitions an item to `open`, `in_progress`, `done`, or `waived`.
+Waiving requires a `waiverReason` of at least 3 characters; it is
+recorded on the item and shown in the UI.
+
+ * @summary Change a punchlist item's status (team/admin/superadmin)
+ */
+export const SetProjectPunchlistItemStatusParams = zod.object({
+  projectId: zod.coerce.string(),
+  itemId: zod.coerce.string(),
+});
+
+export const SetProjectPunchlistItemStatusBody = zod.object({
+  status: zod
+    .enum(["open", "in_progress", "done", "waived"])
+    .describe(
+      "Lifecycle states for a punchlist item. `done` and `waived` count as\ncleared for the purpose of advancing the project phase.\n",
+    ),
+  waiverReason: zod
+    .string()
+    .optional()
+    .describe(
+      "Required (≥3 chars) when status is `waived`. Ignored otherwise.",
+    ),
+});
+
+export const SetProjectPunchlistItemStatusResponse = zod.object({
+  projectId: zod.string(),
+  item: zod.object({
+    id: zod.string(),
+    projectId: zod.string(),
+    phase: zod
+      .string()
+      .describe(
+        "Project phase the item belongs to (e.g. construction, completed)",
+      ),
+    label: zod.string(),
+    labelEs: zod.string(),
+    owner: zod.string(),
+    dueDate: zod
+      .string()
+      .optional()
+      .describe("ISO date (YYYY-MM-DD); omitted if no due date is set"),
+    status: zod
+      .enum(["open", "in_progress", "done", "waived"])
+      .describe(
+        "Lifecycle states for a punchlist item. `done` and `waived` count as\ncleared for the purpose of advancing the project phase.\n",
+      ),
+    waiverReason: zod
+      .string()
+      .optional()
+      .describe("Justification recorded when the item was waived"),
+    completedAt: zod
+      .string()
+      .optional()
+      .describe("ISO timestamp the item was marked done"),
+    updatedAt: zod.string(),
+  }),
 });
 
 /**

@@ -1126,6 +1126,113 @@ export interface GammaReportResponse {
   pages: number;
 }
 
+/**
+ * Lifecycle states for a punchlist item. `done` and `waived` count as
+cleared for the purpose of advancing the project phase.
+
+ */
+export type PunchlistItemStatus =
+  (typeof PunchlistItemStatus)[keyof typeof PunchlistItemStatus];
+
+export const PunchlistItemStatus = {
+  open: "open",
+  in_progress: "in_progress",
+  done: "done",
+  waived: "waived",
+} as const;
+
+export interface PunchlistItem {
+  id: string;
+  projectId: string;
+  /** Project phase the item belongs to (e.g. construction, completed) */
+  phase: string;
+  label: string;
+  labelEs: string;
+  owner: string;
+  /** ISO date (YYYY-MM-DD); omitted if no due date is set */
+  dueDate?: string;
+  status: PunchlistItemStatus;
+  /** Justification recorded when the item was waived */
+  waiverReason?: string;
+  /** ISO timestamp the item was marked done */
+  completedAt?: string;
+  updatedAt: string;
+}
+
+export interface PunchlistResponse {
+  projectId: string;
+  phase: string;
+  items: PunchlistItem[];
+  openCount: number;
+  totalCount: number;
+  doneCount: number;
+  waivedCount: number;
+}
+
+export interface PunchlistItemMutationResponse {
+  projectId: string;
+  item: PunchlistItem;
+}
+
+export interface CreatePunchlistItemRequest {
+  /** English label (truncated to 200 chars server-side) */
+  label: string;
+  /** Spanish label (truncated to 200 chars server-side) */
+  labelEs: string;
+  /** Person or subcontractor responsible (truncated to 100 chars) */
+  owner: string;
+  /** Optional ISO date (YYYY-MM-DD) */
+  dueDate?: string;
+  /** Phase to attach the item to. Defaults to the project's current phase. */
+  phase?: string;
+}
+
+/**
+ * Partial update; only provided fields are written.
+ */
+export interface UpdatePunchlistItemRequest {
+  label?: string;
+  labelEs?: string;
+  owner?: string;
+  /** ISO date (YYYY-MM-DD); pass empty string to clear */
+  dueDate?: string;
+}
+
+export interface UpdatePunchlistStatusRequest {
+  status: PunchlistItemStatus;
+  /** Required (≥3 chars) when status is `waived`. Ignored otherwise. */
+  waiverReason?: string;
+}
+
+export type PunchlistOpenErrorError =
+  (typeof PunchlistOpenErrorError)[keyof typeof PunchlistOpenErrorError];
+
+export const PunchlistOpenErrorError = {
+  punchlist_open: "punchlist_open",
+} as const;
+
+export type PunchlistOpenErrorOpenItemsItem = {
+  id: string;
+  label: string;
+  labelEs: string;
+  status: PunchlistItemStatus;
+};
+
+/**
+ * Returned by `POST /projects/{projectId}/advance-phase` with HTTP 400
+when the current phase still has unresolved punchlist items.
+
+ */
+export interface PunchlistOpenError {
+  error: PunchlistOpenErrorError;
+  /** Human-readable reason in English */
+  message: string;
+  /** Human-readable reason in Spanish */
+  messageEs: string;
+  openCount: number;
+  openItems: PunchlistOpenErrorOpenItemsItem[];
+}
+
 export type GetProjectDocumentsParams = {
   clientVisible?: boolean;
 };
@@ -1179,6 +1286,18 @@ export type SubmitStructuredVariables200 = {
 export type AdvanceProjectPhase200 = {
   project: Project;
   advancedTo: string;
+};
+
+export type ListProjectPunchlistParams = {
+  /**
+   * Phase to read items for. Defaults to the project's current phase.
+   */
+  phase?: string;
+};
+
+export type DeleteProjectPunchlistItem200 = {
+  projectId: string;
+  removedId: string;
 };
 
 export type DeclineProjectPhaseBody = {

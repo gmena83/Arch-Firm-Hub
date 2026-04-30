@@ -38,6 +38,8 @@ tags:
     description: Structural engineer directory
   - name: pre-design
     description: Phase 2 — Pre-Design & Viability (checklist, structured variables, GAMMA, phase advance)
+  - name: punchlist
+    description: Phase punchlist — per-phase open items that gate phase advancement
 paths:
   /healthz:
     get:
@@ -467,6 +469,11 @@ paths:
       operationId: advanceProjectPhase
       tags: [pre-design]
       summary: Advance the project to the next canonical phase (client may only approve the consultation gate)
+      description: |
+        Refuses to advance when the current phase has any open punchlist items
+        (status not in `done`/`waived`). In that case the response is a structured
+        `PunchlistOpenError` with `error="punchlist_open"`, the open count, and
+        the open items themselves so the client can render a targeted message.
       parameters:
         - name: projectId
           in: path
@@ -484,10 +491,16 @@ paths:
                   project: { $ref: "#/components/schemas/Project" }
                   advancedTo: { type: string }
         "400":
-          description: Cannot advance (already in final phase or client gate violation)
+          description: |
+            Cannot advance. Either a generic validation error (e.g. already in
+            final phase, client gate violation) or a structured `punchlist_open`
+            payload describing the items blocking advancement.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/ErrorResponse" }
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/PunchlistOpenError"
+                  - $ref: "#/components/schemas/ErrorResponse"
         "403":
           description: Client cannot advance this project
           content:
@@ -495,6 +508,192 @@ paths:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
         "404":
           description: Project not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /projects/{projectId}/punchlist:
+    get:
+      operationId: listProjectPunchlist
+      tags: [punchlist]
+      summary: List punchlist items for a project phase
+      description: |
+        Returns the items recorded against the given phase (defaults to the
+        project's current phase) along with rolled-up counts used by the UI to
+        render progress.
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: phase
+          in: query
+          required: false
+          description: Phase to read items for. Defaults to the project's current phase.
+          schema: { type: string }
+      responses:
+        "200":
+          description: Punchlist items and rolled-up counts
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PunchlistResponse" }
+        "403":
+          description: Client cannot view this project
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+    post:
+      operationId: createProjectPunchlistItem
+      tags: [punchlist]
+      summary: Add a punchlist item to a project phase (team/admin/superadmin)
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreatePunchlistItemRequest" }
+      responses:
+        "201":
+          description: Newly created item, with the project id it was attached to
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PunchlistItemMutationResponse" }
+        "400":
+          description: Validation error (missing/blank label, labelEs, or owner)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Caller cannot modify this project
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /projects/{projectId}/punchlist/{itemId}:
+    patch:
+      operationId: updateProjectPunchlistItem
+      tags: [punchlist]
+      summary: Edit the label, owner or due date of a punchlist item (team/admin/superadmin)
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: itemId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdatePunchlistItemRequest" }
+      responses:
+        "200":
+          description: Updated item
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PunchlistItemMutationResponse" }
+        "403":
+          description: Caller cannot modify this project
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Project or item not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+    delete:
+      operationId: deleteProjectPunchlistItem
+      tags: [punchlist]
+      summary: Remove a punchlist item from the project (team/admin/superadmin)
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: itemId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Item removed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [projectId, removedId]
+                properties:
+                  projectId: { type: string }
+                  removedId: { type: string }
+        "403":
+          description: Caller cannot modify this project
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Project or item not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /projects/{projectId}/punchlist/{itemId}/status:
+    post:
+      operationId: setProjectPunchlistItemStatus
+      tags: [punchlist]
+      summary: Change a punchlist item's status (team/admin/superadmin)
+      description: |
+        Transitions an item to `open`, `in_progress`, `done`, or `waived`.
+        Waiving requires a `waiverReason` of at least 3 characters; it is
+        recorded on the item and shown in the UI.
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: itemId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdatePunchlistStatusRequest" }
+      responses:
+        "200":
+          description: Updated item with its new status
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PunchlistItemMutationResponse" }
+        "400":
+          description: Invalid status, or waiving without a justification
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Caller cannot modify this project
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Project or item not found
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
@@ -2963,3 +3162,123 @@ components:
         generatedBy: { type: string }
         pages: { type: integer }
       required: [projectId, reportId, gammaReportUrl, url, generatedAt, generatedBy, pages]
+
+    PunchlistItemStatus:
+      type: string
+      description: |
+        Lifecycle states for a punchlist item. `done` and `waived` count as
+        cleared for the purpose of advancing the project phase.
+      enum: [open, in_progress, done, waived]
+
+    PunchlistItem:
+      type: object
+      properties:
+        id: { type: string }
+        projectId: { type: string }
+        phase:
+          type: string
+          description: Project phase the item belongs to (e.g. construction, completed)
+        label: { type: string }
+        labelEs: { type: string }
+        owner: { type: string }
+        dueDate:
+          type: string
+          description: ISO date (YYYY-MM-DD); omitted if no due date is set
+        status: { $ref: "#/components/schemas/PunchlistItemStatus" }
+        waiverReason:
+          type: string
+          description: Justification recorded when the item was waived
+        completedAt:
+          type: string
+          description: ISO timestamp the item was marked done
+        updatedAt: { type: string }
+      required: [id, projectId, phase, label, labelEs, owner, status, updatedAt]
+
+    PunchlistResponse:
+      type: object
+      properties:
+        projectId: { type: string }
+        phase: { type: string }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/PunchlistItem" }
+        openCount: { type: integer }
+        totalCount: { type: integer }
+        doneCount: { type: integer }
+        waivedCount: { type: integer }
+      required: [projectId, phase, items, openCount, totalCount, doneCount, waivedCount]
+
+    PunchlistItemMutationResponse:
+      type: object
+      properties:
+        projectId: { type: string }
+        item: { $ref: "#/components/schemas/PunchlistItem" }
+      required: [projectId, item]
+
+    CreatePunchlistItemRequest:
+      type: object
+      properties:
+        label:
+          type: string
+          description: English label (truncated to 200 chars server-side)
+        labelEs:
+          type: string
+          description: Spanish label (truncated to 200 chars server-side)
+        owner:
+          type: string
+          description: Person or subcontractor responsible (truncated to 100 chars)
+        dueDate:
+          type: string
+          description: Optional ISO date (YYYY-MM-DD)
+        phase:
+          type: string
+          description: Phase to attach the item to. Defaults to the project's current phase.
+      required: [label, labelEs, owner]
+
+    UpdatePunchlistItemRequest:
+      type: object
+      description: Partial update; only provided fields are written.
+      properties:
+        label: { type: string }
+        labelEs: { type: string }
+        owner: { type: string }
+        dueDate:
+          type: string
+          description: ISO date (YYYY-MM-DD); pass empty string to clear
+
+    UpdatePunchlistStatusRequest:
+      type: object
+      properties:
+        status: { $ref: "#/components/schemas/PunchlistItemStatus" }
+        waiverReason:
+          type: string
+          description: Required (≥3 chars) when status is `waived`. Ignored otherwise.
+      required: [status]
+
+    PunchlistOpenError:
+      type: object
+      description: |
+        Returned by `POST /projects/{projectId}/advance-phase` with HTTP 400
+        when the current phase still has unresolved punchlist items.
+      properties:
+        error:
+          type: string
+          enum: [punchlist_open]
+        message:
+          type: string
+          description: Human-readable reason in English
+        messageEs:
+          type: string
+          description: Human-readable reason in Spanish
+        openCount: { type: integer }
+        openItems:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              label: { type: string }
+              labelEs: { type: string }
+              status: { $ref: "#/components/schemas/PunchlistItemStatus" }
+            required: [id, label, labelEs, status]
+      required: [error, message, messageEs, openCount, openItems]

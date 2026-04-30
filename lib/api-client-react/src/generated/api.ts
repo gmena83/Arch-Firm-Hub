@@ -36,10 +36,12 @@ import type {
   CreateChangeOrderBody,
   CreateInspection201,
   CreateInspectionBody,
+  CreatePunchlistItemRequest,
   DashboardSummary,
   DeclineProjectPhase200,
   DeclineProjectPhaseBody,
   DeleteInspection200,
+  DeleteProjectPunchlistItem200,
   DesignStateResponse,
   Document,
   DocumentCreateRequest,
@@ -56,6 +58,7 @@ import type {
   LeadAcceptResponse,
   LeadCreateRequest,
   ListMaterialsParams,
+  ListProjectPunchlistParams,
   LoginRequest,
   LoginResponse,
   Material,
@@ -70,6 +73,9 @@ import type {
   ProjectCreateRequest,
   ProjectInvoicesResponse,
   ProjectTask,
+  PunchlistItemMutationResponse,
+  PunchlistOpenError,
+  PunchlistResponse,
   RefreshMaterialPricesParams,
   SendInspectionReport200,
   SendInspectionReportBody,
@@ -92,6 +98,8 @@ import type {
   UpdateInspectionBody,
   UpdateMilestone200,
   UpdateMilestoneBody,
+  UpdatePunchlistItemRequest,
+  UpdatePunchlistStatusRequest,
   User,
   UserUpdateRequest,
   WeatherStatus,
@@ -1377,6 +1385,11 @@ export const useSubmitStructuredVariables = <
 };
 
 /**
+ * Refuses to advance when the current phase has any open punchlist items
+(status not in `done`/`waived`). In that case the response is a structured
+`PunchlistOpenError` with `error="punchlist_open"`, the open count, and
+the open items themselves so the client can render a targeted message.
+
  * @summary Advance the project to the next canonical phase (client may only approve the consultation gate)
  */
 export const getAdvanceProjectPhaseUrl = (projectId: string) => {
@@ -1397,7 +1410,7 @@ export const advanceProjectPhase = async (
 };
 
 export const getAdvanceProjectPhaseMutationOptions = <
-  TError = ErrorType<ErrorResponse>,
+  TError = ErrorType<PunchlistOpenError | ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -1438,13 +1451,15 @@ export type AdvanceProjectPhaseMutationResult = NonNullable<
   Awaited<ReturnType<typeof advanceProjectPhase>>
 >;
 
-export type AdvanceProjectPhaseMutationError = ErrorType<ErrorResponse>;
+export type AdvanceProjectPhaseMutationError = ErrorType<
+  PunchlistOpenError | ErrorResponse
+>;
 
 /**
  * @summary Advance the project to the next canonical phase (client may only approve the consultation gate)
  */
 export const useAdvanceProjectPhase = <
-  TError = ErrorType<ErrorResponse>,
+  TError = ErrorType<PunchlistOpenError | ErrorResponse>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -1461,6 +1476,553 @@ export const useAdvanceProjectPhase = <
   TContext
 > => {
   return useMutation(getAdvanceProjectPhaseMutationOptions(options));
+};
+
+/**
+ * Returns the items recorded against the given phase (defaults to the
+project's current phase) along with rolled-up counts used by the UI to
+render progress.
+
+ * @summary List punchlist items for a project phase
+ */
+export const getListProjectPunchlistUrl = (
+  projectId: string,
+  params?: ListProjectPunchlistParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/projects/${projectId}/punchlist?${stringifiedParams}`
+    : `/api/projects/${projectId}/punchlist`;
+};
+
+export const listProjectPunchlist = async (
+  projectId: string,
+  params?: ListProjectPunchlistParams,
+  options?: RequestInit,
+): Promise<PunchlistResponse> => {
+  return customFetch<PunchlistResponse>(
+    getListProjectPunchlistUrl(projectId, params),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getListProjectPunchlistQueryKey = (
+  projectId: string,
+  params?: ListProjectPunchlistParams,
+) => {
+  return [
+    `/api/projects/${projectId}/punchlist`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getListProjectPunchlistQueryOptions = <
+  TData = Awaited<ReturnType<typeof listProjectPunchlist>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  projectId: string,
+  params?: ListProjectPunchlistParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listProjectPunchlist>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getListProjectPunchlistQueryKey(projectId, params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listProjectPunchlist>>
+  > = ({ signal }) =>
+    listProjectPunchlist(projectId, params, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!projectId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listProjectPunchlist>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListProjectPunchlistQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listProjectPunchlist>>
+>;
+export type ListProjectPunchlistQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary List punchlist items for a project phase
+ */
+
+export function useListProjectPunchlist<
+  TData = Awaited<ReturnType<typeof listProjectPunchlist>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  projectId: string,
+  params?: ListProjectPunchlistParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listProjectPunchlist>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListProjectPunchlistQueryOptions(
+    projectId,
+    params,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Add a punchlist item to a project phase (team/admin/superadmin)
+ */
+export const getCreateProjectPunchlistItemUrl = (projectId: string) => {
+  return `/api/projects/${projectId}/punchlist`;
+};
+
+export const createProjectPunchlistItem = async (
+  projectId: string,
+  createPunchlistItemRequest: CreatePunchlistItemRequest,
+  options?: RequestInit,
+): Promise<PunchlistItemMutationResponse> => {
+  return customFetch<PunchlistItemMutationResponse>(
+    getCreateProjectPunchlistItemUrl(projectId),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(createPunchlistItemRequest),
+    },
+  );
+};
+
+export const getCreateProjectPunchlistItemMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createProjectPunchlistItem>>,
+    TError,
+    { projectId: string; data: BodyType<CreatePunchlistItemRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createProjectPunchlistItem>>,
+  TError,
+  { projectId: string; data: BodyType<CreatePunchlistItemRequest> },
+  TContext
+> => {
+  const mutationKey = ["createProjectPunchlistItem"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createProjectPunchlistItem>>,
+    { projectId: string; data: BodyType<CreatePunchlistItemRequest> }
+  > = (props) => {
+    const { projectId, data } = props ?? {};
+
+    return createProjectPunchlistItem(projectId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateProjectPunchlistItemMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createProjectPunchlistItem>>
+>;
+export type CreateProjectPunchlistItemMutationBody =
+  BodyType<CreatePunchlistItemRequest>;
+export type CreateProjectPunchlistItemMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Add a punchlist item to a project phase (team/admin/superadmin)
+ */
+export const useCreateProjectPunchlistItem = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createProjectPunchlistItem>>,
+    TError,
+    { projectId: string; data: BodyType<CreatePunchlistItemRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createProjectPunchlistItem>>,
+  TError,
+  { projectId: string; data: BodyType<CreatePunchlistItemRequest> },
+  TContext
+> => {
+  return useMutation(getCreateProjectPunchlistItemMutationOptions(options));
+};
+
+/**
+ * @summary Edit the label, owner or due date of a punchlist item (team/admin/superadmin)
+ */
+export const getUpdateProjectPunchlistItemUrl = (
+  projectId: string,
+  itemId: string,
+) => {
+  return `/api/projects/${projectId}/punchlist/${itemId}`;
+};
+
+export const updateProjectPunchlistItem = async (
+  projectId: string,
+  itemId: string,
+  updatePunchlistItemRequest: UpdatePunchlistItemRequest,
+  options?: RequestInit,
+): Promise<PunchlistItemMutationResponse> => {
+  return customFetch<PunchlistItemMutationResponse>(
+    getUpdateProjectPunchlistItemUrl(projectId, itemId),
+    {
+      ...options,
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(updatePunchlistItemRequest),
+    },
+  );
+};
+
+export const getUpdateProjectPunchlistItemMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateProjectPunchlistItem>>,
+    TError,
+    {
+      projectId: string;
+      itemId: string;
+      data: BodyType<UpdatePunchlistItemRequest>;
+    },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateProjectPunchlistItem>>,
+  TError,
+  {
+    projectId: string;
+    itemId: string;
+    data: BodyType<UpdatePunchlistItemRequest>;
+  },
+  TContext
+> => {
+  const mutationKey = ["updateProjectPunchlistItem"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateProjectPunchlistItem>>,
+    {
+      projectId: string;
+      itemId: string;
+      data: BodyType<UpdatePunchlistItemRequest>;
+    }
+  > = (props) => {
+    const { projectId, itemId, data } = props ?? {};
+
+    return updateProjectPunchlistItem(projectId, itemId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateProjectPunchlistItemMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateProjectPunchlistItem>>
+>;
+export type UpdateProjectPunchlistItemMutationBody =
+  BodyType<UpdatePunchlistItemRequest>;
+export type UpdateProjectPunchlistItemMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Edit the label, owner or due date of a punchlist item (team/admin/superadmin)
+ */
+export const useUpdateProjectPunchlistItem = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateProjectPunchlistItem>>,
+    TError,
+    {
+      projectId: string;
+      itemId: string;
+      data: BodyType<UpdatePunchlistItemRequest>;
+    },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateProjectPunchlistItem>>,
+  TError,
+  {
+    projectId: string;
+    itemId: string;
+    data: BodyType<UpdatePunchlistItemRequest>;
+  },
+  TContext
+> => {
+  return useMutation(getUpdateProjectPunchlistItemMutationOptions(options));
+};
+
+/**
+ * @summary Remove a punchlist item from the project (team/admin/superadmin)
+ */
+export const getDeleteProjectPunchlistItemUrl = (
+  projectId: string,
+  itemId: string,
+) => {
+  return `/api/projects/${projectId}/punchlist/${itemId}`;
+};
+
+export const deleteProjectPunchlistItem = async (
+  projectId: string,
+  itemId: string,
+  options?: RequestInit,
+): Promise<DeleteProjectPunchlistItem200> => {
+  return customFetch<DeleteProjectPunchlistItem200>(
+    getDeleteProjectPunchlistItemUrl(projectId, itemId),
+    {
+      ...options,
+      method: "DELETE",
+    },
+  );
+};
+
+export const getDeleteProjectPunchlistItemMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteProjectPunchlistItem>>,
+    TError,
+    { projectId: string; itemId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteProjectPunchlistItem>>,
+  TError,
+  { projectId: string; itemId: string },
+  TContext
+> => {
+  const mutationKey = ["deleteProjectPunchlistItem"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteProjectPunchlistItem>>,
+    { projectId: string; itemId: string }
+  > = (props) => {
+    const { projectId, itemId } = props ?? {};
+
+    return deleteProjectPunchlistItem(projectId, itemId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteProjectPunchlistItemMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteProjectPunchlistItem>>
+>;
+
+export type DeleteProjectPunchlistItemMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Remove a punchlist item from the project (team/admin/superadmin)
+ */
+export const useDeleteProjectPunchlistItem = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteProjectPunchlistItem>>,
+    TError,
+    { projectId: string; itemId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteProjectPunchlistItem>>,
+  TError,
+  { projectId: string; itemId: string },
+  TContext
+> => {
+  return useMutation(getDeleteProjectPunchlistItemMutationOptions(options));
+};
+
+/**
+ * Transitions an item to `open`, `in_progress`, `done`, or `waived`.
+Waiving requires a `waiverReason` of at least 3 characters; it is
+recorded on the item and shown in the UI.
+
+ * @summary Change a punchlist item's status (team/admin/superadmin)
+ */
+export const getSetProjectPunchlistItemStatusUrl = (
+  projectId: string,
+  itemId: string,
+) => {
+  return `/api/projects/${projectId}/punchlist/${itemId}/status`;
+};
+
+export const setProjectPunchlistItemStatus = async (
+  projectId: string,
+  itemId: string,
+  updatePunchlistStatusRequest: UpdatePunchlistStatusRequest,
+  options?: RequestInit,
+): Promise<PunchlistItemMutationResponse> => {
+  return customFetch<PunchlistItemMutationResponse>(
+    getSetProjectPunchlistItemStatusUrl(projectId, itemId),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(updatePunchlistStatusRequest),
+    },
+  );
+};
+
+export const getSetProjectPunchlistItemStatusMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setProjectPunchlistItemStatus>>,
+    TError,
+    {
+      projectId: string;
+      itemId: string;
+      data: BodyType<UpdatePunchlistStatusRequest>;
+    },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof setProjectPunchlistItemStatus>>,
+  TError,
+  {
+    projectId: string;
+    itemId: string;
+    data: BodyType<UpdatePunchlistStatusRequest>;
+  },
+  TContext
+> => {
+  const mutationKey = ["setProjectPunchlistItemStatus"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof setProjectPunchlistItemStatus>>,
+    {
+      projectId: string;
+      itemId: string;
+      data: BodyType<UpdatePunchlistStatusRequest>;
+    }
+  > = (props) => {
+    const { projectId, itemId, data } = props ?? {};
+
+    return setProjectPunchlistItemStatus(
+      projectId,
+      itemId,
+      data,
+      requestOptions,
+    );
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SetProjectPunchlistItemStatusMutationResult = NonNullable<
+  Awaited<ReturnType<typeof setProjectPunchlistItemStatus>>
+>;
+export type SetProjectPunchlistItemStatusMutationBody =
+  BodyType<UpdatePunchlistStatusRequest>;
+export type SetProjectPunchlistItemStatusMutationError =
+  ErrorType<ErrorResponse>;
+
+/**
+ * @summary Change a punchlist item's status (team/admin/superadmin)
+ */
+export const useSetProjectPunchlistItemStatus = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setProjectPunchlistItemStatus>>,
+    TError,
+    {
+      projectId: string;
+      itemId: string;
+      data: BodyType<UpdatePunchlistStatusRequest>;
+    },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof setProjectPunchlistItemStatus>>,
+  TError,
+  {
+    projectId: string;
+    itemId: string;
+    data: BodyType<UpdatePunchlistStatusRequest>;
+  },
+  TContext
+> => {
+  return useMutation(getSetProjectPunchlistItemStatusMutationOptions(options));
 };
 
 /**
