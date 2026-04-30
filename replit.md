@@ -118,19 +118,33 @@ version ranges, likely because the npm registry only knows about 0.18.5.
 
 ## GitHub Backup (Task #96)
 
-The repo is mirrored to a private GitHub repo for safekeeping:
+The repo is mirrored to a private GitHub repository for safekeeping:
 **https://github.com/gmena83/konti-dashboard-backup**
 
-To push subsequent updates, the user can authorize the GitHub integration
-once (already done at `connection:conn_github_01KQE5WDMH98BBX68KHP36KKGG`)
-and the agent (or any Replit code-execution sandbox) can fetch a short-lived
-access token via `listConnections('github')[0].settings.access_token`, then:
+The GitHub connection is wired through the Replit integrations system
+(connection id `conn_github_01KQE5WDMH98BBX68KHP36KKGG`); future pushes
+should reuse that connection rather than embedding any long-lived
+credentials in this workspace. Pushes are made via a one-shot remote URL
+so no token is ever written to `.git/config` or any file on disk.
 
-```
-git push https://x-access-token:${TOKEN}@github.com/gmena83/konti-dashboard-backup.git main
-```
+### Initial backup verification (Apr 30 2026)
 
-Never write the token into `.git/config` — use a one-shot URL like above so
-the token leaves no trace on disk.
+Two pushes were performed during Task #96:
 
-Initial backup commit: `f9c80999f5ff647da4ef341cc859b14fa68a0a7f` (Apr 30 2026).
+1. After the GitHub repo was created — pushed `f9c8099`. Verified by reading
+   `GET /repos/gmena83/konti-dashboard-backup/git/ref/heads/main`; remote
+   SHA matched local SHA exactly.
+2. After T002 (feedback reconciliation) added new files — pushed `d7c7ef3`.
+   Re-verified the same way; remote SHA matched local SHA exactly.
+
+| Push | Local HEAD on `main`                        | Remote HEAD on `main`                       | Match |
+|------|---------------------------------------------|---------------------------------------------|-------|
+| #1   | `f9c80999f5ff647da4ef341cc859b14fa68a0a7f`  | `f9c80999f5ff647da4ef341cc859b14fa68a0a7f`  | yes   |
+| #2   | `d7c7ef3a218392bf37b102925af73981846e2f09`  | `d7c7ef3a218392bf37b102925af73981846e2f09`  | yes   |
+
+Repo is private (`private: true`, default branch `main`).
+
+### Follow-up
+
+Task #98 (proposed) will add an automated mirror so the GitHub copy stays
+in sync after every Replit commit instead of going stale.

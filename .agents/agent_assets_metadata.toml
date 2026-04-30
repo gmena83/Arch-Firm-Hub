@@ -24,3 +24,15 @@ id = "E6KBfj4K2_utZQzi_CD0i"
 uri = "file://attached_assets/reports/critical-feedback-priorities.csv"
 type = "table"
 title = "Priorities (CSV mirror)"
+
+[[outputs]]
+id = "LI560B0ylZBSLC6u43vJN"
+uri = "file://attached_assets/KONTi_Dashboard_Feedback_Consolidated_v3_addressed.xlsx"
+type = "table"
+title = "KONTi feedback list — reconciled (v3)"
+
+[[outputs]]
+id = "WnACH9NnMikfrg4piMDn0"
+uri = "file://reports/feedback-status-reconciled.md"
+type = "text"
+title = "Feedback status reconciliation report"
