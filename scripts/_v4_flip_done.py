@@ -1,14 +1,20 @@
 """
-Task #119 — Mirror the A-07 / E-01 / E-02 status flips into the v4 workbook
-that the dashboard's status report references, with bilingual EN | ES
-verification notes matching the v4 format. C-11 was already Done with a
-bilingual note in v4 (no change needed). G-01 was already Done in v4 but
-its verification note was English-only, so we refresh it here to the
-bilingual format for parity with the other four reconciled rows.
+Task #119 — Mirror the five reconciled rows (A-07, C-11, E-01, E-02, G-01)
+into the v4 workbook that the dashboard's status report references.
 
-The reconcile_feedback_status.py script remains the authoritative source
-of truth for the v3 workbook + markdown report; this file just keeps v4
-in sync.
+This is a one-off sync utility paired with `reconcile_feedback_status.py`
+(which owns the v3 workbook + markdown report). Do not reuse this for
+broader reconciliation work — for that, extend `reconcile_feedback_status.py`
+to also write the v4 workbook in one pass.
+
+What each row gets here:
+- A-07, E-01, E-02 — status was Open in v4; flip to Done with bilingual
+  EN | ES verification notes citing the merged task (#105 / #106).
+- C-11 — was already Done in v4 with a bilingual note, but the note
+  didn't include the explicit #105 citation; refresh for traceability.
+- G-01 — was already Done in v4 but the verification note was English-only;
+  refresh to bilingual EN | ES for parity. (Also flips G-01 in V2 Backlog,
+  where it was still showing Open.)
 """
 import openpyxl
 from pathlib import Path
@@ -49,6 +55,24 @@ FLIPS = {
         "(PCOC, USO, Consulta de Ubicación, etc.) con secciones separadas por "
         "familia, replicando el Excel de permisos del equipo. Archivo: "
         "artifacts/konti-dashboard/src/pages/permits.tsx."
+    ),
+    # C-11 was already Done in v4 with a bilingual note, but the original
+    # note didn't include the explicit #105 task citation that the other
+    # reconciled rows have. Refresh it for consistent traceability (Task #119).
+    "C-11": (
+        "Done",
+        "EN: Done in #105 — Site photos in the project report: "
+        "site-photos-gallery component is rendered on the project report "
+        "and PHOTO_CATEGORY_OPTIONS is wired into the report's photos block "
+        "so each photo carries a category label. File: "
+        "artifacts/konti-dashboard/src/pages/project-report.tsx + "
+        "artifacts/konti-dashboard/src/components/site-photos-gallery.tsx. "
+        "| ES: Hecho en #105 — Fotos de obra en el reporte del proyecto: "
+        "el componente site-photos-gallery se muestra en el reporte del "
+        "proyecto y PHOTO_CATEGORY_OPTIONS está conectado al bloque de "
+        "fotos del reporte para que cada foto tenga etiqueta de categoría. "
+        "Archivo: artifacts/konti-dashboard/src/pages/project-report.tsx + "
+        "artifacts/konti-dashboard/src/components/site-photos-gallery.tsx."
     ),
     # G-01 was already Done in v4 but the verification note was English-only;
     # refresh it to the bilingual EN | ES format for parity with the rest of
