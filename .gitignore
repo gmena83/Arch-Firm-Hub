@@ -48,3 +48,7 @@ Thumbs.db
 .cache/
 .local/
 test-artifacts/
+
+# KONTi runtime persistence (receipts, contractor estimates, etc.)
+.data/
+artifacts/api-server/.data/
