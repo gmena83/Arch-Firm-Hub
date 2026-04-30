@@ -418,8 +418,13 @@ export default function PermitsPanel({ projectId, projectPhase, onProjectUpdated
             environmental: [], use: [], other: [],
           };
           for (const it of permitItems) {
-            const key = (it.permitType ?? PermitItemPermitType.other) as PermitItemPermitType;
-            byType[key]?.push(it);
+            // Defensive: treat both `undefined` *and* unrecognized strings as
+            // "other" so a future enum value or malformed payload can't make
+            // an item silently disappear from the UI.
+            const raw = it.permitType;
+            const key: PermitItemPermitType =
+              raw && raw in byType ? (raw as PermitItemPermitType) : PermitItemPermitType.other;
+            byType[key].push(it);
           }
           const presentTypes = PERMIT_TYPE_ORDER.filter((tp) => byType[tp].length > 0);
           if (presentTypes.length === 0) {
