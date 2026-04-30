@@ -29,7 +29,7 @@ MAP = {
     "A-08": ("Done", "Done in #75 (ClientContactCard with phone, postal, physical addresses)."),
     "A-09": ("Open", None),
     "A-10": ("Needs Decision", None),
-    "A-11": ("Done", "Done in #75 + #62 (Contractor Estimate Rollup on the project report)."),
+    "A-11": ("Done — needs verification", "Likely closed by #62 + #75 (Contractor Estimate Rollup on the project report); needs PM eyes-on confirmation that the consolidated view matches the original ask."),
     "A-12": ("Open", "Admin-side audit log shipped in #73; client-side audit log still V2."),
     "A-13": ("Done", "Done in #62 (KONTi brand pass) and #74 (header text readable on bright cover photos)."),
 
@@ -126,7 +126,8 @@ def reconcile_sheet(ws, observed):
 
 def refresh_summary(ws, sheet1):
     """Recompute Status counts on the Summary sheet."""
-    counts = {"Open": 0, "In Progress": 0, "Done": 0, "Needs Spec": 0, "Needs Decision": 0}
+    counts = {"Open": 0, "In Progress": 0, "Done": 0, "Done — needs verification": 0,
+              "Needs Spec": 0, "Needs Decision": 0}
     for r in range(1, sheet1.max_row + 1):
         id_ = sheet1.cell(r, 1).value
         if not id_:
@@ -144,7 +145,18 @@ def refresh_summary(ws, sheet1):
             label_to_row[label] = r
     for label, count in counts.items():
         if label in label_to_row:
-            ws.cell(label_to_row[label], 2).value = count if count else ""
+            # Use explicit numeric 0 (not blank) so the totals are unambiguous.
+            ws.cell(label_to_row[label], 2).value = count
+
+    # Add a "Done — needs verification" row to the summary if it isn't already
+    # listed (the original v2 sheet only had Done / Needs Spec / Needs Decision).
+    if "Done — needs verification" not in label_to_row:
+        # Append immediately after the last status row (row 21 in the v2 layout).
+        # Find the last row in the "By Status" block (between r16 header and the
+        # next blank/section break) and insert there.
+        target = max(label_to_row.values()) + 1
+        ws.cell(target, 1).value = "Done — needs verification"
+        ws.cell(target, 2).value = counts["Done — needs verification"]
 
     return counts
 
@@ -188,8 +200,21 @@ def write_report(observed, counts):
     lines.append("")
     lines.append("| Status | Count |")
     lines.append("|---|---:|")
-    for k in ["Open", "In Progress", "Done", "Needs Spec", "Needs Decision"]:
+    for k in ["Open", "In Progress", "Done", "Done — needs verification", "Needs Spec", "Needs Decision"]:
         lines.append(f"| {k} | {counts.get(k,0)} |")
+    lines.append("")
+    lines.append("## Items moved to **Done — needs verification**")
+    lines.append("")
+    lines.append("These rows look closed on paper but a PM should eyeball the live UI before promoting them to plain Done.")
+    lines.append("")
+    lines.append("| ID | Was | Now | Why verification is suggested |")
+    lines.append("|---|---|---|---|")
+    seen = set()
+    for id_, old, new in sorted(observed):
+        if new == "Done — needs verification" and id_ not in seen:
+            seen.add(id_)
+            note = MAP[id_][1] or ""
+            lines.append(f"| {id_} | {old or '—'} | {new} | {note} |")
     lines.append("")
     lines.append("## Items moved to **Done**")
     lines.append("")

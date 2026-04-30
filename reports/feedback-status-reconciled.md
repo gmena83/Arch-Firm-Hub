@@ -10,9 +10,18 @@ Reconciled workbook: `attached_assets/KONTi_Dashboard_Feedback_Consolidated_v3_a
 |---|---:|
 | Open | 26 |
 | In Progress | 0 |
-| Done | 24 |
+| Done | 23 |
+| Done — needs verification | 1 |
 | Needs Spec | 0 |
 | Needs Decision | 7 |
+
+## Items moved to **Done — needs verification**
+
+These rows look closed on paper but a PM should eyeball the live UI before promoting them to plain Done.
+
+| ID | Was | Now | Why verification is suggested |
+|---|---|---|---|
+| A-11 | In Progress | Done — needs verification | Likely closed by #62 + #75 (Contractor Estimate Rollup on the project report); needs PM eyes-on confirmation that the consolidated view matches the original ask. |
 
 ## Items moved to **Done**
 
@@ -22,7 +31,6 @@ Reconciled workbook: `attached_assets/KONTi_Dashboard_Feedback_Consolidated_v3_a
 | A-04 | Open | Done | Done in #63 (document organization: contracts/agreements grouping). |
 | A-06 | Open | Done | Done in #61 (per-document client visibility) and reinforced by #88 (client ownership checks). |
 | A-08 | Open | Done | Done in #75 (ClientContactCard with phone, postal, physical addresses). |
-| A-11 | In Progress | Done | Done in #75 + #62 (Contractor Estimate Rollup on the project report). |
 | A-13 | Open | Done | Done in #62 (KONTi brand pass) and #74 (header text readable on bright cover photos). |
 | B-01 | Open | Done | Done in #75 (CSV header aliases: Description, UnitPrice, etc.). |
 | B-03 | Open | Done | Done in #75 (calculator auto-populates from imported materials). |
