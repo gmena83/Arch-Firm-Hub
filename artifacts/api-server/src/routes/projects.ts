@@ -47,6 +47,7 @@ import {
   type PunchlistItem,
   type PunchlistItemStatus,
 } from "../data/seed";
+import { savePunchlist } from "../data/punchlist-store";
 import { requireRole } from "../middlewares/require-role";
 import { EXTRA_MATERIALS, PROJECT_REPORT_TEMPLATE, PROJECT_CONTRACTOR_ESTIMATE, type ContractorEstimateLine, type ReportTemplate } from "./estimating";
 
@@ -883,6 +884,7 @@ router.post("/projects/:id/punchlist", requireRole(["team", "admin", "superadmin
     updatedAt: new Date().toISOString(),
   };
   list.push(item);
+  savePunchlist(PROJECT_PUNCHLIST);
   const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
   appendActivity(project.id, {
     type: "punchlist_change",
@@ -910,6 +912,7 @@ router.patch("/projects/:id/punchlist/:itemId", requireRole(["team", "admin", "s
   if (typeof owner === "string" && owner.trim().length > 0) found.owner = owner.trim().slice(0, 100);
   if (typeof dueDate === "string") found.dueDate = dueDate.length > 0 ? dueDate : undefined;
   found.updatedAt = new Date().toISOString();
+  savePunchlist(PROJECT_PUNCHLIST);
   const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
   appendActivity(project.id, {
     type: "punchlist_change",
@@ -945,6 +948,7 @@ router.post("/projects/:id/punchlist/:itemId/status", requireRole(["team", "admi
   else if (status !== "done") found.completedAt = undefined;
   if (status === "waived") found.waiverReason = (waiverReason as string).trim().slice(0, 300);
   else found.waiverReason = undefined;
+  savePunchlist(PROJECT_PUNCHLIST);
   const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
   const justSuffix = status === "waived" ? `: ${found.waiverReason}` : "";
   appendActivity(project.id, {
@@ -966,6 +970,7 @@ router.delete("/projects/:id/punchlist/:itemId", requireRole(["team", "admin", "
     if (idx !== -1) {
       const [removed] = list.splice(idx, 1);
       if (list.length === 0) delete PROJECT_PUNCHLIST[key];
+      savePunchlist(PROJECT_PUNCHLIST);
       const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
       appendActivity(project.id, {
         type: "punchlist_change",

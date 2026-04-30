@@ -1,5 +1,7 @@
 // KONTi Design | Build Studio — Static Seed Data for MVP Demo
 
+import { loadPersistedPunchlist } from "./punchlist-store";
+
 // Users carry optional contact + address fields so clients can edit their
 // own contact info from the in-app Settings page (T3 / row #20). Mutable so
 // PATCH /me can update them in-memory for the demo.
@@ -2053,6 +2055,20 @@ export function getPunchlistForPhase(projectId: string, phase: string): Punchlis
 
 export function countOpenPunchlistItems(projectId: string, phase: string): number {
   return getPunchlistForPhase(projectId, phase).filter((i) => i.status !== "done" && i.status !== "waived").length;
+}
+
+// Hydrate PROJECT_PUNCHLIST from disk if a persisted snapshot exists. The
+// store module reads PUNCHLIST_PERSIST_PATH (defaults to
+// artifacts/api-server/.data/punchlist.json) and returns null when the file
+// does not exist, so the seed values above remain in place on first boot.
+// Mutate in-place rather than reassigning the const so route modules that
+// already imported the reference see the persisted state.
+{
+  const persisted = loadPersistedPunchlist();
+  if (persisted) {
+    for (const k of Object.keys(PROJECT_PUNCHLIST)) delete PROJECT_PUNCHLIST[k];
+    for (const [k, v] of Object.entries(persisted)) PROJECT_PUNCHLIST[k] = v;
+  }
 }
 
 // ---------------------------------------------------------------------------
