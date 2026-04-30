@@ -4,7 +4,7 @@ import { requireRole } from "../middlewares/require-role";
 
 const router: IRouter = Router();
 
-router.get("/dashboard/summary", (_req, res) => {
+router.get("/dashboard/summary", requireRole(["team", "admin", "superadmin", "architect"]), (_req, res) => {
   const totalProjects = PROJECTS.length;
   const activeProjects = PROJECTS.filter((p) => p.status === "active").length;
   const completedProjects = PROJECTS.filter((p) => p.status === "completed").length;

@@ -132,7 +132,11 @@ function clientCanAccessProject(userId: string, projectId: string): boolean {
   return project.clientUserId === userId;
 }
 
-router.get("/projects", (_req, res) => {
+router.get("/projects", requireRole(["team", "admin", "superadmin", "architect", "client"]), (req, res) => {
+  const user = (req as { user?: { id: string; role: string } }).user;
+  if (user?.role === "client") {
+    return res.json(PROJECTS.filter((p) => (p as { clientUserId?: string }).clientUserId === user.id));
+  }
   return res.json(PROJECTS);
 });
 
@@ -208,16 +212,18 @@ router.post("/projects", requireRole(["team", "admin", "superadmin"]), (req, res
   return res.status(201).json(newProject);
 });
 
-router.get("/projects/:projectId", (req, res) => {
+router.get("/projects/:projectId", requireRole(["team", "admin", "superadmin", "architect", "client"]), (req, res) => {
   const project = PROJECTS.find((p) => p.id === req.params["projectId"]);
   if (!project) {
     res.status(404).json({ error: "not_found", message: "Project not found" });
     return;
   }
+  if (!enforceClientOwnership(req, res, req.params["projectId"] as string)) return;
   return res.json(project);
 });
 
-router.get("/projects/:projectId/tasks", (req, res) => {
+router.get("/projects/:projectId/tasks", requireRole(["team", "admin", "superadmin", "architect", "client"]), (req, res) => {
+  if (!enforceClientOwnership(req, res, req.params["projectId"] as string)) return;
   const tasks = PROJECT_TASKS[req.params["projectId"] as keyof typeof PROJECT_TASKS] ?? [];
   return res.json(tasks);
 });
@@ -368,7 +374,7 @@ router.get(
   },
 );
 
-router.get("/projects/:projectId/calculations", (req, res) => {
+router.get("/projects/:projectId/calculations", requireRole(["team", "admin", "superadmin", "architect"]), (req, res) => {
   const projectId = req.params["projectId"];
   const entries = CALCULATOR_ENTRIES[projectId as keyof typeof CALCULATOR_ENTRIES] ?? [];
 
@@ -394,7 +400,7 @@ let cachedPrices: { prices: Array<{ id: string; item: string; suggestedPrice: nu
 let cacheExpiresAt = 0;
 const CACHE_TTL_MS = 30 * 60 * 1000;
 
-router.post("/materials/prices/refresh", async (req, res) => {
+router.post("/materials/prices/refresh", requireRole(["team", "admin", "superadmin", "architect"]), async (req, res) => {
   const perplexityKey = process.env["PERPLEXITY_API_KEY"];
   if (!perplexityKey) {
     res.status(501).json({ error: "perplexity_not_configured", message: "Perplexity API key not configured" });
@@ -518,12 +524,14 @@ Respond with ONLY a valid JSON array. No code fences. No extra text.`;
   }
 });
 
-router.post("/projects/:id/pdf", async (req, res) => {
+router.post("/projects/:id/pdf", requireRole(["team", "admin", "superadmin", "architect", "client"]), async (req, res) => {
   const project = PROJECTS.find((p) => p.id === req.params["id"]);
   if (!project) {
     res.status(404).json({ error: "not_found", message: "Project not found" });
     return;
   }
+
+  if (!enforceClientOwnership(req, res, project.id)) return;
 
   const pdfApiKey = process.env["PDF_CO_API_KEY"];
   if (!pdfApiKey) {
@@ -1583,16 +1591,18 @@ router.get("/projects/:id/audit-log", requireRole(["team", "client", "admin", "s
   return res.json({ projectId: project.id, entries: sorted });
 });
 
-router.get("/projects/:id/inspections", (req, res) => {
+router.get("/projects/:id/inspections", requireRole(["team", "admin", "superadmin", "architect", "client"]), (req, res) => {
   const project = PROJECTS.find((p) => p.id === req.params["id"]);
   if (!project) return res.status(404).json({ error: "not_found", message: "Project not found" });
+  if (!enforceClientOwnership(req, res, project.id)) return;
   const list = PROJECT_INSPECTIONS[project.id] ?? [];
   return res.json({ projectId: project.id, inspections: list });
 });
 
-router.get("/projects/:id/inspections/:insId", (req, res) => {
+router.get("/projects/:id/inspections/:insId", requireRole(["team", "admin", "superadmin", "architect", "client"]), (req, res) => {
   const project = PROJECTS.find((p) => p.id === req.params["id"]);
   if (!project) return res.status(404).json({ error: "not_found", message: "Project not found" });
+  if (!enforceClientOwnership(req, res, project.id)) return;
   const insp = (PROJECT_INSPECTIONS[project.id] ?? []).find((i) => i.id === req.params["insId"]);
   if (!insp) return res.status(404).json({ error: "not_found", message: "Inspection not found" });
   return res.json({ projectId: project.id, inspection: insp });
@@ -1716,9 +1726,10 @@ router.post("/projects/:id/inspections/:insId/send-report", requireRole(["admin"
   return res.json({ projectId: project.id, inspection: insp });
 });
 
-router.get("/projects/:id/milestones", (req, res) => {
+router.get("/projects/:id/milestones", requireRole(["team", "admin", "superadmin", "architect", "client"]), (req, res) => {
   const project = PROJECTS.find((p) => p.id === req.params["id"]);
   if (!project) return res.status(404).json({ error: "not_found", message: "Project not found" });
+  if (!enforceClientOwnership(req, res, project.id)) return;
   const list = PROJECT_MILESTONES[project.id] ?? [];
   return res.json({ projectId: project.id, milestones: list });
 });
