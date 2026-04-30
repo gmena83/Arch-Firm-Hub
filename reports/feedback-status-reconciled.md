@@ -100,3 +100,25 @@ These rows look closed on paper but a PM should eyeball the live UI before promo
 - Sheet 2 (V2 Backlog) statuses are kept in sync with Sheet 1 for the same IDs (B-11, D-01, etc.).
 - 'Done' rows have a one-line justification appended to the Scope Rationale column linking to the merged task ref.
 - Items A-07 / C-11 / E-01 / E-02 are proposed but not yet merged tasks (#47, #48); they remain Open.
+
+## Post-reconciliation fixes (Apr 30 2026)
+
+These items were merged after this report was first published. They came from
+Tatiana's live demo session rather than the v2 workbook, so they are tracked
+here instead of as numbered IDs.
+
+| Task | Area | What shipped |
+|---|---|---|
+| #64 | Project Detail > Upload Dialog | Upload dialog now stays open after a successful upload and shows a per-session "Just uploaded" panel listing each new file with thumbnail (or file icon), name, size, category badge, and a Remove button. Remove calls a new `DELETE /api/projects/:projectId/documents/:documentId` endpoint with optimistic UI and per-doc rollback. Endpoint enforces team/admin/superadmin + owning client (clients can only delete files they uploaded), and emits a `document_removed` activity entry. Backed by 10/10 passing API tests. |
+
+### Side effects on previously tracked items
+
+- **A-09** (clients self-administer their own uploads) remains Open as a V2
+  item, but the *delete-own-uploads* slice is now functionally available via
+  the new DELETE endpoint — clients see the Remove button on files they
+  uploaded inside the upload dialog. Full V2 scope (out-of-dialog gallery
+  management, caption editing) is still pending.
+- **I-01** (upload persistence) is unchanged — document blobs are still
+  in-memory; the new DELETE handler operates against the same in-memory
+  store, so when persistence lands (follow-up #114) both POST and DELETE
+  paths must migrate together.
