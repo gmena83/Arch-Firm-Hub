@@ -17,7 +17,7 @@ import { PunchlistPanel } from "@/components/punchlist-panel";
 import { ContractorMonitoringSection } from "@/components/contractor-monitoring-section";
 import { reportCategoryLabel } from "@/lib/report-categories";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
-import { Check, ArrowLeft, MapPin, Calendar, TrendingUp, Download, Loader2, Sun, Moon } from "lucide-react";
+import { Check, ArrowLeft, MapPin, Calendar, TrendingUp, Download, Loader2, Sun, Moon, Square } from "lucide-react";
 import logoWhite from "@assets/Horizontal02_WhitePNG_1776258303461.png";
 import logoGreen from "@assets/Horizontal02_VerdePNG_1776258303461.png";
 
@@ -36,14 +36,26 @@ const PHASE_BUDGET_WEIGHTS: Record<string, number> = {
   completed: 0.05,
 };
 
-type ReportTheme = "light" | "dark";
+type ReportTheme = "light" | "white" | "dark";
 const REPORT_THEME_KEY = "konti.report.theme";
 const REPORT_DATE_KEY = "konti.report.date";
+// Cycle order driven by the single-button toggle in the report header.
+const THEME_CYCLE: Record<ReportTheme, ReportTheme> = {
+  light: "white",
+  white: "dark",
+  dark: "light",
+};
 
-function loadInitialTheme(): ReportTheme {
+function loadInitialTheme(projectId?: string): ReportTheme {
   if (typeof window === "undefined") return "light";
-  const stored = window.localStorage.getItem(REPORT_THEME_KEY);
-  return stored === "dark" ? "dark" : "light";
+  // Per-project preference takes priority; fall back to the legacy global key
+  // for users who set a theme before the per-project storage existed.
+  const perProject = projectId
+    ? window.localStorage.getItem(`${REPORT_THEME_KEY}.${projectId}`)
+    : null;
+  const stored = perProject ?? window.localStorage.getItem(REPORT_THEME_KEY);
+  if (stored === "dark" || stored === "white" || stored === "light") return stored;
+  return "light";
 }
 
 // ISO yyyy-mm-dd today in local time (avoids the toISOString UTC shift on
@@ -79,7 +91,7 @@ interface ThemeVars extends Record<string, string> {
 
 const THEME_VARS: Record<ReportTheme, ThemeVars> = {
   light: {
-    "--rep-bg": "#FFFFFF",
+    "--rep-bg": "#F4F2EE",
     "--rep-bg-strong": "#FFFFFF",
     "--rep-fg": "#1C1814",
     "--rep-fg-strong": "#1C1814",
@@ -90,6 +102,20 @@ const THEME_VARS: Record<ReportTheme, ThemeVars> = {
     "--rep-surface-2": "rgba(119,136,148,0.14)",
     "--rep-border": "rgba(28,24,20,0.10)",
     "--rep-border-strong": "rgba(28,24,20,0.20)",
+  },
+  // C-12: pure white preset for cleaner client-facing PDFs.
+  white: {
+    "--rep-bg": "#FFFFFF",
+    "--rep-bg-strong": "#FFFFFF",
+    "--rep-fg": "#1C1814",
+    "--rep-fg-strong": "#1C1814",
+    "--rep-fg-muted": "rgba(28,24,20,0.82)",
+    "--rep-fg-soft": "rgba(28,24,20,0.65)",
+    "--rep-fg-faint": "rgba(28,24,20,0.55)",
+    "--rep-surface": "#FFFFFF",
+    "--rep-surface-2": "rgba(119,136,148,0.10)",
+    "--rep-border": "rgba(28,24,20,0.08)",
+    "--rep-border-strong": "rgba(28,24,20,0.18)",
   },
   dark: {
     "--rep-bg": "#1C1814",
@@ -142,8 +168,10 @@ function ReportContent({ projectId }: { projectId: string }) {
   const [isDownloading, setIsDownloading] = useState(false);
   const [template, setTemplate] = useState<ReportTemplate | null>(null);
   const [contractorEst, setContractorEst] = useState<ContractorEstimate | null>(null);
-  const [theme, setTheme] = useState<ReportTheme>(loadInitialTheme);
-  const isLight = theme === "light";
+  const [theme, setTheme] = useState<ReportTheme>(() => loadInitialTheme(projectId));
+  // "Bright" preset (sand-tinted Light or pure White) shares typography,
+  // tooltip, and logo treatment; only Dark inverts them.
+  const isLight = theme !== "dark";
 
   // Editable report date (#C-10) — defaults to today, persisted per project so
   // a team member can re-open the same report and continue editing the same
@@ -164,8 +192,21 @@ function ReportContent({ projectId }: { projectId: string }) {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    // Persist per-project so each project remembers its own preferred theme,
+    // and mirror to the legacy global key so opening a brand-new project
+    // still respects the user's most-recent choice.
+    if (projectId && loadedProjectId === projectId) {
+      window.localStorage.setItem(`${REPORT_THEME_KEY}.${projectId}`, theme);
+    }
     window.localStorage.setItem(REPORT_THEME_KEY, theme);
-  }, [theme]);
+  }, [theme, projectId, loadedProjectId]);
+
+  // Reload theme when navigating between project reports (project-scoped pref).
+  useEffect(() => {
+    if (projectId !== loadedProjectId) {
+      setTheme(loadInitialTheme(projectId));
+    }
+  }, [projectId, loadedProjectId]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -424,15 +465,26 @@ function ReportContent({ projectId }: { projectId: string }) {
             />
             <span className="text-[color:var(--rep-fg-faint)]">· {reportDate}</span>
           </label>
-          <button
-            onClick={() => setTheme(isLight ? "dark" : "light")}
-            data-testid="btn-toggle-theme"
-            aria-label={isLight ? t("Switch to dark mode", "Cambiar a modo oscuro") : t("Switch to light mode", "Cambiar a modo claro")}
-            title={isLight ? t("Dark mode", "Modo oscuro") : t("Light mode", "Modo claro")}
-            className="inline-flex items-center justify-center w-8 h-8 rounded-md border border-[color:var(--rep-border-strong)] text-[color:var(--rep-fg-muted)] hover:text-[color:var(--rep-fg-strong)] hover:bg-[color:var(--rep-surface-2)] transition-colors"
-          >
-            {isLight ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
-          </button>
+          {(() => {
+            const next = THEME_CYCLE[theme];
+            const themeLabelEn = theme === "light" ? "Light" : theme === "white" ? "White" : "Dark";
+            const themeLabelEs = theme === "light" ? "Claro" : theme === "white" ? "Blanco" : "Oscuro";
+            const nextLabelEn = next === "light" ? "Light" : next === "white" ? "White background" : "Dark";
+            const nextLabelEs = next === "light" ? "Claro" : next === "white" ? "Fondo blanco" : "Oscuro";
+            const Icon = theme === "light" ? Square : theme === "white" ? Moon : Sun;
+            return (
+              <button
+                onClick={() => setTheme(next)}
+                data-testid="btn-toggle-theme"
+                data-report-theme-current={theme}
+                aria-label={t(`Theme: ${themeLabelEn}. Switch to ${nextLabelEn}.`, `Tema: ${themeLabelEs}. Cambiar a ${nextLabelEs}.`)}
+                title={t(`Theme: ${themeLabelEn} → ${nextLabelEn}`, `Tema: ${themeLabelEs} → ${nextLabelEs}`)}
+                className="inline-flex items-center justify-center w-8 h-8 rounded-md border border-[color:var(--rep-border-strong)] text-[color:var(--rep-fg-muted)] hover:text-[color:var(--rep-fg-strong)] hover:bg-[color:var(--rep-surface-2)] focus:outline-none focus-visible:ring-2 focus-visible:ring-konti-olive focus-visible:ring-offset-1 transition-colors"
+              >
+                <Icon className="w-4 h-4" />
+              </button>
+            );
+          })()}
           <button
             onClick={downloadPdf}
             disabled={isDownloading}
@@ -816,9 +868,9 @@ function ReportContent({ projectId }: { projectId: string }) {
                           ?
                         </button>
                         <Link
-                          href={`/calculator?projectId=${projectId}&tab=contractor`}
+                          href={`/calculator?projectId=${projectId}&tab=overview`}
                           data-testid="mgmt-fee-edit-link"
-                          className="shrink-0 text-[10px] uppercase tracking-wider text-konti-olive hover:text-konti-olive/80 font-semibold whitespace-nowrap"
+                          className="shrink-0 text-[10px] uppercase tracking-wider text-konti-olive hover:text-konti-olive/80 font-semibold whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-konti-olive focus-visible:ring-offset-1 rounded"
                         >
                           {t("Edit", "Editar")} →
                         </Link>

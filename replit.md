@@ -194,14 +194,27 @@ shipped in the same task.
   (`project-report.tsx` L493) and the dedicated Weather panel (L967),
   reconfirmed.
 - **C-07** Mgmt-fee tooltip + edit link — `?` badge with the formula
-  + olive "Edit →" link to `/calculator?tab=contractor` in the report
-  (`project-report.tsx` L803-828; testids `mgmt-fee-tooltip`,
-  `mgmt-fee-edit-link`).
+  + olive "Edit →" link to `/calculator?tab=overview` in the report
+  (`project-report.tsx`; testids `mgmt-fee-tooltip`, `mgmt-fee-edit-link`).
+  The calculator's `normalizeTab()` aliases `overview` → `contractor` so the
+  user lands on the tab where the management-fee field lives.
 - **C-08** Bigger report logo — bumped from `h-14/16/20` → `h-20/24/28`
-  (~80/96/112 px) at `project-report.tsx` L415.
-- **C-12** White report background — `--rep-bg` in the light theme preset
-  switched from `#F4F2EE` to `#FFFFFF` (`project-report.tsx` L85). Dark mode
-  toggle preserved.
+  (~80/96/112 px) at `project-report.tsx`.
+- **C-12** "White background" theme preset — added a 3rd state to the
+  existing report theme toggle. Cycle is `light → white → dark → light`,
+  driven by `THEME_CYCLE` and a single icon-button toggle. The new `white`
+  preset is pure `#FFFFFF` whereas the legacy `light` preset retains its
+  sand-tinted `#F4F2EE`. Selection persists **per project** at
+  `konti.report.theme.<projectId>` (with mirror to legacy global key) and
+  survives reload. Tooltip + ARIA labels are bilingual.
+
+### Tooltip a11y pattern (introduced in this task)
+The new `?` info badges (`effective-rate-tooltip`, `mgmt-fee-tooltip`) use
+`<button type="button" title="…" aria-label="…">` with a focus-visible
+olive ring instead of `<span title="…">`. This makes them keyboard-focusable
+and screen-reader announced while preserving the lightweight tooltip
+interaction. Follow-up #116 will migrate all info badges across the app to
+the shared Radix `<Tooltip>` primitive for full popover semantics.
 
 ### Verification
 - TypeScript (`pnpm --filter @workspace/konti-dashboard exec tsc -b`): clean.

@@ -276,7 +276,11 @@ export default function CalculatorPage() {
   const search = useSearch();
   const params = new URLSearchParams(search);
   const initialProject = params.get("projectId") ?? "";
-  const initialTab = params.get("tab") ?? "estimate";
+  // `tab=overview` is an alias used by deep-links from the project report
+  // (e.g. the management-fee Edit link). The calculator surfaces management
+  // fee on the Contractor tab, so funnel "overview" → "contractor".
+  const normalizeTab = (tb: string | null) => (tb === "overview" ? "contractor" : (tb ?? "estimate"));
+  const initialTab = normalizeTab(params.get("tab"));
   const [selectedProject, setSelectedProject] = useState<string>(initialProject);
   const [activeTab, setActiveTab] = useState<string>(initialTab);
   useEffect(() => {
@@ -284,7 +288,7 @@ export default function CalculatorPage() {
     const pid = p.get("projectId");
     const tb = p.get("tab");
     if (pid) setSelectedProject(pid);
-    if (tb) setActiveTab(tb);
+    if (tb) setActiveTab(normalizeTab(tb));
   }, [search]);
   const [showAddModal, setShowAddModal] = useState(false);
   // Inline edits are keyed by entry.id (stable across refetches) so a server
