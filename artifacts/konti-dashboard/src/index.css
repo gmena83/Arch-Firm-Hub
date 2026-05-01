@@ -280,3 +280,107 @@
   .border.hover-elevate:not(.no-hover-interaction-elevate)::after,
   .border.active-elevate:not(.no-active-interaction-elevate)::after { inset: -1px; }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   KONTi Project Report theme tokens (C-09).
+   The project-report page applies one of these themes via the
+   `data-report-theme="light|white|dark"` attribute on its root container.
+   All report colors flow through these CSS variables, which themselves
+   reference the central KONTi brand palette declared above. Components
+   should reference `var(--rep-*)` and `var(--rep-chart-*)` rather than
+   hard-coding hex values, so palette changes happen in one place.
+   ──────────────────────────────────────────────────────────────────────── */
+:root {
+  /* Brand palette — single source of truth for the KONTi report colors. */
+  --konti-olive: #4F5E2A;
+  --konti-olive-mid: #6F8B58;
+  --konti-slate: #778894;
+  --konti-slate-deep: #5A6F7C;
+  --konti-sage: #A3B38C;
+  --konti-warm-black: #1C1814;
+  --konti-graphite: #26301A;
+  --konti-paper: #F4F2EE;
+  --konti-near-white: #E6EAEB;
+}
+
+[data-report-theme="light"] {
+  --rep-bg: var(--konti-paper);
+  --rep-bg-strong: #FFFFFF;
+  --rep-fg: var(--konti-warm-black);
+  --rep-fg-strong: var(--konti-warm-black);
+  --rep-fg-muted: rgba(28,24,20,0.82);
+  --rep-fg-soft: rgba(28,24,20,0.65);
+  --rep-fg-faint: rgba(28,24,20,0.55);
+  --rep-surface: #FFFFFF;
+  --rep-surface-2: rgba(119,136,148,0.14);
+  --rep-border: rgba(28,24,20,0.10);
+  --rep-border-strong: rgba(28,24,20,0.20);
+
+  --rep-tooltip-bg: #FFFFFF;
+  --rep-tooltip-fg: var(--konti-warm-black);
+  --rep-tooltip-border: rgba(28,24,20,0.15);
+  --rep-tooltip-shadow: 0 4px 12px rgba(28,24,20,0.10);
+}
+
+/* C-12: pure white preset for cleaner client-facing PDFs. */
+[data-report-theme="white"] {
+  --rep-bg: #FFFFFF;
+  --rep-bg-strong: #FFFFFF;
+  --rep-fg: var(--konti-warm-black);
+  --rep-fg-strong: var(--konti-warm-black);
+  --rep-fg-muted: rgba(28,24,20,0.82);
+  --rep-fg-soft: rgba(28,24,20,0.65);
+  --rep-fg-faint: rgba(28,24,20,0.55);
+  --rep-surface: #FFFFFF;
+  --rep-surface-2: rgba(119,136,148,0.10);
+  --rep-border: rgba(28,24,20,0.08);
+  --rep-border-strong: rgba(28,24,20,0.18);
+
+  --rep-tooltip-bg: #FFFFFF;
+  --rep-tooltip-fg: var(--konti-warm-black);
+  --rep-tooltip-border: rgba(28,24,20,0.15);
+  --rep-tooltip-shadow: 0 4px 12px rgba(28,24,20,0.10);
+}
+
+/* Brand-dark variant — KONTi olive/slate/sage on a near-black warm-brown
+   base. Replaces the previous monochrome white-on-black surfaces so the
+   dark report still reads as a KONTi document. Persisted users with the
+   legacy "dark" preference are migrated automatically because the theme
+   key is unchanged. */
+[data-report-theme="dark"] {
+  --rep-bg: var(--konti-warm-black);
+  --rep-bg-strong: var(--konti-graphite);
+  --rep-fg: var(--konti-near-white);
+  --rep-fg-strong: #FFFFFF;
+  --rep-fg-muted: rgba(230,234,235,0.82);
+  --rep-fg-soft: rgba(163,179,140,0.78);
+  --rep-fg-faint: rgba(163,179,140,0.58);
+  --rep-surface: rgba(163,179,140,0.06);
+  --rep-surface-2: rgba(119,136,148,0.18);
+  --rep-border: rgba(119,136,148,0.22);
+  --rep-border-strong: rgba(163,179,140,0.32);
+
+  --rep-tooltip-bg: var(--konti-warm-black);
+  --rep-tooltip-fg: var(--konti-near-white);
+  --rep-tooltip-border: rgba(163,179,140,0.30);
+  --rep-tooltip-shadow: 0 4px 12px rgba(0,0,0,0.40);
+}
+
+/* Chart palette — applied to all themes so cost/variance charts use the
+   KONTi brand colors instead of recharts defaults. Dark theme nudges the
+   olive/slate slightly brighter for contrast against the dark background. */
+[data-report-theme] {
+  --rep-chart-1: var(--konti-olive);
+  --rep-chart-2: var(--konti-slate);
+  --rep-chart-3: var(--konti-sage);
+  --rep-chart-4: var(--konti-olive-mid);
+  --rep-chart-5: var(--konti-slate-deep);
+}
+[data-report-theme="dark"] {
+  --rep-chart-1: #6F8B58;
+  --rep-chart-2: var(--konti-slate);
+  --rep-chart-3: var(--konti-sage);
+  --rep-chart-4: var(--konti-olive);
+  --rep-chart-5: #8FA3AE;
+}
+

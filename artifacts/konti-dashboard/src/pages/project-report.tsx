@@ -1,5 +1,5 @@
 import { useParams, Link } from "wouter";
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import {
   useGetProject, useGetProjectWeather, useGetProjectTasks,
   useGetProjectCalculations,
@@ -26,11 +26,38 @@ import { Check, ArrowLeft, MapPin, Calendar, TrendingUp, Download, Loader2, Sun,
 import logoWhite from "@assets/Horizontal02_WhitePNG_1776258303461.png";
 import logoGreen from "@assets/Horizontal02_VerdePNG_1776258303461.png";
 
-// Brand-only chart palette — olive primary, slate secondary, sage accent, plus
-// two derived tonal extensions (mid-olive, deep-slate) so charts with up to 9
-// segments still cycle within the KONTi palette instead of falling back to
-// off-brand recharts defaults.
-const CHART_COLORS = ["#4F5E2A", "#778894", "#A3B38C", "#6F8B58", "#5A6F7C"];
+// Brand-only chart palette — sourced from `--rep-chart-1..5` CSS variables
+// declared in `index.css` so the report colors live in one central place
+// instead of being duplicated across components. The dark-theme variant of
+// these vars nudges olive/slate slightly brighter for contrast against the
+// near-black background.
+const CHART_COLOR_VARS = [
+  "--rep-chart-1",
+  "--rep-chart-2",
+  "--rep-chart-3",
+  "--rep-chart-4",
+  "--rep-chart-5",
+] as const;
+// Hex fallbacks used for SSR or when getComputedStyle hasn't resolved the
+// variable yet (very early render). Keep these in sync with `:root` defaults
+// in `index.css`.
+const CHART_COLOR_FALLBACK = ["#4F5E2A", "#778894", "#A3B38C", "#6F8B58", "#5A6F7C"];
+
+function useReportChartColors(theme: string): string[] {
+  // Re-read computed values whenever the theme changes so the cached color
+  // array always matches the active `[data-report-theme]` block.
+  return useMemo(() => {
+    if (typeof window === "undefined") return CHART_COLOR_FALLBACK;
+    // Resolve against an element that actually has the data-report-theme
+    // attribute applied. We mirror the active theme onto :root via the same
+    // attribute below, so `documentElement` is sufficient.
+    const root = document.documentElement;
+    return CHART_COLOR_VARS.map((cssVar, i) => {
+      const v = getComputedStyle(root).getPropertyValue(cssVar).trim();
+      return v || CHART_COLOR_FALLBACK[i]!;
+    });
+  }, [theme]);
+}
 
 // Industry-typical share of project budget per macro phase. Sums to 1.00.
 const PHASE_BUDGET_WEIGHTS: Record<string, number> = {
@@ -84,67 +111,12 @@ function loadInitialReportDate(projectId: string): string {
   return stored && /^\d{4}-\d{2}-\d{2}$/.test(stored) ? stored : todayIso();
 }
 
-interface ThemeVars extends Record<string, string> {
-  "--rep-bg": string;
-  "--rep-bg-strong": string;
-  "--rep-fg": string;
-  "--rep-fg-strong": string;
-  "--rep-fg-muted": string;
-  "--rep-fg-soft": string;
-  "--rep-fg-faint": string;
-  "--rep-surface": string;
-  "--rep-surface-2": string;
-  "--rep-border": string;
-  "--rep-border-strong": string;
-}
-
-const THEME_VARS: Record<ReportTheme, ThemeVars> = {
-  light: {
-    "--rep-bg": "#F4F2EE",
-    "--rep-bg-strong": "#FFFFFF",
-    "--rep-fg": "#1C1814",
-    "--rep-fg-strong": "#1C1814",
-    "--rep-fg-muted": "rgba(28,24,20,0.82)",
-    "--rep-fg-soft": "rgba(28,24,20,0.65)",
-    "--rep-fg-faint": "rgba(28,24,20,0.55)",
-    "--rep-surface": "#FFFFFF",
-    "--rep-surface-2": "rgba(119,136,148,0.14)",
-    "--rep-border": "rgba(28,24,20,0.10)",
-    "--rep-border-strong": "rgba(28,24,20,0.20)",
-  },
-  // C-12: pure white preset for cleaner client-facing PDFs.
-  white: {
-    "--rep-bg": "#FFFFFF",
-    "--rep-bg-strong": "#FFFFFF",
-    "--rep-fg": "#1C1814",
-    "--rep-fg-strong": "#1C1814",
-    "--rep-fg-muted": "rgba(28,24,20,0.82)",
-    "--rep-fg-soft": "rgba(28,24,20,0.65)",
-    "--rep-fg-faint": "rgba(28,24,20,0.55)",
-    "--rep-surface": "#FFFFFF",
-    "--rep-surface-2": "rgba(119,136,148,0.10)",
-    "--rep-border": "rgba(28,24,20,0.08)",
-    "--rep-border-strong": "rgba(28,24,20,0.18)",
-  },
-  // Brand-dark variant — KONTi olive/slate/sage on a near-black warm-brown
-  // base. Replaces the previous monochrome white-on-black surfaces so the
-  // dark report still reads as a KONTi document instead of a generic dark
-  // theme. Persisted users with the legacy "dark" preference are migrated
-  // automatically because the theme key is unchanged.
-  dark: {
-    "--rep-bg": "#1C1814",
-    "--rep-bg-strong": "#26301A",
-    "--rep-fg": "#E6EAEB",
-    "--rep-fg-strong": "#FFFFFF",
-    "--rep-fg-muted": "rgba(230,234,235,0.82)",
-    "--rep-fg-soft": "rgba(163,179,140,0.78)",
-    "--rep-fg-faint": "rgba(163,179,140,0.58)",
-    "--rep-surface": "rgba(163,179,140,0.06)",
-    "--rep-surface-2": "rgba(119,136,148,0.18)",
-    "--rep-border": "rgba(119,136,148,0.22)",
-    "--rep-border-strong": "rgba(163,179,140,0.32)",
-  },
-};
+// Report theme tokens (`--rep-bg`, `--rep-fg`, `--rep-surface`, etc.) are
+// declared in `index.css` under `[data-report-theme="light|white|dark"]`
+// selectors and reference the central KONTi brand palette. The page applies
+// the active theme by setting `data-report-theme` on the report root, so
+// every nested component can read the tokens without having to receive an
+// inline style prop.
 
 interface ReportTemplate { name: string; columns: string[]; headerLines: string[]; footer: string }
 interface ContractorLine { id: string; category: string; description: string; descriptionEs: string; quantity: number; unit: string; unitPrice: number; lineTotal: number }
@@ -180,6 +152,11 @@ function ReportContent({ projectId }: { projectId: string }) {
   const { viewRole } = useAuth();
   const isClientView = viewRole === "client";
   const [isDownloading, setIsDownloading] = useState(false);
+  // Tracks which Cost-by-Category bucket rows are showing their trade-level
+  // sub-lines. We default to "all expanded" when the team or admin opens the
+  // report so the detailed breakdown is visible without an extra click; the
+  // initial set is recomputed once `bucketRows` resolves below.
+  const [expandedBuckets, setExpandedBuckets] = useState<Set<string>>(() => new Set());
   const [template, setTemplate] = useState<ReportTemplate | null>(null);
   const [contractorEst, setContractorEst] = useState<ContractorEstimate | null>(null);
   const [theme, setTheme] = useState<ReportTheme>(() => loadInitialTheme(projectId));
@@ -273,6 +250,39 @@ function ReportContent({ projectId }: { projectId: string }) {
       queryKey: getGetProjectCalculationsQueryKey(projectId),
     },
   });
+
+  // Client-safe report rollup. The /report-rollup endpoint exposes only the
+  // five canonical buckets (with optional trade-level sub-lines) and the
+  // grand total — never raw BOM line items — so it can be opened to client
+  // viewers and we don't have to gate the cost-by-category card behind the
+  // team-only /calculations endpoint anymore. We fetch it for every viewer
+  // (including the team) so the bucket display has a single source of truth.
+  type ReportRollupResponse = {
+    projectId: string;
+    subtotalByBucket: Record<string, number>;
+    bucketRollup: Array<{
+      key: string;
+      labelEn: string;
+      labelEs: string;
+      total: number;
+      lines: Array<{ category: string; labelEn: string; labelEs: string; total: number }>;
+    }>;
+    grandTotal: number;
+  };
+  const [reportRollup, setReportRollup] = useState<ReportRollupResponse | null>(null);
+  useEffect(() => {
+    if (!projectId) return;
+    let cancel = false;
+    const raw = typeof window !== "undefined" ? window.localStorage.getItem("konti_auth") : null;
+    let token: string | undefined;
+    try { token = raw ? (JSON.parse(raw).token as string) : undefined; } catch { /* ignore */ }
+    const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
+    fetch(`/api/projects/${projectId}/report-rollup`, { headers })
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => { if (!cancel && d) setReportRollup(d as ReportRollupResponse); })
+      .catch(() => undefined);
+    return () => { cancel = true; };
+  }, [projectId]);
   const { data: costPlus } = useGetProjectCostPlus(projectId, {
     query: { enabled: !!projectId, queryKey: getGetProjectCostPlusQueryKey(projectId) }
   });
@@ -356,7 +366,25 @@ function ReportContent({ projectId }: { projectId: string }) {
     }
   }
 
-  const themeStyle = THEME_VARS[theme];
+  // Mirror the active report theme onto :root so the `--rep-*` and
+  // `--rep-chart-*` CSS variables declared in `index.css` resolve at the
+  // documentElement level. That lets nested portals (recharts tooltips,
+  // dropdowns) and our `useReportChartColors` hook read consistent values
+  // without each consumer having to set its own inline `style` block.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const prev = document.documentElement.getAttribute("data-report-theme");
+    document.documentElement.setAttribute("data-report-theme", theme);
+    return () => {
+      if (prev === null) {
+        document.documentElement.removeAttribute("data-report-theme");
+      } else {
+        document.documentElement.setAttribute("data-report-theme", prev);
+      }
+    };
+  }, [theme]);
+
+  const chartColors = useReportChartColors(theme);
 
   // Hoisted above the early return so hook order stays stable.
   const phases = useMemo(() => [
@@ -405,7 +433,7 @@ function ReportContent({ projectId }: { projectId: string }) {
     return (
       <div
         className="min-h-screen flex items-center justify-center bg-[color:var(--rep-bg)] text-[color:var(--rep-fg)]"
-        style={themeStyle as React.CSSProperties}
+        data-report-theme={theme}
       >
         Loading report...
       </div>
@@ -423,30 +451,68 @@ function ReportContent({ projectId }: { projectId: string }) {
   // when present; we re-derive client-side from `subtotalByCategory` as a
   // resilient fallback (e.g. older deployments, or a future report path that
   // assembles the rollup from a different data source).
+  // Bucket rows for the Cost-by-Category card. Sourced in priority order:
+  //   1. The client-safe `/report-rollup` response (works for every viewer
+  //      and includes per-bucket sub-lines for the expand-row UI).
+  //   2. The team-only `/calculations` response (`subtotalByBucket` if
+  //      present, or re-derived from `subtotalByCategory` as a fallback for
+  //      older deployments). Sub-lines are derived locally so the team view
+  //      still gets the expand-row affordance even before the rollup
+  //      endpoint resolves.
+  //   3. Five empty buckets (all zero, no sub-lines) so the structure is
+  //      always visible even if neither request has finished yet.
+  type BucketSubLineUI = { category: string; label: string; total: number };
+  type BucketRow = {
+    key: ReportBucketKey;
+    label: string;
+    total: number;
+    lines: BucketSubLineUI[];
+  };
   const calcWithBucket = calc as
     | (typeof calc & { subtotalByBucket?: Record<string, number> })
     | undefined;
-  const bucketRows: Array<{ key: ReportBucketKey; label: string; total: number }> = (() => {
+  const bucketRows: BucketRow[] = (() => {
+    if (reportRollup?.bucketRollup) {
+      return REPORT_BUCKET_KEYS.map((key) => {
+        const row = reportRollup.bucketRollup.find((r) => r.key === key);
+        return {
+          key,
+          label: reportBucketLabel(key, lang),
+          total: row?.total ?? 0,
+          lines: (row?.lines ?? []).map((line) => ({
+            category: line.category,
+            label: lang === "es" ? line.labelEs : line.labelEn,
+            total: line.total,
+          })),
+        };
+      });
+    }
     if (!calc?.subtotalByCategory) {
       return REPORT_BUCKET_KEYS.map((key) => ({
         key,
         label: reportBucketLabel(key, lang),
         total: 0,
+        lines: [],
       }));
     }
+    // Local fallback: derive sub-lines from the team-only calculations
+    // payload. Uses the same `rollupRecordByBucket` helper the backend
+    // uses, so the structure matches exactly.
+    const localRollup = rollupRecordByBucket(calc.subtotalByCategory);
     const fromServer = calcWithBucket?.subtotalByBucket;
-    if (fromServer) {
-      return REPORT_BUCKET_KEYS.map((key) => ({
+    return REPORT_BUCKET_KEYS.map((key) => {
+      const row = localRollup.find((r) => r.key === key);
+      return {
         key,
         label: reportBucketLabel(key, lang),
-        total: fromServer[key] ?? 0,
-      }));
-    }
-    return rollupRecordByBucket(calc.subtotalByCategory).map((row) => ({
-      key: row.key as ReportBucketKey,
-      label: reportBucketLabel(row.key, lang),
-      total: row.total,
-    }));
+        total: fromServer?.[key] ?? row?.total ?? 0,
+        lines: (row?.lines ?? []).map((line) => ({
+          category: line.category,
+          label: lang === "es" ? line.labelEs : line.labelEn,
+          total: line.total,
+        })),
+      };
+    });
   })();
 
   const categoryRows = bucketRows;
@@ -469,10 +535,18 @@ function ReportContent({ projectId }: { projectId: string }) {
   const phaseCompletionTotal = phaseCompletionData.reduce((a, b) => a + b.value, 0);
   const phaseCompletionAvg = phases.length > 0 ? Math.round(phaseCompletionTotal / phases.length) : 0;
 
-  // Recharts tooltip styled per active theme so it stays readable on light or dark.
-  const tooltipContentStyle = isLight
-    ? { background: "#FFFFFF", border: "1px solid rgba(28,24,20,0.15)", borderRadius: 8, color: "#1C1814", boxShadow: "0 4px 12px rgba(28,24,20,0.10)" }
-    : { background: "#1C1814", border: "1px solid rgba(163,179,140,0.30)", borderRadius: 8, color: "#E6EAEB", boxShadow: "0 4px 12px rgba(0,0,0,0.40)" };
+  // Recharts tooltip styled via the report's CSS variables so it stays
+  // readable on every theme without component-level branching. Recharts
+  // portals tooltips outside the report root, so reading from `:root`
+  // (which the theme effect mirrors above) is required for the colors to
+  // resolve correctly.
+  const tooltipContentStyle: React.CSSProperties = {
+    background: "var(--rep-tooltip-bg)",
+    border: "1px solid var(--rep-tooltip-border)",
+    borderRadius: 8,
+    color: "var(--rep-tooltip-fg)",
+    boxShadow: "var(--rep-tooltip-shadow)",
+  };
 
   const reportLogo = isLight ? logoGreen : logoWhite;
 
@@ -482,7 +556,6 @@ function ReportContent({ projectId }: { projectId: string }) {
       className={`min-h-screen bg-[color:var(--rep-bg)] text-[color:var(--rep-fg)] ${isLight ? "" : "dark"}`}
       data-testid="project-report-page"
       data-report-theme={theme}
-      style={themeStyle as React.CSSProperties}
     >
       {/* Header */}
       <div className="bg-[color:var(--rep-bg)] border-b border-[color:var(--rep-border)] px-4 sm:px-6 md:px-12 py-4 sm:py-5 flex items-center justify-between gap-4 sm:gap-6 flex-wrap sticky top-0 z-10">
@@ -626,7 +699,7 @@ function ReportContent({ projectId }: { projectId: string }) {
               {phaseCompletionData.map((item, i) => (
                 <div key={item.key} className="flex items-center justify-between" data-testid={`phase-progress-row-${item.key}`}>
                   <div className="flex items-center gap-2 min-w-0">
-                    <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }} />
+                    <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: chartColors[i % chartColors.length] }} />
                     <span className="text-xs text-[color:var(--rep-fg-muted)] truncate">{item.name}</span>
                   </div>
                   <span className="text-xs font-medium text-[color:var(--rep-fg-strong)] tabular-nums shrink-0 ml-2">{item.value}%</span>
@@ -639,7 +712,7 @@ function ReportContent({ projectId }: { projectId: string }) {
               <PieChart>
                 <Pie data={phaseCompletionData} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={2} dataKey="value" nameKey="name">
                   {phaseCompletionData.map((_, index) => (
-                    <Cell key={`phase-progress-cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                    <Cell key={`phase-progress-cell-${index}`} fill={chartColors[index % chartColors.length]} />
                   ))}
                 </Pie>
                 <Tooltip formatter={(value: number, name: string) => [`${value}%`, name]} contentStyle={tooltipContentStyle} />
@@ -759,7 +832,7 @@ function ReportContent({ projectId }: { projectId: string }) {
                 {chartData.map((item, i) => (
                   <div key={item.name} className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }} />
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: chartColors[i % chartColors.length] }} />
                       <span className="text-sm text-[color:var(--rep-fg-muted)]">{item.name}</span>
                     </div>
                     <span className="text-sm font-medium text-[color:var(--rep-fg-strong)]">${item.value.toLocaleString()}</span>
@@ -776,7 +849,7 @@ function ReportContent({ projectId }: { projectId: string }) {
                 <PieChart>
                   <Pie data={chartData} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={3} dataKey="value">
                     {chartData.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                      <Cell key={`cell-${index}`} fill={chartColors[index % chartColors.length]} />
                     ))}
                   </Pie>
                   <Tooltip formatter={(value: number) => [`$${value.toLocaleString()}`, ""]} contentStyle={tooltipContentStyle} />
@@ -803,7 +876,7 @@ function ReportContent({ projectId }: { projectId: string }) {
                 {phaseBudgetData.map((item, i) => (
                   <div key={item.key} className="flex items-center justify-between" data-testid={`phase-budget-row-${item.key}`}>
                     <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }} />
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: chartColors[i % chartColors.length] }} />
                       <span className="text-sm text-[color:var(--rep-fg-muted)]">{item.name}</span>
                     </div>
                     <div className="flex items-baseline gap-2">
@@ -825,7 +898,7 @@ function ReportContent({ projectId }: { projectId: string }) {
                 <PieChart>
                   <Pie data={phaseBudgetData} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={3} dataKey="value" nameKey="name">
                     {phaseBudgetData.map((_, index) => (
-                      <Cell key={`phase-cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                      <Cell key={`phase-cell-${index}`} fill={chartColors[index % chartColors.length]} />
                     ))}
                   </Pie>
                   <Tooltip formatter={(value: number, name: string) => [`$${value.toLocaleString()}`, name]} contentStyle={tooltipContentStyle} />
@@ -951,18 +1024,73 @@ function ReportContent({ projectId }: { projectId: string }) {
               <tbody className="divide-y divide-[color:var(--rep-border)]">
                 {categoryRows.map((row) => {
                   const isEmpty = row.total <= 0;
+                  const hasLines = row.lines.length > 0;
+                  const isExpanded = expandedBuckets.has(row.key);
+                  const toggleExpanded = () => {
+                    setExpandedBuckets((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(row.key)) next.delete(row.key);
+                      else next.add(row.key);
+                      return next;
+                    });
+                  };
                   return (
-                    <tr key={row.key} data-testid={`report-category-row-${row.key}`} data-empty={isEmpty || undefined}>
-                      <td className="px-4 py-2 text-[color:var(--rep-fg-muted)]">{row.label}</td>
-                      <td className="px-4 py-2 text-right text-[color:var(--rep-fg-strong)]">
-                        {isEmpty
-                          ? <span className="text-[color:var(--rep-fg-faint)]" title={t("No charges yet", "Sin cargos")}>—</span>
-                          : `$${row.total.toLocaleString()}`}
-                      </td>
-                      <td className="px-4 py-2 text-right text-[color:var(--rep-fg-soft)]">
-                        {categoryTotal > 0 && !isEmpty ? `${Math.round((row.total / categoryTotal) * 100)}%` : "—"}
-                      </td>
-                    </tr>
+                    <Fragment key={row.key}>
+                      <tr data-testid={`report-category-row-${row.key}`} data-empty={isEmpty || undefined}>
+                        <td className="px-4 py-2 text-[color:var(--rep-fg-muted)]">
+                          {hasLines ? (
+                            <button
+                              type="button"
+                              onClick={toggleExpanded}
+                              data-testid={`btn-expand-bucket-${row.key}`}
+                              aria-expanded={isExpanded}
+                              aria-label={isExpanded
+                                ? t(`Hide details for ${row.label}`, `Ocultar detalles de ${row.label}`)
+                                : t(`Show details for ${row.label}`, `Mostrar detalles de ${row.label}`)}
+                              className="inline-flex items-center gap-2 text-left hover:text-[color:var(--rep-fg-strong)] transition-colors"
+                            >
+                              <span aria-hidden className="inline-block w-3 text-[color:var(--rep-fg-faint)]">
+                                {isExpanded ? "▾" : "▸"}
+                              </span>
+                              <span>{row.label}</span>
+                              <span className="text-[10px] uppercase tracking-wider text-[color:var(--rep-fg-faint)]">
+                                · {row.lines.length}
+                              </span>
+                            </button>
+                          ) : (
+                            <span className="inline-flex items-center gap-2">
+                              <span aria-hidden className="inline-block w-3" />
+                              <span>{row.label}</span>
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2 text-right text-[color:var(--rep-fg-strong)]">
+                          {isEmpty
+                            ? <span className="text-[color:var(--rep-fg-faint)]" title={t("No charges yet", "Sin cargos")}>—</span>
+                            : `$${row.total.toLocaleString()}`}
+                        </td>
+                        <td className="px-4 py-2 text-right text-[color:var(--rep-fg-soft)]">
+                          {categoryTotal > 0 && !isEmpty ? `${Math.round((row.total / categoryTotal) * 100)}%` : "—"}
+                        </td>
+                      </tr>
+                      {isExpanded && hasLines && row.lines.map((line) => (
+                        <tr
+                          key={`${row.key}-${line.category}`}
+                          className="bg-[color:var(--rep-surface-2)]/40"
+                          data-testid={`report-category-subline-${row.key}-${line.category}`}
+                        >
+                          <td className="px-4 py-1.5 pl-10 text-xs text-[color:var(--rep-fg-soft)]">
+                            {line.label}
+                          </td>
+                          <td className="px-4 py-1.5 text-right text-xs text-[color:var(--rep-fg-muted)]">
+                            ${line.total.toLocaleString()}
+                          </td>
+                          <td className="px-4 py-1.5 text-right text-xs text-[color:var(--rep-fg-faint)]">
+                            {row.total > 0 ? `${Math.round((line.total / row.total) * 100)}%` : "—"}
+                          </td>
+                        </tr>
+                      ))}
+                    </Fragment>
                   );
                 })}
                 <tr className="bg-konti-olive/20">

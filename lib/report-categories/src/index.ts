@@ -116,11 +116,24 @@ export function reportBucketLabel(key: string, lang: string): string {
   return lang === "es" ? entry.es : entry.en;
 }
 
+export interface BucketSubLine {
+  // Original raw trade-level category key (e.g. "foundation", "steel"). Kept
+  // verbatim so consumers can correlate back to source line items.
+  category: string;
+  labelEn: string;
+  labelEs: string;
+  total: number;
+}
+
 export interface BucketRollupRow {
   key: ReportBucketKey;
   labelEn: string;
   labelEs: string;
   total: number;
+  // Trade-level sub-lines that contributed to this bucket. Always included
+  // (empty array for empty buckets) so the report UI can render an
+  // expandable detail row under each bucket without a second request.
+  lines: BucketSubLine[];
 }
 
 // Group {category, total} pairs into the team's five canonical buckets and
@@ -131,18 +144,39 @@ export function rollupByBucket(
   pairs: Array<{ category: string; total: number }>,
 ): BucketRollupRow[] {
   const totals = new Map<ReportBucketKey, number>();
-  for (const key of REPORT_BUCKET_KEYS) totals.set(key, 0);
+  // Per-bucket trade sub-line totals, keyed by the lowercased trade category
+  // so duplicate inputs (e.g. two "Foundation" rows) collapse into one line.
+  const lines = new Map<ReportBucketKey, Map<string, number>>();
+  for (const key of REPORT_BUCKET_KEYS) {
+    totals.set(key, 0);
+    lines.set(key, new Map());
+  }
   for (const pair of pairs) {
     if (!Number.isFinite(pair.total)) continue;
     const bucket = bucketForTradeCategory(pair.category);
     totals.set(bucket, (totals.get(bucket) ?? 0) + pair.total);
+    const tradeKey = (pair.category ?? "").trim().toLowerCase() || "uncategorized";
+    const bucketLines = lines.get(bucket)!;
+    bucketLines.set(tradeKey, (bucketLines.get(tradeKey) ?? 0) + pair.total);
   }
-  return REPORT_BUCKET_KEYS.map((key) => ({
-    key,
-    labelEn: REPORT_BUCKET_LABELS[key].en,
-    labelEs: REPORT_BUCKET_LABELS[key].es,
-    total: totals.get(key) ?? 0,
-  }));
+  return REPORT_BUCKET_KEYS.map((key) => {
+    const bucketLines = lines.get(key) ?? new Map<string, number>();
+    return {
+      key,
+      labelEn: REPORT_BUCKET_LABELS[key].en,
+      labelEs: REPORT_BUCKET_LABELS[key].es,
+      total: totals.get(key) ?? 0,
+      lines: Array.from(bucketLines.entries())
+        // Largest contribution first so the most material item shows on top.
+        .sort((a, b) => b[1] - a[1])
+        .map(([category, total]) => ({
+          category,
+          labelEn: tradeCategoryLabel(category, "en"),
+          labelEs: tradeCategoryLabel(category, "es"),
+          total,
+        })),
+    };
+  });
 }
 
 // Convenience: collapse a Record<rawCategoryKey, number> directly into the

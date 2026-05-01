@@ -105,8 +105,11 @@ export function VarianceReportPanel({
                     <YAxis tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
                     <Tooltip formatter={(v: number) => `$${v.toLocaleString()}`} />
                     <Legend />
-                    <Bar dataKey="Estimated" fill="#778894" />
-                    <Bar dataKey="Actual" fill="#4F5E2A" />
+                    {/* Brand bar fills sourced from the central KONTi palette
+                        in `index.css` (`--konti-slate` / `--konti-olive`),
+                        with hex fallbacks if the var hasn't resolved yet. */}
+                    <Bar dataKey="Estimated" fill="var(--konti-slate, #778894)" />
+                    <Bar dataKey="Actual" fill="var(--konti-olive, #4F5E2A)" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>

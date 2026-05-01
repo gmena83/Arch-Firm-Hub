@@ -487,6 +487,40 @@ router.get("/projects/:projectId/calculations", requireRole(["team", "admin", "s
   });
 });
 
+// Client-safe rollup of the same calculations data. Returns ONLY the five
+// canonical buckets (with optional trade-level sub-lines) and the grand
+// total — never raw BOM line items, costs per material, or contractor
+// margin. This is the read used by the project report so client viewers can
+// see the same five-bucket structure the team emails them, without exposing
+// internal estimate detail.
+router.get(
+  "/projects/:projectId/report-rollup",
+  requireRole(["team", "admin", "superadmin", "architect", "client"]),
+  (req, res) => {
+    const projectId = req.params["projectId"] as string;
+    if (!enforceClientOwnership(req, res, projectId)) return;
+    const entries = CALCULATOR_ENTRIES[projectId as keyof typeof CALCULATOR_ENTRIES] ?? [];
+
+    const subtotalByCategory: Record<string, number> = {};
+    let grandTotal = 0;
+    for (const entry of entries) {
+      subtotalByCategory[entry.category] = (subtotalByCategory[entry.category] ?? 0) + entry.lineTotal;
+      grandTotal += entry.lineTotal;
+    }
+
+    const bucketRollup = rollupRecordByBucket(subtotalByCategory);
+    const subtotalByBucket: Record<string, number> = {};
+    for (const row of bucketRollup) subtotalByBucket[row.key] = row.total;
+
+    return res.json({
+      projectId,
+      subtotalByBucket,
+      bucketRollup,
+      grandTotal,
+    });
+  },
+);
+
 // Inline-edit a calculator line (quantity, base price, manual override).
 // Recomputes effectivePrice and lineTotal server-side so the report rollup
 // always sees consistent values.
