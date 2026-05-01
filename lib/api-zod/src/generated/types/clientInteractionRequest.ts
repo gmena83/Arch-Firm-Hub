@@ -8,8 +8,10 @@
 import type { ClientInteractionRequestChannel } from "./clientInteractionRequestChannel";
 
 export interface ClientInteractionRequest {
-  actor: string;
+  /** ISO-8601 date or datetime string. */
+  occurredAt: string;
   channel: ClientInteractionRequestChannel;
-  notes: string;
-  notesEs?: string;
+  /** Who the team interacted with. */
+  with: string;
+  note?: string;
 }

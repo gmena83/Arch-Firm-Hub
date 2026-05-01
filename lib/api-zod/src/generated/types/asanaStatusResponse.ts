@@ -9,6 +9,8 @@ import type { AsanaIntegrationConfig } from "./asanaIntegrationConfig";
 
 export interface AsanaStatusResponse {
   connected: boolean;
+  /** True when workspaceGid + boardGid are persisted and enabled is true. */
+  configured: boolean;
   connectionMessage: string;
   connectionMessageEs: string;
   config: AsanaIntegrationConfig;

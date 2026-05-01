@@ -10,9 +10,8 @@ export type ClientInteractionRequestChannel =
   (typeof ClientInteractionRequestChannel)[keyof typeof ClientInteractionRequestChannel];
 
 export const ClientInteractionRequestChannel = {
-  phone: "phone",
+  call: "call",
+  meeting: "meeting",
   email: "email",
-  in_person: "in_person",
   whatsapp: "whatsapp",
-  video_call: "video_call",
 } as const;

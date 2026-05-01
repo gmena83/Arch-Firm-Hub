@@ -260,13 +260,26 @@ async function attemptSync(job: QueuedSyncJob): Promise<void> {
   }
 }
 
+// Single-flight lock so the periodic drain interval and a manual /retry can't
+// process the same job concurrently (which would cause duplicate Asana
+// comments / double-stamped asanaGid). When a drain is already running, the
+// second caller exits early — the in-flight call will pick up newly-enqueued
+// jobs on its next iteration.
+let draining = false;
+
 export async function drainQueue(): Promise<void> {
   if (!isAsanaEnabled()) return;
-  const now = Date.now();
-  const due = listQueue().filter((j) => Date.parse(j.nextAttemptAt) <= now);
-  for (const job of due) {
-    // eslint-disable-next-line no-await-in-loop
-    await attemptSync(job);
+  if (draining) return;
+  draining = true;
+  try {
+    const now = Date.now();
+    const due = listQueue().filter((j) => Date.parse(j.nextAttemptAt) <= now);
+    for (const job of due) {
+      // eslint-disable-next-line no-await-in-loop
+      await attemptSync(job);
+    }
+  } finally {
+    draining = false;
   }
 }
 

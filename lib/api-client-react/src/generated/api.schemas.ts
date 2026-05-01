@@ -985,6 +985,8 @@ export interface AsanaIntegrationConfig {
 
 export interface AsanaStatusResponse {
   connected: boolean;
+  /** True when workspaceGid + boardGid are persisted and enabled is true. */
+  configured: boolean;
   connectionMessage: string;
   connectionMessageEs: string;
   config: AsanaIntegrationConfig;
@@ -1035,29 +1037,39 @@ export interface AsanaRetryResponse {
   ok: boolean;
 }
 
+export type SiteVisitRequestChannel =
+  (typeof SiteVisitRequestChannel)[keyof typeof SiteVisitRequestChannel];
+
+export const SiteVisitRequestChannel = {
+  site: "site",
+  remote: "remote",
+} as const;
+
 export interface SiteVisitRequest {
-  actor: string;
-  notes: string;
-  notesEs?: string;
-  durationMinutes?: number;
+  visitor: string;
+  /** ISO-8601 date string. */
+  visitDate: string;
+  channel?: SiteVisitRequestChannel;
+  note?: string;
 }
 
 export type ClientInteractionRequestChannel =
   (typeof ClientInteractionRequestChannel)[keyof typeof ClientInteractionRequestChannel];
 
 export const ClientInteractionRequestChannel = {
-  phone: "phone",
+  call: "call",
+  meeting: "meeting",
   email: "email",
-  in_person: "in_person",
   whatsapp: "whatsapp",
-  video_call: "video_call",
 } as const;
 
 export interface ClientInteractionRequest {
-  actor: string;
+  /** ISO-8601 date or datetime string. */
+  occurredAt: string;
   channel: ClientInteractionRequestChannel;
-  notes: string;
-  notesEs?: string;
+  /** Who the team interacted with. */
+  with: string;
+  note?: string;
 }
 
 export type DeliverableStatus =
@@ -2005,5 +2017,10 @@ export type ListProjectAsanaCandidates200 = {
 };
 
 export type LinkProjectToAsanaTaskBody = {
+  asanaGid: string;
+};
+
+export type LinkProjectToAsanaTask200 = {
+  projectId: string;
   asanaGid: string;
 };

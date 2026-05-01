@@ -2437,7 +2437,12 @@ paths:
           description: Linked
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/Project" }
+              schema:
+                type: object
+                properties:
+                  projectId: { type: string }
+                  asanaGid: { type: string }
+                required: [projectId, asanaGid]
 
 components:
   schemas:
@@ -3657,10 +3662,11 @@ components:
       type: object
       properties:
         connected: { type: boolean }
+        configured: { type: boolean, description: "True when workspaceGid + boardGid are persisted and enabled is true." }
         connectionMessage: { type: string }
         connectionMessageEs: { type: string }
         config: { $ref: "#/components/schemas/AsanaIntegrationConfig" }
-      required: [connected, connectionMessage, connectionMessageEs, config]
+      required: [connected, configured, connectionMessage, connectionMessageEs, config]
 
     AsanaConfigResponse:
       type: object
@@ -3727,22 +3733,24 @@ components:
     SiteVisitRequest:
       type: object
       properties:
-        actor: { type: string }
-        notes: { type: string }
-        notesEs: { type: string }
-        durationMinutes: { type: integer }
-      required: [actor, notes]
+        visitor: { type: string }
+        visitDate: { type: string, description: "ISO-8601 date string." }
+        channel:
+          type: string
+          enum: [site, remote]
+        note: { type: string }
+      required: [visitor, visitDate]
 
     ClientInteractionRequest:
       type: object
       properties:
-        actor: { type: string }
+        occurredAt: { type: string, description: "ISO-8601 date or datetime string." }
         channel:
           type: string
-          enum: [phone, email, in_person, whatsapp, video_call]
-        notes: { type: string }
-        notesEs: { type: string }
-      required: [actor, channel, notes]
+          enum: [call, meeting, email, whatsapp]
+        with: { type: string, description: "Who the team interacted with." }
+        note: { type: string }
+      required: [occurredAt, channel, with]
 
     Deliverable:
       type: object

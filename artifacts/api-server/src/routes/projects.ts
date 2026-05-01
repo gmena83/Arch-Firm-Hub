@@ -2227,8 +2227,8 @@ router.get(
     }
     const cfg = getAsanaConfig();
     try {
-      const tasks = await listTasksForProject(cfg.boardGid as string, 100);
-      res.json({ tasks });
+      const candidates = await listTasksForProject(cfg.boardGid as string, 100);
+      res.json({ candidates });
     } catch (err) {
       if (err instanceof AsanaNotConnectedError) {
         return res.status(412).json({ error: "not_connected", message: err.message });

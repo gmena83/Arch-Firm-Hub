@@ -3317,6 +3317,11 @@ export const SendChatMessageResponse = zod.object({
  */
 export const GetAsanaStatusResponse = zod.object({
   connected: zod.boolean(),
+  configured: zod
+    .boolean()
+    .describe(
+      "True when workspaceGid + boardGid are persisted and enabled is true.",
+    ),
   connectionMessage: zod.string(),
   connectionMessageEs: zod.string(),
   config: zod.object({
@@ -3443,10 +3448,10 @@ export const LogProjectSiteVisitParams = zod.object({
 });
 
 export const LogProjectSiteVisitBody = zod.object({
-  actor: zod.string(),
-  notes: zod.string(),
-  notesEs: zod.string().optional(),
-  durationMinutes: zod.number().optional(),
+  visitor: zod.string(),
+  visitDate: zod.string().describe("ISO-8601 date string."),
+  channel: zod.enum(["site", "remote"]).optional(),
+  note: zod.string().optional(),
 });
 
 /**
@@ -3457,10 +3462,10 @@ export const LogProjectClientInteractionParams = zod.object({
 });
 
 export const LogProjectClientInteractionBody = zod.object({
-  actor: zod.string(),
-  channel: zod.enum(["phone", "email", "in_person", "whatsapp", "video_call"]),
-  notes: zod.string(),
-  notesEs: zod.string().optional(),
+  occurredAt: zod.string().describe("ISO-8601 date or datetime string."),
+  channel: zod.enum(["call", "meeting", "email", "whatsapp"]),
+  with: zod.string().describe("Who the team interacted with."),
+  note: zod.string().optional(),
 });
 
 /**
@@ -3491,95 +3496,6 @@ export const LinkProjectToAsanaTaskBody = zod.object({
 });
 
 export const LinkProjectToAsanaTaskResponse = zod.object({
-  id: zod.string(),
-  name: zod.string(),
-  nameEs: zod.string().optional(),
-  clientName: zod.string(),
-  location: zod.string(),
-  city: zod.string(),
-  phase: zod.enum([
-    "discovery",
-    "consultation",
-    "pre_design",
-    "schematic_design",
-    "design_development",
-    "construction_documents",
-    "permits",
-    "construction",
-    "completed",
-  ]),
-  phaseLabel: zod.string(),
-  phaseLabelEs: zod.string(),
-  phaseNumber: zod.number(),
-  progressPercent: zod.number(),
-  budgetAllocated: zod.number(),
-  budgetUsed: zod.number(),
-  startDate: zod.string(),
-  estimatedEndDate: zod.string(),
-  description: zod.string().optional(),
-  coverImage: zod.string().optional(),
-  asanaGid: zod.string().optional(),
-  gammaReportUrl: zod.string().optional(),
-  teamMembers: zod.array(zod.string()).optional(),
-  status: zod.enum(["active", "on_hold", "completed"]),
-  clientPhone: zod
-    .string()
-    .optional()
-    .describe(
-      "Project-level contact phone for the client. Editable by the team.",
-    ),
-  clientPostalAddress: zod
-    .string()
-    .optional()
-    .describe(
-      "Project-level postal address for the client. Editable by the team.",
-    ),
-  clientPhysicalAddress: zod
-    .string()
-    .optional()
-    .describe(
-      "Project-level physical (street) address for the client. Editable by the team.",
-    ),
-  currentStatusNote: zod
-    .string()
-    .optional()
-    .describe(
-      'Plain-language \"what\'s happening now\" sentence (English) shown on the client construction card. Editable by the team. When blank the UI falls back to a deterministic phase-based summary.',
-    ),
-  currentStatusNoteEs: zod
-    .string()
-    .optional()
-    .describe(
-      'Plain-language \"what\'s happening now\" sentence (Spanish) shown on the client construction card. Editable by the team.',
-    ),
-  squareMeters: zod
-    .number()
-    .optional()
-    .describe(
-      "Project size in square meters. Edited from Project Detail and consumed (read-only) by the Contractor Calculator (B-05).",
-    ),
-  bathrooms: zod
-    .number()
-    .optional()
-    .describe(
-      "Number of bathrooms. Project-level; consumed read-only by the Contractor Calculator (B-05).",
-    ),
-  kitchens: zod
-    .number()
-    .optional()
-    .describe(
-      "Number of kitchens. Project-level; consumed read-only by the Contractor Calculator (B-05).",
-    ),
-  projectType: zod
-    .enum(["residencial", "comercial", "mixto", "contenedor"])
-    .optional()
-    .describe(
-      "Project type bucket (residencial | comercial | mixto | contenedor). Project-level; consumed read-only by the Contractor Calculator (B-05).",
-    ),
-  contingencyPercent: zod
-    .number()
-    .optional()
-    .describe(
-      "Default contingency percentage applied to contractor estimates for this project. Project-level; consumed read-only by the Contractor Calculator (B-05).",
-    ),
+  projectId: zod.string(),
+  asanaGid: zod.string(),
 });

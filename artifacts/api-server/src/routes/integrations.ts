@@ -46,8 +46,13 @@ router.get("/integrations/asana/status", requireRole([...ADMIN_ROLES]), async (_
       connectionMessage = (err as Error).message ?? connectionMessage;
     }
   }
+  // `configured` is true once the admin has picked a workspace + board AND
+  // toggled the integration on. UI uses this to decide whether to show the
+  // "Link to Asana task" button (which depends on board, not on connector).
+  const configured = Boolean(cfg.enabled && cfg.workspaceGid && cfg.boardGid);
   res.json({
     connected,
+    configured,
     connectionMessage,
     connectionMessageEs,
     config: cfg,

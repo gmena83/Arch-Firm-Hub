@@ -69,6 +69,7 @@ import type {
   Lead,
   LeadAcceptResponse,
   LeadCreateRequest,
+  LinkProjectToAsanaTask200,
   LinkProjectToAsanaTaskBody,
   ListAsanaBoards200,
   ListAsanaBoardsParams,
@@ -7693,13 +7694,16 @@ export const linkProjectToAsanaTask = async (
   projectId: string,
   linkProjectToAsanaTaskBody: LinkProjectToAsanaTaskBody,
   options?: RequestInit,
-): Promise<Project> => {
-  return customFetch<Project>(getLinkProjectToAsanaTaskUrl(projectId), {
-    ...options,
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...options?.headers },
-    body: JSON.stringify(linkProjectToAsanaTaskBody),
-  });
+): Promise<LinkProjectToAsanaTask200> => {
+  return customFetch<LinkProjectToAsanaTask200>(
+    getLinkProjectToAsanaTaskUrl(projectId),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(linkProjectToAsanaTaskBody),
+    },
+  );
 };
 
 export const getLinkProjectToAsanaTaskMutationOptions = <

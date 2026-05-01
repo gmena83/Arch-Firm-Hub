@@ -40,6 +40,8 @@ export function ProjectTeamActions({
   const status = useGetAsanaStatus({
     query: { queryKey: ["/api/integrations/asana/status"], refetchOnWindowFocus: false, staleTime: 60_000 },
   });
+  // Backend computes `configured` from enabled + workspaceGid + boardGid. The
+  // "Link to Asana task" button only makes sense once a board is configured.
   const asanaConfigured = status.data?.configured === true;
 
   return (
@@ -133,22 +135,24 @@ function SiteVisitModal({
   const { t } = useLang();
   const { toast } = useToast();
   const qc = useQueryClient();
-  const [notesEn, setNotesEn] = useState("");
-  const [notesEs, setNotesEs] = useState("");
-  const [duration, setDuration] = useState<number>(60);
+  // Default visitor to the logged-in user; admin can edit to a contractor.
+  const [visitor, setVisitor] = useState<string>(actor);
+  const [visitDate, setVisitDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [channel, setChannel] = useState<"site" | "remote">("site");
+  const [note, setNote] = useState("");
   const log = useLogProjectSiteVisit();
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!notesEn.trim()) return;
+    if (!visitor.trim() || !visitDate.trim()) return;
     try {
       await log.mutateAsync({
         projectId,
         data: {
-          actor,
-          notes: notesEn.trim(),
-          ...(notesEs.trim() ? { notesEs: notesEs.trim() } : {}),
-          ...(duration > 0 ? { durationMinutes: duration } : {}),
+          visitor: visitor.trim(),
+          visitDate: visitDate.trim(),
+          channel,
+          ...(note.trim() ? { note: note.trim() } : {}),
         },
       });
       await qc.invalidateQueries({ queryKey: [`/api/projects/${projectId}/pre-design`] });
@@ -167,45 +171,60 @@ function SiteVisitModal({
     <ModalShell title={t("Log site visit", "Registrar visita al sitio")} onClose={onClose} testId="site-visit-modal">
       <form onSubmit={onSubmit} className="space-y-3">
         <div>
-          <Label htmlFor="sv-notes" className="text-xs">
-            {t("Notes (English)", "Notas (Inglés)")} *
-          </Label>
-          <textarea
-            id="sv-notes"
-            data-testid="site-visit-notes"
-            required
-            rows={3}
-            value={notesEn}
-            onChange={(e) => setNotesEn(e.target.value)}
-            className="mt-1 w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
-          />
-        </div>
-        <div>
-          <Label htmlFor="sv-notes-es" className="text-xs">
-            {t("Notes (Spanish — optional)", "Notas (Español — opcional)")}
-          </Label>
-          <textarea
-            id="sv-notes-es"
-            data-testid="site-visit-notes-es"
-            rows={2}
-            value={notesEs}
-            onChange={(e) => setNotesEs(e.target.value)}
-            className="mt-1 w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
-          />
-        </div>
-        <div>
-          <Label htmlFor="sv-duration" className="text-xs">
-            {t("Duration (minutes)", "Duración (minutos)")}
+          <Label htmlFor="sv-visitor" className="text-xs">
+            {t("Visitor", "Visitante")} *
           </Label>
           <Input
-            id="sv-duration"
-            type="number"
-            min={0}
-            step={5}
-            value={duration}
-            onChange={(e) => setDuration(Number(e.target.value))}
-            data-testid="site-visit-duration"
+            id="sv-visitor"
+            required
+            value={visitor}
+            onChange={(e) => setVisitor(e.target.value)}
+            data-testid="site-visit-visitor"
             className="mt-1"
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <Label htmlFor="sv-date" className="text-xs">
+              {t("Date", "Fecha")} *
+            </Label>
+            <Input
+              id="sv-date"
+              type="date"
+              required
+              value={visitDate}
+              onChange={(e) => setVisitDate(e.target.value)}
+              data-testid="site-visit-date"
+              className="mt-1"
+            />
+          </div>
+          <div>
+            <Label htmlFor="sv-channel" className="text-xs">
+              {t("Channel", "Canal")}
+            </Label>
+            <select
+              id="sv-channel"
+              value={channel}
+              onChange={(e) => setChannel(e.target.value as "site" | "remote")}
+              data-testid="site-visit-channel"
+              className="mt-1 w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
+            >
+              <option value="site">{t("On-site", "En sitio")}</option>
+              <option value="remote">{t("Remote check", "Revisión remota")}</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <Label htmlFor="sv-note" className="text-xs">
+            {t("Note (optional)", "Nota (opcional)")}
+          </Label>
+          <textarea
+            id="sv-note"
+            data-testid="site-visit-note"
+            rows={3}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            className="mt-1 w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
           />
         </div>
         <div className="flex justify-end gap-2 pt-2">
@@ -236,22 +255,30 @@ function ClientInteractionModal({
   const { t } = useLang();
   const { toast } = useToast();
   const qc = useQueryClient();
-  const [channel, setChannel] = useState<"phone" | "email" | "in_person" | "whatsapp" | "video_call">("phone");
-  const [notesEn, setNotesEn] = useState("");
-  const [notesEs, setNotesEs] = useState("");
+  // Backend channel enum: call | meeting | email | whatsapp.
+  const [channel, setChannel] = useState<"call" | "meeting" | "email" | "whatsapp">("call");
+  const [withWhom, setWithWhom] = useState<string>("");
+  const [occurredAt, setOccurredAt] = useState<string>(() => {
+    // Local-time ISO without seconds; the backend accepts any Date.parse-able string.
+    const d = new Date();
+    const off = d.getTimezoneOffset();
+    return new Date(d.getTime() - off * 60_000).toISOString().slice(0, 16);
+  });
+  const [note, setNote] = useState("");
   const log = useLogProjectClientInteraction();
+  void actor;
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!notesEn.trim()) return;
+    if (!withWhom.trim() || !occurredAt.trim()) return;
     try {
       await log.mutateAsync({
         projectId,
         data: {
-          actor,
+          occurredAt: new Date(occurredAt).toISOString(),
           channel,
-          notes: notesEn.trim(),
-          ...(notesEs.trim() ? { notesEs: notesEs.trim() } : {}),
+          with: withWhom.trim(),
+          ...(note.trim() ? { note: note.trim() } : {}),
         },
       });
       await qc.invalidateQueries({ queryKey: [`/api/projects/${projectId}/pre-design`] });
@@ -272,48 +299,63 @@ function ClientInteractionModal({
       testId="client-interaction-modal"
     >
       <form onSubmit={onSubmit} className="space-y-3">
-        <div>
-          <Label htmlFor="ci-channel" className="text-xs">
-            {t("Channel", "Canal")}
-          </Label>
-          <select
-            id="ci-channel"
-            value={channel}
-            onChange={(e) => setChannel(e.target.value as typeof channel)}
-            data-testid="client-interaction-channel"
-            className="mt-1 w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
-          >
-            <option value="phone">{t("Phone", "Teléfono")}</option>
-            <option value="email">{t("Email", "Correo")}</option>
-            <option value="in_person">{t("In person", "En persona")}</option>
-            <option value="whatsapp">WhatsApp</option>
-            <option value="video_call">{t("Video call", "Videollamada")}</option>
-          </select>
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <Label htmlFor="ci-channel" className="text-xs">
+              {t("Channel", "Canal")}
+            </Label>
+            <select
+              id="ci-channel"
+              value={channel}
+              onChange={(e) => setChannel(e.target.value as typeof channel)}
+              data-testid="client-interaction-channel"
+              className="mt-1 w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
+            >
+              <option value="call">{t("Call", "Llamada")}</option>
+              <option value="meeting">{t("Meeting", "Reunión")}</option>
+              <option value="email">{t("Email", "Correo")}</option>
+              <option value="whatsapp">WhatsApp</option>
+            </select>
+          </div>
+          <div>
+            <Label htmlFor="ci-when" className="text-xs">
+              {t("When", "Cuándo")} *
+            </Label>
+            <Input
+              id="ci-when"
+              type="datetime-local"
+              required
+              value={occurredAt}
+              onChange={(e) => setOccurredAt(e.target.value)}
+              data-testid="client-interaction-when"
+              className="mt-1"
+            />
+          </div>
         </div>
         <div>
-          <Label htmlFor="ci-notes" className="text-xs">
-            {t("Notes (English)", "Notas (Inglés)")} *
+          <Label htmlFor="ci-with" className="text-xs">
+            {t("With", "Con")} *
           </Label>
-          <textarea
-            id="ci-notes"
+          <Input
+            id="ci-with"
             required
-            rows={3}
-            value={notesEn}
-            onChange={(e) => setNotesEn(e.target.value)}
-            data-testid="client-interaction-notes"
-            className="mt-1 w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
+            value={withWhom}
+            onChange={(e) => setWithWhom(e.target.value)}
+            placeholder={t("Client name or contact", "Nombre del cliente o contacto")}
+            data-testid="client-interaction-with"
+            className="mt-1"
           />
         </div>
         <div>
-          <Label htmlFor="ci-notes-es" className="text-xs">
-            {t("Notes (Spanish — optional)", "Notas (Español — opcional)")}
+          <Label htmlFor="ci-note" className="text-xs">
+            {t("Note (optional)", "Nota (opcional)")}
           </Label>
           <textarea
-            id="ci-notes-es"
-            rows={2}
-            value={notesEs}
-            onChange={(e) => setNotesEs(e.target.value)}
-            data-testid="client-interaction-notes-es"
+            id="ci-note"
+            rows={3}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            data-testid="client-interaction-note"
             className="mt-1 w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
           />
         </div>

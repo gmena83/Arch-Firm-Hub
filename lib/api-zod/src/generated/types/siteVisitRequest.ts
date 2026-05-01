@@ -5,10 +5,12 @@
  * KONTi Design | Build Studio - Project Management API
  * OpenAPI spec version: 0.1.0
  */
+import type { SiteVisitRequestChannel } from "./siteVisitRequestChannel";
 
 export interface SiteVisitRequest {
-  actor: string;
-  notes: string;
-  notesEs?: string;
-  durationMinutes?: number;
+  visitor: string;
+  /** ISO-8601 date string. */
+  visitDate: string;
+  channel?: SiteVisitRequestChannel;
+  note?: string;
 }
