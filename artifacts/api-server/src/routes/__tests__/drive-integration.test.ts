@@ -159,6 +159,37 @@ function makeDriveFake(originalFetch: typeof fetch): { state: DriveFakeState; fe
       });
     }
 
+    // GET /files/{id}?alt=media → return raw bytes (download proxy uses this).
+    {
+      const m = url.match(/^https:\/\/www\.googleapis\.com\/drive\/v3\/files\/([^/?]+)\?alt=media/);
+      if (m && method === "GET") {
+        const f = state.files.get(m[1] as string);
+        if (!f) return new Response("", { status: 404 });
+        return new Response(`bytes-of-${f.id}`, {
+          status: 200,
+          headers: { "Content-Type": f.mimeType },
+        });
+      }
+    }
+
+    // GET /files/{id}?fields=id,name,mimeType,... → metadata for proxy MIME.
+    {
+      const m = url.match(/^https:\/\/www\.googleapis\.com\/drive\/v3\/files\/([^/?]+)\?fields=id/);
+      if (m && method === "GET") {
+        const f = state.files.get(m[1] as string);
+        if (!f) return json(404, { error: { message: "not found" } });
+        return json(200, {
+          id: f.id,
+          name: f.name,
+          mimeType: f.mimeType,
+          webViewLink: `https://drive.google.com/file/d/${f.id}/view`,
+          webContentLink: `https://drive.google.com/uc?id=${f.id}`,
+          thumbnailLink: `https://lh3.googleusercontent.com/${f.id}=s220`,
+          size: "1024",
+        });
+      }
+    }
+
     // PATCH /files/{id} → trash.
     {
       const m = url.match(/^https:\/\/www\.googleapis\.com\/drive\/v3\/files\/([^/?]+)$/);
@@ -727,7 +758,7 @@ test("POST /projects/:id/documents: 502 on Drive failure, no document inserted",
   }
 });
 
-test("PATCH /documents/:id/visibility: 502 on Drive failure, isClientVisible unchanged", async () => {
+test("PATCH /documents/:id/visibility: non-blocking on Drive failure, dashboard flips + warning surfaced", async () => {
   const { restore } = installFailingDriveFetchStub();
   try {
     updateDriveConfig({
@@ -766,9 +797,12 @@ test("PATCH /documents/:id/visibility: 502 on Drive failure, isClientVisible unc
             body: JSON.stringify({ isClientVisible: true }),
           },
         );
-        assert.equal(res.status, 502);
+        assert.equal(res.status, 200);
+        const body = (await res.json()) as Record<string, unknown>;
+        assert.equal(body["isClientVisible"], true, "dashboard visibility flipped");
+        assert.ok(body["driveWarning"], "warning surfaced for the UI");
         const after = list.find((d) => d["id"] === "doc-half-vis") as Record<string, unknown>;
-        assert.equal(after["isClientVisible"], false, "visibility was not flipped");
+        assert.equal(after["isClientVisible"], true, "visibility flipped in store");
       });
     } finally {
       (DOCUMENTS as Record<string, unknown[]>)[PROJECT_ID] = list.filter(
@@ -780,7 +814,7 @@ test("PATCH /documents/:id/visibility: 502 on Drive failure, isClientVisible unc
   }
 });
 
-test("DELETE /documents/:id: 502 on Drive failure, document still present", async () => {
+test("DELETE /documents/:id: non-blocking on Drive failure, document removed + warning surfaced", async () => {
   const { restore } = installFailingDriveFetchStub();
   try {
     updateDriveConfig({
@@ -814,13 +848,396 @@ test("DELETE /documents/:id: 502 on Drive failure, document still present", asyn
           `${baseUrl}/api/projects/${PROJECT_ID}/documents/doc-half-del`,
           { method: "DELETE", headers: authHeaders(adminToken) },
         );
-        assert.equal(res.status, 502);
-        const stillThere = list.some((d) => d["id"] === "doc-half-del");
-        assert.equal(stillThere, true, "document was not half-deleted");
+        assert.equal(res.status, 200);
+        const body = (await res.json()) as Record<string, unknown>;
+        assert.equal(body["deleted"], true, "delete acknowledged");
+        assert.ok(body["driveWarning"], "warning surfaced for the UI");
+        const stillThere = ((DOCUMENTS as Record<string, unknown[]>)[PROJECT_ID] ?? []).some(
+          (d) => (d as Record<string, unknown>)["id"] === "doc-half-del",
+        );
+        assert.equal(stillThere, false, "dashboard record removed");
       });
     } finally {
       (DOCUMENTS as Record<string, unknown[]>)[PROJECT_ID] = list.filter(
         (d) => d["id"] !== "doc-half-del",
+      );
+    }
+  } finally {
+    restore();
+  }
+});
+
+test("GET /integrations/drive/files/:fileId/download: admin gets bytes through the proxy", async () => {
+  const { state, restore } = installDriveFetchStub();
+  try {
+    updateDriveConfig({
+      enabled: true,
+      rootFolderId: "root-folder",
+      rootFolderName: "KONTi Dashboard",
+      visibilityPolicy: "private",
+      deletePolicy: "trash",
+      connectedAt: new Date().toISOString(),
+      connectedBy: "Tester",
+    });
+    // Seed one file in the fake + matching dashboard record.
+    state.files.set("dl-file-1", {
+      id: "dl-file-1",
+      name: "blueprint.pdf",
+      mimeType: "application/pdf",
+      parents: [],
+      permissions: new Map(),
+      trashed: false,
+      deleted: false,
+    });
+    const list = (DOCUMENTS as Record<string, Array<Record<string, unknown>>>)[PROJECT_ID] ?? [];
+    const planted = {
+      id: "doc-dl-1",
+      name: "blueprint.pdf",
+      category: "internal",
+      type: "PDF",
+      fileSize: "1 KB",
+      uploadedBy: "demo@konti.com",
+      uploadedAt: new Date().toISOString(),
+      isClientVisible: false,
+      driveFileId: "dl-file-1",
+      mimeType: "application/pdf",
+      description: "",
+    };
+    list.push(planted);
+    (DOCUMENTS as Record<string, unknown[]>)[PROJECT_ID] = list;
+    try {
+      await withServer(async (baseUrl) => {
+        const adminToken = await login(baseUrl, "demo@konti.com");
+        const res = await fetch(
+          `${baseUrl}/api/integrations/drive/files/dl-file-1/download`,
+          { headers: authHeaders(adminToken) },
+        );
+        assert.equal(res.status, 200);
+        assert.equal(res.headers.get("content-type"), "application/pdf");
+        const text = await res.text();
+        assert.equal(text, "bytes-of-dl-file-1");
+      });
+    } finally {
+      (DOCUMENTS as Record<string, unknown[]>)[PROJECT_ID] = list.filter(
+        (d) => d["id"] !== "doc-dl-1",
+      );
+    }
+  } finally {
+    restore();
+  }
+});
+
+test("GET /integrations/drive/files/:fileId/download: client denied when document is not client-visible", async () => {
+  const { state, restore } = installDriveFetchStub();
+  try {
+    updateDriveConfig({
+      enabled: true,
+      rootFolderId: "root-folder",
+      rootFolderName: "KONTi Dashboard",
+      visibilityPolicy: "private",
+      deletePolicy: "trash",
+      connectedAt: new Date().toISOString(),
+      connectedBy: "Tester",
+    });
+    state.files.set("dl-internal", {
+      id: "dl-internal",
+      name: "internal-only.pdf",
+      mimeType: "application/pdf",
+      parents: [],
+      permissions: new Map(),
+      trashed: false,
+      deleted: false,
+    });
+    const list = (DOCUMENTS as Record<string, Array<Record<string, unknown>>>)[PROJECT_ID] ?? [];
+    const planted = {
+      id: "doc-internal-1",
+      name: "internal-only.pdf",
+      category: "internal",
+      type: "PDF",
+      fileSize: "1 KB",
+      uploadedBy: "demo@konti.com",
+      uploadedAt: new Date().toISOString(),
+      isClientVisible: false,
+      driveFileId: "dl-internal",
+      mimeType: "application/pdf",
+      description: "",
+    };
+    list.push(planted);
+    (DOCUMENTS as Record<string, unknown[]>)[PROJECT_ID] = list;
+    try {
+      await withServer(async (baseUrl) => {
+        const clientToken = await login(baseUrl, "client@konti.com");
+        const res = await fetch(
+          `${baseUrl}/api/integrations/drive/files/dl-internal/download`,
+          { headers: authHeaders(clientToken) },
+        );
+        assert.equal(res.status, 403);
+      });
+    } finally {
+      (DOCUMENTS as Record<string, unknown[]>)[PROJECT_ID] = list.filter(
+        (d) => d["id"] !== "doc-internal-1",
+      );
+    }
+  } finally {
+    restore();
+  }
+});
+
+test("GET /integrations/drive/files/:fileId/download: client allowed when doc is visible AND project owned", async () => {
+  const { state, restore } = installDriveFetchStub();
+  try {
+    updateDriveConfig({
+      enabled: true,
+      rootFolderId: "root-folder",
+      rootFolderName: "KONTi Dashboard",
+      visibilityPolicy: "anyone_with_link",
+      deletePolicy: "trash",
+      connectedAt: new Date().toISOString(),
+      connectedBy: "Tester",
+    });
+    state.files.set("dl-shared", {
+      id: "dl-shared",
+      name: "shared-with-client.pdf",
+      mimeType: "application/pdf",
+      parents: [],
+      permissions: new Map(),
+      trashed: false,
+      deleted: false,
+    });
+    const list = (DOCUMENTS as Record<string, Array<Record<string, unknown>>>)[PROJECT_ID] ?? [];
+    const planted = {
+      id: "doc-shared-1",
+      name: "shared-with-client.pdf",
+      category: "client_review",
+      type: "PDF",
+      fileSize: "1 KB",
+      uploadedBy: "demo@konti.com",
+      uploadedAt: new Date().toISOString(),
+      isClientVisible: true,
+      driveFileId: "dl-shared",
+      mimeType: "application/pdf",
+      description: "",
+    };
+    list.push(planted);
+    (DOCUMENTS as Record<string, unknown[]>)[PROJECT_ID] = list;
+    try {
+      await withServer(async (baseUrl) => {
+        // user-client-1 owns proj-1 in the seed, so this is the allowed path.
+        const clientToken = await login(baseUrl, "client@konti.com");
+        const res = await fetch(
+          `${baseUrl}/api/integrations/drive/files/dl-shared/download`,
+          { headers: authHeaders(clientToken) },
+        );
+        assert.equal(res.status, 200);
+        const text = await res.text();
+        assert.equal(text, "bytes-of-dl-shared");
+      });
+    } finally {
+      (DOCUMENTS as Record<string, unknown[]>)[PROJECT_ID] = list.filter(
+        (d) => d["id"] !== "doc-shared-1",
+      );
+    }
+  } finally {
+    restore();
+  }
+});
+
+test("GET /integrations/drive/files/:fileId/download: client denied when project not assigned", async () => {
+  const { state, restore } = installDriveFetchStub();
+  try {
+    updateDriveConfig({
+      enabled: true,
+      rootFolderId: "root-folder",
+      rootFolderName: "KONTi Dashboard",
+      visibilityPolicy: "anyone_with_link",
+      deletePolicy: "trash",
+      connectedAt: new Date().toISOString(),
+      connectedBy: "Tester",
+    });
+    // Find a project NOT owned by user-client-1.
+    const otherProject = PROJECTS.find(
+      (p) => (p as { clientUserId?: string }).clientUserId &&
+             (p as { clientUserId?: string }).clientUserId !== "user-client-1",
+    );
+    if (!otherProject) {
+      // No suitable project — skip silently rather than fail the suite.
+      return;
+    }
+    state.files.set("dl-other", {
+      id: "dl-other",
+      name: "wrong-project.pdf",
+      mimeType: "application/pdf",
+      parents: [],
+      permissions: new Map(),
+      trashed: false,
+      deleted: false,
+    });
+    const otherList = (DOCUMENTS as Record<string, Array<Record<string, unknown>>>)[otherProject.id] ?? [];
+    const planted = {
+      id: "doc-other-1",
+      name: "wrong-project.pdf",
+      category: "client_review",
+      type: "PDF",
+      fileSize: "1 KB",
+      uploadedBy: "demo@konti.com",
+      uploadedAt: new Date().toISOString(),
+      isClientVisible: true,
+      driveFileId: "dl-other",
+      mimeType: "application/pdf",
+      description: "",
+    };
+    otherList.push(planted);
+    (DOCUMENTS as Record<string, unknown[]>)[otherProject.id] = otherList;
+    try {
+      await withServer(async (baseUrl) => {
+        const clientToken = await login(baseUrl, "client@konti.com");
+        const res = await fetch(
+          `${baseUrl}/api/integrations/drive/files/dl-other/download`,
+          { headers: authHeaders(clientToken) },
+        );
+        assert.equal(res.status, 403);
+      });
+    } finally {
+      (DOCUMENTS as Record<string, unknown[]>)[otherProject.id] = otherList.filter(
+        (d) => d["id"] !== "doc-other-1",
+      );
+    }
+  } finally {
+    restore();
+  }
+});
+
+test("GET /integrations/drive/files/:fileId/download: 404 for an unknown file id", async () => {
+  const { restore } = installDriveFetchStub();
+  try {
+    updateDriveConfig({
+      enabled: true,
+      rootFolderId: "root-folder",
+      rootFolderName: "KONTi Dashboard",
+      visibilityPolicy: "private",
+      deletePolicy: "trash",
+      connectedAt: new Date().toISOString(),
+      connectedBy: "Tester",
+    });
+    await withServer(async (baseUrl) => {
+      const adminToken = await login(baseUrl, "demo@konti.com");
+      const res = await fetch(
+        `${baseUrl}/api/integrations/drive/files/unknown-file/download`,
+        { headers: authHeaders(adminToken) },
+      );
+      assert.equal(res.status, 404);
+    });
+  } finally {
+    restore();
+  }
+});
+
+test("GET /projects/:projectId/documents: client response strips raw Drive URLs", async () => {
+  const { restore } = installDriveFetchStub();
+  try {
+    updateDriveConfig({
+      enabled: true,
+      rootFolderId: "root-folder",
+      rootFolderName: "KONTi Dashboard",
+      visibilityPolicy: "anyone_with_link",
+      deletePolicy: "trash",
+      connectedAt: new Date().toISOString(),
+      connectedBy: "Tester",
+    });
+    const list = (DOCUMENTS as Record<string, Array<Record<string, unknown>>>)[PROJECT_ID] ?? [];
+    const planted = {
+      id: "doc-sanitize-1",
+      name: "blueprint.pdf",
+      category: "client_review",
+      type: "PDF",
+      fileSize: "1 KB",
+      uploadedBy: "demo@konti.com",
+      uploadedAt: new Date().toISOString(),
+      isClientVisible: true,
+      driveFileId: "dl-sanitize",
+      driveWebViewLink: "https://drive.google.com/file/d/dl-sanitize/view",
+      driveWebContentLink: "https://drive.google.com/uc?id=dl-sanitize",
+      driveThumbnailLink: "https://lh3.googleusercontent.com/dl-sanitize=s220",
+      mimeType: "application/pdf",
+      description: "",
+    };
+    list.push(planted);
+    (DOCUMENTS as Record<string, unknown[]>)[PROJECT_ID] = list;
+    try {
+      await withServer(async (baseUrl) => {
+        const clientToken = await login(baseUrl, "client@konti.com");
+        const res = await fetch(
+          `${baseUrl}/api/projects/${PROJECT_ID}/documents`,
+          { headers: authHeaders(clientToken) },
+        );
+        assert.equal(res.status, 200);
+        const docs = (await res.json()) as Array<Record<string, unknown>>;
+        const doc = docs.find((d) => d["id"] === "doc-sanitize-1");
+        assert.ok(doc, "doc surfaced to client");
+        assert.equal(doc["driveWebViewLink"], undefined, "webViewLink stripped for client");
+        assert.equal(doc["driveWebContentLink"], undefined, "webContentLink stripped for client");
+        assert.equal(doc["driveThumbnailLink"], undefined, "thumbnailLink stripped for client");
+        assert.equal(
+          doc["driveDownloadProxyUrl"],
+          "/api/integrations/drive/files/dl-sanitize/download",
+          "proxy URL still surfaced",
+        );
+      });
+    } finally {
+      (DOCUMENTS as Record<string, unknown[]>)[PROJECT_ID] = list.filter(
+        (d) => d["id"] !== "doc-sanitize-1",
+      );
+    }
+  } finally {
+    restore();
+  }
+});
+
+test("GET /integrations/drive/files/:fileId/download: registered doc but missing Drive file → 404 drive_file_missing", async () => {
+  // Registered in the dashboard but NEVER added to the fake's files map, so
+  // Drive returns 404 → DriveApiError(404) → mapped to dashboard 404 with
+  // the "drive_file_missing" error code (distinct from the unknown-doc 404).
+  const { restore } = installDriveFetchStub();
+  try {
+    updateDriveConfig({
+      enabled: true,
+      rootFolderId: "root-folder",
+      rootFolderName: "KONTi Dashboard",
+      visibilityPolicy: "private",
+      deletePolicy: "trash",
+      connectedAt: new Date().toISOString(),
+      connectedBy: "Tester",
+    });
+    const list = (DOCUMENTS as Record<string, Array<Record<string, unknown>>>)[PROJECT_ID] ?? [];
+    const planted = {
+      id: "doc-missing-1",
+      name: "ghost.pdf",
+      category: "internal",
+      type: "PDF",
+      fileSize: "1 KB",
+      uploadedBy: "demo@konti.com",
+      uploadedAt: new Date().toISOString(),
+      isClientVisible: false,
+      driveFileId: "dl-ghost",
+      mimeType: "application/pdf",
+      description: "",
+    };
+    list.push(planted);
+    (DOCUMENTS as Record<string, unknown[]>)[PROJECT_ID] = list;
+    try {
+      await withServer(async (baseUrl) => {
+        const adminToken = await login(baseUrl, "demo@konti.com");
+        const res = await fetch(
+          `${baseUrl}/api/integrations/drive/files/dl-ghost/download`,
+          { headers: authHeaders(adminToken) },
+        );
+        assert.equal(res.status, 404);
+        const body = (await res.json()) as Record<string, unknown>;
+        assert.equal(body["error"], "drive_file_missing");
+      });
+    } finally {
+      (DOCUMENTS as Record<string, unknown[]>)[PROJECT_ID] = list.filter(
+        (d) => d["id"] !== "doc-missing-1",
       );
     }
   } finally {

@@ -7916,6 +7916,94 @@ export const useBackfillDriveDocuments = <
 };
 
 /**
+ * @summary Stream a Drive file's bytes through the API (auth + role gated)
+ */
+export const getDownloadDriveFileUrl = (fileId: string) => {
+  return `/api/integrations/drive/files/${fileId}/download`;
+};
+
+export const downloadDriveFile = async (
+  fileId: string,
+  options?: RequestInit,
+): Promise<Blob> => {
+  return customFetch<Blob>(getDownloadDriveFileUrl(fileId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getDownloadDriveFileQueryKey = (fileId: string) => {
+  return [`/api/integrations/drive/files/${fileId}/download`] as const;
+};
+
+export const getDownloadDriveFileQueryOptions = <
+  TData = Awaited<ReturnType<typeof downloadDriveFile>>,
+  TError = ErrorType<void>,
+>(
+  fileId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof downloadDriveFile>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getDownloadDriveFileQueryKey(fileId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof downloadDriveFile>>
+  > = ({ signal }) => downloadDriveFile(fileId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!fileId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof downloadDriveFile>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type DownloadDriveFileQueryResult = NonNullable<
+  Awaited<ReturnType<typeof downloadDriveFile>>
+>;
+export type DownloadDriveFileQueryError = ErrorType<void>;
+
+/**
+ * @summary Stream a Drive file's bytes through the API (auth + role gated)
+ */
+
+export function useDownloadDriveFile<
+  TData = Awaited<ReturnType<typeof downloadDriveFile>>,
+  TError = ErrorType<void>,
+>(
+  fileId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof downloadDriveFile>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getDownloadDriveFileQueryOptions(fileId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
  * @summary Record a team site visit (mirrors to Asana when configured)
  */
 export const getLogProjectSiteVisitUrl = (projectId: string) => {

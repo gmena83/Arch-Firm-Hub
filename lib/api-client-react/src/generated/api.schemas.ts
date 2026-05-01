@@ -494,6 +494,14 @@ export const DocumentPhotoCategory = {
   final: "final",
 } as const;
 
+/**
+ * Optional non-blocking warning surfaced when a Drive write (delete/visibility) succeeded locally but failed on Drive. The dashboard should display it and direct admins to the Drive sync log.
+ */
+export type DocumentDriveWarning = {
+  en?: string;
+  es?: string;
+};
+
 export interface Document {
   id: string;
   projectId: string;
@@ -524,6 +532,10 @@ export interface Document {
   driveWebContentLink?: string;
   /** Drive-generated thumbnail URL (small preview). */
   driveThumbnailLink?: string;
+  /** Dashboard-mediated download URL (Task */
+  driveDownloadProxyUrl?: string;
+  /** Optional non-blocking warning surfaced when a Drive write (delete/visibility) succeeded locally but failed on Drive. The dashboard should display it and direct admins to the Drive sync log. */
+  driveWarning?: DocumentDriveWarning;
   versions?: DocumentVersion[];
 }
 

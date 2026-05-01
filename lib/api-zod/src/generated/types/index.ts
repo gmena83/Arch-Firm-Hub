@@ -85,6 +85,7 @@ export * from "./documentCreateRequestCategory";
 export * from "./documentCreateRequestPhotoCategory";
 export * from "./documentCreateRequestType";
 export * from "./documentDesignSubPhase";
+export * from "./documentDriveWarning";
 export * from "./documentPhotoCategory";
 export * from "./documentType";
 export * from "./documentUpdateRequest";

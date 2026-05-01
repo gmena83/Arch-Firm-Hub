@@ -395,6 +395,19 @@ export const GetProjectDocumentsResponseItem = zod.object({
     .string()
     .optional()
     .describe("Drive-generated thumbnail URL (small preview)."),
+  driveDownloadProxyUrl: zod
+    .string()
+    .optional()
+    .describe("Dashboard-mediated download URL (Task"),
+  driveWarning: zod
+    .object({
+      en: zod.string().optional(),
+      es: zod.string().optional(),
+    })
+    .optional()
+    .describe(
+      "Optional non-blocking warning surfaced when a Drive write (delete\/visibility) succeeded locally but failed on Drive. The dashboard should display it and direct admins to the Drive sync log.",
+    ),
   versions: zod
     .array(
       zod.object({
@@ -585,6 +598,19 @@ export const UpdateProjectDocumentResponse = zod.object({
     .string()
     .optional()
     .describe("Drive-generated thumbnail URL (small preview)."),
+  driveDownloadProxyUrl: zod
+    .string()
+    .optional()
+    .describe("Dashboard-mediated download URL (Task"),
+  driveWarning: zod
+    .object({
+      en: zod.string().optional(),
+      es: zod.string().optional(),
+    })
+    .optional()
+    .describe(
+      "Optional non-blocking warning surfaced when a Drive write (delete\/visibility) succeeded locally but failed on Drive. The dashboard should display it and direct admins to the Drive sync log.",
+    ),
   versions: zod
     .array(
       zod.object({
@@ -3652,6 +3678,13 @@ export const BackfillDriveDocumentsResponse = zod.object({
       message: zod.string(),
     }),
   ),
+});
+
+/**
+ * @summary Stream a Drive file's bytes through the API (auth + role gated)
+ */
+export const DownloadDriveFileParams = zod.object({
+  fileId: zod.coerce.string(),
 });
 
 /**

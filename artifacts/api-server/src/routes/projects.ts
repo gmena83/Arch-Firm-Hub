@@ -400,6 +400,14 @@ router.post("/projects/:projectId/documents", requireRole(["team", "admin", "sup
     }
   }
 
+  // Surface a proxied download URL (Task #128 step 6) so the dashboard
+  // never needs to hand the browser a raw Drive `webContentLink`. The proxy
+  // re-checks role + visibility on every request, which means revoking
+  // client visibility instantly cuts off file access without waiting for
+  // Drive's permission cache to roll over.
+  const driveDownloadProxyUrl = driveFileId
+    ? `/api/integrations/drive/files/${driveFileId}/download`
+    : undefined;
   const doc = {
     id: documentId,
     projectId,
@@ -420,6 +428,7 @@ router.post("/projects/:projectId/documents", requireRole(["team", "admin", "sup
     ...(driveWebViewLink ? { driveWebViewLink } : {}),
     ...(driveWebContentLink ? { driveWebContentLink } : {}),
     ...(driveThumbnailLink ? { driveThumbnailLink } : {}),
+    ...(driveDownloadProxyUrl ? { driveDownloadProxyUrl } : {}),
   };
   (DOCUMENTS as Record<string, unknown[]>)[projectId] = [...list, doc];
   // Surface upload in the project timeline. Use a dedicated audit type when
@@ -456,29 +465,8 @@ router.patch(
     }
     const previous = doc.isClientVisible;
     const next = body.isClientVisible;
+    let driveWarning: { en: string; es: string } | undefined;
     if (previous !== next) {
-      // Drive sharing propagation (Task #128) — atomic. If Drive is the
-      // active backend we MUST update the file's permissions before mutating
-      // our own record so the dashboard never claims "client visible" when
-      // the file is still private in Drive (or vice versa). If Drive fails
-      // we leave local state untouched and surface a 502.
-      if (doc.driveFileId && isDriveEnabled()) {
-        const ok = await applyVisibilityToDrive({
-          projectId,
-          projectName: project.name,
-          documentId: doc.id,
-          documentName: doc.name,
-          driveFileId: doc.driveFileId,
-          isClientVisible: next,
-        });
-        if (!ok) {
-          return res.status(502).json({
-            error: "drive_visibility_failed",
-            message:
-              "Could not update visibility in Google Drive. The document was not changed.",
-          });
-        }
-      }
       doc.isClientVisible = next;
       const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
       const visEn = next ? "visible to client" : "hidden from client";
@@ -489,8 +477,28 @@ router.patch(
         description: `Document "${doc.name}" marked ${visEn}`,
         descriptionEs: `Documento "${doc.name}" marcado ${visEs}`,
       });
+      // Drive sharing propagation (Task #128) — non-blocking per spec step 7.
+      // If the Drive call fails the dashboard's own visibility flag still
+      // sticks; the user sees a warning and the failure is recorded in the
+      // Drive sync log so an admin can resync later.
+      if (doc.driveFileId && isDriveEnabled()) {
+        const ok = await applyVisibilityToDrive({
+          projectId,
+          projectName: project.name,
+          documentId: doc.id,
+          documentName: doc.name,
+          driveFileId: doc.driveFileId,
+          isClientVisible: next,
+        });
+        if (!ok) {
+          driveWarning = {
+            en: "Visibility was updated in the dashboard but the Google Drive sharing change did not go through. Open the Drive integration sync log to retry.",
+            es: "La visibilidad se actualizó en el panel pero el cambio de compartido en Google Drive no se aplicó. Abre el registro de sincronización de Drive para reintentar.",
+          };
+        }
+      }
     }
-    return res.json(doc);
+    return res.json(driveWarning ? { ...doc, driveWarning } : doc);
   },
 );
 
@@ -526,10 +534,11 @@ router.delete(
         message: "Clients can only delete documents they uploaded themselves",
       });
     }
-    // Drive delete first — atomic. If Drive fails we keep the local record
-    // so the user can retry; otherwise the dashboard would lose its only
-    // pointer to a still-living file in Drive (an orphan they can't
-    // re-discover from the UI).
+    // Drive delete (Task #128) — non-blocking per spec step 5. We always
+    // remove the dashboard's own metadata so the user's intent succeeds; if
+    // the Drive-side delete fails we add a warning header so the UI can
+    // surface the residue, and the failure is recorded in the Drive sync log.
+    let driveWarning: { en: string; es: string } | undefined;
     if (doc.driveFileId && isDriveEnabled()) {
       const ok = await deleteDocumentFromDrive({
         projectId,
@@ -539,11 +548,10 @@ router.delete(
         driveFileId: doc.driveFileId,
       });
       if (!ok) {
-        return res.status(502).json({
-          error: "drive_delete_failed",
-          message:
-            "Could not remove the file from Google Drive. The document was not deleted.",
-        });
+        driveWarning = {
+          en: "Document removed from the dashboard but the Google Drive copy could not be deleted. Open the Drive integration sync log to retry.",
+          es: "El documento se eliminó del panel pero la copia en Google Drive no pudo eliminarse. Abre el registro de sincronización de Drive para reintentar.",
+        };
       }
     }
     list.splice(idx, 1);
@@ -555,6 +563,10 @@ router.delete(
       description: `Document "${doc.name}" removed from ${doc.category}`,
       descriptionEs: `Documento "${doc.name}" eliminado de ${doc.category}`,
     });
+    // 200 + warning body when Drive lagged so the UI can surface a toast;
+    // otherwise the legacy 204 No Content (clients that already handle 204
+    // continue to work).
+    if (driveWarning) return res.status(200).json({ deleted: true, driveWarning });
     return res.status(204).end();
   },
 );
@@ -584,7 +596,32 @@ router.get(
       docs = docs.filter((d) => !d.isClientVisible);
     }
 
-    return res.json(docs);
+    // Backfill `driveDownloadProxyUrl` (Task #128 step 6) for any document
+    // that has a `driveFileId` but pre-dates the proxy. This keeps the
+    // frontend rendering logic uniform across documents uploaded before and
+    // after the proxy shipped.
+    //
+    // For client role we additionally STRIP the raw Drive URLs
+    // (`driveWebViewLink`/`driveWebContentLink`/`driveThumbnailLink`) so the
+    // browser never sees a link that bypasses the dashboard's proxy. Team /
+    // admin / superadmin / architect still see the "Open in Drive" link
+    // because it's helpful for their workflow.
+    const decorated = docs.map((d) => {
+      const record = d as Record<string, unknown>;
+      const fileId = record["driveFileId"];
+      let next: Record<string, unknown> = { ...record };
+      if (typeof fileId === "string" && fileId.length > 0 && !record["driveDownloadProxyUrl"]) {
+        next["driveDownloadProxyUrl"] = `/api/integrations/drive/files/${fileId}/download`;
+      }
+      if (role === "client") {
+        delete next["driveWebViewLink"];
+        delete next["driveWebContentLink"];
+        delete next["driveThumbnailLink"];
+      }
+      return next;
+    });
+
+    return res.json(decorated);
   },
 );
 
@@ -1004,12 +1041,33 @@ router.post("/projects/:id/pdf", requireRole(["team", "admin", "superadmin", "ar
     }
 
     const safeName = project.name.replace(/[^a-zA-Z0-9\-_]/g, "-");
+    // Buffer the rendered PDF so we can ship it to the user and also archive
+    // it to Drive. Reports are typically <1 MB so the memory cost is fine,
+    // and buffering avoids tee-ing a Readable stream into two consumers.
+    const pdfBytes = Buffer.from(await fileResponse.arrayBuffer());
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="KONTi-Report-${safeName}.pdf"`);
+    res.send(pdfBytes);
 
-    const { Readable } = await import("stream");
-    const nodeStream = Readable.fromWeb(fileResponse.body as import("stream/web").ReadableStream);
-    nodeStream.pipe(res);
+    // Drive archive copy (Task #128 step 6) — fire-and-forget so the
+    // response to the user is not delayed by the Drive round-trip. Failures
+    // are intentionally swallowed; the Drive sync log is the ledger of
+    // record so admins can re-run reports if a copy was missed.
+    if (isDriveEnabled()) {
+      const reportName = `KONTi-Report-${safeName}-${generatedAt.replace(/[/,:\s]/g, "-")}.pdf`;
+      void uploadDocumentToDrive({
+        projectId: project.id,
+        projectName: project.name,
+        documentId: `report-${Date.now()}`,
+        documentName: reportName,
+        category: "reports",
+        mimeType: "application/pdf",
+        data: pdfBytes,
+        isClientVisible: false,
+      }).catch(() => {
+        /* logged inside drive-sync */
+      });
+    }
   } catch (err) {
     req.log.error({ err }, "PDF export error");
     res.status(500).json({ error: "pdf_error", message: "PDF generation failed" });

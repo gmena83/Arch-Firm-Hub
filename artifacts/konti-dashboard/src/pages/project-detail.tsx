@@ -1065,6 +1065,23 @@ function DocCard({ doc, isClientView, projectId }: { doc: Document; isClientView
                     {t("Drive", "Drive")}
                   </a>
                 )}
+                {/* Proxied download — re-checks visibility/role server-side
+                    (Task #128 step 6). Used when the dashboard wants to
+                    mediate the download (e.g. for client viewers) so the
+                    raw Drive URL never leaves the API. */}
+                {doc.driveDownloadProxyUrl && (
+                  <a
+                    href={doc.driveDownloadProxyUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="text-xs px-1.5 py-0.5 rounded font-semibold bg-konti-olive/10 text-konti-olive border border-konti-olive/30 hover:bg-konti-olive/20 inline-flex items-center gap-1"
+                    data-testid={`link-download-drive-${doc.id}`}
+                    title={t("Download (proxied)", "Descargar (con proxy)")}
+                  >
+                    {t("Download", "Descargar")}
+                  </a>
+                )}
               </div>
             </div>
           </div>

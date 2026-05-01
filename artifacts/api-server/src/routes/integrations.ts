@@ -29,6 +29,8 @@ import {
   listFolders as listDriveFolders,
   findOrCreateFolder as findOrCreateDriveFolder,
   getFolder as getDriveFolder,
+  downloadFile as downloadDriveFile,
+  getFileMetadata as getDriveFileMetadata,
   DriveNotConnectedError,
   DriveApiError,
 } from "../lib/drive-client";
@@ -426,5 +428,93 @@ router.post("/integrations/drive/backfill", requireRole([...ADMIN_ROLES]), async
     return res.status(500).json({ error: "internal", message: (err as Error).message });
   }
 });
+
+// Download proxy (Task #128 step 6) — streams the bytes of a Drive file
+// back through the API so the dashboard never has to expose Drive's
+// `webContentLink` directly to the browser. Auth + role checks are enforced
+// here: clients can only fetch files attached to a document that is
+// (a) flagged isClientVisible AND (b) lives on a project the client owns.
+// Team/admin/superadmin/architect can fetch any document the dashboard
+// already exposes to them.
+router.get(
+  "/integrations/drive/files/:fileId/download",
+  requireRole(["team", "admin", "superadmin", "architect", "client"]),
+  async (req, res) => {
+    const fileIdRaw = req.params["fileId"];
+    const fileId = (typeof fileIdRaw === "string" ? fileIdRaw : "").trim();
+    if (!fileId) {
+      return res.status(400).json({ error: "bad_request", message: "fileId required" });
+    }
+    // Find the dashboard's record for this Drive file so we can apply the
+    // same visibility/ownership rules that gate /documents listing. We
+    // reject the request if the file is unknown — without a record we
+    // can't reason about whether the caller is allowed to see it.
+    let owningProjectId: string | null = null;
+    let docName = "drive-file";
+    let docMime = "application/octet-stream";
+    let docIsClientVisible = false;
+    for (const [projectId, list] of Object.entries(DOCUMENTS)) {
+      const hit = (list as Array<Record<string, unknown>>).find(
+        (d) => d["driveFileId"] === fileId,
+      );
+      if (hit) {
+        owningProjectId = projectId;
+        docName = (hit["name"] as string) ?? docName;
+        docMime = (hit["mimeType"] as string) ?? docMime;
+        docIsClientVisible = Boolean(hit["isClientVisible"]);
+        break;
+      }
+    }
+    if (!owningProjectId) {
+      return res.status(404).json({ error: "not_found", message: "Unknown Drive file" });
+    }
+    const user = (req as { user?: { id?: string; role?: string } }).user;
+    const role = user?.role ?? "team";
+    if (role === "client") {
+      if (!docIsClientVisible) {
+        return res.status(403).json({ error: "forbidden", message: "Document is not client-visible" });
+      }
+      // Mirror enforceClientOwnership: a client may only download files
+      // attached to projects where they are the assigned `clientUserId`.
+      const project = PROJECTS.find((p) => p.id === owningProjectId) as
+        | { id: string; clientUserId?: string }
+        | undefined;
+      if (!project || project.clientUserId !== user?.id) {
+        return res.status(403).json({ error: "forbidden", message: "Project not assigned to this client" });
+      }
+    }
+    try {
+      const bytes = await downloadDriveFile(fileId);
+      // Pull MIME from Drive metadata (best-effort) so the proxy reflects
+      // the live state of the file rather than the dashboard's stale guess.
+      try {
+        const meta = await getDriveFileMetadata(fileId);
+        if (meta.mimeType) docMime = meta.mimeType;
+      } catch {
+        /* keep the dashboard's recorded MIME */
+      }
+      res.setHeader("Content-Type", docMime);
+      res.setHeader("Content-Disposition", `inline; filename="${docName.replace(/"/g, "")}"`);
+      // Conservative caching: short-lived so visibility revocations
+      // propagate quickly, but enough to avoid hammering Drive on
+      // back-to-back loads (e.g. report viewers).
+      res.setHeader("Cache-Control", "private, max-age=60");
+      res.send(bytes);
+    } catch (err) {
+      if (err instanceof DriveNotConnectedError) {
+        return res.status(412).json({ error: "not_connected", message: err.message });
+      }
+      if (err instanceof DriveApiError) {
+        // Treat Drive 404 as a dashboard 404 so the UI can surface "file
+        // missing or trashed" rather than a generic upstream error.
+        if (err.status === 404) {
+          return res.status(404).json({ error: "drive_file_missing", message: "File no longer exists in Drive" });
+        }
+        return res.status(502).json({ error: "drive_error", status: err.status, message: err.message });
+      }
+      return res.status(500).json({ error: "internal", message: (err as Error).message });
+    }
+  },
+);
 
 export default router;

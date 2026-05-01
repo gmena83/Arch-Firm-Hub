@@ -7,6 +7,7 @@
  */
 import type { DocumentCategory } from "./documentCategory";
 import type { DocumentDesignSubPhase } from "./documentDesignSubPhase";
+import type { DocumentDriveWarning } from "./documentDriveWarning";
 import type { DocumentPhotoCategory } from "./documentPhotoCategory";
 import type { DocumentType } from "./documentType";
 import type { DocumentVersion } from "./documentVersion";
@@ -41,5 +42,9 @@ export interface Document {
   driveWebContentLink?: string;
   /** Drive-generated thumbnail URL (small preview). */
   driveThumbnailLink?: string;
+  /** Dashboard-mediated download URL (Task */
+  driveDownloadProxyUrl?: string;
+  /** Optional non-blocking warning surfaced when a Drive write (delete/visibility) succeeded locally but failed on Drive. The dashboard should display it and direct admins to the Drive sync log. */
+  driveWarning?: DocumentDriveWarning;
   versions?: DocumentVersion[];
 }

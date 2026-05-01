@@ -15,6 +15,8 @@ import {
   saveEstimatingToDisk,
 } from "../lib/estimating-persistence";
 import { extractAndParseReceipt } from "../lib/receipt-ocr";
+import { isDriveEnabled } from "../lib/integrations-config";
+import { uploadDocumentToDrive } from "../lib/drive-sync";
 
 const router: IRouter = Router();
 
@@ -594,6 +596,37 @@ router.post(
 
     const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
     const result = applyReceipts(project.id, combined, actor, "ocr");
+
+    // Drive copy (Task #128 step 6) — best-effort. The OCR pipeline owns
+    // the source-of-truth for the parsed receipt rows; the Drive copy is a
+    // human-readable archive in the project's `Receipts` folder. We don't
+    // want a Drive outage to prevent the receipt from showing up in the
+    // estimating recalculation, so failures are logged and surfaced via the
+    // sync log only.
+    let driveWarning: { en: string; es: string } | undefined;
+    if (isDriveEnabled()) {
+      try {
+        const inferredMime = filename.toLowerCase().endsWith(".pdf")
+          ? "application/pdf"
+          : "image/jpeg";
+        await uploadDocumentToDrive({
+          projectId: project.id,
+          projectName: project.name,
+          documentId: newReceipt.id,
+          documentName: filename,
+          category: "receipts",
+          mimeType: inferredMime,
+          data: Buffer.from(fileBase64, "base64"),
+          isClientVisible: false,
+        });
+      } catch {
+        driveWarning = {
+          en: "Receipt was processed but the Google Drive archive copy failed. Check the Drive sync log.",
+          es: "El recibo se procesó pero la copia de archivo en Google Drive falló. Revisa el registro de sincronización de Drive.",
+        };
+      }
+    }
+
     res.json({
       ...result,
       ocrExtracted: {
@@ -603,6 +636,7 @@ router.post(
         hours: extracted.hours,
       },
       newReceipt,
+      ...(driveWarning ? { driveWarning } : {}),
     });
   },
 );
