@@ -1870,6 +1870,8 @@ export const SuperadminAuditAction = {
   secretupdate: "secret.update",
   secrettest: "secret.test",
   secrettest_failed: "secret.test_failed",
+  secrettest_candidate: "secret.test_candidate",
+  secrettest_candidate_failed: "secret.test_candidate_failed",
   integrationrestart: "integration.restart",
   integrationrestart_failed: "integration.restart_failed",
 } as const;
@@ -2298,6 +2300,11 @@ export type UpdateManagedSecretBody = {
 
 export type UpdateManagedSecret200 = {
   status: ManagedSecretStatus;
+};
+
+export type TestManagedSecretBody = {
+  /** Optional candidate value to probe instead of the stored value. Never persisted. */
+  value?: string;
 };
 
 export type ListSuperadminAudit200 = {

@@ -14,6 +14,8 @@ export type AuditAction =
   | "secret.update"
   | "secret.test"
   | "secret.test_failed"
+  | "secret.test_candidate"
+  | "secret.test_candidate_failed"
   | "integration.restart"
   | "integration.restart_failed";
 

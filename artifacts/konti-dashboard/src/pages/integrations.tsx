@@ -17,6 +17,7 @@ import {
   KeyRound,
   RefreshCw,
   CheckCircle2,
+  AlertCircle,
   AlertTriangle,
   Loader2,
   ShieldCheck,
@@ -170,7 +171,8 @@ function SecretRow({ secret }: { secret: ManagedSecretStatus }) {
   const onTest = async () => {
     setTestResult(null);
     try {
-      const result = await test.mutateAsync({ name: meta.name });
+      // Empty body -> probe the currently stored value (live test).
+      const result = await test.mutateAsync({ name: meta.name, data: {} });
       setTestResult(result);
       toast({
         title: result.ok ? t("Test passed", "Prueba exitosa") : t("Test failed", "Prueba falló"),
@@ -313,8 +315,49 @@ function UpdateSecretDialog({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [value, setValue] = useState("");
+  const [candidateResult, setCandidateResult] =
+    useState<SecretTestResult | null>(null);
   const update = useUpdateManagedSecret();
+  const test = useTestManagedSecret();
   const meta = secret.meta;
+
+  // Reset transient state whenever the dialog closes — never leak the
+  // pasted value or stale test result across opens.
+  const closeDialog = (next: boolean) => {
+    if (!next) {
+      setValue("");
+      setCandidateResult(null);
+    }
+    onOpenChange(next);
+  };
+
+  const onTestCandidate = async () => {
+    const v = value.trim();
+    if (!v) {
+      toast({
+        title: t("Missing value", "Valor faltante"),
+        description: t(
+          "Paste a value to test before saving.",
+          "Pega un valor para probar antes de guardar.",
+        ),
+        variant: "destructive",
+      });
+      return;
+    }
+    setCandidateResult(null);
+    try {
+      // Candidate-value flow: server probes WITHOUT persisting.
+      const result = await test.mutateAsync({
+        name: meta.name,
+        data: { value: v },
+      });
+      setCandidateResult(result);
+      queryClient.invalidateQueries({ queryKey: AUDIT_QK });
+    } catch (err) {
+      const msg = (err as Error).message ?? "Test failed";
+      setCandidateResult({ ok: false, message: msg });
+    }
+  };
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -337,6 +380,7 @@ function UpdateSecretDialog({
         ),
       });
       setValue("");
+      setCandidateResult(null);
       onOpenChange(false);
       queryClient.invalidateQueries({ queryKey: SECRETS_QK });
       queryClient.invalidateQueries({ queryKey: AUDIT_QK });
@@ -350,7 +394,7 @@ function UpdateSecretDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={closeDialog}>
       <DialogContent data-testid={`dialog-update-${meta.name}`}>
         <DialogHeader>
           <DialogTitle>
@@ -374,14 +418,73 @@ function UpdateSecretDialog({
               type="password"
               autoComplete="off"
               value={value}
-              onChange={(e) => setValue(e.target.value)}
+              onChange={(e) => {
+                setValue(e.target.value);
+                // Invalidate the previous candidate result so the operator
+                // never confuses an old probe with the value they're about
+                // to save.
+                if (candidateResult) setCandidateResult(null);
+              }}
               placeholder={meta.formatHint ?? ""}
               data-testid={`input-value-${meta.name}`}
             />
             <p className="text-xs text-muted-foreground mt-1">{meta.name}</p>
           </div>
+
+          {/* Test-before-Save: only useful for keys with a wired probe. */}
+          {meta.testable && (
+            <div className="rounded-md border border-border bg-muted/30 p-2 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-muted-foreground">
+                  {t(
+                    "Optionally probe the pasted value before saving.",
+                    "Opcionalmente prueba el valor pegado antes de guardar.",
+                  )}
+                </span>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={onTestCandidate}
+                  disabled={test.isPending || value.trim().length === 0}
+                  data-testid={`btn-test-candidate-${meta.name}`}
+                >
+                  {test.isPending ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                  )}
+                  <span className="ml-1">
+                    {t("Test value", "Probar valor")}
+                  </span>
+                </Button>
+              </div>
+              {candidateResult && (
+                <p
+                  className={`text-[11px] flex items-start gap-1 ${
+                    candidateResult.ok
+                      ? "text-konti-olive"
+                      : "text-destructive"
+                  }`}
+                  data-testid={`candidate-result-${meta.name}`}
+                >
+                  {candidateResult.ok ? (
+                    <CheckCircle2 className="w-3 h-3 mt-0.5 shrink-0" />
+                  ) : (
+                    <AlertCircle className="w-3 h-3 mt-0.5 shrink-0" />
+                  )}
+                  <span>
+                    {lang === "es"
+                      ? (candidateResult.messageEs ?? candidateResult.message)
+                      : candidateResult.message}
+                  </span>
+                </p>
+              )}
+            </div>
+          )}
+
           <DialogFooter>
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="ghost" onClick={() => closeDialog(false)}>
               {t("Cancel", "Cancelar")}
             </Button>
             <Button

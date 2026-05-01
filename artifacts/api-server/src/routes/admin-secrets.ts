@@ -134,12 +134,25 @@ router.post("/admin/secrets/:name", requireRole([...SUPER]), (req, res) => {
     });
     res.json({ status });
   } catch (err) {
-    logger.warn({ err, name }, "admin-secrets: setManagedSecret threw");
+    // SECURITY: this catch is reached after we have the user-submitted
+    // value in scope; do not include the raw err in the log payload.
+    const safe = safeErrorMessage(err);
+    logger.warn({ name, safe }, "admin-secrets: setManagedSecret threw");
     res.status(500).json({ error: "internal", message: "failed_to_persist_secret" });
   }
 });
 
-// Test the live key. Returns { ok, message } — never the raw value.
+// Test a key. Returns { ok, message } — never the raw value.
+//
+// Body shape:
+//   {}                    -> probe the currently stored value (live test)
+//   { value: "candidate" } -> probe a transient candidate WITHOUT persisting
+//
+// The candidate-value flow powers the modal "Test before Save" UX: the
+// operator can paste a new key, hit Test, and confirm the probe before
+// committing. The candidate value is never written to the override store
+// and the audit log records the action as "secret.test_candidate" so it
+// is distinguishable from a live-test of the persisted value.
 router.post(
   "/admin/secrets/:name/test",
   requireRole([...SUPER]),
@@ -160,7 +173,15 @@ router.post(
       });
       return;
     }
-    const value = getManagedSecret(name);
+
+    const body = (req.body ?? {}) as { value?: string };
+    const candidate =
+      typeof body.value === "string" && body.value.trim().length > 0
+        ? body.value.trim()
+        : null;
+    const value = candidate ?? getManagedSecret(name);
+    const isCandidate = candidate !== null;
+
     if (!value) {
       res.status(200).json({
         ok: false,
@@ -172,24 +193,44 @@ router.post(
     const actor = actorOf(req as AuthedRequest);
     try {
       const result = await runSecretTest(name, value);
+      const liveOk = result.ok ? "secret.test" : "secret.test_failed";
+      const candOk = result.ok
+        ? "secret.test_candidate"
+        : "secret.test_candidate_failed";
       appendAudit({
         actorUserId: actor.id,
         actorEmail: actor.email,
-        action: result.ok ? "secret.test" : "secret.test_failed",
+        action: isCandidate ? candOk : liveOk,
         target: name,
-        message: result.ok ? `Tested ${name} OK` : `Test failed for ${name}: ${result.message}`,
+        message: result.ok
+          ? isCandidate
+            ? `Tested candidate value for ${name} OK`
+            : `Tested ${name} OK`
+          : isCandidate
+            ? `Candidate value test failed for ${name}: ${result.message}`
+            : `Test failed for ${name}: ${result.message}`,
         messageEs: result.ok
-          ? `Prueba de ${name} OK`
-          : `Prueba falló para ${name}: ${result.messageEs ?? result.message}`,
+          ? isCandidate
+            ? `Prueba del candidato para ${name} OK`
+            : `Prueba de ${name} OK`
+          : isCandidate
+            ? `Prueba del candidato falló para ${name}: ${
+                result.messageEs ?? result.message
+              }`
+            : `Prueba falló para ${name}: ${
+                result.messageEs ?? result.message
+              }`,
       });
       res.json(result);
     } catch (err) {
-      logger.warn({ err, name }, "admin-secrets: test threw");
       const safe = safeErrorMessage(err, value);
+      logger.warn({ name, safe, isCandidate }, "admin-secrets: test threw");
       appendAudit({
         actorUserId: actor.id,
         actorEmail: actor.email,
-        action: "secret.test_failed",
+        action: isCandidate
+          ? "secret.test_candidate_failed"
+          : "secret.test_failed",
         target: name,
         message: `Test threw for ${name}: ${safe}`,
         messageEs: `La prueba de ${name} arrojó error: ${safe}`,
@@ -234,8 +275,12 @@ async function testAnthropic(apiKey: string): Promise<TestResult> {
       messageEs: `Anthropic OK (${count} modelo${count === 1 ? "" : "s"} accesible${count === 1 ? "" : "s"})`,
     };
   } catch (err) {
-    logger.warn({ err }, "admin-secrets: anthropic test failed");
-    return { ok: false, message: `Anthropic error: ${safeErrorMessage(err, apiKey)}` };
+    // SECURITY: never log the raw err — providers can echo the submitted
+    // key in their error messages. Only log the sanitized text (the same
+    // one that goes back over the wire).
+    const safe = safeErrorMessage(err, apiKey);
+    logger.warn({ provider: "anthropic", safe }, "admin-secrets: test failed");
+    return { ok: false, message: `Anthropic error: ${safe}` };
   }
 }
 
@@ -250,8 +295,9 @@ async function testOpenAI(apiKey: string): Promise<TestResult> {
       messageEs: `OpenAI OK (${count} modelos accesibles)`,
     };
   } catch (err) {
-    logger.warn({ err }, "admin-secrets: openai test failed");
-    return { ok: false, message: `OpenAI error: ${safeErrorMessage(err, apiKey)}` };
+    const safe = safeErrorMessage(err, apiKey);
+    logger.warn({ provider: "openai", safe }, "admin-secrets: test failed");
+    return { ok: false, message: `OpenAI error: ${safe}` };
   }
 }
 
@@ -285,8 +331,9 @@ async function testPdfCo(apiKey: string): Promise<TestResult> {
       messageEs: `PDF.co OK (créditos restantes: ${data.remainingCredits ?? "?"})`,
     };
   } catch (err) {
-    logger.warn({ err }, "admin-secrets: pdf.co test failed");
-    return { ok: false, message: `PDF.co error: ${safeErrorMessage(err, apiKey)}` };
+    const safe = safeErrorMessage(err, apiKey);
+    logger.warn({ provider: "pdf.co", safe }, "admin-secrets: test failed");
+    return { ok: false, message: `PDF.co error: ${safe}` };
   }
 }
 
@@ -314,8 +361,11 @@ router.post(
           return;
       }
     } catch (err) {
-      logger.warn({ err, name }, "admin-secrets: restart threw");
-      result = { ok: false, message: safeErrorMessage(err) };
+      // SECURITY: do not log the raw err; restart paths may surface OAuth
+      // tokens or refresh tokens inside upstream error bodies.
+      const safe = safeErrorMessage(err);
+      logger.warn({ name, safe }, "admin-secrets: restart threw");
+      result = { ok: false, message: safe };
     }
     appendAudit({
       actorUserId: actor.id,

@@ -127,6 +127,7 @@ import type {
   SubmitPermitsToOgpe200,
   SubmitStructuredVariables200,
   SubmitStructuredVariablesBody,
+  TestManagedSecretBody,
   ToggleChecklistItem200,
   ToggleChecklistItemBody,
   UpdateChangeOrder200,
@@ -8535,7 +8536,14 @@ export const useUpdateManagedSecret = <
 };
 
 /**
- * @summary Probe the live API with the configured key
+ * @summary Probe the live API with a key value.
+
+Body is optional:
+  - omit (or pass `{}`) to test the currently stored value
+  - pass `{ "value": "candidate" }` to test a transient pasted
+    candidate WITHOUT persisting it (powers the modal "Test
+    before Save" flow)
+
  */
 export const getTestManagedSecretUrl = (name: string) => {
   return `/api/admin/secrets/${name}/test`;
@@ -8543,11 +8551,14 @@ export const getTestManagedSecretUrl = (name: string) => {
 
 export const testManagedSecret = async (
   name: string,
+  testManagedSecretBody?: TestManagedSecretBody,
   options?: RequestInit,
 ): Promise<SecretTestResult> => {
   return customFetch<SecretTestResult>(getTestManagedSecretUrl(name), {
     ...options,
     method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(testManagedSecretBody),
   });
 };
 
@@ -8558,14 +8569,14 @@ export const getTestManagedSecretMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof testManagedSecret>>,
     TError,
-    { name: string },
+    { name: string; data: BodyType<TestManagedSecretBody> },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof testManagedSecret>>,
   TError,
-  { name: string },
+  { name: string; data: BodyType<TestManagedSecretBody> },
   TContext
 > => {
   const mutationKey = ["testManagedSecret"];
@@ -8579,11 +8590,11 @@ export const getTestManagedSecretMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof testManagedSecret>>,
-    { name: string }
+    { name: string; data: BodyType<TestManagedSecretBody> }
   > = (props) => {
-    const { name } = props ?? {};
+    const { name, data } = props ?? {};
 
-    return testManagedSecret(name, requestOptions);
+    return testManagedSecret(name, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -8592,11 +8603,18 @@ export const getTestManagedSecretMutationOptions = <
 export type TestManagedSecretMutationResult = NonNullable<
   Awaited<ReturnType<typeof testManagedSecret>>
 >;
-
+export type TestManagedSecretMutationBody = BodyType<TestManagedSecretBody>;
 export type TestManagedSecretMutationError = ErrorType<unknown>;
 
 /**
- * @summary Probe the live API with the configured key
+ * @summary Probe the live API with a key value.
+
+Body is optional:
+  - omit (or pass `{}`) to test the currently stored value
+  - pass `{ "value": "candidate" }` to test a transient pasted
+    candidate WITHOUT persisting it (powers the modal "Test
+    before Save" flow)
+
  */
 export const useTestManagedSecret = <
   TError = ErrorType<unknown>,
@@ -8605,14 +8623,14 @@ export const useTestManagedSecret = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof testManagedSecret>>,
     TError,
-    { name: string },
+    { name: string; data: BodyType<TestManagedSecretBody> },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof testManagedSecret>>,
   TError,
-  { name: string },
+  { name: string; data: BodyType<TestManagedSecretBody> },
   TContext
 > => {
   return useMutation(getTestManagedSecretMutationOptions(options));

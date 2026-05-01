@@ -234,6 +234,7 @@ export * from "./submitStructuredVariablesBody";
 export * from "./submitStructuredVariablesBodyProjectType";
 export * from "./superadminAuditAction";
 export * from "./superadminAuditEntry";
+export * from "./testManagedSecretBody";
 export * from "./toggleChecklistItem200";
 export * from "./toggleChecklistItemBody";
 export * from "./toggleChecklistItemBodyStatus";

@@ -313,6 +313,69 @@ test("admin-secrets: audit log records the rotation we performed", async () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// 7. Candidate-value test ("Test before Save")
+// ---------------------------------------------------------------------------
+
+test("admin-secrets: candidate-value test does NOT persist the value", async () => {
+  await withServer(async (baseUrl) => {
+    const token = await login(baseUrl, SUPERADMIN.email, SUPERADMIN.password);
+    const CANDIDATE = "candidate-do-not-persist-zzz999";
+
+    // Tests share a per-process override file, so explicitly clear any
+    // override left by an earlier test before asserting the candidate
+    // probe doesn't create one.
+    await fetch(`${baseUrl}/api/admin/secrets/GAMMA_APP_KEY`, {
+      method: "POST",
+      headers: authHeaders(token, true),
+      body: JSON.stringify({ clear: true }),
+    });
+
+    // Probe with a candidate value (non-testable key still returns the
+    // canned message — the important assertion is that no override is
+    // written and the value is never echoed back).
+    const res = await fetch(
+      `${baseUrl}/api/admin/secrets/GAMMA_APP_KEY/test`,
+      {
+        method: "POST",
+        headers: authHeaders(token, true),
+        body: JSON.stringify({ value: CANDIDATE }),
+      },
+    );
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.ok(
+      !JSON.stringify(body).includes(CANDIDATE),
+      "test response leaked the candidate value",
+    );
+
+    // Verify the source is still NOT override afterwards.
+    const list = await fetch(`${baseUrl}/api/admin/secrets`, {
+      headers: authHeaders(token),
+    });
+    const listBody = (await list.json()) as {
+      secrets: Array<{ meta: { name: string }; source: string }>;
+    };
+    const row = listBody.secrets.find((i) => i.meta.name === "GAMMA_APP_KEY");
+    assert.ok(row);
+    assert.notEqual(
+      row.source,
+      "override",
+      "candidate test must not have created an override",
+    );
+
+    // Audit log should record the action and never include the candidate.
+    const audit = await fetch(`${baseUrl}/api/admin/audit-log`, {
+      headers: authHeaders(token),
+    });
+    const auditBody = await audit.json();
+    assert.ok(
+      !JSON.stringify(auditBody).includes(CANDIDATE),
+      "audit log leaked the candidate value",
+    );
+  });
+});
+
 test("admin-secrets: audit log blocked for non-superadmin", async () => {
   await withServer(async (baseUrl) => {
     const token = await login(baseUrl, ADMIN.email, ADMIN.password);

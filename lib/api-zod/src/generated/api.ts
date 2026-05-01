@@ -3877,10 +3877,26 @@ export const UpdateManagedSecretResponse = zod.object({
 });
 
 /**
- * @summary Probe the live API with the configured key
+ * @summary Probe the live API with a key value.
+
+Body is optional:
+  - omit (or pass `{}`) to test the currently stored value
+  - pass `{ "value": "candidate" }` to test a transient pasted
+    candidate WITHOUT persisting it (powers the modal "Test
+    before Save" flow)
+
  */
 export const TestManagedSecretParams = zod.object({
   name: zod.coerce.string(),
+});
+
+export const TestManagedSecretBody = zod.object({
+  value: zod
+    .string()
+    .optional()
+    .describe(
+      "Optional candidate value to probe instead of the stored value. Never persisted.",
+    ),
 });
 
 export const TestManagedSecretResponse = zod.object({
@@ -3916,6 +3932,8 @@ export const ListSuperadminAuditResponse = zod.object({
         "secret.update",
         "secret.test",
         "secret.test_failed",
+        "secret.test_candidate",
+        "secret.test_candidate_failed",
         "integration.restart",
         "integration.restart_failed",
       ]),
