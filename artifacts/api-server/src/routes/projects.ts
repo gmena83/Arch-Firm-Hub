@@ -39,6 +39,9 @@ import {
   type DesignDeliverableStatus,
   type ChangeOrder,
   type PermitItemState,
+  type PermitItem,
+  type PermitAuthorization,
+  type RequiredSignature,
   PROJECT_PUNCHLIST,
   punchlistKey,
   getPunchlistForPhase,
@@ -1569,16 +1572,39 @@ router.post("/projects/:id/change-orders/:coId/status", requireRole(["team", "ad
 // Phase 4 — Permits Authorization Workflow
 // ---------------------------------------------------------------------------
 
-function computePermitMilestones(projectId: string) {
-  const auth = PROJECT_PERMIT_AUTHORIZATIONS[projectId] ?? { status: "none" as const, summaryAccepted: false };
-  const sigs = PROJECT_REQUIRED_SIGNATURES[projectId] ?? [];
-  const items = PROJECT_PERMIT_ITEMS[projectId] ?? [];
-  const allSigned = sigs.length > 0 && sigs.filter((s) => s.required).every((s) => !!s.signedAt);
-  const anySubmitted = items.some((i) => i.state !== "not_submitted");
-  const anyInReviewLike = items.some((i) => i.state === "in_review" || i.state === "approved" || i.state === "revision_requested");
-  const allApproved = items.length > 0 && items.every((i) => i.state === "approved");
+interface PermitMilestones {
+  auth: PermitAuthorization;
+  sigs: RequiredSignature[];
+  items: PermitItem[];
+  allSigned: boolean;
+  anySubmitted: boolean;
+  anyInReviewLike: boolean;
+  allApproved: boolean;
+  milestones: {
+    authorization: boolean;
+    signatures: boolean;
+    submission: boolean;
+    review: boolean;
+    approval: boolean;
+  };
+}
+
+function computePermitMilestones(projectId: string): PermitMilestones {
+  const auth: PermitAuthorization = PROJECT_PERMIT_AUTHORIZATIONS[projectId] ?? { status: "none" as const, summaryAccepted: false };
+  const sigs: RequiredSignature[] = PROJECT_REQUIRED_SIGNATURES[projectId] ?? [];
+  const items: PermitItem[] = PROJECT_PERMIT_ITEMS[projectId] ?? [];
+  const allSigned: boolean = sigs.length > 0 && sigs.filter((s) => s.required).every((s) => !!s.signedAt);
+  const anySubmitted: boolean = items.some((i) => i.state !== "not_submitted");
+  const anyInReviewLike: boolean = items.some((i) => i.state === "in_review" || i.state === "approved" || i.state === "revision_requested");
+  const allApproved: boolean = items.length > 0 && items.every((i) => i.state === "approved");
   return {
-    auth, sigs, items, allSigned, anySubmitted, anyInReviewLike, allApproved,
+    auth,
+    sigs,
+    items,
+    allSigned,
+    anySubmitted,
+    anyInReviewLike,
+    allApproved,
     milestones: {
       authorization: auth.status === "authorized",
       signatures: allSigned,
