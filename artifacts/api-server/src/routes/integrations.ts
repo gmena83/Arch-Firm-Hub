@@ -35,8 +35,13 @@ import {
   DriveApiError,
 } from "../lib/drive-client";
 import { drainQueue } from "../lib/asana-sync";
-import { backfillDocuments, type BackfillDocument } from "../lib/drive-sync";
+import {
+  backfillDocuments,
+  provisionAllProjectFolders,
+  type BackfillDocument,
+} from "../lib/drive-sync";
 import { DOCUMENTS, PROJECTS } from "../data/seed";
+import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
@@ -309,7 +314,8 @@ router.post("/integrations/drive/configure", requireRole([...ADMIN_ROLES]), asyn
         ? body.deletePolicy
         : "trash";
     const user = (req as { user?: { name?: string } }).user;
-    const next = updateDriveConfig({
+    const wasFirstConnect = !getDriveConfig().firstConnectCompletedAt;
+    let next = updateDriveConfig({
       enabled: true,
       rootFolderId,
       rootFolderName,
@@ -318,7 +324,41 @@ router.post("/integrations/drive/configure", requireRole([...ADMIN_ROLES]), asyn
       connectedAt: new Date().toISOString(),
       connectedBy: user?.name ?? "Admin",
     });
-    res.json({ config: next });
+    // First-connect bootstrap (Task #128). On the very first successful
+    // connect we (a) provision the canonical per-project sub-folder set in
+    // Drive and (b) run an idempotent backfill of any in-memory document
+    // that does not yet have a driveFileId. Both steps are run-once —
+    // gated by `firstConnectCompletedAt` — so a re-connect after disconnect
+    // does not re-trigger the (potentially long) bootstrap. Failures here
+    // do NOT roll back the connection: connect succeeds and the admin can
+    // re-run the bootstrap manually from the Settings page.
+    let firstConnectBootstrap:
+      | { provisioned: number; provisionFailed: number; uploaded: number; skipped: number; failed: number }
+      | undefined;
+    if (wasFirstConnect) {
+      try {
+        const provisionResults = await provisionAllProjectFolders(PROJECTS);
+        const backfillResults = await backfillDocuments(flattenDocsForBackfill());
+        applyBackfillResultsToDocs(backfillResults);
+        firstConnectBootstrap = {
+          provisioned: provisionResults.filter((r) => r.status === "ok").length,
+          provisionFailed: provisionResults.filter((r) => r.status === "failed").length,
+          uploaded: backfillResults.filter((r) => r.status === "uploaded").length,
+          skipped: backfillResults.filter((r) => r.status === "skipped").length,
+          failed: backfillResults.filter((r) => r.status === "failed").length,
+        };
+      } catch (err) {
+        logger.warn(
+          { err },
+          "drive: first-connect bootstrap failed (connection itself stays up)",
+        );
+      }
+      // Persist the run-once marker even if the bootstrap partially failed —
+      // the admin can rerun via the manual Backfill button. This avoids
+      // re-running the heavy walk on every subsequent restart/connect.
+      next = updateDriveConfig({ firstConnectCompletedAt: new Date().toISOString() });
+    }
+    res.json({ config: next, ...(firstConnectBootstrap ? { firstConnectBootstrap } : {}) });
   } catch (err) {
     if (err instanceof DriveNotConnectedError) {
       return res.status(412).json({ error: "not_connected", message: err.message });
@@ -355,23 +395,19 @@ router.get("/integrations/drive/sync-log", requireRole([...ADMIN_ROLES]), (_req,
 // Decodes base64 `imageUrl` payloads when present; documents that only carry
 // a remote http(s) URL or no source bytes are reported as "skipped" so the
 // admin can see they need a manual re-upload.
-router.post("/integrations/drive/backfill", requireRole([...ADMIN_ROLES]), async (_req, res) => {
-  const cfg = getDriveConfig();
-  if (!cfg.enabled || !cfg.rootFolderId) {
-    return res.status(412).json({
-      error: "not_configured",
-      message: "Connect a Drive root folder before running backfill.",
-    });
-  }
+// Walks the in-memory DOCUMENTS map and produces the flattened
+// BackfillDocument list the drive-sync helper expects. Photos are routed to
+// the canonical `site_photos` Drive folder (matches the live upload path)
+// so the backfill stays consistent with new uploads.
+function flattenDocsForBackfill(): BackfillDocument[] {
   const docs: BackfillDocument[] = [];
-  // Documents are stored per-project; flatten while preserving the project
-  // name so the upload pipeline can label per-project folders.
   const projectsById = new Map(PROJECTS.map((p) => [p.id, p]));
   for (const [projectId, list] of Object.entries(DOCUMENTS)) {
     const proj = projectsById.get(projectId);
     if (!proj) continue;
     for (const raw of list as Array<Record<string, unknown>>) {
-      const driveFileId = typeof raw["driveFileId"] === "string" ? (raw["driveFileId"] as string) : null;
+      const driveFileId =
+        typeof raw["driveFileId"] === "string" ? (raw["driveFileId"] as string) : null;
       const imageUrl = typeof raw["imageUrl"] === "string" ? (raw["imageUrl"] as string) : "";
       let data = Buffer.alloc(0);
       let mimeType = (raw["mimeType"] as string) || "application/octet-stream";
@@ -386,12 +422,16 @@ router.post("/integrations/drive/backfill", requireRole([...ADMIN_ROLES]), async
           }
         }
       }
+      const docType = typeof raw["type"] === "string" ? (raw["type"] as string) : "";
+      const dashboardCategory = (raw["category"] as string) ?? "otros";
+      // Photos always live in `site_photos` regardless of dashboard category.
+      const driveCategory = docType === "photo" ? "site_photos" : dashboardCategory;
       docs.push({
         projectId,
         projectName: proj.name,
         documentId: raw["id"] as string,
         documentName: (raw["name"] as string) ?? "untitled",
-        category: (raw["category"] as string) ?? "otros",
+        category: driveCategory,
         mimeType,
         driveFileId,
         data,
@@ -399,21 +439,42 @@ router.post("/integrations/drive/backfill", requireRole([...ADMIN_ROLES]), async
       });
     }
   }
+  return docs;
+}
+
+// Writes any newly-uploaded driveFileId values back onto the in-memory
+// DOCUMENTS records. Shared by the manual backfill route and the
+// first-connect auto-backfill triggered from /configure.
+function applyBackfillResultsToDocs(
+  results: ReadonlyArray<{ documentId: string; status: string; driveFileId: string | null }>,
+): void {
+  for (const r of results) {
+    if (r.status !== "uploaded" || !r.driveFileId) continue;
+    for (const list of Object.values(DOCUMENTS)) {
+      const target = (list as Array<Record<string, unknown>>).find(
+        (d) => d["id"] === r.documentId,
+      );
+      if (target) {
+        target["driveFileId"] = r.driveFileId;
+      }
+    }
+  }
+}
+
+router.post("/integrations/drive/backfill", requireRole([...ADMIN_ROLES]), async (_req, res) => {
+  const cfg = getDriveConfig();
+  if (!cfg.enabled || !cfg.rootFolderId) {
+    return res.status(412).json({
+      error: "not_configured",
+      message: "Connect a Drive root folder before running backfill.",
+    });
+  }
+  const docs = flattenDocsForBackfill();
   try {
     const results = await backfillDocuments(docs);
     // Write the new driveFileId back onto the dashboard's in-memory record so
     // subsequent reads expose the "Open in Drive" link without a restart.
-    for (const r of results) {
-      if (r.status !== "uploaded" || !r.driveFileId) continue;
-      for (const list of Object.values(DOCUMENTS)) {
-        const target = (list as Array<Record<string, unknown>>).find(
-          (d) => d["id"] === r.documentId,
-        );
-        if (target) {
-          target["driveFileId"] = r.driveFileId;
-        }
-      }
-    }
+    applyBackfillResultsToDocs(results);
     const summary = {
       uploaded: results.filter((r) => r.status === "uploaded").length,
       skipped: results.filter((r) => r.status === "skipped").length,

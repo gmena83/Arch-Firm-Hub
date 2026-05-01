@@ -1245,6 +1245,133 @@ test("GET /integrations/drive/files/:fileId/download: registered doc but missing
   }
 });
 
+test("POST /projects/:id/documents: photo uploads land in Site Photos folder regardless of dashboard category", async () => {
+  // Photos must always live in the canonical `site_photos` Drive folder per
+  // the Task #128 storage contract, even when the upload's dashboard
+  // category is something else (e.g. `construction`).
+  const { state, restore } = installDriveFetchStub();
+  try {
+    updateDriveConfig({
+      enabled: true,
+      rootFolderId: "root-folder",
+      rootFolderName: "KONTi Dashboard",
+      visibilityPolicy: "anyone_with_link",
+      deletePolicy: "trash",
+      connectedAt: new Date().toISOString(),
+      connectedBy: "Tester",
+    });
+    state.folders.set("root-folder", {
+      id: "root-folder",
+      name: "KONTi Dashboard",
+      parents: ["root"],
+      mimeType: "application/vnd.google-apps.folder",
+    });
+    await withServer(async (baseUrl) => {
+      const adminToken = await login(baseUrl, "demo@konti.com");
+      const res = await fetch(`${baseUrl}/api/projects/${PROJECT_ID}/documents`, {
+        method: "POST",
+        headers: authHeaders(adminToken, true),
+        body: JSON.stringify({
+          name: "site.jpg",
+          // intentionally NOT site_photos — proves the override
+          category: "construction",
+          type: "photo",
+          photoCategory: "construction_progress",
+          fileBase64: Buffer.from("fakejpegbytes").toString("base64"),
+          mimeType: "image/jpeg",
+        }),
+      });
+      assert.equal(res.status, 201);
+      const created = (await res.json()) as Record<string, unknown>;
+      assert.ok(created["driveFileId"], "photo got a driveFileId");
+      // Walk the fake's folder tree to confirm the parent folder of the
+      // uploaded file is named "Site Photos" (the canonical bucket).
+      const fileId = created["driveFileId"] as string;
+      const file = state.files.get(fileId);
+      assert.ok(file, "fake recorded the file");
+      const parentId = file.parents[0];
+      assert.ok(parentId, "uploaded file has a parent folder");
+      const parent = state.folders.get(parentId);
+      assert.ok(parent, "parent folder exists in fake");
+      assert.equal(parent.name, "Site Photos", "photo lands in Site Photos folder");
+      // Cleanup the inserted document so subsequent tests don't see it.
+      const list = (DOCUMENTS as Record<string, unknown[]>)[PROJECT_ID] ?? [];
+      (DOCUMENTS as Record<string, unknown[]>)[PROJECT_ID] = list.filter(
+        (d) => (d as Record<string, unknown>)["id"] !== created["id"],
+      );
+    });
+  } finally {
+    restore();
+  }
+});
+
+test("POST /integrations/drive/configure: first-connect provisions per-project subfolders + auto-runs backfill", async () => {
+  // First successful connect should (a) create the canonical sub-folder set
+  // for every project under the workspace root and (b) trigger an
+  // idempotent backfill of any in-memory document still missing a
+  // driveFileId. Both gated by `firstConnectCompletedAt` so re-connects
+  // skip the (potentially long) bootstrap.
+  const { state, restore } = installDriveFetchStub();
+  try {
+    state.folders.set("root-folder", {
+      id: "root-folder",
+      name: "KONTi Dashboard",
+      parents: ["root"],
+      mimeType: "application/vnd.google-apps.folder",
+    });
+    await withServer(async (baseUrl) => {
+      const adminToken = await login(baseUrl, "demo@konti.com");
+      const res = await fetch(`${baseUrl}/api/integrations/drive/configure`, {
+        method: "POST",
+        headers: authHeaders(adminToken, true),
+        body: JSON.stringify({
+          rootFolderId: "root-folder",
+          rootFolderName: "KONTi Dashboard",
+          visibilityPolicy: "anyone_with_link",
+          deletePolicy: "trash",
+        }),
+      });
+      assert.equal(res.status, 200);
+      const body = (await res.json()) as Record<string, unknown>;
+      assert.ok(body["firstConnectBootstrap"], "bootstrap summary returned on first connect");
+      const summary = body["firstConnectBootstrap"] as Record<string, number>;
+      // We seeded one project (proj-1) — should provision its sub-folders
+      // without failure (other seeded projects are also OK).
+      assert.ok(summary["provisioned"]! >= 1, "at least one project provisioned");
+      assert.equal(summary["provisionFailed"], 0, "no provisioning failures");
+      // Confirm the canonical folders exist under the project folder.
+      const folderNames = Array.from(state.folders.values()).map((f) => f.name);
+      for (const expected of ["Site Photos", "Permits", "Contracts", "Reports", "Receipts", "Punchlist", "Other"]) {
+        assert.ok(
+          folderNames.includes(expected),
+          `expected folder "${expected}" provisioned (have: ${folderNames.join(", ")})`,
+        );
+      }
+      // Second connect must NOT include the bootstrap summary — the
+      // run-once marker prevents redoing the heavy walk.
+      const res2 = await fetch(`${baseUrl}/api/integrations/drive/configure`, {
+        method: "POST",
+        headers: authHeaders(adminToken, true),
+        body: JSON.stringify({
+          rootFolderId: "root-folder",
+          rootFolderName: "KONTi Dashboard",
+          visibilityPolicy: "anyone_with_link",
+          deletePolicy: "trash",
+        }),
+      });
+      assert.equal(res2.status, 200);
+      const body2 = (await res2.json()) as Record<string, unknown>;
+      assert.equal(
+        body2["firstConnectBootstrap"],
+        undefined,
+        "subsequent connects skip bootstrap",
+      );
+    });
+  } finally {
+    restore();
+  }
+});
+
 // Reference unused import to keep TS happy in some configs (PROJECTS used
 // elsewhere is already imported above).
 void PROJECTS;

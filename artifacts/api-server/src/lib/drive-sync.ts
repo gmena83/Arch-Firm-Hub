@@ -279,6 +279,73 @@ export async function refreshDriveFileMetadata(
 }
 
 // ---------------------------------------------------------------------------
+// First-connect provisioning (Task #128)
+// ---------------------------------------------------------------------------
+
+// The fixed sub-folder taxonomy that every per-project folder gets at first
+// connect. These are the canonical Drive folders the spec calls out — each
+// maps onto one of the dashboard's document-category buckets so future
+// uploads land in a folder that already exists.
+export const STANDARD_PROJECT_SUBFOLDERS: ReadonlyArray<string> = [
+  "permits",
+  "contratos",
+  "site_photos",
+  "reports",
+  "receipts",
+  "punchlist",
+  "otros",
+];
+
+export interface ProvisionResult {
+  projectId: string;
+  status: "ok" | "failed";
+  message: string;
+}
+
+// Walks every project and ensures its per-project folder + the canonical
+// sub-folder set exists in Drive. Idempotent: re-uses any folder ID already
+// stored on `IntegrationsConfig.drive.projectFolders`.
+export async function provisionAllProjectFolders(
+  projects: ReadonlyArray<{ id: string; name: string }>,
+): Promise<ProvisionResult[]> {
+  const results: ProvisionResult[] = [];
+  for (const proj of projects) {
+    try {
+      for (const cat of STANDARD_PROJECT_SUBFOLDERS) {
+        await ensureProjectCategoryFolder({
+          projectId: proj.id,
+          projectName: proj.name,
+          category: cat,
+        });
+      }
+      results.push({
+        projectId: proj.id,
+        status: "ok",
+        message: `Provisioned ${STANDARD_PROJECT_SUBFOLDERS.length} sub-folders for "${proj.name}"`,
+      });
+    } catch (err) {
+      results.push({
+        projectId: proj.id,
+        status: "failed",
+        message: `Provisioning failed: ${(err as Error).message}`,
+      });
+    }
+  }
+  appendDriveSyncLog({
+    action: "first_connect_provision",
+    status: results.some((r) => r.status === "failed") ? "failed" : "ok",
+    projectId: null,
+    projectName: null,
+    documentId: null,
+    documentName: null,
+    driveFileId: null,
+    message: `Provisioned folders for ${results.filter((r) => r.status === "ok").length}/${results.length} project(s)`,
+    messageEs: `Carpetas creadas para ${results.filter((r) => r.status === "ok").length}/${results.length} proyecto(s)`,
+  });
+  return results;
+}
+
+// ---------------------------------------------------------------------------
 // Backfill walker
 // ---------------------------------------------------------------------------
 

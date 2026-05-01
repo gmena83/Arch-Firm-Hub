@@ -99,6 +99,14 @@ export interface DriveIntegrationConfig {
    * dashboard's projectId.
    */
   projectFolders: Record<string, DriveProjectFolderMap>;
+  /**
+   * Timestamp of the first successful connect. Used as the run-once marker
+   * so the per-project folder provisioning + initial backfill only run on
+   * the very first connect. Disconnect does NOT clear this — re-connects
+   * skip the (possibly long) bootstrap and let the admin run a manual
+   * `/integrations/drive/backfill` if they want to top up.
+   */
+  firstConnectCompletedAt: string | null;
 }
 
 export interface DriveSyncLogEntry {
@@ -147,6 +155,7 @@ const DEFAULT_STATE: IntegrationsState = {
     connectedAt: null,
     connectedBy: null,
     projectFolders: {},
+    firstConnectCompletedAt: null,
   },
   driveSyncLog: [],
 };

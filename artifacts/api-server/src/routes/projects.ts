@@ -367,13 +367,18 @@ router.post("/projects/:projectId/documents", requireRole(["team", "admin", "sup
     if (buf.length === 0) {
       return res.status(400).json({ error: "bad_request", message: "fileBase64 decoded to empty payload" });
     }
+    // Photos always live in the canonical `Site Photos` Drive folder (Task
+     // #128 storage contract), regardless of which dashboard `category` the
+     // upload was filed under. For non-photo documents the dashboard category
+     // is preserved so admins can still slice by Permits / Contracts / etc.
+    const driveCategory = normalizedType === "photo" ? "site_photos" : body.category;
     try {
       const result = await uploadDocumentToDrive({
         projectId,
         projectName: project.name,
         documentId,
         documentName: body.name,
-        category: body.category,
+        category: driveCategory,
         mimeType: inferredMime ?? "application/octet-stream",
         data: buf,
         isClientVisible,
