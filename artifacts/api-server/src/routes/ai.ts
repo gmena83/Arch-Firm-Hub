@@ -15,6 +15,7 @@ import {
   type ProjectNote,
 } from "../data/seed";
 import { requireRole } from "../middlewares/require-role";
+import { getManagedSecret } from "../lib/managed-secrets";
 
 const router: IRouter = Router();
 
@@ -37,13 +38,35 @@ function looksLikeSpanish(message: string): "en" | "es" {
   return /[áéíóúñ¿¡]|cuándo|cuanto|por qué|cómo|dónde/i.test(message) ? "es" : "en";
 }
 
-const anthropic = process.env["ANTHROPIC_API_KEY"]
-  ? new Anthropic({ apiKey: process.env["ANTHROPIC_API_KEY"] })
-  : null;
+// Lazy clients — re-resolve the API key per call so a superadmin can rotate
+// keys at runtime via the Integrations page without restarting the server.
+// The SDK clients are cached per-key value to avoid re-instantiating on every
+// request when nothing has changed.
+let _anthropicCache: { key: string; client: Anthropic } | null = null;
+function getAnthropic(): Anthropic | null {
+  const key = getManagedSecret("ANTHROPIC_API_KEY");
+  if (!key) {
+    _anthropicCache = null;
+    return null;
+  }
+  if (_anthropicCache && _anthropicCache.key === key) return _anthropicCache.client;
+  const client = new Anthropic({ apiKey: key });
+  _anthropicCache = { key, client };
+  return client;
+}
 
-const openai = process.env["OPENAI_API_KEY"]
-  ? new OpenAI({ apiKey: process.env["OPENAI_API_KEY"] })
-  : null;
+let _openaiCache: { key: string; client: OpenAI } | null = null;
+function getOpenAI(): OpenAI | null {
+  const key = getManagedSecret("OPENAI_API_KEY");
+  if (!key) {
+    _openaiCache = null;
+    return null;
+  }
+  if (_openaiCache && _openaiCache.key === key) return _openaiCache.client;
+  const client = new OpenAI({ apiKey: key });
+  _openaiCache = { key, client };
+  return client;
+}
 
 const KONTI_CONTEXT = `KONTi Design | Build Studio is a sustainable architecture firm based in Puerto Rico, specializing in shipping container construction. Founded after Hurricane María. LEED-accredited team. Containers withstand 180 mph sustained wind per Puerto Rico Building Code. Cost-Plus construction model for full transparency.`;
 
@@ -317,7 +340,7 @@ router.post("/projects/:id/spec-updates-report/pdf", requireRole(["team", "admin
     res.status(403).json({ error: "forbidden", message: "Client cannot access this project" }); return;
   }
 
-  const pdfApiKey = process.env["PDF_CO_API_KEY"];
+  const pdfApiKey = getManagedSecret("PDF_CO_API_KEY");
   if (!pdfApiKey) { res.status(501).json({ error: "pdf_not_configured", message: "PDF export not configured" }); return; }
 
   const events = SPEC_EVENTS.filter((e) => e.projectId === id);
@@ -458,6 +481,7 @@ router.post("/ai/chat", requireRole(["team", "admin", "superadmin", "architect",
     { role: "user" as const, content: message },
   ];
 
+  const anthropic = getAnthropic();
   if (anthropic) {
     try {
       const response = await anthropic.messages.create({
@@ -481,6 +505,7 @@ router.post("/ai/chat", requireRole(["team", "admin", "superadmin", "architect",
     }
   }
 
+  const openai = getOpenAI();
   if (openai) {
     try {
       const response = await openai.chat.completions.create({

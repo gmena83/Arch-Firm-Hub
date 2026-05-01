@@ -81,9 +81,11 @@ import type {
   ListAsanaBoardsParams,
   ListAsanaWorkspaces200,
   ListDriveFoldersParams,
+  ListManagedSecrets200,
   ListMaterialsParams,
   ListProjectAsanaCandidates200,
   ListProjectPunchlistParams,
+  ListSuperadminAudit200,
   LoginRequest,
   LoginResponse,
   Material,
@@ -111,6 +113,7 @@ import type {
   PutCsvMappingRequest,
   PutCsvMappingResponse,
   RefreshMaterialPricesParams,
+  SecretTestResult,
   SendInspectionReport200,
   SendInspectionReportBody,
   SetChangeOrderStatus200,
@@ -131,6 +134,8 @@ import type {
   UpdateDesignDeliverableBody,
   UpdateInspection200,
   UpdateInspectionBody,
+  UpdateManagedSecret200,
+  UpdateManagedSecretBody,
   UpdateMilestone200,
   UpdateMilestoneBody,
   UpdateProjectCalculationLine200,
@@ -8366,3 +8371,408 @@ export const useLinkProjectToAsanaTask = <
 > => {
   return useMutation(getLinkProjectToAsanaTaskMutationOptions(options));
 };
+
+/**
+ * @summary List the configured managed-secret rows (no raw values)
+ */
+export const getListManagedSecretsUrl = () => {
+  return `/api/admin/secrets`;
+};
+
+export const listManagedSecrets = async (
+  options?: RequestInit,
+): Promise<ListManagedSecrets200> => {
+  return customFetch<ListManagedSecrets200>(getListManagedSecretsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListManagedSecretsQueryKey = () => {
+  return [`/api/admin/secrets`] as const;
+};
+
+export const getListManagedSecretsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listManagedSecrets>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listManagedSecrets>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListManagedSecretsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listManagedSecrets>>
+  > = ({ signal }) => listManagedSecrets({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listManagedSecrets>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListManagedSecretsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listManagedSecrets>>
+>;
+export type ListManagedSecretsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List the configured managed-secret rows (no raw values)
+ */
+
+export function useListManagedSecrets<
+  TData = Awaited<ReturnType<typeof listManagedSecrets>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listManagedSecrets>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListManagedSecretsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Set or clear an override for a managed secret
+ */
+export const getUpdateManagedSecretUrl = (name: string) => {
+  return `/api/admin/secrets/${name}`;
+};
+
+export const updateManagedSecret = async (
+  name: string,
+  updateManagedSecretBody: UpdateManagedSecretBody,
+  options?: RequestInit,
+): Promise<UpdateManagedSecret200> => {
+  return customFetch<UpdateManagedSecret200>(getUpdateManagedSecretUrl(name), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateManagedSecretBody),
+  });
+};
+
+export const getUpdateManagedSecretMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateManagedSecret>>,
+    TError,
+    { name: string; data: BodyType<UpdateManagedSecretBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateManagedSecret>>,
+  TError,
+  { name: string; data: BodyType<UpdateManagedSecretBody> },
+  TContext
+> => {
+  const mutationKey = ["updateManagedSecret"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateManagedSecret>>,
+    { name: string; data: BodyType<UpdateManagedSecretBody> }
+  > = (props) => {
+    const { name, data } = props ?? {};
+
+    return updateManagedSecret(name, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateManagedSecretMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateManagedSecret>>
+>;
+export type UpdateManagedSecretMutationBody = BodyType<UpdateManagedSecretBody>;
+export type UpdateManagedSecretMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Set or clear an override for a managed secret
+ */
+export const useUpdateManagedSecret = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateManagedSecret>>,
+    TError,
+    { name: string; data: BodyType<UpdateManagedSecretBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateManagedSecret>>,
+  TError,
+  { name: string; data: BodyType<UpdateManagedSecretBody> },
+  TContext
+> => {
+  return useMutation(getUpdateManagedSecretMutationOptions(options));
+};
+
+/**
+ * @summary Probe the live API with the configured key
+ */
+export const getTestManagedSecretUrl = (name: string) => {
+  return `/api/admin/secrets/${name}/test`;
+};
+
+export const testManagedSecret = async (
+  name: string,
+  options?: RequestInit,
+): Promise<SecretTestResult> => {
+  return customFetch<SecretTestResult>(getTestManagedSecretUrl(name), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getTestManagedSecretMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof testManagedSecret>>,
+    TError,
+    { name: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof testManagedSecret>>,
+  TError,
+  { name: string },
+  TContext
+> => {
+  const mutationKey = ["testManagedSecret"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof testManagedSecret>>,
+    { name: string }
+  > = (props) => {
+    const { name } = props ?? {};
+
+    return testManagedSecret(name, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type TestManagedSecretMutationResult = NonNullable<
+  Awaited<ReturnType<typeof testManagedSecret>>
+>;
+
+export type TestManagedSecretMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Probe the live API with the configured key
+ */
+export const useTestManagedSecret = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof testManagedSecret>>,
+    TError,
+    { name: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof testManagedSecret>>,
+  TError,
+  { name: string },
+  TContext
+> => {
+  return useMutation(getTestManagedSecretMutationOptions(options));
+};
+
+/**
+ * @summary Force-refresh OAuth tokens and run a health probe (drive | asana)
+ */
+export const getRestartIntegrationUrl = (name: string) => {
+  return `/api/admin/integrations/restart/${name}`;
+};
+
+export const restartIntegration = async (
+  name: string,
+  options?: RequestInit,
+): Promise<SecretTestResult> => {
+  return customFetch<SecretTestResult>(getRestartIntegrationUrl(name), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getRestartIntegrationMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof restartIntegration>>,
+    TError,
+    { name: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof restartIntegration>>,
+  TError,
+  { name: string },
+  TContext
+> => {
+  const mutationKey = ["restartIntegration"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof restartIntegration>>,
+    { name: string }
+  > = (props) => {
+    const { name } = props ?? {};
+
+    return restartIntegration(name, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RestartIntegrationMutationResult = NonNullable<
+  Awaited<ReturnType<typeof restartIntegration>>
+>;
+
+export type RestartIntegrationMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Force-refresh OAuth tokens and run a health probe (drive | asana)
+ */
+export const useRestartIntegration = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof restartIntegration>>,
+    TError,
+    { name: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof restartIntegration>>,
+  TError,
+  { name: string },
+  TContext
+> => {
+  return useMutation(getRestartIntegrationMutationOptions(options));
+};
+
+/**
+ * @summary Last 50 superadmin-triggered actions
+ */
+export const getListSuperadminAuditUrl = () => {
+  return `/api/admin/audit-log`;
+};
+
+export const listSuperadminAudit = async (
+  options?: RequestInit,
+): Promise<ListSuperadminAudit200> => {
+  return customFetch<ListSuperadminAudit200>(getListSuperadminAuditUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListSuperadminAuditQueryKey = () => {
+  return [`/api/admin/audit-log`] as const;
+};
+
+export const getListSuperadminAuditQueryOptions = <
+  TData = Awaited<ReturnType<typeof listSuperadminAudit>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listSuperadminAudit>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListSuperadminAuditQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listSuperadminAudit>>
+  > = ({ signal }) => listSuperadminAudit({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listSuperadminAudit>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListSuperadminAuditQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listSuperadminAudit>>
+>;
+export type ListSuperadminAuditQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Last 50 superadmin-triggered actions
+ */
+
+export function useListSuperadminAudit<
+  TData = Awaited<ReturnType<typeof listSuperadminAudit>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listSuperadminAudit>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListSuperadminAuditQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}

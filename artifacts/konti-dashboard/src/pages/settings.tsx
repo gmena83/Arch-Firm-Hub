@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Settings, User, Bell, Globe, Phone, Mail, Home, Save } from "lucide-react";
+import { Settings, User, Bell, Globe, Phone, Mail, Home, Save, KeyRound, ChevronRight } from "lucide-react";
+import { Link } from "wouter";
 import { AppLayout } from "@/components/layout/app-layout";
 import { RequireAuth } from "@/hooks/auth-provider";
 import { useAuth } from "@/hooks/use-auth";
@@ -229,12 +230,42 @@ export default function SettingsPage() {
 
             <div className="border-t border-border" />
 
-            {/* Asana integration — admin / superadmin only (Task #127) */}
-            {(user?.role === "admin" || user?.role === "superadmin") && (
+            {/* Integrations:
+                - Superadmin: panels live on the dedicated /integrations page
+                  (Task #130). We render a link here so the entry point stays
+                  discoverable from Settings.
+                - Admin (non-super): keeps the inline panels they have always
+                  used (Tasks #127 and #128). */}
+            {user?.role === "superadmin" && (
+              <>
+                <Link
+                  href="/integrations"
+                  data-testid="link-integrations"
+                  className="flex items-center justify-between gap-3 rounded-lg border border-card-border bg-muted/30 hover:bg-muted/60 px-4 py-3 transition-colors"
+                >
+                  <div className="flex items-start gap-3">
+                    <KeyRound className="w-5 h-5 text-konti-olive mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-foreground">
+                        {t("Integrations", "Integraciones")}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {t(
+                          "Manage API keys, restart Drive/Asana, and view audit log.",
+                          "Administra llaves API, reinicia Drive/Asana y consulta el registro.",
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                </Link>
+                <div className="border-t border-border" />
+              </>
+            )}
+            {user?.role === "admin" && (
               <>
                 <AsanaIntegrationPanel />
                 <div className="border-t border-border" />
-                {/* Google Drive integration — admin / superadmin only (Task #128) */}
                 <DriveIntegrationPanel />
                 <div className="border-t border-border" />
               </>

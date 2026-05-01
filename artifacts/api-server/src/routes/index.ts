@@ -10,6 +10,7 @@ import notificationsRouter from "./notifications";
 import contractorsRouter from "./contractors";
 import auditRouter from "./audit";
 import integrationsRouter from "./integrations";
+import adminSecretsRouter from "./admin-secrets";
 
 const router: IRouter = Router();
 
@@ -24,5 +25,6 @@ router.use(notificationsRouter);
 router.use(contractorsRouter);
 router.use(auditRouter);
 router.use(integrationsRouter);
+router.use(adminSecretsRouter);
 
 export default router;

@@ -20,6 +20,7 @@ import PermitsPage from "@/pages/permits";
 import IntakePage from "@/pages/intake";
 import LeadsPage from "@/pages/leads";
 import AuditPage from "@/pages/audit";
+import IntegrationsPage from "@/pages/integrations";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -50,6 +51,7 @@ function Router() {
       <Route path="/intake" component={IntakePage} />
       <Route path="/leads" component={LeadsPage} />
       <Route path="/audit" component={AuditPage} />
+      <Route path="/integrations" component={IntegrationsPage} />
       <Route component={NotFound} />
     </Switch>
   );

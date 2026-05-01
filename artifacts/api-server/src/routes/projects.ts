@@ -49,6 +49,7 @@ import {
 } from "../data/seed";
 import { savePunchlist } from "../data/punchlist-store";
 import { requireRole } from "../middlewares/require-role";
+import { getManagedSecret } from "../lib/managed-secrets";
 import { EXTRA_MATERIALS, PROJECT_REPORT_TEMPLATE, PROJECT_CONTRACTOR_ESTIMATE, type ContractorEstimateLine, type ReportTemplate } from "./estimating";
 import { getAsanaConfig, isAsanaEnabled, isDriveEnabled } from "../lib/integrations-config";
 import { listTasksForProject, AsanaNotConnectedError, AsanaApiError } from "../lib/asana-client";
@@ -904,7 +905,7 @@ router.post("/projects/:id/pdf", requireRole(["team", "admin", "superadmin", "ar
 
   if (!enforceClientOwnership(req, res, project.id)) return;
 
-  const pdfApiKey = process.env["PDF_CO_API_KEY"];
+  const pdfApiKey = getManagedSecret("PDF_CO_API_KEY");
   if (!pdfApiKey) {
     res.status(501).json({ error: "pdf_not_configured", message: "PDF export not configured" });
     return;

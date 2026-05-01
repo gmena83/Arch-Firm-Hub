@@ -3820,3 +3820,108 @@ export const LinkProjectToAsanaTaskResponse = zod.object({
   projectId: zod.string(),
   asanaGid: zod.string(),
 });
+
+/**
+ * @summary List the configured managed-secret rows (no raw values)
+ */
+export const ListManagedSecretsResponse = zod.object({
+  secrets: zod.array(
+    zod.object({
+      meta: zod.object({
+        name: zod.string(),
+        label: zod.string(),
+        labelEs: zod.string(),
+        description: zod.string(),
+        descriptionEs: zod.string(),
+        category: zod.enum(["ai", "pdf", "presentation", "oauth"]),
+        testable: zod.boolean(),
+        formatHint: zod.string().nullish(),
+      }),
+      source: zod.enum(["override", "env", "missing"]),
+      preview: zod.string().describe("Last-4 masked preview, e.g. …1234"),
+      overrideUpdatedAt: zod.string().nullable(),
+      overrideUpdatedBy: zod.string().nullable(),
+    }),
+  ),
+});
+
+/**
+ * @summary Set or clear an override for a managed secret
+ */
+export const UpdateManagedSecretParams = zod.object({
+  name: zod.coerce.string(),
+});
+
+export const UpdateManagedSecretBody = zod.object({
+  value: zod.string().optional().describe("New secret value (write-only)"),
+  clear: zod.boolean().optional().describe("When true"),
+});
+
+export const UpdateManagedSecretResponse = zod.object({
+  status: zod.object({
+    meta: zod.object({
+      name: zod.string(),
+      label: zod.string(),
+      labelEs: zod.string(),
+      description: zod.string(),
+      descriptionEs: zod.string(),
+      category: zod.enum(["ai", "pdf", "presentation", "oauth"]),
+      testable: zod.boolean(),
+      formatHint: zod.string().nullish(),
+    }),
+    source: zod.enum(["override", "env", "missing"]),
+    preview: zod.string().describe("Last-4 masked preview, e.g. …1234"),
+    overrideUpdatedAt: zod.string().nullable(),
+    overrideUpdatedBy: zod.string().nullable(),
+  }),
+});
+
+/**
+ * @summary Probe the live API with the configured key
+ */
+export const TestManagedSecretParams = zod.object({
+  name: zod.coerce.string(),
+});
+
+export const TestManagedSecretResponse = zod.object({
+  ok: zod.boolean(),
+  message: zod.string(),
+  messageEs: zod.string().nullish(),
+});
+
+/**
+ * @summary Force-refresh OAuth tokens and run a health probe (drive | asana)
+ */
+export const RestartIntegrationParams = zod.object({
+  name: zod.coerce.string(),
+});
+
+export const RestartIntegrationResponse = zod.object({
+  ok: zod.boolean(),
+  message: zod.string(),
+  messageEs: zod.string().nullish(),
+});
+
+/**
+ * @summary Last 50 superadmin-triggered actions
+ */
+export const ListSuperadminAuditResponse = zod.object({
+  entries: zod.array(
+    zod.object({
+      id: zod.string(),
+      timestamp: zod.string(),
+      actorUserId: zod.string(),
+      actorEmail: zod.string(),
+      action: zod.enum([
+        "secret.update",
+        "secret.test",
+        "secret.test_failed",
+        "integration.restart",
+        "integration.restart_failed",
+      ]),
+      target: zod.string(),
+      message: zod.string(),
+      messageEs: zod.string(),
+    }),
+  ),
+});

@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, FolderOpen, Calculator, Package, MessageSquare, LogOut, Menu, X, Users, FileCheck, Settings, Inbox, ShieldCheck } from "lucide-react";
+import { LayoutDashboard, FolderOpen, Calculator, Package, MessageSquare, LogOut, Menu, X, Users, FileCheck, Settings, Inbox, ShieldCheck, KeyRound } from "lucide-react";
 import { useState } from "react";
 import { useListLeads } from "@workspace/api-client-react";
 import { useAuth } from "@/hooks/use-auth";
@@ -15,6 +15,7 @@ type NavItem = {
   labelEs: string;
   clientVisible: boolean;
   adminOnly?: boolean;
+  superadminOnly?: boolean;
 };
 
 const ALL_NAV_ITEMS: NavItem[] = [
@@ -27,6 +28,7 @@ const ALL_NAV_ITEMS: NavItem[] = [
   { href: "/permits", icon: FileCheck, label: "Permits", labelEs: "Permisos", clientVisible: false },
   { href: "/leads", icon: Inbox, label: "Leads", labelEs: "Leads", clientVisible: false },
   { href: "/audit", icon: ShieldCheck, label: "Audit Log", labelEs: "Auditoría", clientVisible: false, adminOnly: true },
+  { href: "/integrations", icon: KeyRound, label: "Integrations", labelEs: "Integraciones", clientVisible: false, superadminOnly: true },
 ];
 
 export function Sidebar() {
@@ -37,9 +39,11 @@ export function Sidebar() {
 
   const isClient = user?.role === "client";
   const isAdmin = user?.role === "admin" || user?.role === "superadmin";
+  const isSuperadmin = user?.role === "superadmin";
   const showNotifications = true;
   const navItems = ALL_NAV_ITEMS.filter((item) => {
     if (isClient && !item.clientVisible) return false;
+    if (item.superadminOnly && !isSuperadmin) return false;
     if (item.adminOnly && !isAdmin) return false;
     return true;
   });

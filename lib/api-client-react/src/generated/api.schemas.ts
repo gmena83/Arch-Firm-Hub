@@ -1818,6 +1818,73 @@ export interface PunchlistOpenError {
   openItems: PunchlistOpenErrorOpenItemsItem[];
 }
 
+export type ManagedSecretCategory =
+  (typeof ManagedSecretCategory)[keyof typeof ManagedSecretCategory];
+
+export const ManagedSecretCategory = {
+  ai: "ai",
+  pdf: "pdf",
+  presentation: "presentation",
+  oauth: "oauth",
+} as const;
+
+export interface ManagedSecretMeta {
+  name: string;
+  label: string;
+  labelEs: string;
+  description: string;
+  descriptionEs: string;
+  category: ManagedSecretCategory;
+  testable: boolean;
+  formatHint?: string | null;
+}
+
+export type ManagedSecretSource =
+  (typeof ManagedSecretSource)[keyof typeof ManagedSecretSource];
+
+export const ManagedSecretSource = {
+  override: "override",
+  env: "env",
+  missing: "missing",
+} as const;
+
+export interface ManagedSecretStatus {
+  meta: ManagedSecretMeta;
+  source: ManagedSecretSource;
+  /** Last-4 masked preview, e.g. …1234 */
+  preview: string;
+  overrideUpdatedAt: string | null;
+  overrideUpdatedBy: string | null;
+}
+
+export interface SecretTestResult {
+  ok: boolean;
+  message: string;
+  messageEs?: string | null;
+}
+
+export type SuperadminAuditAction =
+  (typeof SuperadminAuditAction)[keyof typeof SuperadminAuditAction];
+
+export const SuperadminAuditAction = {
+  secretupdate: "secret.update",
+  secrettest: "secret.test",
+  secrettest_failed: "secret.test_failed",
+  integrationrestart: "integration.restart",
+  integrationrestart_failed: "integration.restart_failed",
+} as const;
+
+export interface SuperadminAuditEntry {
+  id: string;
+  timestamp: string;
+  actorUserId: string;
+  actorEmail: string;
+  action: SuperadminAuditAction;
+  target: string;
+  message: string;
+  messageEs: string;
+}
+
 export type GetProjectDocumentsParams = {
   clientVisible?: boolean;
 };
@@ -2216,4 +2283,23 @@ export type LinkProjectToAsanaTaskBody = {
 export type LinkProjectToAsanaTask200 = {
   projectId: string;
   asanaGid: string;
+};
+
+export type ListManagedSecrets200 = {
+  secrets: ManagedSecretStatus[];
+};
+
+export type UpdateManagedSecretBody = {
+  /** New secret value (write-only) */
+  value?: string;
+  /** When true */
+  clear?: boolean;
+};
+
+export type UpdateManagedSecret200 = {
+  status: ManagedSecretStatus;
+};
+
+export type ListSuperadminAudit200 = {
+  entries: SuperadminAuditEntry[];
 };

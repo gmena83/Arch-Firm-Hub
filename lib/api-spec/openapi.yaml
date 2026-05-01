@@ -42,6 +42,8 @@ tags:
     description: Phase 2 — Pre-Design & Viability (checklist, structured variables, GAMMA, phase advance)
   - name: punchlist
     description: Phase punchlist — per-phase open items that gate phase advancement
+  - name: admin-secrets
+    description: Superadmin-only managed secrets, integration restart, and audit log
 paths:
   /healthz:
     get:
@@ -2547,6 +2549,109 @@ paths:
                   asanaGid: { type: string }
                 required: [projectId, asanaGid]
 
+  # ---------------------------------------------------------------------------
+  # Task #130 — Superadmin Integrations tab (managed secrets + restart + audit)
+  # ---------------------------------------------------------------------------
+  /admin/secrets:
+    get:
+      operationId: listManagedSecrets
+      tags: [admin-secrets]
+      summary: List the configured managed-secret rows (no raw values)
+      responses:
+        "200":
+          description: Managed secret rows with masked previews
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  secrets:
+                    type: array
+                    items: { $ref: "#/components/schemas/ManagedSecretStatus" }
+                required: [secrets]
+
+  /admin/secrets/{name}:
+    post:
+      operationId: updateManagedSecret
+      tags: [admin-secrets]
+      summary: Set or clear an override for a managed secret
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                value: { type: string, description: New secret value (write-only) }
+                clear: { type: boolean, description: When true, removes any override and reverts to env }
+      responses:
+        "200":
+          description: Updated row (no raw value)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { $ref: "#/components/schemas/ManagedSecretStatus" }
+                required: [status]
+
+  /admin/secrets/{name}/test:
+    post:
+      operationId: testManagedSecret
+      tags: [admin-secrets]
+      summary: Probe the live API with the configured key
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Test result (ok flag + safe message)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SecretTestResult" }
+
+  /admin/integrations/restart/{name}:
+    post:
+      operationId: restartIntegration
+      tags: [admin-secrets]
+      summary: Force-refresh OAuth tokens and run a health probe (drive | asana)
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Restart result
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SecretTestResult" }
+
+  /admin/audit-log:
+    get:
+      operationId: listSuperadminAudit
+      tags: [admin-secrets]
+      summary: Last 50 superadmin-triggered actions
+      responses:
+        "200":
+          description: Audit entries
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  entries:
+                    type: array
+                    items: { $ref: "#/components/schemas/SuperadminAuditEntry" }
+                required: [entries]
+
 components:
   schemas:
     HealthStatus:
@@ -4622,3 +4727,64 @@ components:
               status: { $ref: "#/components/schemas/PunchlistItemStatus" }
             required: [id, label, labelEs, status]
       required: [error, message, messageEs, openCount, openItems]
+
+    ManagedSecretCategory:
+      type: string
+      enum: [ai, pdf, presentation, oauth]
+
+    ManagedSecretMeta:
+      type: object
+      properties:
+        name: { type: string }
+        label: { type: string }
+        labelEs: { type: string }
+        description: { type: string }
+        descriptionEs: { type: string }
+        category: { $ref: "#/components/schemas/ManagedSecretCategory" }
+        testable: { type: boolean }
+        formatHint: { type: string, nullable: true }
+      required: [name, label, labelEs, description, descriptionEs, category, testable]
+
+    ManagedSecretSource:
+      type: string
+      enum: [override, env, missing]
+
+    ManagedSecretStatus:
+      type: object
+      properties:
+        meta: { $ref: "#/components/schemas/ManagedSecretMeta" }
+        source: { $ref: "#/components/schemas/ManagedSecretSource" }
+        preview: { type: string, description: "Last-4 masked preview, e.g. …1234" }
+        overrideUpdatedAt: { type: string, nullable: true }
+        overrideUpdatedBy: { type: string, nullable: true }
+      required: [meta, source, preview, overrideUpdatedAt, overrideUpdatedBy]
+
+    SecretTestResult:
+      type: object
+      properties:
+        ok: { type: boolean }
+        message: { type: string }
+        messageEs: { type: string, nullable: true }
+      required: [ok, message]
+
+    SuperadminAuditAction:
+      type: string
+      enum:
+        - secret.update
+        - secret.test
+        - secret.test_failed
+        - integration.restart
+        - integration.restart_failed
+
+    SuperadminAuditEntry:
+      type: object
+      properties:
+        id: { type: string }
+        timestamp: { type: string }
+        actorUserId: { type: string }
+        actorEmail: { type: string }
+        action: { $ref: "#/components/schemas/SuperadminAuditAction" }
+        target: { type: string }
+        message: { type: string }
+        messageEs: { type: string }
+      required: [id, timestamp, actorUserId, actorEmail, action, target, message, messageEs]

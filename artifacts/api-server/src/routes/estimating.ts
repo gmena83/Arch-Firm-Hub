@@ -9,6 +9,7 @@ import {
   appendActivity,
 } from "../data/seed";
 import { requireRole } from "../middlewares/require-role";
+import { getManagedSecret } from "../lib/managed-secrets";
 import { enforceClientOwnership } from "../middlewares/client-ownership";
 import {
   loadEstimatingFromDisk,
@@ -533,7 +534,7 @@ router.post(
       ? Number(body["hours"])
       : undefined;
 
-    const apiKey = process.env["PDF_CO_API_KEY"];
+    const apiKey = getManagedSecret("PDF_CO_API_KEY");
     if (!apiKey) {
       res.status(500).json({
         error: "ocr_not_configured",
