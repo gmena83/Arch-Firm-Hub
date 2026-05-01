@@ -317,20 +317,24 @@ router.post("/integrations/drive/configure", requireRole([...ADMIN_ROLES]), asyn
     const user = (req as { user?: { name?: string } }).user;
     const previousCfg = getDriveConfig();
     const wasFirstConnect = !previousCfg.firstConnectCompletedAt;
-    // If the admin is reconnecting to a *different* Drive root than the one
-    // we previously remembered, the cached projectFolders map points at
-    // folder IDs that live under the old root. Continuing to use them would
-    // silently send uploads into the wrong Drive — clear the map so the
-    // next upload re-provisions a fresh per-project folder under the new
-    // root. (Same-root reconnects keep the map for free.)
+    // Reconnect safety. The per-project folder map was built under the
+    // *previous* Drive root — if the admin is now picking a different root
+    // (including the disconnect → reconnect-to-different-root flow, where
+    // `rootFolderId` was nulled out by /disconnect but
+    // `lastConfiguredRootFolderId` still remembers the old value), the
+    // cached folder IDs point at folders in the OLD root and would
+    // silently misroute uploads into a different Drive workspace. Wipe
+    // the map so the next upload re-provisions under the new root.
+    // Reconnects to the SAME root keep the map for free.
+    const lastRoot = previousCfg.lastConfiguredRootFolderId;
     if (
-      previousCfg.rootFolderId &&
-      previousCfg.rootFolderId !== rootFolderId &&
+      lastRoot &&
+      lastRoot !== rootFolderId &&
       Object.keys(previousCfg.projectFolders).length > 0
     ) {
       clearDriveProjectFolders();
       logger.info(
-        { previousRoot: previousCfg.rootFolderId, newRoot: rootFolderId },
+        { previousRoot: lastRoot, newRoot: rootFolderId },
         "drive: root folder changed on reconnect — cleared per-project folder map",
       );
     }
@@ -342,6 +346,10 @@ router.post("/integrations/drive/configure", requireRole([...ADMIN_ROLES]), asyn
       deletePolicy,
       connectedAt: new Date().toISOString(),
       connectedBy: user?.name ?? "Admin",
+      // Track the root we just connected to so future reconnect-after-
+      // disconnect flows can detect a root change even after `rootFolderId`
+      // was nulled by /disconnect.
+      lastConfiguredRootFolderId: rootFolderId,
     });
     // First-connect bootstrap (Task #128). On the very first successful
     // connect we (a) provision the canonical per-project sub-folder set in

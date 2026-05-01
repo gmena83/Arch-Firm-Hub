@@ -1105,6 +1105,8 @@ export interface DriveIntegrationConfig {
   projectFolders: DriveIntegrationConfigProjectFolders;
   /** Timestamp of the first successful Drive connect. Used as a run-once marker so disconnect+reconnect skips the per-project folder bootstrap and the initial backfill. */
   firstConnectCompletedAt: string | null;
+  /** Drive folder ID the per-project folder map was built against. Survives disconnect so a reconnect to a different root can detect the root change and invalidate the cached folder map. */
+  lastConfiguredRootFolderId: string | null;
 }
 
 export interface DriveStatusResponse {

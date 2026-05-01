@@ -107,6 +107,14 @@ export interface DriveIntegrationConfig {
    * `/integrations/drive/backfill` if they want to top up.
    */
   firstConnectCompletedAt: string | null;
+  /**
+   * Persisted record of the rootFolderId the per-project folder map was
+   * built against. Survives disconnect (unlike `rootFolderId` which the
+   * disconnect route clears) so a disconnect → reconnect-to-different-root
+   * flow can still tell that the cached folder IDs live under the OLD root
+   * and must be invalidated. Reconnecting to the SAME root keeps the map.
+   */
+  lastConfiguredRootFolderId: string | null;
 }
 
 export interface DriveSyncLogEntry {
@@ -156,6 +164,7 @@ const DEFAULT_STATE: IntegrationsState = {
     connectedBy: null,
     projectFolders: {},
     firstConnectCompletedAt: null,
+    lastConfiguredRootFolderId: null,
   },
   driveSyncLog: [],
 };

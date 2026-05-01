@@ -1372,6 +1372,137 @@ test("POST /integrations/drive/configure: first-connect provisions per-project s
   }
 });
 
+test("POST /integrations/drive/configure: disconnect → reconnect to a different root invalidates the cached project folder map", async () => {
+  // Regression: disconnect clears `rootFolderId`, so on reconnect the
+  // simple "previous root != new root" check would have been impossible
+  // without the persisted `lastConfiguredRootFolderId` shadow field. This
+  // test connects → uploads (caches a folder under root A) → disconnects
+  // → reconnects with root B → uploads again, and asserts the new file
+  // is parented under root B (not the cached folder ID under root A).
+  const { state, restore } = installDriveFetchStub();
+  try {
+    state.folders.set("root-A", {
+      id: "root-A",
+      name: "Root A",
+      parents: ["root"],
+      mimeType: "application/vnd.google-apps.folder",
+    });
+    state.folders.set("root-B", {
+      id: "root-B",
+      name: "Root B",
+      parents: ["root"],
+      mimeType: "application/vnd.google-apps.folder",
+    });
+    await withServer(async (baseUrl) => {
+      const adminToken = await login(baseUrl, "demo@konti.com");
+      // (1) Connect to root A.
+      const r1 = await fetch(`${baseUrl}/api/integrations/drive/configure`, {
+        method: "POST",
+        headers: authHeaders(adminToken, true),
+        body: JSON.stringify({
+          rootFolderId: "root-A",
+          rootFolderName: "Root A",
+          visibilityPolicy: "private",
+          deletePolicy: "trash",
+        }),
+      });
+      assert.equal(r1.status, 200);
+      // (2) Upload a doc — this caches a per-project folder under root A.
+      const u1 = await fetch(`${baseUrl}/api/projects/${PROJECT_ID}/documents`, {
+        method: "POST",
+        headers: authHeaders(adminToken, true),
+        body: JSON.stringify({
+          name: "in-A.pdf",
+          category: "internal",
+          fileBase64: Buffer.from("a-bytes").toString("base64"),
+          mimeType: "application/pdf",
+        }),
+      });
+      assert.equal(u1.status, 201);
+      const docA = (await u1.json()) as Record<string, unknown>;
+      const fileA = state.files.get(docA["driveFileId"] as string);
+      assert.ok(fileA, "first file recorded");
+      // Walk parents up to confirm the file lives under root-A.
+      const ancestorsA = walkAncestors(state, fileA.parents[0] as string);
+      assert.ok(ancestorsA.includes("root-A"), "first file lives under root-A");
+      // (3) Disconnect.
+      const d = await fetch(`${baseUrl}/api/integrations/drive/disconnect`, {
+        method: "POST",
+        headers: authHeaders(adminToken, true),
+      });
+      assert.equal(d.status, 200);
+      // (4) Reconnect to root B.
+      const r2 = await fetch(`${baseUrl}/api/integrations/drive/configure`, {
+        method: "POST",
+        headers: authHeaders(adminToken, true),
+        body: JSON.stringify({
+          rootFolderId: "root-B",
+          rootFolderName: "Root B",
+          visibilityPolicy: "private",
+          deletePolicy: "trash",
+        }),
+      });
+      assert.equal(r2.status, 200);
+      // (5) Upload again — the cached folder map MUST have been cleared,
+      // so the new file's per-project folder lives under root-B.
+      const u2 = await fetch(`${baseUrl}/api/projects/${PROJECT_ID}/documents`, {
+        method: "POST",
+        headers: authHeaders(adminToken, true),
+        body: JSON.stringify({
+          name: "in-B.pdf",
+          category: "internal",
+          fileBase64: Buffer.from("b-bytes").toString("base64"),
+          mimeType: "application/pdf",
+        }),
+      });
+      assert.equal(u2.status, 201);
+      const docB = (await u2.json()) as Record<string, unknown>;
+      const fileB = state.files.get(docB["driveFileId"] as string);
+      assert.ok(fileB, "second file recorded");
+      const ancestorsB = walkAncestors(state, fileB.parents[0] as string);
+      assert.ok(
+        ancestorsB.includes("root-B"),
+        `second file must live under root-B (ancestors: ${ancestorsB.join(" -> ")})`,
+      );
+      assert.ok(
+        !ancestorsB.includes("root-A"),
+        "second file must NOT live under root-A (cache invalidation failure)",
+      );
+      // Cleanup the planted docs.
+      const list = (DOCUMENTS as Record<string, unknown[]>)[PROJECT_ID] ?? [];
+      (DOCUMENTS as Record<string, unknown[]>)[PROJECT_ID] = list.filter(
+        (d) =>
+          (d as Record<string, unknown>)["id"] !== docA["id"] &&
+          (d as Record<string, unknown>)["id"] !== docB["id"],
+      );
+    });
+  } finally {
+    restore();
+  }
+});
+
+// Helper: walk a folder's parent chain up to a Drive root, returning every
+// folder ID encountered. Used by the reconnect test to verify ancestry.
+function walkAncestors(
+  state: DriveFakeState,
+  startFolderId: string,
+): string[] {
+  const out: string[] = [];
+  let cursor: string | undefined = startFolderId;
+  let safety = 20;
+  while (cursor && safety-- > 0) {
+    out.push(cursor);
+    const f = state.folders.get(cursor);
+    if (!f) break;
+    cursor = f.parents[0];
+    if (cursor === "root") {
+      out.push("root");
+      break;
+    }
+  }
+  return out;
+}
+
 // Reference unused import to keep TS happy in some configs (PROJECTS used
 // elsewhere is already imported above).
 void PROJECTS;

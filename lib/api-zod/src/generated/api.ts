@@ -3556,6 +3556,11 @@ export const GetDriveStatusResponse = zod.object({
       .describe(
         "Timestamp of the first successful Drive connect. Used as a run-once marker so disconnect+reconnect skips the per-project folder bootstrap and the initial backfill.",
       ),
+    lastConfiguredRootFolderId: zod
+      .union([zod.string(), zod.null()])
+      .describe(
+        "Drive folder ID the per-project folder map was built against. Survives disconnect so a reconnect to a different root can detect the root change and invalidate the cached folder map.",
+      ),
   }),
 });
 
@@ -3624,6 +3629,11 @@ export const ConfigureDriveResponse = zod.object({
       .describe(
         "Timestamp of the first successful Drive connect. Used as a run-once marker so disconnect+reconnect skips the per-project folder bootstrap and the initial backfill.",
       ),
+    lastConfiguredRootFolderId: zod
+      .union([zod.string(), zod.null()])
+      .describe(
+        "Drive folder ID the per-project folder map was built against. Survives disconnect so a reconnect to a different root can detect the root change and invalidate the cached folder map.",
+      ),
   }),
   firstConnectBootstrap: zod
     .object({
@@ -3672,6 +3682,11 @@ export const DisconnectDriveResponse = zod.object({
       .union([zod.string(), zod.null()])
       .describe(
         "Timestamp of the first successful Drive connect. Used as a run-once marker so disconnect+reconnect skips the per-project folder bootstrap and the initial backfill.",
+      ),
+    lastConfiguredRootFolderId: zod
+      .union([zod.string(), zod.null()])
+      .describe(
+        "Drive folder ID the per-project folder map was built against. Survives disconnect so a reconnect to a different root can detect the root change and invalidate the cached folder map.",
       ),
   }),
   firstConnectBootstrap: zod

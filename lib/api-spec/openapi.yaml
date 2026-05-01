@@ -3913,6 +3913,11 @@ components:
             - { type: string }
             - { type: "null" }
           description: Timestamp of the first successful Drive connect. Used as a run-once marker so disconnect+reconnect skips the per-project folder bootstrap and the initial backfill.
+        lastConfiguredRootFolderId:
+          oneOf:
+            - { type: string }
+            - { type: "null" }
+          description: Drive folder ID the per-project folder map was built against. Survives disconnect so a reconnect to a different root can detect the root change and invalidate the cached folder map.
       required:
         - enabled
         - rootFolderId
@@ -3923,6 +3928,7 @@ components:
         - connectedBy
         - projectFolders
         - firstConnectCompletedAt
+        - lastConfiguredRootFolderId
 
     DriveStatusResponse:
       type: object
