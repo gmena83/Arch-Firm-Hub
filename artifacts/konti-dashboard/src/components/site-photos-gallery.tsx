@@ -40,6 +40,18 @@ function selectPhotos(
     .filter((d) => typeof d.photoCategory === "string");
 }
 
+// Drive-aware URL pickers (Task #128). When a photo lives in Drive the API
+// strips the inline `data:` URL to keep responses small, so we have to fall
+// back to the Drive-side URLs. For client role the raw Drive links are
+// stripped server-side as well, leaving `driveDownloadProxyUrl` as the only
+// safe choice — that's why it's always the last sturdy fallback.
+function pickThumbUrl(p: Document): string | undefined {
+  return p.driveThumbnailLink ?? p.driveDownloadProxyUrl ?? p.imageUrl;
+}
+function pickFullUrl(p: Document): string | undefined {
+  return p.driveDownloadProxyUrl ?? p.driveWebContentLink ?? p.imageUrl;
+}
+
 function groupByCategory(photos: Document[]): Record<PhotoCategoryKey, Document[]> {
   const out: Record<PhotoCategoryKey, Document[]> = {
     site_conditions: [],
@@ -126,9 +138,9 @@ export function SitePhotosGallery({ projectId, isClientView }: SitePhotosGallery
                       className="group relative aspect-square overflow-hidden rounded-lg border border-card-border bg-muted hover:border-konti-olive transition-colors text-left"
                       aria-label={p.caption ?? p.name}
                     >
-                      {p.imageUrl ? (
+                      {pickThumbUrl(p) ? (
                         <img
-                          src={p.imageUrl}
+                          src={pickThumbUrl(p)}
                           alt={p.caption ?? p.name}
                           loading="lazy"
                           className="w-full h-full object-cover transition-transform group-hover:scale-105"
@@ -172,9 +184,9 @@ export function SitePhotosGallery({ projectId, isClientView }: SitePhotosGallery
             onClick={(e) => e.stopPropagation()}
           >
             <div className="bg-black">
-              {lightbox.imageUrl ? (
+              {pickFullUrl(lightbox) ? (
                 <img
-                  src={lightbox.imageUrl}
+                  src={pickFullUrl(lightbox)}
                   alt={lightbox.caption ?? lightbox.name}
                   className="w-full max-h-[70vh] object-contain"
                   data-testid="photo-lightbox-image"

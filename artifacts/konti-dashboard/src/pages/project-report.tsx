@@ -307,8 +307,18 @@ function ReportContent({ projectId }: { projectId: string }) {
     photoCategory?: string;
     caption?: string;
     imageUrl?: string;
+    // Drive-backed photo URL fields (Task #128). When the project's docs
+    // live in Google Drive the API strips the inline data: URL so we have
+    // to fall back to one of these to render the report image.
+    driveThumbnailLink?: string;
+    driveDownloadProxyUrl?: string;
+    driveWebContentLink?: string;
     isClientVisible: boolean;
   };
+  // Prefer the Drive thumbnail (lightweight, signed) → proxy (works for
+  // every role incl. client) → legacy inline imageUrl fallback.
+  const pickReportPhotoUrl = (p: ReportPhoto): string | undefined =>
+    p.driveThumbnailLink ?? p.driveDownloadProxyUrl ?? p.driveWebContentLink ?? p.imageUrl;
   const reportPhotos = useMemo<ReportPhoto[]>(() => (
     (allDocs as ReportPhoto[] & { type?: string }[])
       .filter((d) => (d as { type?: string }).type === "photo")
@@ -794,9 +804,9 @@ function ReportContent({ projectId }: { projectId: string }) {
                           className="space-y-1"
                         >
                           <div className="aspect-square rounded-md overflow-hidden border border-[color:var(--rep-border)] bg-[color:var(--rep-surface-2)]">
-                            {p.imageUrl ? (
+                            {pickReportPhotoUrl(p) ? (
                               <img
-                                src={p.imageUrl}
+                                src={pickReportPhotoUrl(p)}
                                 alt={p.caption ?? p.name}
                                 loading="lazy"
                                 className="w-full h-full object-cover"
