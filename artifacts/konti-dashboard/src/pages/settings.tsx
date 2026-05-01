@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Settings, User, Bell, Globe, Phone, Mail, Home, Save } from "lucide-react";
 import { AppLayout } from "@/components/layout/app-layout";
-import { RequireAuth } from "@/hooks/use-auth";
+import { RequireAuth } from "@/hooks/auth-provider";
 import { useAuth } from "@/hooks/use-auth";
 import { useLang } from "@/hooks/use-lang";
 import { useToast } from "@/hooks/use-toast";

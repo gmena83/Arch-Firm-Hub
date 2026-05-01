@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import { useListMaterials, getListMaterialsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout/app-layout";
-import { RequireAuth } from "@/hooks/use-auth";
+import { RequireAuth } from "@/hooks/auth-provider";
 import { useLang } from "@/hooks/use-lang";
 import { Search, Package, RefreshCw, CheckCircle, AlertCircle, Upload, Plus, X, Loader2 } from "lucide-react";
 import { Link } from "wouter";

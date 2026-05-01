@@ -32,7 +32,8 @@ import {
   LabelList,
 } from "recharts";
 import { AppLayout } from "@/components/layout/app-layout";
-import { RequireAuth, useAuth } from "@/hooks/use-auth";
+import { RequireAuth } from "@/hooks/auth-provider";
+import { useAuth } from "@/hooks/use-auth";
 import { useLang } from "@/hooks/use-lang";
 import { WeatherBadge } from "@/components/weather-badge";
 import { PreDesignPanel } from "@/components/pre-design-panel";

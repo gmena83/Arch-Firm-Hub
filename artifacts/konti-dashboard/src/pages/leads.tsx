@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { useListLeads, useAcceptLead, getListLeadsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout/app-layout";
-import { RequireRole } from "@/hooks/use-auth";
+import { RequireRole } from "@/hooks/auth-provider";
 import { useLang } from "@/hooks/use-lang";
 import { useToast } from "@/hooks/use-toast";
 import {

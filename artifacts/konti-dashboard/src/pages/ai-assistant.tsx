@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useListProjects, useSendChatMessage } from "@workspace/api-client-react";
 import { AppLayout } from "@/components/layout/app-layout";
-import { RequireAuth } from "@/hooks/use-auth";
+import { RequireAuth } from "@/hooks/auth-provider";
 import { useLang } from "@/hooks/use-lang";
 import { useToast } from "@/hooks/use-toast";
 import { Send, Trash2, Bot, User, Loader2, MessageSquare, Briefcase, Mic, MicOff, NotebookPen, Check, X, BarChart3, Printer } from "lucide-react";

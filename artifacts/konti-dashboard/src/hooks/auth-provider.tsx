@@ -1,46 +1,7 @@
-import { useState, useEffect, createContext, useContext } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { setAuthTokenGetter } from "@workspace/api-client-react";
-
-interface AuthUser {
-  id: string;
-  name: string;
-  email: string;
-  role: "admin" | "superadmin" | "architect" | "client";
-  avatar: string;
-  phone?: string;
-  postalAddress?: string;
-  physicalAddress?: string;
-}
-
-interface AuthState {
-  token: string | null;
-  user: AuthUser | null;
-  viewRole: "team" | "client";
-}
-
-interface AuthContextType extends AuthState {
-  login: (token: string, user: AuthUser) => void;
-  logout: () => void;
-  setViewRole: (role: "team" | "client") => void;
-  updateUser: (patch: Partial<AuthUser>) => void;
-  isAuthenticated: boolean;
-}
-
-const AuthContext = createContext<AuthContextType | null>(null);
-
-// Register a token getter that reads the persisted token from localStorage
-// so generated API client requests carry an Authorization header.
-setAuthTokenGetter(() => {
-  try {
-    const stored = localStorage.getItem("konti_auth");
-    if (!stored) return null;
-    const parsed = JSON.parse(stored) as { token?: string | null };
-    return parsed.token ?? null;
-  } catch {
-    return null;
-  }
-});
+import { AuthContext, type AuthUser, type AuthState } from "./auth-context";
+import { useAuth } from "./use-auth";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [, setLocation] = useLocation();
@@ -102,12 +63,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       {children}
     </AuthContext.Provider>
   );
-}
-
-export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
-  return ctx;
 }
 
 export function RequireAuth({ children }: { children: React.ReactNode }) {

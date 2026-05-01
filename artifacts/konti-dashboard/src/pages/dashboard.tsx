@@ -5,7 +5,8 @@ import {
   getGetProjectTasksQueryKey, getGetProjectDocumentsQueryKey,
 } from "@workspace/api-client-react";
 import { AppLayout } from "@/components/layout/app-layout";
-import { RequireAuth, useAuth } from "@/hooks/use-auth";
+import { RequireAuth } from "@/hooks/auth-provider";
+import { useAuth } from "@/hooks/use-auth";
 import { useLang } from "@/hooks/use-lang";
 import { WeatherBadge } from "@/components/weather-badge";
 import { useGetProjectWeather } from "@workspace/api-client-react";

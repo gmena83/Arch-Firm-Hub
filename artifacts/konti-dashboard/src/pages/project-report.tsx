@@ -11,7 +11,8 @@ import {
   getGetProjectDocumentsQueryKey,
 } from "@workspace/api-client-react";
 import { PHOTO_CATEGORY_OPTIONS, photoCategoryLabel, type PhotoCategoryKey } from "@/components/site-photos-gallery";
-import { RequireAuth, useAuth } from "@/hooks/use-auth";
+import { RequireAuth } from "@/hooks/auth-provider";
+import { useAuth } from "@/hooks/use-auth";
 import { useLang } from "@/hooks/use-lang";
 import { PunchlistPanel } from "@/components/punchlist-panel";
 import { ContractorMonitoringSection } from "@/components/contractor-monitoring-section";

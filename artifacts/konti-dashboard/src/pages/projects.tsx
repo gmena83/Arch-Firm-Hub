@@ -8,7 +8,8 @@ import {
   ApiError,
 } from "@workspace/api-client-react";
 import { AppLayout } from "@/components/layout/app-layout";
-import { RequireAuth, useAuth } from "@/hooks/use-auth";
+import { RequireAuth } from "@/hooks/auth-provider";
+import { useAuth } from "@/hooks/use-auth";
 import { useLang } from "@/hooks/use-lang";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowRight, MapPin, Plus, X } from "lucide-react";

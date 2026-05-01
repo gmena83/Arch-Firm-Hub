@@ -10,7 +10,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useSearch } from "wouter";
 import { AppLayout } from "@/components/layout/app-layout";
-import { RequireAuth } from "@/hooks/use-auth";
+import { RequireAuth } from "@/hooks/auth-provider";
 import { useLang } from "@/hooks/use-lang";
 import { Calculator, Plus, X, FileText, HelpCircle } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";

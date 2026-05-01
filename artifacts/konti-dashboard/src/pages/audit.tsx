@@ -8,7 +8,7 @@ import {
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout/app-layout";
-import { RequireRole } from "@/hooks/use-auth";
+import { RequireRole } from "@/hooks/auth-provider";
 import { useLang } from "@/hooks/use-lang";
 
 const ENTITY_LABELS: Record<string, { en: string; es: string }> = {

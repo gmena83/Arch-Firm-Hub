@@ -10,7 +10,7 @@ import {
   type ContractorCreateRequest,
 } from "@workspace/api-client-react";
 import { AppLayout } from "@/components/layout/app-layout";
-import { RequireRole } from "@/hooks/use-auth";
+import { RequireRole } from "@/hooks/auth-provider";
 import { useLang } from "@/hooks/use-lang";
 import { useToast } from "@/hooks/use-toast";
 
