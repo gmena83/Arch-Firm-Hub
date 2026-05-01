@@ -3908,6 +3908,11 @@ components:
         projectFolders:
           type: object
           additionalProperties: { $ref: "#/components/schemas/DriveProjectFolderMap" }
+        firstConnectCompletedAt:
+          oneOf:
+            - { type: string }
+            - { type: "null" }
+          description: Timestamp of the first successful Drive connect. Used as a run-once marker so disconnect+reconnect skips the per-project folder bootstrap and the initial backfill.
       required:
         - enabled
         - rootFolderId
@@ -3917,6 +3922,7 @@ components:
         - connectedAt
         - connectedBy
         - projectFolders
+        - firstConnectCompletedAt
 
     DriveStatusResponse:
       type: object
@@ -3963,6 +3969,16 @@ components:
       type: object
       properties:
         config: { $ref: "#/components/schemas/DriveIntegrationConfig" }
+        firstConnectBootstrap:
+          type: object
+          description: Present only on the first successful connect. Reports the result of the per-project sub-folder provisioning + initial backfill that the server runs once.
+          properties:
+            provisioned: { type: integer, description: Number of projects whose canonical sub-folders were ensured. }
+            provisionFailed: { type: integer, description: Number of projects where provisioning failed. }
+            uploaded: { type: integer, description: Documents uploaded to Drive by the initial backfill. }
+            skipped: { type: integer, description: Documents skipped (already in Drive or no source bytes). }
+            failed: { type: integer, description: Documents the backfill could not upload. }
+          required: [provisioned, provisionFailed, uploaded, skipped, failed]
       required: [config]
 
     DriveSyncLogEntry:

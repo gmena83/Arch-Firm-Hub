@@ -1103,6 +1103,8 @@ export interface DriveIntegrationConfig {
   connectedAt: string | null;
   connectedBy: string | null;
   projectFolders: DriveIntegrationConfigProjectFolders;
+  /** Timestamp of the first successful Drive connect. Used as a run-once marker so disconnect+reconnect skips the per-project folder bootstrap and the initial backfill. */
+  firstConnectCompletedAt: string | null;
 }
 
 export interface DriveStatusResponse {
@@ -1145,8 +1147,26 @@ export interface DriveConfigureRequest {
   deletePolicy?: DriveConfigureRequestDeletePolicy;
 }
 
+/**
+ * Present only on the first successful connect. Reports the result of the per-project sub-folder provisioning + initial backfill that the server runs once.
+ */
+export type DriveConfigResponseFirstConnectBootstrap = {
+  /** Number of projects whose canonical sub-folders were ensured. */
+  provisioned: number;
+  /** Number of projects where provisioning failed. */
+  provisionFailed: number;
+  /** Documents uploaded to Drive by the initial backfill. */
+  uploaded: number;
+  /** Documents skipped (already in Drive or no source bytes). */
+  skipped: number;
+  /** Documents the backfill could not upload. */
+  failed: number;
+};
+
 export interface DriveConfigResponse {
   config: DriveIntegrationConfig;
+  /** Present only on the first successful connect. Reports the result of the per-project sub-folder provisioning + initial backfill that the server runs once. */
+  firstConnectBootstrap?: DriveConfigResponseFirstConnectBootstrap;
 }
 
 export type DriveSyncLogEntryStatus =

@@ -18,4 +18,6 @@ export interface DriveIntegrationConfig {
   connectedAt: string | null;
   connectedBy: string | null;
   projectFolders: DriveIntegrationConfigProjectFolders;
+  /** Timestamp of the first successful Drive connect. Used as a run-once marker so disconnect+reconnect skips the per-project folder bootstrap and the initial backfill. */
+  firstConnectCompletedAt: string | null;
 }

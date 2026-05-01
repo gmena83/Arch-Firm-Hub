@@ -95,6 +95,7 @@ export * from "./driveBackfillResult";
 export * from "./driveBackfillResultStatus";
 export * from "./driveBackfillSummary";
 export * from "./driveConfigResponse";
+export * from "./driveConfigResponseFirstConnectBootstrap";
 export * from "./driveConfigureRequest";
 export * from "./driveConfigureRequestDeletePolicy";
 export * from "./driveConfigureRequestVisibilityPolicy";

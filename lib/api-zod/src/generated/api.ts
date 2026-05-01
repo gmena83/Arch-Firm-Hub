@@ -3551,6 +3551,11 @@ export const GetDriveStatusResponse = zod.object({
         subFolders: zod.record(zod.string(), zod.string()),
       }),
     ),
+    firstConnectCompletedAt: zod
+      .union([zod.string(), zod.null()])
+      .describe(
+        "Timestamp of the first successful Drive connect. Used as a run-once marker so disconnect+reconnect skips the per-project folder bootstrap and the initial backfill.",
+      ),
   }),
 });
 
@@ -3614,7 +3619,34 @@ export const ConfigureDriveResponse = zod.object({
         subFolders: zod.record(zod.string(), zod.string()),
       }),
     ),
+    firstConnectCompletedAt: zod
+      .union([zod.string(), zod.null()])
+      .describe(
+        "Timestamp of the first successful Drive connect. Used as a run-once marker so disconnect+reconnect skips the per-project folder bootstrap and the initial backfill.",
+      ),
   }),
+  firstConnectBootstrap: zod
+    .object({
+      provisioned: zod
+        .number()
+        .describe(
+          "Number of projects whose canonical sub-folders were ensured.",
+        ),
+      provisionFailed: zod
+        .number()
+        .describe("Number of projects where provisioning failed."),
+      uploaded: zod
+        .number()
+        .describe("Documents uploaded to Drive by the initial backfill."),
+      skipped: zod
+        .number()
+        .describe("Documents skipped (already in Drive or no source bytes)."),
+      failed: zod.number().describe("Documents the backfill could not upload."),
+    })
+    .optional()
+    .describe(
+      "Present only on the first successful connect. Reports the result of the per-project sub-folder provisioning + initial backfill that the server runs once.",
+    ),
 });
 
 /**
@@ -3636,7 +3668,34 @@ export const DisconnectDriveResponse = zod.object({
         subFolders: zod.record(zod.string(), zod.string()),
       }),
     ),
+    firstConnectCompletedAt: zod
+      .union([zod.string(), zod.null()])
+      .describe(
+        "Timestamp of the first successful Drive connect. Used as a run-once marker so disconnect+reconnect skips the per-project folder bootstrap and the initial backfill.",
+      ),
   }),
+  firstConnectBootstrap: zod
+    .object({
+      provisioned: zod
+        .number()
+        .describe(
+          "Number of projects whose canonical sub-folders were ensured.",
+        ),
+      provisionFailed: zod
+        .number()
+        .describe("Number of projects where provisioning failed."),
+      uploaded: zod
+        .number()
+        .describe("Documents uploaded to Drive by the initial backfill."),
+      skipped: zod
+        .number()
+        .describe("Documents skipped (already in Drive or no source bytes)."),
+      failed: zod.number().describe("Documents the backfill could not upload."),
+    })
+    .optional()
+    .describe(
+      "Present only on the first successful connect. Reports the result of the per-project sub-folder provisioning + initial backfill that the server runs once.",
+    ),
 });
 
 /**

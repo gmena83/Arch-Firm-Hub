@@ -5,8 +5,11 @@
  * KONTi Design | Build Studio - Project Management API
  * OpenAPI spec version: 0.1.0
  */
+import type { DriveConfigResponseFirstConnectBootstrap } from "./driveConfigResponseFirstConnectBootstrap";
 import type { DriveIntegrationConfig } from "./driveIntegrationConfig";
 
 export interface DriveConfigResponse {
   config: DriveIntegrationConfig;
+  /** Present only on the first successful connect. Reports the result of the per-project sub-folder provisioning + initial backfill that the server runs once. */
+  firstConnectBootstrap?: DriveConfigResponseFirstConnectBootstrap;
 }
