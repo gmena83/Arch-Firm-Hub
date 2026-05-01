@@ -15,6 +15,7 @@ import {
   type ProjectNote,
 } from "../data/seed";
 import { requireRole } from "../middlewares/require-role";
+import { generateSecureSlug } from "../lib/crypto";
 
 const router: IRouter = Router();
 
@@ -191,7 +192,7 @@ router.post("/projects/:id/notes", requireRole(["team", "admin", "superadmin", "
   // on both sides. Voice notes + general notes default to team-only ("private").
   const isPrivate = noteType !== "client_question";
   const note: ProjectNote = {
-    id: `note-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    id: `note-${Date.now()}-${generateSecureSlug(5)}`,
     type: noteType,
     text,
     lang: body.lang === "es" ? "es" : "en",
@@ -235,7 +236,7 @@ router.post("/projects/:id/notes/:noteId/reply", requireRole(["team", "admin", "
   if (!text) { res.status(400).json({ error: "empty_reply" }); return; }
   const user = (req as { user?: { id: string; name?: string } }).user;
   const reply: NoteReply = {
-    id: `rep-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    id: `rep-${Date.now()}-${generateSecureSlug(5)}`,
     by: user?.name ?? "Team",
     text,
     lang: body.lang === "es" ? "es" : "en",
@@ -270,7 +271,7 @@ router.post("/ai/confirm-classification", requireRole(["team", "admin", "superad
     res.status(403).json({ error: "forbidden", message: "Client cannot access this project" }); return;
   }
   for (const it of items) {
-    SPEC_EVENTS.push({ id: `s-${Date.now()}-${Math.random().toString(36).slice(2,5)}`, projectId, kind: "added", title: `Classified: ${it}`, createdAt: new Date().toISOString() });
+    SPEC_EVENTS.push({ id: `s-${Date.now()}-${generateSecureSlug(3)}`, projectId, kind: "added", title: `Classified: ${it}`, createdAt: new Date().toISOString() });
   }
   void persistSpecEvents();
   res.json({ ok: true, classified: items.length, action: body.action ?? "classify_photos", at: new Date().toISOString() });
@@ -424,7 +425,7 @@ router.post("/ai/chat", requireRole(["team", "admin", "superadmin", "architect",
     const u = (req as { user?: { id?: string; name?: string } }).user;
     const noteText = message.trim().slice(0, 500);
     const newQ: ProjectNote = {
-      id: `note-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      id: `note-${Date.now()}-${generateSecureSlug(5)}`,
       type: "client_question",
       text: noteText,
       lang: looksLikeSpanish(message),

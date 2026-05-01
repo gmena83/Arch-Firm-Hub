@@ -10,6 +10,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import { logger } from "./logger";
+import { generateSecureSlug } from "./crypto";
 
 export interface AsanaIntegrationConfig {
   enabled: boolean;
@@ -267,7 +268,7 @@ export function appendSyncLog(entry: Omit<SyncLogEntry, "id" | "timestamp"> & {
 }): SyncLogEntry {
   const state = getState();
   const e: SyncLogEntry = {
-    id: entry.id ?? `sync-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    id: entry.id ?? `sync-${Date.now()}-${generateSecureSlug(6)}`,
     timestamp: entry.timestamp ?? new Date().toISOString(),
     projectId: entry.projectId,
     projectName: entry.projectName,
@@ -314,7 +315,7 @@ export function enqueueJob(job: Omit<QueuedSyncJob, "id" | "enqueuedAt" | "nextA
   if (existing) return existing;
   const now = new Date().toISOString();
   const entry: QueuedSyncJob = {
-    id: job.id ?? `job-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    id: job.id ?? `job-${Date.now()}-${generateSecureSlug(6)}`,
     enqueuedAt: job.enqueuedAt ?? now,
     nextAttemptAt: job.nextAttemptAt ?? now,
     attempts: job.attempts ?? 0,

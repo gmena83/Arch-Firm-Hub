@@ -15,6 +15,7 @@ import { requireRole } from "../middlewares/require-role";
 import { getAsanaConfig, isAsanaEnabled } from "../lib/integrations-config";
 import { createTask } from "../lib/asana-client";
 import { logger } from "../lib/logger";
+import { randomInt } from "node:crypto";
 
 type ProjectRecord = (typeof PROJECTS)[number];
 
@@ -183,12 +184,12 @@ router.post("/leads/:id/accept", requireRole("admin", "architect", "superadmin")
       asanaMessageEs = `Tarea ASANA creada (gid: ${task.gid})`;
     } catch (err) {
       logger.warn({ err: (err as Error).message, leadId: lead.id }, "lead-accept: Asana createTask failed; falling back to stub");
-      lead.asanaGid = `12345678${Math.floor(Math.random() * 90000 + 10000)}`;
+      lead.asanaGid = `12345678${randomInt(10000, 100000)}`;
       asanaMessageEn = `Asana unavailable; using local stub gid ${lead.asanaGid}`;
       asanaMessageEs = `Asana no disponible; usando gid local ${lead.asanaGid}`;
     }
   } else {
-    lead.asanaGid = `12345678${Math.floor(Math.random() * 90000 + 10000)}`;
+    lead.asanaGid = `12345678${randomInt(10000, 100000)}`;
     asanaMessageEn = `ASANA task created (gid: ${lead.asanaGid})`;
     asanaMessageEs = `Tarea ASANA creada (gid: ${lead.asanaGid})`;
   }

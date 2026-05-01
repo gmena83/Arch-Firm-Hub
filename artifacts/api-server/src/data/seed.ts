@@ -1,6 +1,7 @@
 // KONTi Design | Build Studio — Static Seed Data for MVP Demo
 
 import { loadPersistedPunchlist } from "./punchlist-store";
+import { generateSecureSlug } from "../lib/crypto";
 
 // Users carry optional contact + address fields so clients can edit their
 // own contact info from the in-app Settings page (T3 / row #20). Mutable so
@@ -1469,7 +1470,7 @@ export function appendAuditEntry(
   entry: Omit<AuditEntry, "id" | "timestamp"> & { id?: string; timestamp?: string },
 ): AuditEntry {
   const e: AuditEntry = {
-    id: entry.id ?? `audit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    id: entry.id ?? `audit-${Date.now()}-${generateSecureSlug(6)}`,
     timestamp: entry.timestamp ?? new Date().toISOString(),
     actor: entry.actor,
     ...(entry.actorRole !== undefined ? { actorRole: entry.actorRole } : {}),

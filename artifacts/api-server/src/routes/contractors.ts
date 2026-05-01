@@ -1,11 +1,12 @@
 import { Router, type IRouter } from "express";
 import { CONTRACTORS, appendAuditEntry, type Contractor } from "../data/seed";
 import { requireRole } from "../middlewares/require-role";
+import { generateSecureSlug } from "../lib/crypto";
 
 const router: IRouter = Router();
 
 function nextId(): string {
-  return `ctr-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+  return `ctr-${Date.now().toString(36)}-${generateSecureSlug(5)}`;
 }
 
 function sanitize(input: unknown, max = 500): string {
