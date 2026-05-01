@@ -1360,7 +1360,13 @@ export type ProjectActivityType =
   | "project_created"
   | "contractor_created"
   | "contractor_deleted"
-  | "lead_accepted";
+  | "lead_accepted"
+  // Task #127 — Asana sync + new manual log events
+  | "site_visit_logged"
+  | "client_interaction_logged"
+  | "asana_sync_succeeded"
+  | "asana_sync_failed"
+  | "asana_task_linked";
 
 export interface ProjectActivity {
   id: string;
@@ -1447,6 +1453,12 @@ const ACTIVITY_TYPE_TO_ENTITY: Record<string, AuditEntity> = {
   project_metadata_updated: "project",
   contractor_created: "contractor",
   contractor_deleted: "contractor",
+  // Task #127 — Asana sync + new manual log events
+  site_visit_logged: "project",
+  client_interaction_logged: "client",
+  asana_sync_succeeded: "system",
+  asana_sync_failed: "system",
+  asana_task_linked: "project",
 };
 
 export const AUDIT_LOG: AuditEntry[] = [];
@@ -1597,6 +1609,15 @@ export const WEEKLY_REPORTS: Record<string, WeeklyReport[]> = {
   ],
 };
 
+// Optional Asana sync hook — wired in by lib/asana-sync.ts at server boot.
+// Stays a noop in tests / when the connector isn't configured so the rest of
+// the demo behaves identically.
+export type AsanaSyncHook = (projectId: string, activity: ProjectActivity) => void;
+let asanaSyncHook: AsanaSyncHook | null = null;
+export function setAsanaSyncHook(hook: AsanaSyncHook | null): void {
+  asanaSyncHook = hook;
+}
+
 export function appendActivity(
   projectId: string,
   activity: Omit<ProjectActivity, "id" | "timestamp">,
@@ -1623,6 +1644,16 @@ export function appendActivity(
     description: entry.description,
     descriptionEs: entry.descriptionEs,
   });
+  // Asana mirror — wrapped in try/catch so a sync hook bug never breaks the
+  // primary write path. Self-emitted asana_sync_* entries are skipped inside
+  // the hook to avoid feedback loops.
+  if (asanaSyncHook) {
+    try {
+      asanaSyncHook(projectId, entry);
+    } catch {
+      /* sync hook is non-blocking by design */
+    }
+  }
   return entry;
 }
 

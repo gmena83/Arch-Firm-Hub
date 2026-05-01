@@ -12,6 +12,9 @@ import {
   type BookingType,
 } from "../data/seed";
 import { requireRole } from "../middlewares/require-role";
+import { getAsanaConfig, isAsanaEnabled } from "../lib/integrations-config";
+import { createTask } from "../lib/asana-client";
+import { logger } from "../lib/logger";
 
 type ProjectRecord = (typeof PROJECTS)[number];
 
@@ -126,7 +129,7 @@ router.post("/leads", (req, res) => {
 // Track lead -> project for idempotency
 const ACCEPTED_LEAD_PROJECTS = new Map<string, string>();
 
-router.post("/leads/:id/accept", requireRole("admin", "architect", "superadmin"), (req, res) => {
+router.post("/leads/:id/accept", requireRole("admin", "architect", "superadmin"), async (req, res) => {
   const lead = LEADS.find((l) => l.id === req.params["id"]);
   if (!lead) {
     res.status(404).json({ error: "not_found", message: "Lead not found" });
@@ -153,7 +156,42 @@ router.post("/leads/:id/accept", requireRole("admin", "architect", "superadmin")
   }
 
   lead.status = "accepted";
-  lead.asanaGid = `12345678${Math.floor(Math.random() * 90000 + 10000)}`;
+  // Task #127 — when the Asana integration is configured, create a real
+  // Asana task and stamp the returned gid on both the lead and project.
+  // Otherwise fall back to the demo stub so the rest of the flow still works.
+  let asanaMessageEn = "";
+  let asanaMessageEs = "";
+  if (isAsanaEnabled()) {
+    const cfg = getAsanaConfig();
+    const taskName = `${lead.contactName} — ${lead.projectType} (${lead.location})`;
+    const notes = [
+      `KONTi lead accepted from ${lead.source}.`,
+      `Budget range: ${lead.budgetRange}. Land status: ${lead.terrainStatus}.`,
+      `Phone: ${lead.phone} · Email: ${lead.email}`,
+      lead.notes ? `Notes: ${lead.notes}` : "",
+    ].filter(Boolean).join("\n");
+    try {
+      const task = await createTask({
+        name: taskName,
+        notes,
+        workspaceGid: cfg.workspaceGid as string,
+        boardGid: cfg.boardGid as string,
+        ...(cfg.defaultAssigneeGid ? { assigneeGid: cfg.defaultAssigneeGid } : {}),
+      });
+      lead.asanaGid = task.gid;
+      asanaMessageEn = `ASANA task created (gid: ${task.gid})`;
+      asanaMessageEs = `Tarea ASANA creada (gid: ${task.gid})`;
+    } catch (err) {
+      logger.warn({ err: (err as Error).message, leadId: lead.id }, "lead-accept: Asana createTask failed; falling back to stub");
+      lead.asanaGid = `12345678${Math.floor(Math.random() * 90000 + 10000)}`;
+      asanaMessageEn = `Asana unavailable; using local stub gid ${lead.asanaGid}`;
+      asanaMessageEs = `Asana no disponible; usando gid local ${lead.asanaGid}`;
+    }
+  } else {
+    lead.asanaGid = `12345678${Math.floor(Math.random() * 90000 + 10000)}`;
+    asanaMessageEn = `ASANA task created (gid: ${lead.asanaGid})`;
+    asanaMessageEs = `Tarea ASANA creada (gid: ${lead.asanaGid})`;
+  }
 
   // Synthesize a discovery-phase project (in-memory only)
   const projectId = `proj-${Date.now()}`;
@@ -203,7 +241,8 @@ router.post("/leads/:id/accept", requireRole("admin", "architect", "superadmin")
     lead,
     project: newProject,
     asanaGid: lead.asanaGid,
-    asanaMessage: `ASANA task created (gid: ${lead.asanaGid})`,
+    asanaMessage: asanaMessageEn,
+    asanaMessageEs,
   });
 });
 

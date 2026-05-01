@@ -13,4 +13,5 @@ export interface LeadAcceptResponse {
   project: Project;
   asanaGid: string;
   asanaMessage: string;
+  asanaMessageEs?: string;
 }

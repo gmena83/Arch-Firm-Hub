@@ -10,10 +10,10 @@ Reconciled workbook: `attached_assets/KONTi_Dashboard_Feedback_Consolidated_v3_a
 |---|---:|
 | Open | 8 |
 | In Progress | 0 |
-| Done | 41 |
+| Done | 42 |
 | Done — needs verification | 1 |
 | Needs Spec | 0 |
-| Needs Decision | 7 |
+| Needs Decision | 6 |
 
 ## Items moved to **Done — needs verification**
 
@@ -65,6 +65,7 @@ These rows look closed on paper but a PM should eyeball the live UI before promo
 | F-02 | In Progress | Done | Done in #61 (client home in client portal) and #72 (dashboard restructure). |
 | G-01 | Open | Done | Already shipped despite V2 scope: ContractorUploadModal (single + CSV modes) in artifacts/konti-dashboard/src/pages/team.tsx (~L69-115). |
 | H-01 | Open | Done | Done in #99 (Reviewer feedback bundle #2): leads page now renders an inline lead-score legend (Hot / Warm / Cold / New thresholds) right next to the table. |
+| H-02 | Needs Decision | Done | Done in #127 (real bidirectional Asana integration): leads now create real Asana tasks via lib/asana-client.createTask() with graceful fallback when the connector is unavailable; dashboard activity (uploads, photos, site visits, client interactions, phase changes, contract signed) is mirrored into Asana via lib/asana-sync.ts; admin-only Settings → Asana panel for connect/configure/sync log/retry; project_team_actions modals for site visits, client interactions, and Asana task linking. |
 | I-01 | In Progress | Done | Done in #60 (file upload regression on the demo project fixed). |
 | I-02 | Open | Done | Done in #99 (Reviewer feedback bundle #2): document upload modal now requires a category dropdown so demo-project docs are sorted into the correct buckets. |
 | I-03 | In Progress | Done | Done in #32 (punchlist persists across restart). |
@@ -90,7 +91,6 @@ These rows look closed on paper but a PM should eyeball the live UI before promo
 | D-02 | Needs Decision | Needs Decision |
 | E-04 | Needs Decision | Needs Decision |
 | E-05 | Needs Decision | Needs Decision |
-| H-02 | Needs Decision | Needs Decision |
 | H-03 | Needs Decision | Needs Decision |
 | J-01 | Needs Decision | Needs Decision |
 

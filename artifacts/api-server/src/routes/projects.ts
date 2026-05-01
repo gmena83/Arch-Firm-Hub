@@ -50,6 +50,8 @@ import {
 import { savePunchlist } from "../data/punchlist-store";
 import { requireRole } from "../middlewares/require-role";
 import { EXTRA_MATERIALS, PROJECT_REPORT_TEMPLATE, PROJECT_CONTRACTOR_ESTIMATE, type ContractorEstimateLine, type ReportTemplate } from "./estimating";
+import { getAsanaConfig, isAsanaEnabled } from "../lib/integrations-config";
+import { listTasksForProject, AsanaNotConnectedError, AsanaApiError } from "../lib/asana-client";
 
 const router: IRouter = Router();
 
@@ -2128,6 +2130,140 @@ router.patch(
       projectType: next.projectType ?? "residencial",
       contingencyPercent: next.contingencyPercent ?? 0,
     });
+  },
+);
+
+// ---------------------------------------------------------------------------
+// Task #127 — Site visit + client interaction logs
+// New manual log endpoints. Both write a single ProjectActivity which the
+// Asana sync hook (when configured) mirrors into the linked Asana task.
+// ---------------------------------------------------------------------------
+
+type SiteVisitChannel = "site" | "remote";
+
+router.post(
+  "/projects/:projectId/site-visits",
+  requireRole(["team", "admin", "superadmin", "architect"]),
+  (req, res) => {
+    const projectId = req.params["projectId"] as string;
+    if (!PROJECTS.find((p) => p.id === projectId)) {
+      return res.status(404).json({ error: "not_found", message: "Project not found" });
+    }
+    const body = (req.body ?? {}) as {
+      visitDate?: string; visitor?: string; note?: string; channel?: SiteVisitChannel;
+    };
+    const visitor = typeof body.visitor === "string" ? body.visitor.trim() : "";
+    const note = typeof body.note === "string" ? body.note.trim().slice(0, 2000) : "";
+    const visitDate = typeof body.visitDate === "string" ? body.visitDate.trim() : "";
+    const channel: SiteVisitChannel = body.channel === "remote" ? "remote" : "site";
+    if (!visitor || !visitDate) {
+      return res.status(400).json({ error: "bad_request", message: "visitor and visitDate are required" });
+    }
+    if (Number.isNaN(Date.parse(visitDate))) {
+      return res.status(400).json({ error: "bad_request", message: "visitDate must be ISO-8601" });
+    }
+    const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
+    const channelEn = channel === "remote" ? "remote check" : "on-site visit";
+    const channelEs = channel === "remote" ? "revisión remota" : "visita al sitio";
+    const entry = appendActivity(projectId, {
+      type: "site_visit_logged",
+      actor,
+      description: `${channelEn} on ${visitDate} by ${visitor}${note ? `: ${note}` : ""}`,
+      descriptionEs: `${channelEs} el ${visitDate} por ${visitor}${note ? `: ${note}` : ""}`,
+    });
+    res.status(201).json(entry);
+  },
+);
+
+type ClientChannel = "call" | "meeting" | "email" | "whatsapp";
+const VALID_CHANNELS: ClientChannel[] = ["call", "meeting", "email", "whatsapp"];
+
+router.post(
+  "/projects/:projectId/client-interactions",
+  requireRole(["team", "admin", "superadmin", "architect"]),
+  (req, res) => {
+    const projectId = req.params["projectId"] as string;
+    if (!PROJECTS.find((p) => p.id === projectId)) {
+      return res.status(404).json({ error: "not_found", message: "Project not found" });
+    }
+    const body = (req.body ?? {}) as {
+      occurredAt?: string; channel?: ClientChannel; with?: string; note?: string;
+    };
+    const occurredAt = typeof body.occurredAt === "string" ? body.occurredAt.trim() : "";
+    const channel = body.channel as ClientChannel;
+    const withWhom = typeof body.with === "string" ? body.with.trim() : "";
+    const note = typeof body.note === "string" ? body.note.trim().slice(0, 2000) : "";
+    if (!occurredAt || !channel || !withWhom) {
+      return res.status(400).json({ error: "bad_request", message: "occurredAt, channel, with are required" });
+    }
+    if (!VALID_CHANNELS.includes(channel)) {
+      return res.status(400).json({ error: "bad_request", message: "channel must be call|meeting|email|whatsapp" });
+    }
+    if (Number.isNaN(Date.parse(occurredAt))) {
+      return res.status(400).json({ error: "bad_request", message: "occurredAt must be ISO-8601" });
+    }
+    const channelEn = { call: "Call", meeting: "Meeting", email: "Email", whatsapp: "WhatsApp" }[channel];
+    const channelEs = { call: "Llamada", meeting: "Reunión", email: "Email", whatsapp: "WhatsApp" }[channel];
+    const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
+    const entry = appendActivity(projectId, {
+      type: "client_interaction_logged",
+      actor,
+      description: `${channelEn} with ${withWhom} on ${occurredAt}${note ? `: ${note}` : ""}`,
+      descriptionEs: `${channelEs} con ${withWhom} el ${occurredAt}${note ? `: ${note}` : ""}`,
+    });
+    res.status(201).json(entry);
+  },
+);
+
+// ---------------------------------------------------------------------------
+// Asana task picker for projects whose asanaGid is unset / stale.
+// ---------------------------------------------------------------------------
+router.get(
+  "/projects/:projectId/asana-candidates",
+  requireRole(["team", "admin", "superadmin"]),
+  async (_req, res) => {
+    if (!isAsanaEnabled()) {
+      return res.status(412).json({ error: "not_configured", message: "Asana integration is not configured." });
+    }
+    const cfg = getAsanaConfig();
+    try {
+      const tasks = await listTasksForProject(cfg.boardGid as string, 100);
+      res.json({ tasks });
+    } catch (err) {
+      if (err instanceof AsanaNotConnectedError) {
+        return res.status(412).json({ error: "not_connected", message: err.message });
+      }
+      if (err instanceof AsanaApiError) {
+        return res.status(502).json({ error: "asana_error", status: err.status, message: err.message });
+      }
+      return res.status(500).json({ error: "internal", message: (err as Error).message });
+    }
+  },
+);
+
+router.post(
+  "/projects/:projectId/asana-link",
+  requireRole(["team", "admin", "superadmin"]),
+  (req, res) => {
+    const projectId = req.params["projectId"] as string;
+    const project = PROJECTS.find((p) => p.id === projectId) as { id: string; name: string; asanaGid?: string } | undefined;
+    if (!project) {
+      return res.status(404).json({ error: "not_found", message: "Project not found" });
+    }
+    const body = (req.body ?? {}) as { asanaGid?: unknown; asanaTaskName?: unknown };
+    const gid = typeof body.asanaGid === "string" ? body.asanaGid.trim() : "";
+    if (!gid) {
+      return res.status(400).json({ error: "bad_request", message: "asanaGid required" });
+    }
+    project.asanaGid = gid;
+    const taskName = typeof body.asanaTaskName === "string" ? body.asanaTaskName.trim() : "";
+    appendActivity(projectId, {
+      type: "asana_task_linked",
+      actor: (req as { user?: { name?: string } }).user?.name ?? "Team",
+      description: `Project linked to Asana task ${gid}${taskName ? ` ("${taskName}")` : ""}`,
+      descriptionEs: `Proyecto vinculado a tarea Asana ${gid}${taskName ? ` ("${taskName}")` : ""}`,
+    });
+    res.json({ projectId, asanaGid: gid });
   },
 );
 

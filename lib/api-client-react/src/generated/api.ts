@@ -21,6 +21,11 @@ import type {
   AdvanceDesignSubPhase200,
   AdvanceProjectPhase200,
   ApproveProposal200,
+  AsanaConfigResponse,
+  AsanaConfigureRequest,
+  AsanaRetryResponse,
+  AsanaStatusResponse,
+  AsanaSyncLogResponse,
   AuditLogResponse,
   AuthorizePermits200,
   CalculatorLineUpdate,
@@ -28,6 +33,7 @@ import type {
   ChangeOrderResponse,
   ChatRequest,
   ChatResponse,
+  ClientInteractionRequest,
   Contractor,
   ContractorBulkCreateRequest,
   ContractorBulkCreateResponse,
@@ -63,7 +69,12 @@ import type {
   Lead,
   LeadAcceptResponse,
   LeadCreateRequest,
+  LinkProjectToAsanaTaskBody,
+  ListAsanaBoards200,
+  ListAsanaBoardsParams,
+  ListAsanaWorkspaces200,
   ListMaterialsParams,
+  ListProjectAsanaCandidates200,
   ListProjectPunchlistParams,
   LoginRequest,
   LoginResponse,
@@ -74,6 +85,7 @@ import type {
   PermitsResponse,
   PreDesignData,
   Project,
+  ProjectActivity,
   ProjectAuditLogResponse,
   ProjectClientContact,
   ProjectClientContactUpdate,
@@ -99,6 +111,7 @@ import type {
   SetPermitItemStateBody,
   SignPermitForm200,
   SignPermitFormBody,
+  SiteVisitRequest,
   StructuralEngineer,
   SubmitPermitsToOgpe200,
   SubmitStructuredVariables200,
@@ -6821,4 +6834,938 @@ export const useSendChatMessage = <
   TContext
 > => {
   return useMutation(getSendChatMessageMutationOptions(options));
+};
+
+/**
+ * @summary Current Asana integration status
+ */
+export const getGetAsanaStatusUrl = () => {
+  return `/api/integrations/asana/status`;
+};
+
+export const getAsanaStatus = async (
+  options?: RequestInit,
+): Promise<AsanaStatusResponse> => {
+  return customFetch<AsanaStatusResponse>(getGetAsanaStatusUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetAsanaStatusQueryKey = () => {
+  return [`/api/integrations/asana/status`] as const;
+};
+
+export const getGetAsanaStatusQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAsanaStatus>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getAsanaStatus>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetAsanaStatusQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getAsanaStatus>>> = ({
+    signal,
+  }) => getAsanaStatus({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAsanaStatus>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetAsanaStatusQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAsanaStatus>>
+>;
+export type GetAsanaStatusQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Current Asana integration status
+ */
+
+export function useGetAsanaStatus<
+  TData = Awaited<ReturnType<typeof getAsanaStatus>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getAsanaStatus>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetAsanaStatusQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List Asana workspaces visible to the connected user
+ */
+export const getListAsanaWorkspacesUrl = () => {
+  return `/api/integrations/asana/workspaces`;
+};
+
+export const listAsanaWorkspaces = async (
+  options?: RequestInit,
+): Promise<ListAsanaWorkspaces200> => {
+  return customFetch<ListAsanaWorkspaces200>(getListAsanaWorkspacesUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListAsanaWorkspacesQueryKey = () => {
+  return [`/api/integrations/asana/workspaces`] as const;
+};
+
+export const getListAsanaWorkspacesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listAsanaWorkspaces>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listAsanaWorkspaces>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListAsanaWorkspacesQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listAsanaWorkspaces>>
+  > = ({ signal }) => listAsanaWorkspaces({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listAsanaWorkspaces>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListAsanaWorkspacesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listAsanaWorkspaces>>
+>;
+export type ListAsanaWorkspacesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List Asana workspaces visible to the connected user
+ */
+
+export function useListAsanaWorkspaces<
+  TData = Awaited<ReturnType<typeof listAsanaWorkspaces>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listAsanaWorkspaces>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListAsanaWorkspacesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List Asana projects (boards) for a workspace
+ */
+export const getListAsanaBoardsUrl = (params: ListAsanaBoardsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/integrations/asana/boards?${stringifiedParams}`
+    : `/api/integrations/asana/boards`;
+};
+
+export const listAsanaBoards = async (
+  params: ListAsanaBoardsParams,
+  options?: RequestInit,
+): Promise<ListAsanaBoards200> => {
+  return customFetch<ListAsanaBoards200>(getListAsanaBoardsUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListAsanaBoardsQueryKey = (params?: ListAsanaBoardsParams) => {
+  return [
+    `/api/integrations/asana/boards`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getListAsanaBoardsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listAsanaBoards>>,
+  TError = ErrorType<unknown>,
+>(
+  params: ListAsanaBoardsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listAsanaBoards>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListAsanaBoardsQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listAsanaBoards>>> = ({
+    signal,
+  }) => listAsanaBoards(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listAsanaBoards>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListAsanaBoardsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listAsanaBoards>>
+>;
+export type ListAsanaBoardsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List Asana projects (boards) for a workspace
+ */
+
+export function useListAsanaBoards<
+  TData = Awaited<ReturnType<typeof listAsanaBoards>>,
+  TError = ErrorType<unknown>,
+>(
+  params: ListAsanaBoardsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listAsanaBoards>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListAsanaBoardsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Persist workspace + board choice and (optional) default assignee
+ */
+export const getConfigureAsanaUrl = () => {
+  return `/api/integrations/asana/configure`;
+};
+
+export const configureAsana = async (
+  asanaConfigureRequest: AsanaConfigureRequest,
+  options?: RequestInit,
+): Promise<AsanaConfigResponse> => {
+  return customFetch<AsanaConfigResponse>(getConfigureAsanaUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(asanaConfigureRequest),
+  });
+};
+
+export const getConfigureAsanaMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof configureAsana>>,
+    TError,
+    { data: BodyType<AsanaConfigureRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof configureAsana>>,
+  TError,
+  { data: BodyType<AsanaConfigureRequest> },
+  TContext
+> => {
+  const mutationKey = ["configureAsana"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof configureAsana>>,
+    { data: BodyType<AsanaConfigureRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return configureAsana(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ConfigureAsanaMutationResult = NonNullable<
+  Awaited<ReturnType<typeof configureAsana>>
+>;
+export type ConfigureAsanaMutationBody = BodyType<AsanaConfigureRequest>;
+export type ConfigureAsanaMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Persist workspace + board choice and (optional) default assignee
+ */
+export const useConfigureAsana = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof configureAsana>>,
+    TError,
+    { data: BodyType<AsanaConfigureRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof configureAsana>>,
+  TError,
+  { data: BodyType<AsanaConfigureRequest> },
+  TContext
+> => {
+  return useMutation(getConfigureAsanaMutationOptions(options));
+};
+
+/**
+ * @summary Forget configured workspace/board (keeps the OAuth connection itself)
+ */
+export const getDisconnectAsanaUrl = () => {
+  return `/api/integrations/asana/disconnect`;
+};
+
+export const disconnectAsana = async (
+  options?: RequestInit,
+): Promise<AsanaConfigResponse> => {
+  return customFetch<AsanaConfigResponse>(getDisconnectAsanaUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getDisconnectAsanaMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof disconnectAsana>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof disconnectAsana>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["disconnectAsana"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof disconnectAsana>>,
+    void
+  > = () => {
+    return disconnectAsana(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DisconnectAsanaMutationResult = NonNullable<
+  Awaited<ReturnType<typeof disconnectAsana>>
+>;
+
+export type DisconnectAsanaMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Forget configured workspace/board (keeps the OAuth connection itself)
+ */
+export const useDisconnectAsana = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof disconnectAsana>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof disconnectAsana>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getDisconnectAsanaMutationOptions(options));
+};
+
+/**
+ * @summary Recent sync attempts (most recent first, capped at 50)
+ */
+export const getGetAsanaSyncLogUrl = () => {
+  return `/api/integrations/asana/sync-log`;
+};
+
+export const getAsanaSyncLog = async (
+  options?: RequestInit,
+): Promise<AsanaSyncLogResponse> => {
+  return customFetch<AsanaSyncLogResponse>(getGetAsanaSyncLogUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetAsanaSyncLogQueryKey = () => {
+  return [`/api/integrations/asana/sync-log`] as const;
+};
+
+export const getGetAsanaSyncLogQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAsanaSyncLog>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getAsanaSyncLog>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetAsanaSyncLogQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getAsanaSyncLog>>> = ({
+    signal,
+  }) => getAsanaSyncLog({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAsanaSyncLog>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetAsanaSyncLogQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAsanaSyncLog>>
+>;
+export type GetAsanaSyncLogQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Recent sync attempts (most recent first, capped at 50)
+ */
+
+export function useGetAsanaSyncLog<
+  TData = Awaited<ReturnType<typeof getAsanaSyncLog>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getAsanaSyncLog>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetAsanaSyncLogQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Manually retry a failed sync entry
+ */
+export const getRetryAsanaSyncEntryUrl = (id: string) => {
+  return `/api/integrations/asana/sync-log/${id}/retry`;
+};
+
+export const retryAsanaSyncEntry = async (
+  id: string,
+  options?: RequestInit,
+): Promise<AsanaRetryResponse> => {
+  return customFetch<AsanaRetryResponse>(getRetryAsanaSyncEntryUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getRetryAsanaSyncEntryMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof retryAsanaSyncEntry>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof retryAsanaSyncEntry>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ["retryAsanaSyncEntry"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof retryAsanaSyncEntry>>,
+    { id: string }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return retryAsanaSyncEntry(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RetryAsanaSyncEntryMutationResult = NonNullable<
+  Awaited<ReturnType<typeof retryAsanaSyncEntry>>
+>;
+
+export type RetryAsanaSyncEntryMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Manually retry a failed sync entry
+ */
+export const useRetryAsanaSyncEntry = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof retryAsanaSyncEntry>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof retryAsanaSyncEntry>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  return useMutation(getRetryAsanaSyncEntryMutationOptions(options));
+};
+
+/**
+ * @summary Record a team site visit (mirrors to Asana when configured)
+ */
+export const getLogProjectSiteVisitUrl = (projectId: string) => {
+  return `/api/projects/${projectId}/site-visits`;
+};
+
+export const logProjectSiteVisit = async (
+  projectId: string,
+  siteVisitRequest: SiteVisitRequest,
+  options?: RequestInit,
+): Promise<ProjectActivity> => {
+  return customFetch<ProjectActivity>(getLogProjectSiteVisitUrl(projectId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(siteVisitRequest),
+  });
+};
+
+export const getLogProjectSiteVisitMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof logProjectSiteVisit>>,
+    TError,
+    { projectId: string; data: BodyType<SiteVisitRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof logProjectSiteVisit>>,
+  TError,
+  { projectId: string; data: BodyType<SiteVisitRequest> },
+  TContext
+> => {
+  const mutationKey = ["logProjectSiteVisit"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof logProjectSiteVisit>>,
+    { projectId: string; data: BodyType<SiteVisitRequest> }
+  > = (props) => {
+    const { projectId, data } = props ?? {};
+
+    return logProjectSiteVisit(projectId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LogProjectSiteVisitMutationResult = NonNullable<
+  Awaited<ReturnType<typeof logProjectSiteVisit>>
+>;
+export type LogProjectSiteVisitMutationBody = BodyType<SiteVisitRequest>;
+export type LogProjectSiteVisitMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Record a team site visit (mirrors to Asana when configured)
+ */
+export const useLogProjectSiteVisit = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof logProjectSiteVisit>>,
+    TError,
+    { projectId: string; data: BodyType<SiteVisitRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof logProjectSiteVisit>>,
+  TError,
+  { projectId: string; data: BodyType<SiteVisitRequest> },
+  TContext
+> => {
+  return useMutation(getLogProjectSiteVisitMutationOptions(options));
+};
+
+/**
+ * @summary Record a client phone/email/in-person interaction
+ */
+export const getLogProjectClientInteractionUrl = (projectId: string) => {
+  return `/api/projects/${projectId}/client-interactions`;
+};
+
+export const logProjectClientInteraction = async (
+  projectId: string,
+  clientInteractionRequest: ClientInteractionRequest,
+  options?: RequestInit,
+): Promise<ProjectActivity> => {
+  return customFetch<ProjectActivity>(
+    getLogProjectClientInteractionUrl(projectId),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(clientInteractionRequest),
+    },
+  );
+};
+
+export const getLogProjectClientInteractionMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof logProjectClientInteraction>>,
+    TError,
+    { projectId: string; data: BodyType<ClientInteractionRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof logProjectClientInteraction>>,
+  TError,
+  { projectId: string; data: BodyType<ClientInteractionRequest> },
+  TContext
+> => {
+  const mutationKey = ["logProjectClientInteraction"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof logProjectClientInteraction>>,
+    { projectId: string; data: BodyType<ClientInteractionRequest> }
+  > = (props) => {
+    const { projectId, data } = props ?? {};
+
+    return logProjectClientInteraction(projectId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LogProjectClientInteractionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof logProjectClientInteraction>>
+>;
+export type LogProjectClientInteractionMutationBody =
+  BodyType<ClientInteractionRequest>;
+export type LogProjectClientInteractionMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Record a client phone/email/in-person interaction
+ */
+export const useLogProjectClientInteraction = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof logProjectClientInteraction>>,
+    TError,
+    { projectId: string; data: BodyType<ClientInteractionRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof logProjectClientInteraction>>,
+  TError,
+  { projectId: string; data: BodyType<ClientInteractionRequest> },
+  TContext
+> => {
+  return useMutation(getLogProjectClientInteractionMutationOptions(options));
+};
+
+/**
+ * @summary Suggest Asana tasks that look like a match for this KONTi project
+ */
+export const getListProjectAsanaCandidatesUrl = (projectId: string) => {
+  return `/api/projects/${projectId}/asana-candidates`;
+};
+
+export const listProjectAsanaCandidates = async (
+  projectId: string,
+  options?: RequestInit,
+): Promise<ListProjectAsanaCandidates200> => {
+  return customFetch<ListProjectAsanaCandidates200>(
+    getListProjectAsanaCandidatesUrl(projectId),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getListProjectAsanaCandidatesQueryKey = (projectId: string) => {
+  return [`/api/projects/${projectId}/asana-candidates`] as const;
+};
+
+export const getListProjectAsanaCandidatesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listProjectAsanaCandidates>>,
+  TError = ErrorType<unknown>,
+>(
+  projectId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listProjectAsanaCandidates>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListProjectAsanaCandidatesQueryKey(projectId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listProjectAsanaCandidates>>
+  > = ({ signal }) =>
+    listProjectAsanaCandidates(projectId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!projectId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listProjectAsanaCandidates>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListProjectAsanaCandidatesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listProjectAsanaCandidates>>
+>;
+export type ListProjectAsanaCandidatesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Suggest Asana tasks that look like a match for this KONTi project
+ */
+
+export function useListProjectAsanaCandidates<
+  TData = Awaited<ReturnType<typeof listProjectAsanaCandidates>>,
+  TError = ErrorType<unknown>,
+>(
+  projectId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listProjectAsanaCandidates>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListProjectAsanaCandidatesQueryOptions(
+    projectId,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Bind a KONTi project to an Asana task gid
+ */
+export const getLinkProjectToAsanaTaskUrl = (projectId: string) => {
+  return `/api/projects/${projectId}/asana-link`;
+};
+
+export const linkProjectToAsanaTask = async (
+  projectId: string,
+  linkProjectToAsanaTaskBody: LinkProjectToAsanaTaskBody,
+  options?: RequestInit,
+): Promise<Project> => {
+  return customFetch<Project>(getLinkProjectToAsanaTaskUrl(projectId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(linkProjectToAsanaTaskBody),
+  });
+};
+
+export const getLinkProjectToAsanaTaskMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof linkProjectToAsanaTask>>,
+    TError,
+    { projectId: string; data: BodyType<LinkProjectToAsanaTaskBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof linkProjectToAsanaTask>>,
+  TError,
+  { projectId: string; data: BodyType<LinkProjectToAsanaTaskBody> },
+  TContext
+> => {
+  const mutationKey = ["linkProjectToAsanaTask"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof linkProjectToAsanaTask>>,
+    { projectId: string; data: BodyType<LinkProjectToAsanaTaskBody> }
+  > = (props) => {
+    const { projectId, data } = props ?? {};
+
+    return linkProjectToAsanaTask(projectId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LinkProjectToAsanaTaskMutationResult = NonNullable<
+  Awaited<ReturnType<typeof linkProjectToAsanaTask>>
+>;
+export type LinkProjectToAsanaTaskMutationBody =
+  BodyType<LinkProjectToAsanaTaskBody>;
+export type LinkProjectToAsanaTaskMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Bind a KONTi project to an Asana task gid
+ */
+export const useLinkProjectToAsanaTask = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof linkProjectToAsanaTask>>,
+    TError,
+    { projectId: string; data: BodyType<LinkProjectToAsanaTaskBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof linkProjectToAsanaTask>>,
+  TError,
+  { projectId: string; data: BodyType<LinkProjectToAsanaTaskBody> },
+  TContext
+> => {
+  return useMutation(getLinkProjectToAsanaTaskMutationOptions(options));
 };

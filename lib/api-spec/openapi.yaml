@@ -2232,6 +2232,213 @@ paths:
               schema:
                 $ref: "#/components/schemas/ChatResponse"
 
+  # ---------------------------------------------------------------------------
+  # Task #127 — Asana bidirectional sync
+  # ---------------------------------------------------------------------------
+  /integrations/asana/status:
+    get:
+      operationId: getAsanaStatus
+      tags: [integrations]
+      summary: Current Asana integration status
+      responses:
+        "200":
+          description: Status payload
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AsanaStatusResponse" }
+
+  /integrations/asana/workspaces:
+    get:
+      operationId: listAsanaWorkspaces
+      tags: [integrations]
+      summary: List Asana workspaces visible to the connected user
+      responses:
+        "200":
+          description: Workspaces list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  workspaces:
+                    type: array
+                    items: { $ref: "#/components/schemas/AsanaResource" }
+                required: [workspaces]
+
+  /integrations/asana/boards:
+    get:
+      operationId: listAsanaBoards
+      tags: [integrations]
+      summary: List Asana projects (boards) for a workspace
+      parameters:
+        - in: query
+          name: workspaceGid
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Boards list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  boards:
+                    type: array
+                    items: { $ref: "#/components/schemas/AsanaResource" }
+                required: [boards]
+
+  /integrations/asana/configure:
+    post:
+      operationId: configureAsana
+      tags: [integrations]
+      summary: Persist workspace + board choice and (optional) default assignee
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AsanaConfigureRequest" }
+      responses:
+        "200":
+          description: Updated config
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AsanaConfigResponse" }
+
+  /integrations/asana/disconnect:
+    post:
+      operationId: disconnectAsana
+      tags: [integrations]
+      summary: Forget configured workspace/board (keeps the OAuth connection itself)
+      responses:
+        "200":
+          description: Disconnected
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AsanaConfigResponse" }
+
+  /integrations/asana/sync-log:
+    get:
+      operationId: getAsanaSyncLog
+      tags: [integrations]
+      summary: Recent sync attempts (most recent first, capped at 50)
+      responses:
+        "200":
+          description: Log entries
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AsanaSyncLogResponse" }
+
+  /integrations/asana/sync-log/{id}/retry:
+    post:
+      operationId: retryAsanaSyncEntry
+      tags: [integrations]
+      summary: Manually retry a failed sync entry
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Retry queued
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AsanaRetryResponse" }
+
+  /projects/{projectId}/site-visits:
+    post:
+      operationId: logProjectSiteVisit
+      tags: [projects]
+      summary: Record a team site visit (mirrors to Asana when configured)
+      parameters:
+        - in: path
+          name: projectId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SiteVisitRequest" }
+      responses:
+        "201":
+          description: Activity created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectActivity" }
+
+  /projects/{projectId}/client-interactions:
+    post:
+      operationId: logProjectClientInteraction
+      tags: [projects]
+      summary: Record a client phone/email/in-person interaction
+      parameters:
+        - in: path
+          name: projectId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ClientInteractionRequest" }
+      responses:
+        "201":
+          description: Activity created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectActivity" }
+
+  /projects/{projectId}/asana-candidates:
+    get:
+      operationId: listProjectAsanaCandidates
+      tags: [projects]
+      summary: Suggest Asana tasks that look like a match for this KONTi project
+      parameters:
+        - in: path
+          name: projectId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Candidate tasks
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  candidates:
+                    type: array
+                    items: { $ref: "#/components/schemas/AsanaResource" }
+                required: [candidates]
+
+  /projects/{projectId}/asana-link:
+    post:
+      operationId: linkProjectToAsanaTask
+      tags: [projects]
+      summary: Bind a KONTi project to an Asana task gid
+      parameters:
+        - in: path
+          name: projectId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                asanaGid: { type: string }
+              required: [asanaGid]
+      responses:
+        "200":
+          description: Linked
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Project" }
+
 components:
   schemas:
     HealthStatus:
@@ -3383,11 +3590,159 @@ components:
           type: string
         asanaMessage:
           type: string
+        asanaMessageEs:
+          type: string
       required:
         - lead
         - project
         - asanaGid
         - asanaMessage
+
+    # ----- Task #127 Asana integration schemas -----
+    AsanaResource:
+      type: object
+      properties:
+        gid: { type: string }
+        name: { type: string }
+      required: [gid, name]
+
+    AsanaIntegrationConfig:
+      type: object
+      properties:
+        enabled: { type: boolean }
+        workspaceGid:
+          oneOf:
+            - { type: string }
+            - { type: "null" }
+        workspaceName:
+          oneOf:
+            - { type: string }
+            - { type: "null" }
+        boardGid:
+          oneOf:
+            - { type: string }
+            - { type: "null" }
+        boardName:
+          oneOf:
+            - { type: string }
+            - { type: "null" }
+        defaultAssigneeGid:
+          oneOf:
+            - { type: string }
+            - { type: "null" }
+        dashboardBaseUrl:
+          oneOf:
+            - { type: string }
+            - { type: "null" }
+        connectedAt:
+          oneOf:
+            - { type: string }
+            - { type: "null" }
+        connectedBy:
+          oneOf:
+            - { type: string }
+            - { type: "null" }
+      required:
+        - enabled
+        - workspaceGid
+        - workspaceName
+        - boardGid
+        - boardName
+        - defaultAssigneeGid
+        - dashboardBaseUrl
+        - connectedAt
+        - connectedBy
+
+    AsanaStatusResponse:
+      type: object
+      properties:
+        connected: { type: boolean }
+        connectionMessage: { type: string }
+        connectionMessageEs: { type: string }
+        config: { $ref: "#/components/schemas/AsanaIntegrationConfig" }
+      required: [connected, connectionMessage, connectionMessageEs, config]
+
+    AsanaConfigResponse:
+      type: object
+      properties:
+        config: { $ref: "#/components/schemas/AsanaIntegrationConfig" }
+      required: [config]
+
+    AsanaConfigureRequest:
+      type: object
+      properties:
+        workspaceGid: { type: string }
+        workspaceName: { type: string }
+        boardGid: { type: string }
+        boardName: { type: string }
+        defaultAssigneeGid: { type: string }
+        dashboardBaseUrl: { type: string }
+      required: [workspaceGid, boardGid]
+
+    AsanaSyncLogEntry:
+      type: object
+      properties:
+        id: { type: string }
+        timestamp: { type: string }
+        projectId: { type: string }
+        projectName: { type: string }
+        activityType: { type: string }
+        asanaTaskGid:
+          oneOf:
+            - { type: string }
+            - { type: "null" }
+        status:
+          type: string
+          enum: [ok, failed, skipped, retried]
+        attempts: { type: integer }
+        message: { type: string }
+        messageEs: { type: string }
+      required:
+        - id
+        - timestamp
+        - projectId
+        - projectName
+        - activityType
+        - asanaTaskGid
+        - status
+        - attempts
+        - message
+        - messageEs
+
+    AsanaSyncLogResponse:
+      type: object
+      properties:
+        entries:
+          type: array
+          items: { $ref: "#/components/schemas/AsanaSyncLogEntry" }
+        queueLength: { type: integer }
+      required: [entries, queueLength]
+
+    AsanaRetryResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+      required: [ok]
+
+    SiteVisitRequest:
+      type: object
+      properties:
+        actor: { type: string }
+        notes: { type: string }
+        notesEs: { type: string }
+        durationMinutes: { type: integer }
+      required: [actor, notes]
+
+    ClientInteractionRequest:
+      type: object
+      properties:
+        actor: { type: string }
+        channel:
+          type: string
+          enum: [phone, email, in_person, whatsapp, video_call]
+        notes: { type: string }
+        notesEs: { type: string }
+      required: [actor, channel, notes]
 
     Deliverable:
       type: object

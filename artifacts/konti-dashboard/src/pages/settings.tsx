@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useLang } from "@/hooks/use-lang";
 import { useToast } from "@/hooks/use-toast";
 import { useUpdateMe } from "@workspace/api-client-react";
+import { AsanaIntegrationPanel } from "@/components/asana-integration-panel";
 
 export default function SettingsPage() {
   const { user, updateUser } = useAuth();
@@ -226,6 +227,14 @@ export default function SettingsPage() {
             </div>
 
             <div className="border-t border-border" />
+
+            {/* Asana integration — admin / superadmin only (Task #127) */}
+            {(user?.role === "admin" || user?.role === "superadmin") && (
+              <>
+                <AsanaIntegrationPanel />
+                <div className="border-t border-border" />
+              </>
+            )}
 
             {/* Notification preference */}
             <div className="flex items-center justify-between">

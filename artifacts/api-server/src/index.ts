@@ -1,5 +1,10 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { installAsanaSync } from "./lib/asana-sync";
+
+// Wire the optional Asana sync hook (Task #127). Stays a noop until an admin
+// connects the Asana workspace in Settings → Integrations.
+installAsanaSync();
 
 const rawPort = process.env["PORT"];
 

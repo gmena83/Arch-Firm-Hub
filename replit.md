@@ -72,3 +72,4 @@ The project is structured as a pnpm workspace monorepo utilizing TypeScript.
 - **Google Fonts:** Used for Montserrat and Cormorant font families.
 - **SheetJS CDN:** Used for the `xlsx` library (pinned to `xlsx-0.20.3`).
 - **GitHub:** Used for repository backup and mirroring. (Connection ID `conn_github_01KQE5WDMH98BBX68KHP36KKGG`).
+- **Asana:** Bidirectional sync of dashboard activity (uploads, photos, site visits, client interactions, phase changes, contract signed) onto the team's Asana board, plus real Asana task creation when a lead is converted. Configured via Settings → Integrations (admin/superadmin only). Requires the Replit Asana connector. Backend: `lib/asana-client.ts`, `lib/integrations-config.ts` (JSON-persisted, sync log capped 50, retry queue with exp backoff), `lib/asana-sync.ts` (hook + drainer), `routes/integrations.ts`. Self-emitted `asana_sync_*` events excluded from the hook to prevent feedback loops.

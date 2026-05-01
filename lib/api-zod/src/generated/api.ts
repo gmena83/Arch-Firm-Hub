@@ -3126,6 +3126,7 @@ export const AcceptLeadResponse = zod.object({
   }),
   asanaGid: zod.string(),
   asanaMessage: zod.string(),
+  asanaMessageEs: zod.string().optional(),
 });
 
 /**
@@ -3309,4 +3310,276 @@ export const SendChatMessageResponse = zod.object({
   message: zod.string(),
   mode: zod.string(),
   projectId: zod.string().optional(),
+});
+
+/**
+ * @summary Current Asana integration status
+ */
+export const GetAsanaStatusResponse = zod.object({
+  connected: zod.boolean(),
+  connectionMessage: zod.string(),
+  connectionMessageEs: zod.string(),
+  config: zod.object({
+    enabled: zod.boolean(),
+    workspaceGid: zod.union([zod.string(), zod.null()]),
+    workspaceName: zod.union([zod.string(), zod.null()]),
+    boardGid: zod.union([zod.string(), zod.null()]),
+    boardName: zod.union([zod.string(), zod.null()]),
+    defaultAssigneeGid: zod.union([zod.string(), zod.null()]),
+    dashboardBaseUrl: zod.union([zod.string(), zod.null()]),
+    connectedAt: zod.union([zod.string(), zod.null()]),
+    connectedBy: zod.union([zod.string(), zod.null()]),
+  }),
+});
+
+/**
+ * @summary List Asana workspaces visible to the connected user
+ */
+export const ListAsanaWorkspacesResponse = zod.object({
+  workspaces: zod.array(
+    zod.object({
+      gid: zod.string(),
+      name: zod.string(),
+    }),
+  ),
+});
+
+/**
+ * @summary List Asana projects (boards) for a workspace
+ */
+export const ListAsanaBoardsQueryParams = zod.object({
+  workspaceGid: zod.coerce.string(),
+});
+
+export const ListAsanaBoardsResponse = zod.object({
+  boards: zod.array(
+    zod.object({
+      gid: zod.string(),
+      name: zod.string(),
+    }),
+  ),
+});
+
+/**
+ * @summary Persist workspace + board choice and (optional) default assignee
+ */
+export const ConfigureAsanaBody = zod.object({
+  workspaceGid: zod.string(),
+  workspaceName: zod.string().optional(),
+  boardGid: zod.string(),
+  boardName: zod.string().optional(),
+  defaultAssigneeGid: zod.string().optional(),
+  dashboardBaseUrl: zod.string().optional(),
+});
+
+export const ConfigureAsanaResponse = zod.object({
+  config: zod.object({
+    enabled: zod.boolean(),
+    workspaceGid: zod.union([zod.string(), zod.null()]),
+    workspaceName: zod.union([zod.string(), zod.null()]),
+    boardGid: zod.union([zod.string(), zod.null()]),
+    boardName: zod.union([zod.string(), zod.null()]),
+    defaultAssigneeGid: zod.union([zod.string(), zod.null()]),
+    dashboardBaseUrl: zod.union([zod.string(), zod.null()]),
+    connectedAt: zod.union([zod.string(), zod.null()]),
+    connectedBy: zod.union([zod.string(), zod.null()]),
+  }),
+});
+
+/**
+ * @summary Forget configured workspace/board (keeps the OAuth connection itself)
+ */
+export const DisconnectAsanaResponse = zod.object({
+  config: zod.object({
+    enabled: zod.boolean(),
+    workspaceGid: zod.union([zod.string(), zod.null()]),
+    workspaceName: zod.union([zod.string(), zod.null()]),
+    boardGid: zod.union([zod.string(), zod.null()]),
+    boardName: zod.union([zod.string(), zod.null()]),
+    defaultAssigneeGid: zod.union([zod.string(), zod.null()]),
+    dashboardBaseUrl: zod.union([zod.string(), zod.null()]),
+    connectedAt: zod.union([zod.string(), zod.null()]),
+    connectedBy: zod.union([zod.string(), zod.null()]),
+  }),
+});
+
+/**
+ * @summary Recent sync attempts (most recent first, capped at 50)
+ */
+export const GetAsanaSyncLogResponse = zod.object({
+  entries: zod.array(
+    zod.object({
+      id: zod.string(),
+      timestamp: zod.string(),
+      projectId: zod.string(),
+      projectName: zod.string(),
+      activityType: zod.string(),
+      asanaTaskGid: zod.union([zod.string(), zod.null()]),
+      status: zod.enum(["ok", "failed", "skipped", "retried"]),
+      attempts: zod.number(),
+      message: zod.string(),
+      messageEs: zod.string(),
+    }),
+  ),
+  queueLength: zod.number(),
+});
+
+/**
+ * @summary Manually retry a failed sync entry
+ */
+export const RetryAsanaSyncEntryParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const RetryAsanaSyncEntryResponse = zod.object({
+  ok: zod.boolean(),
+});
+
+/**
+ * @summary Record a team site visit (mirrors to Asana when configured)
+ */
+export const LogProjectSiteVisitParams = zod.object({
+  projectId: zod.coerce.string(),
+});
+
+export const LogProjectSiteVisitBody = zod.object({
+  actor: zod.string(),
+  notes: zod.string(),
+  notesEs: zod.string().optional(),
+  durationMinutes: zod.number().optional(),
+});
+
+/**
+ * @summary Record a client phone/email/in-person interaction
+ */
+export const LogProjectClientInteractionParams = zod.object({
+  projectId: zod.coerce.string(),
+});
+
+export const LogProjectClientInteractionBody = zod.object({
+  actor: zod.string(),
+  channel: zod.enum(["phone", "email", "in_person", "whatsapp", "video_call"]),
+  notes: zod.string(),
+  notesEs: zod.string().optional(),
+});
+
+/**
+ * @summary Suggest Asana tasks that look like a match for this KONTi project
+ */
+export const ListProjectAsanaCandidatesParams = zod.object({
+  projectId: zod.coerce.string(),
+});
+
+export const ListProjectAsanaCandidatesResponse = zod.object({
+  candidates: zod.array(
+    zod.object({
+      gid: zod.string(),
+      name: zod.string(),
+    }),
+  ),
+});
+
+/**
+ * @summary Bind a KONTi project to an Asana task gid
+ */
+export const LinkProjectToAsanaTaskParams = zod.object({
+  projectId: zod.coerce.string(),
+});
+
+export const LinkProjectToAsanaTaskBody = zod.object({
+  asanaGid: zod.string(),
+});
+
+export const LinkProjectToAsanaTaskResponse = zod.object({
+  id: zod.string(),
+  name: zod.string(),
+  nameEs: zod.string().optional(),
+  clientName: zod.string(),
+  location: zod.string(),
+  city: zod.string(),
+  phase: zod.enum([
+    "discovery",
+    "consultation",
+    "pre_design",
+    "schematic_design",
+    "design_development",
+    "construction_documents",
+    "permits",
+    "construction",
+    "completed",
+  ]),
+  phaseLabel: zod.string(),
+  phaseLabelEs: zod.string(),
+  phaseNumber: zod.number(),
+  progressPercent: zod.number(),
+  budgetAllocated: zod.number(),
+  budgetUsed: zod.number(),
+  startDate: zod.string(),
+  estimatedEndDate: zod.string(),
+  description: zod.string().optional(),
+  coverImage: zod.string().optional(),
+  asanaGid: zod.string().optional(),
+  gammaReportUrl: zod.string().optional(),
+  teamMembers: zod.array(zod.string()).optional(),
+  status: zod.enum(["active", "on_hold", "completed"]),
+  clientPhone: zod
+    .string()
+    .optional()
+    .describe(
+      "Project-level contact phone for the client. Editable by the team.",
+    ),
+  clientPostalAddress: zod
+    .string()
+    .optional()
+    .describe(
+      "Project-level postal address for the client. Editable by the team.",
+    ),
+  clientPhysicalAddress: zod
+    .string()
+    .optional()
+    .describe(
+      "Project-level physical (street) address for the client. Editable by the team.",
+    ),
+  currentStatusNote: zod
+    .string()
+    .optional()
+    .describe(
+      'Plain-language \"what\'s happening now\" sentence (English) shown on the client construction card. Editable by the team. When blank the UI falls back to a deterministic phase-based summary.',
+    ),
+  currentStatusNoteEs: zod
+    .string()
+    .optional()
+    .describe(
+      'Plain-language \"what\'s happening now\" sentence (Spanish) shown on the client construction card. Editable by the team.',
+    ),
+  squareMeters: zod
+    .number()
+    .optional()
+    .describe(
+      "Project size in square meters. Edited from Project Detail and consumed (read-only) by the Contractor Calculator (B-05).",
+    ),
+  bathrooms: zod
+    .number()
+    .optional()
+    .describe(
+      "Number of bathrooms. Project-level; consumed read-only by the Contractor Calculator (B-05).",
+    ),
+  kitchens: zod
+    .number()
+    .optional()
+    .describe(
+      "Number of kitchens. Project-level; consumed read-only by the Contractor Calculator (B-05).",
+    ),
+  projectType: zod
+    .enum(["residencial", "comercial", "mixto", "contenedor"])
+    .optional()
+    .describe(
+      "Project type bucket (residencial | comercial | mixto | contenedor). Project-level; consumed read-only by the Contractor Calculator (B-05).",
+    ),
+  contingencyPercent: zod
+    .number()
+    .optional()
+    .describe(
+      "Default contingency percentage applied to contractor estimates for this project. Project-level; consumed read-only by the Contractor Calculator (B-05).",
+    ),
 });

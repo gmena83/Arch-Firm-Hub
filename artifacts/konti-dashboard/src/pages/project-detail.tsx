@@ -43,6 +43,7 @@ import PermitsPanel from "@/components/permits-panel";
 import { CostPlusBudget } from "@/components/cost-plus-budget";
 import { ProjectInvoices } from "@/components/project-invoices";
 import { ClientActivityCard } from "@/components/client-activity-card";
+import { ProjectTeamActions } from "@/components/project-team-actions";
 import { StatusSentence } from "@/components/status-sentence";
 import { SitePhotosGallery, PHOTO_CATEGORY_OPTIONS, type PhotoCategoryKey } from "@/components/site-photos-gallery";
 import { ContractorMonitoringSection } from "@/components/contractor-monitoring-section";
@@ -1446,6 +1447,15 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
           </div>
         </div>
       </div>
+
+      {/* Task #127 — team-only quick actions: site visit / client interaction / Asana link */}
+      {user?.role !== "client" && (
+        <ProjectTeamActions
+          projectId={projectId}
+          actor={user?.name ?? user?.email ?? "team"}
+          asanaGid={project.asanaGid}
+        />
+      )}
 
       {/* View toggle (team members only) */}
       {user?.role !== "client" && (

@@ -963,6 +963,101 @@ export interface LeadAcceptResponse {
   project: Project;
   asanaGid: string;
   asanaMessage: string;
+  asanaMessageEs?: string;
+}
+
+export interface AsanaResource {
+  gid: string;
+  name: string;
+}
+
+export interface AsanaIntegrationConfig {
+  enabled: boolean;
+  workspaceGid: string | null;
+  workspaceName: string | null;
+  boardGid: string | null;
+  boardName: string | null;
+  defaultAssigneeGid: string | null;
+  dashboardBaseUrl: string | null;
+  connectedAt: string | null;
+  connectedBy: string | null;
+}
+
+export interface AsanaStatusResponse {
+  connected: boolean;
+  connectionMessage: string;
+  connectionMessageEs: string;
+  config: AsanaIntegrationConfig;
+}
+
+export interface AsanaConfigResponse {
+  config: AsanaIntegrationConfig;
+}
+
+export interface AsanaConfigureRequest {
+  workspaceGid: string;
+  workspaceName?: string;
+  boardGid: string;
+  boardName?: string;
+  defaultAssigneeGid?: string;
+  dashboardBaseUrl?: string;
+}
+
+export type AsanaSyncLogEntryStatus =
+  (typeof AsanaSyncLogEntryStatus)[keyof typeof AsanaSyncLogEntryStatus];
+
+export const AsanaSyncLogEntryStatus = {
+  ok: "ok",
+  failed: "failed",
+  skipped: "skipped",
+  retried: "retried",
+} as const;
+
+export interface AsanaSyncLogEntry {
+  id: string;
+  timestamp: string;
+  projectId: string;
+  projectName: string;
+  activityType: string;
+  asanaTaskGid: string | null;
+  status: AsanaSyncLogEntryStatus;
+  attempts: number;
+  message: string;
+  messageEs: string;
+}
+
+export interface AsanaSyncLogResponse {
+  entries: AsanaSyncLogEntry[];
+  queueLength: number;
+}
+
+export interface AsanaRetryResponse {
+  ok: boolean;
+}
+
+export interface SiteVisitRequest {
+  actor: string;
+  notes: string;
+  notesEs?: string;
+  durationMinutes?: number;
+}
+
+export type ClientInteractionRequestChannel =
+  (typeof ClientInteractionRequestChannel)[keyof typeof ClientInteractionRequestChannel];
+
+export const ClientInteractionRequestChannel = {
+  phone: "phone",
+  email: "email",
+  in_person: "in_person",
+  whatsapp: "whatsapp",
+  video_call: "video_call",
+} as const;
+
+export interface ClientInteractionRequest {
+  actor: string;
+  channel: ClientInteractionRequestChannel;
+  notes: string;
+  notesEs?: string;
 }
 
 export type DeliverableStatus =
@@ -1891,4 +1986,24 @@ export type GetAuditLogParams = {
    * @maximum 1000
    */
   limit?: number;
+};
+
+export type ListAsanaWorkspaces200 = {
+  workspaces: AsanaResource[];
+};
+
+export type ListAsanaBoardsParams = {
+  workspaceGid: string;
+};
+
+export type ListAsanaBoards200 = {
+  boards: AsanaResource[];
+};
+
+export type ListProjectAsanaCandidates200 = {
+  candidates: AsanaResource[];
+};
+
+export type LinkProjectToAsanaTaskBody = {
+  asanaGid: string;
 };

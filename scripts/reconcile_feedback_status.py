@@ -83,7 +83,7 @@ MAP = {
 
     # --- H. Leads / CRM ---
     "H-01": ("Done", "Done in #99 (Reviewer feedback bundle #2): leads page now renders an inline lead-score legend (Hot / Warm / Cold / New thresholds) right next to the table."),
-    "H-02": ("Needs Decision", None),
+    "H-02": ("Done", "Done in #127 (real bidirectional Asana integration): leads now create real Asana tasks via lib/asana-client.createTask() with graceful fallback when the connector is unavailable; dashboard activity (uploads, photos, site visits, client interactions, phase changes, contract signed) is mirrored into Asana via lib/asana-sync.ts; admin-only Settings → Asana panel for connect/configure/sync log/retry; project_team_actions modals for site visits, client interactions, and Asana task linking."),
     "H-03": ("Needs Decision", None),
 
     # --- I. Demo Project ---
