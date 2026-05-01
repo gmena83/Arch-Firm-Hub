@@ -37,4 +37,6 @@ export interface DocumentCreateRequest {
   caption?: string;
   /** Optional URL for the photo thumbnail/full-size image. */
   imageUrl?: string;
+  /** Optional base64-encoded payload (raw or `data:` URL). When the Drive integration is enabled, the bytes are streamed to the project's Drive sub-folder and the response includes driveFileId/driveWebViewLink. Ignored when Drive is disabled. */
+  fileBase64?: string;
 }

@@ -7,6 +7,7 @@ import { useLang } from "@/hooks/use-lang";
 import { useToast } from "@/hooks/use-toast";
 import { useUpdateMe } from "@workspace/api-client-react";
 import { AsanaIntegrationPanel } from "@/components/asana-integration-panel";
+import { DriveIntegrationPanel } from "@/components/drive-integration-panel";
 
 export default function SettingsPage() {
   const { user, updateUser } = useAuth();
@@ -232,6 +233,9 @@ export default function SettingsPage() {
             {(user?.role === "admin" || user?.role === "superadmin") && (
               <>
                 <AsanaIntegrationPanel />
+                <div className="border-t border-border" />
+                {/* Google Drive integration — admin / superadmin only (Task #128) */}
+                <DriveIntegrationPanel />
                 <div className="border-t border-border" />
               </>
             )}

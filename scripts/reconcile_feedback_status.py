@@ -93,7 +93,7 @@ MAP = {
     "I-04": ("Open", None),
 
     # --- J. Drive ---
-    "J-01": ("Needs Decision", None),
+    "J-01": ("Done", "Done in #128 (Google Drive integration as document storage backend): Settings page now exposes a Drive panel where admins/superadmins pick a root folder, choose visibility (private vs anyone-with-link) and delete (trash vs purge) policies, and trigger a backfill of in-app documents. When connected, every project upload streams into a per-project / per-category sub-folder in Drive, deletes are mirrored, and a viewer link is shown next to the file in the project document list. When disconnected, uploads continue to land in the in-app store as before — no behavior change."),
 }
 
 ALL_IDS = set(MAP.keys())

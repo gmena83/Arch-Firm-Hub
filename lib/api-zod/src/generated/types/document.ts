@@ -31,5 +31,15 @@ export interface Document {
   fileSize: string;
   description?: string;
   previewable?: boolean;
+  /** Google Drive file ID set when the document was synced to Drive (Task */
+  driveFileId?: string;
+  /** Google Drive folder the file was placed in (project sub-folder). */
+  driveFolderId?: string;
+  /** Drive viewer URL — clickable in the dashboard to open the file in Google Drive. */
+  driveWebViewLink?: string;
+  /** Direct download URL provided by Drive. Used by the photo lightbox to render the original. */
+  driveWebContentLink?: string;
+  /** Drive-generated thumbnail URL (small preview). */
+  driveThumbnailLink?: string;
   versions?: DocumentVersion[];
 }

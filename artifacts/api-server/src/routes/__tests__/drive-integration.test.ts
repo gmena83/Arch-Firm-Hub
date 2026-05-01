@@ -1,0 +1,833 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import type { AddressInfo } from "node:net";
+import app from "../../app";
+import { DOCUMENTS, PROJECTS } from "../../data/seed";
+import {
+  updateDriveConfig,
+  getDriveConfig,
+  isDriveEnabled,
+  getDriveSyncLog,
+  setDriveProjectFolder,
+  _resetForTests,
+} from "../../lib/integrations-config";
+import {
+  uploadDocumentToDrive,
+  deleteDocumentFromDrive,
+  applyVisibilityToDrive,
+  backfillDocuments,
+  type BackfillDocument,
+} from "../../lib/drive-sync";
+import {
+  _setFetchForTests,
+  _resetFetchForTests,
+  DriveNotConnectedError,
+  getDriveAccessToken,
+  uploadFile,
+  listFolders,
+} from "../../lib/drive-client";
+
+// ---------------------------------------------------------------------------
+// Test fixture: a fetch stub that knows how to answer Drive REST calls and
+// the connector-proxy access-token request. Each test installs the stub at
+// setup and restores the real fetch on teardown.
+// ---------------------------------------------------------------------------
+
+interface DriveFakeState {
+  /** All folders ever created, keyed by id. */
+  folders: Map<string, { id: string; name: string; parents: string[]; mimeType: string }>;
+  /** All files ever uploaded, keyed by id. */
+  files: Map<string, {
+    id: string; name: string; mimeType: string; parents: string[];
+    permissions: Map<string, { id: string; type: string; role: string }>;
+    trashed: boolean; deleted: boolean;
+  }>;
+  /** Counter used to mint deterministic IDs. */
+  seq: number;
+  /** Track every URL the fake handled — useful for assertions. */
+  calls: Array<{ method: string; url: string }>;
+}
+
+function makeDriveFake(originalFetch: typeof fetch): { state: DriveFakeState; fetch: typeof fetch } {
+  const state: DriveFakeState = {
+    folders: new Map(),
+    files: new Map(),
+    seq: 0,
+    calls: [],
+  };
+  const nextId = (prefix: string) => `${prefix}-${++state.seq}`;
+  const json = (status: number, body: unknown): Response =>
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { "Content-Type": "application/json" },
+    });
+
+  const fakeFetch: typeof fetch = (async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+    const method = (init?.method ?? "GET").toUpperCase();
+
+    // Pass-through for any URL we don't own (test server, login, etc.).
+    const isDriveUrl =
+      url.includes("googleapis.com") || url.includes("/api/v2/connection?");
+    if (!isDriveUrl) return originalFetch(input as Parameters<typeof fetch>[0], init);
+
+    state.calls.push({ method, url });
+
+    // Connector proxy → return a fake bearer token.
+    if (url.includes("/api/v2/connection")) {
+      return json(200, {
+        items: [{ settings: { access_token: "fake-token-xyz" } }],
+      });
+    }
+
+    // Drive: list files/folders. We only need the q= filter behavior for
+    // findOrCreateFolder + listFolders.
+    if (url.startsWith("https://www.googleapis.com/drive/v3/files?") && method === "GET") {
+      const q = decodeURIComponent(new URL(url).searchParams.get("q") ?? "");
+      const folders = [...state.folders.values()].filter((f) => {
+        // q is a Drive REST query; we approximate the two patterns we use.
+        // Pattern 1: parent + name + folder mime
+        const nameMatch = q.match(/name\s*=\s*'([^']+)'/);
+        const parentMatch = q.match(/'([^']+)'\s+in\s+parents/);
+        if (nameMatch && f.name !== nameMatch[1]) return false;
+        if (parentMatch && !f.parents.includes(parentMatch[1] ?? "")) return false;
+        if (!q.includes("application/vnd.google-apps.folder")) return false;
+        if (q.includes("trashed=false") && false) return false;
+        return true;
+      });
+      return json(200, { files: folders });
+    }
+
+    // Create a folder (POST /drive/v3/files with mimeType=folder body).
+    if (url.startsWith("https://www.googleapis.com/drive/v3/files?fields=id,name,parents") && method === "POST") {
+      const body = JSON.parse(String(init?.body ?? "{}")) as {
+        name: string; parents?: string[]; mimeType: string;
+      };
+      const id = nextId("folder");
+      const folder = {
+        id,
+        name: body.name,
+        parents: body.parents ?? [],
+        mimeType: body.mimeType,
+      };
+      state.folders.set(id, folder);
+      return json(200, folder);
+    }
+
+    // Get folder by id.
+    {
+      const m = url.match(/^https:\/\/www\.googleapis\.com\/drive\/v3\/files\/([^/?]+)\?fields=id,name,parents/);
+      if (m && method === "GET") {
+        const f = state.folders.get(m[1] as string);
+        if (!f) return json(404, { error: { message: "not found" } });
+        return json(200, f);
+      }
+    }
+
+    // Multipart upload.
+    if (url.startsWith("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart")) {
+      // Parse the metadata fragment out of the multipart body — we only
+      // need the JSON metadata block, not the binary payload.
+      const raw = init?.body;
+      const text = typeof raw === "string"
+        ? raw
+        : raw instanceof Buffer
+          ? raw.toString("utf8")
+          : raw instanceof Uint8Array
+            ? Buffer.from(raw).toString("utf8")
+            : "";
+      const metaMatch = text.match(/Content-Type: application\/json[^\{]*({[\s\S]*?})\r\n--/);
+      const meta = metaMatch ? JSON.parse(metaMatch[1] ?? "{}") : {};
+      const id = nextId("file");
+      state.files.set(id, {
+        id,
+        name: meta.name ?? "untitled",
+        mimeType: meta.mimeType ?? "application/octet-stream",
+        parents: meta.parents ?? [],
+        permissions: new Map(),
+        trashed: false,
+        deleted: false,
+      });
+      return json(200, {
+        id,
+        name: meta.name,
+        mimeType: meta.mimeType,
+        webViewLink: `https://drive.google.com/file/d/${id}/view`,
+        webContentLink: `https://drive.google.com/uc?id=${id}`,
+        thumbnailLink: `https://lh3.googleusercontent.com/${id}=s220`,
+        size: "1024",
+      });
+    }
+
+    // PATCH /files/{id} → trash.
+    {
+      const m = url.match(/^https:\/\/www\.googleapis\.com\/drive\/v3\/files\/([^/?]+)$/);
+      if (m && method === "PATCH") {
+        const f = state.files.get(m[1] as string);
+        if (!f) return json(404, { error: { message: "not found" } });
+        f.trashed = true;
+        return json(200, { id: f.id, trashed: true });
+      }
+      if (m && method === "DELETE") {
+        const f = state.files.get(m[1] as string);
+        if (!f) return json(404, { error: { message: "not found" } });
+        f.deleted = true;
+        return json(204, {});
+      }
+    }
+
+    // List permissions.
+    {
+      const m = url.match(/^https:\/\/www\.googleapis\.com\/drive\/v3\/files\/([^/]+)\/permissions/);
+      if (m && method === "GET") {
+        const f = state.files.get(m[1] as string);
+        if (!f) return json(404, { error: { message: "not found" } });
+        return json(200, { permissions: [...f.permissions.values()] });
+      }
+      if (m && method === "POST") {
+        const f = state.files.get(m[1] as string);
+        if (!f) return json(404, { error: { message: "not found" } });
+        const body = JSON.parse(String(init?.body ?? "{}")) as { role: string; type: string };
+        const id = nextId("perm");
+        f.permissions.set(id, { id, role: body.role, type: body.type });
+        return json(200, { id, role: body.role, type: body.type });
+      }
+      const md = url.match(/^https:\/\/www\.googleapis\.com\/drive\/v3\/files\/([^/]+)\/permissions\/([^?]+)/);
+      if (md && method === "DELETE") {
+        const f = state.files.get(md[1] as string);
+        if (!f) return new Response(null, { status: 204 });
+        f.permissions.delete(md[2] as string);
+        return new Response(null, { status: 204 });
+      }
+    }
+
+    // Catch-all so missing routes are easy to spot in test output.
+    return json(404, { error: { message: `unmocked ${method} ${url}` } });
+  }) as typeof fetch;
+
+  return { state, fetch: fakeFetch };
+}
+
+// Helpers replicated from asana-integration.test.ts (server lifecycle + login).
+async function withServer<T>(fn: (baseUrl: string) => Promise<T>): Promise<T> {
+  const server = app.listen(0);
+  await new Promise<void>((resolve) => server.once("listening", () => resolve()));
+  const { port } = server.address() as AddressInfo;
+  const baseUrl = `http://127.0.0.1:${port}`;
+  try {
+    return await fn(baseUrl);
+  } finally {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
+}
+
+async function login(baseUrl: string, email: string): Promise<string> {
+  const res = await fetch(`${baseUrl}/api/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password: "konti2026" }),
+  });
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as { token: string };
+  return body.token;
+}
+function authHeaders(token: string, json = false): Record<string, string> {
+  const h: Record<string, string> = { Authorization: `Bearer ${token}` };
+  if (json) h["Content-Type"] = "application/json";
+  return h;
+}
+
+function installDriveFetchStub(): { state: DriveFakeState; restore: () => void } {
+  const original = globalThis.fetch;
+  const { state, fetch: fakeFetch } = makeDriveFake(original);
+  process.env["REPLIT_CONNECTORS_HOSTNAME"] = "connectors.test.repl.co";
+  process.env["REPL_IDENTITY"] = "test-identity";
+  _setFetchForTests(fakeFetch);
+  return {
+    state,
+    restore: () => {
+      _resetFetchForTests(original);
+      delete process.env["REPLIT_CONNECTORS_HOSTNAME"];
+      delete process.env["REPL_IDENTITY"];
+      _resetForTests();
+    },
+  };
+}
+
+const PROJECT_ID = "proj-1";
+
+// ---------------------------------------------------------------------------
+// drive-client wrapper: token + folder operations
+// ---------------------------------------------------------------------------
+test("drive-client: getDriveAccessToken throws DriveNotConnectedError without REPLIT_CONNECTORS_HOSTNAME", async () => {
+  const before = process.env["REPLIT_CONNECTORS_HOSTNAME"];
+  delete process.env["REPLIT_CONNECTORS_HOSTNAME"];
+  try {
+    await assert.rejects(getDriveAccessToken(), DriveNotConnectedError);
+  } finally {
+    if (before) process.env["REPLIT_CONNECTORS_HOSTNAME"] = before;
+  }
+});
+
+test("drive-client: listFolders + uploadFile happy path against the fake", async () => {
+  const { state, restore } = installDriveFetchStub();
+  try {
+    // Seed a folder so listFolders returns something.
+    state.folders.set("root-folder", {
+      id: "root-folder", name: "KONTi Dashboard", parents: ["root"],
+      mimeType: "application/vnd.google-apps.folder",
+    });
+    const folders = await listFolders(null);
+    assert.ok(folders.length >= 1);
+
+    const upload = await uploadFile({
+      folderId: "root-folder",
+      name: "test.pdf",
+      mimeType: "application/pdf",
+      data: Buffer.from("hello-bytes"),
+    });
+    assert.ok(upload.id);
+    assert.equal(upload.name, "test.pdf");
+    assert.match(upload.webViewLink ?? "", /drive\.google\.com\/file\/d\//);
+    // The fake recorded the upload call.
+    assert.ok(state.calls.some((c) => c.url.includes("/upload/drive/v3/files")));
+  } finally {
+    restore();
+  }
+});
+
+// ---------------------------------------------------------------------------
+// drive-sync.uploadDocumentToDrive
+// ---------------------------------------------------------------------------
+test("drive-sync.uploadDocumentToDrive: creates project folder + sub-folder, returns viewer link", async () => {
+  const { state, restore } = installDriveFetchStub();
+  try {
+    updateDriveConfig({
+      enabled: true,
+      rootFolderId: "root-folder",
+      rootFolderName: "KONTi Dashboard",
+      visibilityPolicy: "anyone_with_link",
+      deletePolicy: "trash",
+      connectedAt: new Date().toISOString(),
+      connectedBy: "Tester",
+    });
+    state.folders.set("root-folder", {
+      id: "root-folder", name: "KONTi Dashboard", parents: ["root"],
+      mimeType: "application/vnd.google-apps.folder",
+    });
+
+    const result = await uploadDocumentToDrive({
+      projectId: PROJECT_ID,
+      projectName: "Demo Project",
+      documentId: "doc-test-1",
+      documentName: "permit.pdf",
+      category: "permits",
+      mimeType: "application/pdf",
+      data: Buffer.from("PDFBYTES"),
+      isClientVisible: true,
+    });
+    assert.ok(result.driveFileId);
+    assert.ok(result.driveFolderId);
+    assert.match(result.driveWebViewLink ?? "", /drive\.google\.com/);
+
+    // Sync log records the upload.
+    const log = getDriveSyncLog();
+    assert.ok(log.some((e) => e.action === "upload" && e.status === "ok" && e.documentId === "doc-test-1"));
+
+    // Anyone-with-link permission was created because isClientVisible=true.
+    const file = state.files.get(result.driveFileId);
+    assert.ok(file);
+    assert.ok([...file.permissions.values()].some((p) => p.type === "anyone"));
+  } finally {
+    restore();
+  }
+});
+
+// ---------------------------------------------------------------------------
+// drive-sync.deleteDocumentFromDrive
+// ---------------------------------------------------------------------------
+test("drive-sync.deleteDocumentFromDrive: trashes the file and logs", async () => {
+  const { state, restore } = installDriveFetchStub();
+  try {
+    updateDriveConfig({
+      enabled: true,
+      rootFolderId: "root-folder",
+      rootFolderName: "KONTi Dashboard",
+      visibilityPolicy: "private",
+      deletePolicy: "trash",
+      connectedAt: new Date().toISOString(),
+      connectedBy: "Tester",
+    });
+    state.files.set("file-123", {
+      id: "file-123", name: "x.pdf", mimeType: "application/pdf",
+      parents: [], permissions: new Map(), trashed: false, deleted: false,
+    });
+    const ok = await deleteDocumentFromDrive({
+      projectId: PROJECT_ID,
+      projectName: "Demo",
+      documentId: "doc-1",
+      documentName: "x.pdf",
+      driveFileId: "file-123",
+    });
+    assert.equal(ok, true);
+    assert.equal(state.files.get("file-123")?.trashed, true);
+    const log = getDriveSyncLog();
+    assert.ok(log.some((e) => e.action === "delete" && e.status === "ok" && e.driveFileId === "file-123"));
+  } finally {
+    restore();
+  }
+});
+
+// ---------------------------------------------------------------------------
+// drive-sync.applyVisibilityToDrive
+// ---------------------------------------------------------------------------
+test("drive-sync.applyVisibilityToDrive: adds anyone permission when made visible", async () => {
+  const { state, restore } = installDriveFetchStub();
+  try {
+    updateDriveConfig({
+      enabled: true,
+      rootFolderId: "root-folder",
+      rootFolderName: "KONTi Dashboard",
+      visibilityPolicy: "anyone_with_link",
+      deletePolicy: "trash",
+      connectedAt: new Date().toISOString(),
+      connectedBy: "Tester",
+    });
+    state.files.set("file-vis", {
+      id: "file-vis", name: "doc.pdf", mimeType: "application/pdf",
+      parents: [], permissions: new Map(), trashed: false, deleted: false,
+    });
+    const ok = await applyVisibilityToDrive({
+      projectId: PROJECT_ID,
+      projectName: "Demo",
+      documentId: "doc-vis",
+      documentName: "doc.pdf",
+      driveFileId: "file-vis",
+      isClientVisible: true,
+    });
+    assert.equal(ok, true);
+    const f = state.files.get("file-vis")!;
+    assert.ok([...f.permissions.values()].some((p) => p.type === "anyone"));
+
+    // Toggle off → permission removed.
+    await applyVisibilityToDrive({
+      projectId: PROJECT_ID,
+      projectName: "Demo",
+      documentId: "doc-vis",
+      documentName: "doc.pdf",
+      driveFileId: "file-vis",
+      isClientVisible: false,
+    });
+    assert.equal([...f.permissions.values()].filter((p) => p.type === "anyone").length, 0);
+  } finally {
+    restore();
+  }
+});
+
+// ---------------------------------------------------------------------------
+// drive-sync.backfillDocuments — idempotent over already-uploaded docs.
+// ---------------------------------------------------------------------------
+test("drive-sync.backfillDocuments: skips docs that already have a driveFileId or no payload", async () => {
+  const { state, restore } = installDriveFetchStub();
+  try {
+    updateDriveConfig({
+      enabled: true,
+      rootFolderId: "root-folder",
+      rootFolderName: "KONTi Dashboard",
+      visibilityPolicy: "private",
+      deletePolicy: "trash",
+      connectedAt: new Date().toISOString(),
+      connectedBy: "Tester",
+    });
+    state.folders.set("root-folder", {
+      id: "root-folder", name: "KONTi Dashboard", parents: ["root"],
+      mimeType: "application/vnd.google-apps.folder",
+    });
+    const docs: BackfillDocument[] = [
+      // (a) Already has a driveFileId → skipped.
+      {
+        projectId: PROJECT_ID, projectName: "Demo", documentId: "d-a",
+        documentName: "a.pdf", category: "internal", mimeType: "application/pdf",
+        driveFileId: "existing-id", data: Buffer.from("ignored"), isClientVisible: false,
+      },
+      // (b) Empty payload → skipped.
+      {
+        projectId: PROJECT_ID, projectName: "Demo", documentId: "d-b",
+        documentName: "b.pdf", category: "internal", mimeType: "application/pdf",
+        driveFileId: null, data: Buffer.alloc(0), isClientVisible: false,
+      },
+      // (c) Real payload → uploaded.
+      {
+        projectId: PROJECT_ID, projectName: "Demo", documentId: "d-c",
+        documentName: "c.pdf", category: "internal", mimeType: "application/pdf",
+        driveFileId: null, data: Buffer.from("REAL"), isClientVisible: false,
+      },
+    ];
+    const results = await backfillDocuments(docs);
+    const byId = new Map(results.map((r) => [r.documentId, r]));
+    assert.equal(byId.get("d-a")?.status, "skipped");
+    assert.equal(byId.get("d-b")?.status, "skipped");
+    assert.equal(byId.get("d-c")?.status, "uploaded");
+    assert.ok(byId.get("d-c")?.driveFileId);
+  } finally {
+    restore();
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Disabled mode → upload route must NOT touch Drive.
+// ---------------------------------------------------------------------------
+test("POST /projects/:id/documents: when Drive is disabled, no Drive fetch is made", async () => {
+  _resetForTests();
+  // Force-disable: clear any state and ensure isDriveEnabled=false.
+  assert.equal(isDriveEnabled(), false);
+  let droveCalls = 0;
+  const original = globalThis.fetch;
+  const wrapped: typeof fetch = (async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+    if (url.includes("googleapis.com") || url.includes("/api/v2/connection")) {
+      droveCalls++;
+    }
+    return original(input as Parameters<typeof fetch>[0], init);
+  }) as typeof fetch;
+  _setFetchForTests(wrapped);
+  try {
+    await withServer(async (baseUrl) => {
+      const adminToken = await login(baseUrl, "demo@konti.com");
+      const before = (DOCUMENTS as Record<string, unknown[]>)[PROJECT_ID]?.length ?? 0;
+      const res = await fetch(`${baseUrl}/api/projects/${PROJECT_ID}/documents`, {
+        method: "POST",
+        headers: authHeaders(adminToken, true),
+        body: JSON.stringify({
+          name: "no-drive.pdf",
+          category: "internal",
+          fileBase64: Buffer.from("hello").toString("base64"),
+          mimeType: "application/pdf",
+        }),
+      });
+      assert.equal(res.status, 201);
+      const created = (await res.json()) as Record<string, unknown>;
+      assert.equal(created["driveFileId"], undefined);
+      assert.equal(droveCalls, 0);
+      // And the in-memory list grew by one (metadata-only fallback).
+      const after = (DOCUMENTS as Record<string, unknown[]>)[PROJECT_ID]?.length ?? 0;
+      assert.equal(after, before + 1);
+      // Clean up the doc we just inserted so the test doesn't pollute fixtures.
+      const list = (DOCUMENTS as Record<string, unknown[]>)[PROJECT_ID] ?? [];
+      (DOCUMENTS as Record<string, unknown[]>)[PROJECT_ID] = list.filter(
+        (d) => (d as Record<string, unknown>)["id"] !== created["id"],
+      );
+    });
+  } finally {
+    _resetFetchForTests(original);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Enabled mode → upload route streams to Drive and stores driveFileId.
+// ---------------------------------------------------------------------------
+test("POST /projects/:id/documents: when Drive is enabled + fileBase64 present, file lands in Drive", async () => {
+  const { state, restore } = installDriveFetchStub();
+  try {
+    updateDriveConfig({
+      enabled: true,
+      rootFolderId: "root-folder",
+      rootFolderName: "KONTi Dashboard",
+      visibilityPolicy: "anyone_with_link",
+      deletePolicy: "trash",
+      connectedAt: new Date().toISOString(),
+      connectedBy: "Tester",
+    });
+    state.folders.set("root-folder", {
+      id: "root-folder", name: "KONTi Dashboard", parents: ["root"],
+      mimeType: "application/vnd.google-apps.folder",
+    });
+
+    await withServer(async (baseUrl) => {
+      const adminToken = await login(baseUrl, "demo@konti.com");
+      const res = await fetch(`${baseUrl}/api/projects/${PROJECT_ID}/documents`, {
+        method: "POST",
+        headers: authHeaders(adminToken, true),
+        body: JSON.stringify({
+          name: "drive-permit.pdf",
+          category: "permits",
+          fileBase64: Buffer.from("RealPDFBytes").toString("base64"),
+          mimeType: "application/pdf",
+        }),
+      });
+      assert.equal(res.status, 201);
+      const created = (await res.json()) as Record<string, unknown>;
+      assert.ok(typeof created["driveFileId"] === "string", "driveFileId on response");
+      assert.match(String(created["driveWebViewLink"] ?? ""), /drive\.google\.com/);
+
+      // The stored doc carries the IDs too (read back via GET).
+      const list = (DOCUMENTS as Record<string, Array<Record<string, unknown>>>)[PROJECT_ID] ?? [];
+      const stored = list.find((d) => d["id"] === created["id"]);
+      assert.ok(stored, "stored doc exists");
+      assert.equal(stored["driveFileId"], created["driveFileId"]);
+
+      // Clean up.
+      (DOCUMENTS as Record<string, unknown[]>)[PROJECT_ID] = list.filter(
+        (d) => d["id"] !== created["id"],
+      );
+    });
+  } finally {
+    restore();
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Per-project sub-folder reuse — ensureProjectCategoryFolder is idempotent.
+// ---------------------------------------------------------------------------
+test("drive-sync: subsequent uploads reuse the same project sub-folder", async () => {
+  const { state, restore } = installDriveFetchStub();
+  try {
+    updateDriveConfig({
+      enabled: true,
+      rootFolderId: "root-folder",
+      rootFolderName: "KONTi Dashboard",
+      visibilityPolicy: "private",
+      deletePolicy: "trash",
+      connectedAt: new Date().toISOString(),
+      connectedBy: "Tester",
+    });
+    state.folders.set("root-folder", {
+      id: "root-folder", name: "KONTi Dashboard", parents: ["root"],
+      mimeType: "application/vnd.google-apps.folder",
+    });
+    // Prime the project folder map so we exercise the cached path.
+    setDriveProjectFolder(PROJECT_ID, {
+      projectFolderId: "cached-proj-folder",
+      subFolders: { internal: "cached-sub-folder" },
+    });
+    state.folders.set("cached-proj-folder", {
+      id: "cached-proj-folder", name: "Demo", parents: ["root-folder"],
+      mimeType: "application/vnd.google-apps.folder",
+    });
+    state.folders.set("cached-sub-folder", {
+      id: "cached-sub-folder", name: "Internal", parents: ["cached-proj-folder"],
+      mimeType: "application/vnd.google-apps.folder",
+    });
+    const r1 = await uploadDocumentToDrive({
+      projectId: PROJECT_ID, projectName: "Demo", documentId: "d1",
+      documentName: "one.pdf", category: "internal", mimeType: "application/pdf",
+      data: Buffer.from("a"), isClientVisible: false,
+    });
+    const r2 = await uploadDocumentToDrive({
+      projectId: PROJECT_ID, projectName: "Demo", documentId: "d2",
+      documentName: "two.pdf", category: "internal", mimeType: "application/pdf",
+      data: Buffer.from("b"), isClientVisible: false,
+    });
+    assert.equal(r1.driveFolderId, "cached-sub-folder");
+    assert.equal(r2.driveFolderId, "cached-sub-folder");
+    // Project map is unchanged (still pointing at the cached IDs).
+    const map = getDriveConfig().projectFolders[PROJECT_ID];
+    assert.equal(map?.projectFolderId, "cached-proj-folder");
+    assert.equal(map?.subFolders["internal"], "cached-sub-folder");
+  } finally {
+    restore();
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Status endpoint via real HTTP route.
+// ---------------------------------------------------------------------------
+test("GET /integrations/drive/status: client role → 403, admin → 200", async () => {
+  _resetForTests();
+  await withServer(async (baseUrl) => {
+    const clientToken = await login(baseUrl, "client@konti.com");
+    const r1 = await fetch(`${baseUrl}/api/integrations/drive/status`, {
+      headers: authHeaders(clientToken),
+    });
+    assert.equal(r1.status, 403);
+
+    const adminToken = await login(baseUrl, "demo@konti.com");
+    const r2 = await fetch(`${baseUrl}/api/integrations/drive/status`, {
+      headers: authHeaders(adminToken),
+    });
+    assert.equal(r2.status, 200);
+    const body = (await r2.json()) as Record<string, unknown>;
+    assert.equal(typeof body["connected"], "boolean");
+    assert.equal(typeof body["configured"], "boolean");
+    assert.ok(body["config"]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Atomicity (no half-commit) under forced Drive failures
+// ---------------------------------------------------------------------------
+
+/**
+ * Build a fetch stub like `installDriveFetchStub` but where every Drive call
+ * returns HTTP 500. Connector-token fetches still succeed so we exercise the
+ * route's error-handling path (not its "not connected" path).
+ */
+function installFailingDriveFetchStub(): { restore: () => void } {
+  const original = globalThis.fetch;
+  process.env["REPLIT_CONNECTORS_HOSTNAME"] = "connectors.test.repl.co";
+  process.env["REPL_IDENTITY"] = "test-identity";
+  const failing: typeof fetch = (async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+    if (url.includes("/api/v2/connection")) {
+      return new Response(
+        JSON.stringify({ items: [{ settings: { access_token: "fake-token" } }] }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    }
+    if (url.includes("googleapis.com")) {
+      return new Response(JSON.stringify({ error: { message: "boom" } }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    return original(input as Parameters<typeof fetch>[0], init);
+  }) as typeof fetch;
+  _setFetchForTests(failing);
+  return {
+    restore: () => {
+      _resetFetchForTests(original);
+      delete process.env["REPLIT_CONNECTORS_HOSTNAME"];
+      delete process.env["REPL_IDENTITY"];
+      _resetForTests();
+    },
+  };
+}
+
+test("POST /projects/:id/documents: 502 on Drive failure, no document inserted", async () => {
+  const { restore } = installFailingDriveFetchStub();
+  try {
+    updateDriveConfig({
+      enabled: true,
+      rootFolderId: "root-folder",
+      rootFolderName: "KONTi Dashboard",
+      visibilityPolicy: "private",
+      deletePolicy: "trash",
+      connectedAt: new Date().toISOString(),
+      connectedBy: "Tester",
+    });
+    await withServer(async (baseUrl) => {
+      const adminToken = await login(baseUrl, "demo@konti.com");
+      const before = (DOCUMENTS as Record<string, unknown[]>)[PROJECT_ID]?.length ?? 0;
+      const res = await fetch(`${baseUrl}/api/projects/${PROJECT_ID}/documents`, {
+        method: "POST",
+        headers: authHeaders(adminToken, true),
+        body: JSON.stringify({
+          name: "should-not-land.pdf",
+          category: "internal",
+          fileBase64: Buffer.from("X").toString("base64"),
+          mimeType: "application/pdf",
+        }),
+      });
+      assert.equal(res.status, 502);
+      const after = (DOCUMENTS as Record<string, unknown[]>)[PROJECT_ID]?.length ?? 0;
+      assert.equal(after, before, "no document was half-committed");
+    });
+  } finally {
+    restore();
+  }
+});
+
+test("PATCH /documents/:id/visibility: 502 on Drive failure, isClientVisible unchanged", async () => {
+  const { restore } = installFailingDriveFetchStub();
+  try {
+    updateDriveConfig({
+      enabled: true,
+      rootFolderId: "root-folder",
+      rootFolderName: "KONTi Dashboard",
+      visibilityPolicy: "anyone_with_link",
+      deletePolicy: "trash",
+      connectedAt: new Date().toISOString(),
+      connectedBy: "Tester",
+    });
+    // Plant a doc that already lives in Drive so the route hits the Drive branch.
+    const list = (DOCUMENTS as Record<string, Array<Record<string, unknown>>>)[PROJECT_ID] ?? [];
+    const planted = {
+      id: "doc-half-vis",
+      name: "vis.pdf",
+      category: "internal",
+      type: "PDF",
+      fileSize: "1 KB",
+      uploadedBy: "demo@konti.com",
+      uploadedAt: new Date().toISOString(),
+      isClientVisible: false,
+      driveFileId: "file-vis-half",
+      description: "",
+    };
+    list.push(planted);
+    (DOCUMENTS as Record<string, unknown[]>)[PROJECT_ID] = list;
+    try {
+      await withServer(async (baseUrl) => {
+        const adminToken = await login(baseUrl, "demo@konti.com");
+        const res = await fetch(
+          `${baseUrl}/api/projects/${PROJECT_ID}/documents/doc-half-vis`,
+          {
+            method: "PATCH",
+            headers: authHeaders(adminToken, true),
+            body: JSON.stringify({ isClientVisible: true }),
+          },
+        );
+        assert.equal(res.status, 502);
+        const after = list.find((d) => d["id"] === "doc-half-vis") as Record<string, unknown>;
+        assert.equal(after["isClientVisible"], false, "visibility was not flipped");
+      });
+    } finally {
+      (DOCUMENTS as Record<string, unknown[]>)[PROJECT_ID] = list.filter(
+        (d) => d["id"] !== "doc-half-vis",
+      );
+    }
+  } finally {
+    restore();
+  }
+});
+
+test("DELETE /documents/:id: 502 on Drive failure, document still present", async () => {
+  const { restore } = installFailingDriveFetchStub();
+  try {
+    updateDriveConfig({
+      enabled: true,
+      rootFolderId: "root-folder",
+      rootFolderName: "KONTi Dashboard",
+      visibilityPolicy: "private",
+      deletePolicy: "trash",
+      connectedAt: new Date().toISOString(),
+      connectedBy: "Tester",
+    });
+    const list = (DOCUMENTS as Record<string, Array<Record<string, unknown>>>)[PROJECT_ID] ?? [];
+    const planted = {
+      id: "doc-half-del",
+      name: "del.pdf",
+      category: "internal",
+      type: "PDF",
+      fileSize: "1 KB",
+      uploadedBy: "demo@konti.com",
+      uploadedAt: new Date().toISOString(),
+      isClientVisible: false,
+      driveFileId: "file-del-half",
+      description: "",
+    };
+    list.push(planted);
+    (DOCUMENTS as Record<string, unknown[]>)[PROJECT_ID] = list;
+    try {
+      await withServer(async (baseUrl) => {
+        const adminToken = await login(baseUrl, "demo@konti.com");
+        const res = await fetch(
+          `${baseUrl}/api/projects/${PROJECT_ID}/documents/doc-half-del`,
+          { method: "DELETE", headers: authHeaders(adminToken) },
+        );
+        assert.equal(res.status, 502);
+        const stillThere = list.some((d) => d["id"] === "doc-half-del");
+        assert.equal(stillThere, true, "document was not half-deleted");
+      });
+    } finally {
+      (DOCUMENTS as Record<string, unknown[]>)[PROJECT_ID] = list.filter(
+        (d) => d["id"] !== "doc-half-del",
+      );
+    }
+  } finally {
+    restore();
+  }
+});
+
+// Reference unused import to keep TS happy in some configs (PROJECTS used
+// elsewhere is already imported above).
+void PROJECTS;

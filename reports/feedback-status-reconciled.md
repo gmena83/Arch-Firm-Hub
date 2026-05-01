@@ -10,10 +10,10 @@ Reconciled workbook: `attached_assets/KONTi_Dashboard_Feedback_Consolidated_v3_a
 |---|---:|
 | Open | 8 |
 | In Progress | 0 |
-| Done | 42 |
+| Done | 43 |
 | Done — needs verification | 1 |
 | Needs Spec | 0 |
-| Needs Decision | 6 |
+| Needs Decision | 5 |
 
 ## Items moved to **Done — needs verification**
 
@@ -69,6 +69,7 @@ These rows look closed on paper but a PM should eyeball the live UI before promo
 | I-01 | In Progress | Done | Done in #60 (file upload regression on the demo project fixed). |
 | I-02 | Open | Done | Done in #99 (Reviewer feedback bundle #2): document upload modal now requires a category dropdown so demo-project docs are sorted into the correct buckets. |
 | I-03 | In Progress | Done | Done in #32 (punchlist persists across restart). |
+| J-01 | Needs Decision | Done | Done in #128 (Google Drive integration as document storage backend): Settings page now exposes a Drive panel where admins/superadmins pick a root folder, choose visibility (private vs anyone-with-link) and delete (trash vs purge) policies, and trigger a backfill of in-app documents. When connected, every project upload streams into a per-project / per-category sub-folder in Drive, deletes are mirrored, and a viewer link is shown next to the file in the project document list. When disconnected, uploads continue to land in the in-app store as before — no behavior change. |
 
 ## Items still **Open**
 
@@ -92,7 +93,6 @@ These rows look closed on paper but a PM should eyeball the live UI before promo
 | E-04 | Needs Decision | Needs Decision |
 | E-05 | Needs Decision | Needs Decision |
 | H-03 | Needs Decision | Needs Decision |
-| J-01 | Needs Decision | Needs Decision |
 
 ## Notes
 

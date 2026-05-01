@@ -2346,6 +2346,88 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/AsanaRetryResponse" }
 
+  /integrations/drive/status:
+    get:
+      operationId: getDriveStatus
+      tags: [integrations]
+      summary: Current Google Drive integration status (Task #128)
+      responses:
+        "200":
+          description: Drive status payload
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DriveStatusResponse" }
+
+  /integrations/drive/folders:
+    get:
+      operationId: listDriveFolders
+      tags: [integrations]
+      summary: List Drive folders directly under a parent (defaults to "root")
+      parameters:
+        - in: query
+          name: parentId
+          required: false
+          schema: { type: string }
+      responses:
+        "200":
+          description: Folders list
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DriveFoldersResponse" }
+
+  /integrations/drive/configure:
+    post:
+      operationId: configureDrive
+      tags: [integrations]
+      summary: Save the chosen root Drive folder and turn the integration on
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DriveConfigureRequest" }
+      responses:
+        "200":
+          description: Updated Drive config
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DriveConfigResponse" }
+
+  /integrations/drive/disconnect:
+    post:
+      operationId: disconnectDrive
+      tags: [integrations]
+      summary: Forget configured root folder (keeps the OAuth connection)
+      responses:
+        "200":
+          description: Disconnected
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DriveConfigResponse" }
+
+  /integrations/drive/sync-log:
+    get:
+      operationId: getDriveSyncLog
+      tags: [integrations]
+      summary: Recent Drive sync attempts (most recent first)
+      responses:
+        "200":
+          description: Drive sync log entries
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DriveSyncLogResponse" }
+
+  /integrations/drive/backfill:
+    post:
+      operationId: backfillDriveDocuments
+      tags: [integrations]
+      summary: Upload existing in-memory documents to Drive (idempotent)
+      responses:
+        "200":
+          description: Backfill summary
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DriveBackfillResponse" }
+
   /projects/{projectId}/site-visits:
     post:
       operationId: logProjectSiteVisit
@@ -3067,6 +3149,21 @@ components:
           type: string
         previewable:
           type: boolean
+        driveFileId:
+          type: string
+          description: Google Drive file ID set when the document was synced to Drive (Task #128). Absent for in-memory-only documents.
+        driveFolderId:
+          type: string
+          description: Google Drive folder the file was placed in (project sub-folder).
+        driveWebViewLink:
+          type: string
+          description: Drive viewer URL — clickable in the dashboard to open the file in Google Drive.
+        driveWebContentLink:
+          type: string
+          description: Direct download URL provided by Drive. Used by the photo lightbox to render the original.
+        driveThumbnailLink:
+          type: string
+          description: Drive-generated thumbnail URL (small preview).
         versions:
           type: array
           items:
@@ -3121,6 +3218,9 @@ components:
         imageUrl:
           type: string
           description: Optional URL for the photo thumbnail/full-size image.
+        fileBase64:
+          type: string
+          description: Optional base64-encoded payload (raw or `data:` URL). When the Drive integration is enabled, the bytes are streamed to the project's Drive sub-folder and the response includes driveFileId/driveWebViewLink. Ignored when Drive is disabled.
       required:
         - name
         - category
@@ -3729,6 +3829,195 @@ components:
       properties:
         ok: { type: boolean }
       required: [ok]
+
+    DriveFolder:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        parents:
+          type: array
+          items: { type: string }
+      required: [id, name]
+
+    DriveProjectFolderMap:
+      type: object
+      properties:
+        projectFolderId: { type: string }
+        subFolders:
+          type: object
+          additionalProperties: { type: string }
+      required: [projectFolderId, subFolders]
+
+    DriveIntegrationConfig:
+      type: object
+      properties:
+        enabled: { type: boolean }
+        rootFolderId:
+          oneOf:
+            - { type: string }
+            - { type: "null" }
+        rootFolderName:
+          oneOf:
+            - { type: string }
+            - { type: "null" }
+        visibilityPolicy:
+          type: string
+          enum: [private, anyone_with_link]
+        deletePolicy:
+          type: string
+          enum: [trash, hard_delete]
+        connectedAt:
+          oneOf:
+            - { type: string }
+            - { type: "null" }
+        connectedBy:
+          oneOf:
+            - { type: string }
+            - { type: "null" }
+        projectFolders:
+          type: object
+          additionalProperties: { $ref: "#/components/schemas/DriveProjectFolderMap" }
+      required:
+        - enabled
+        - rootFolderId
+        - rootFolderName
+        - visibilityPolicy
+        - deletePolicy
+        - connectedAt
+        - connectedBy
+        - projectFolders
+
+    DriveStatusResponse:
+      type: object
+      properties:
+        connected: { type: boolean }
+        configured: { type: boolean }
+        connectionMessage: { type: string }
+        connectionMessageEs: { type: string }
+        config: { $ref: "#/components/schemas/DriveIntegrationConfig" }
+      required: [connected, configured, connectionMessage, connectionMessageEs, config]
+
+    DriveFoldersResponse:
+      type: object
+      properties:
+        folders:
+          type: array
+          items: { $ref: "#/components/schemas/DriveFolder" }
+        parentId:
+          oneOf:
+            - { type: string }
+            - { type: "null" }
+      required: [folders, parentId]
+
+    DriveConfigureRequest:
+      type: object
+      properties:
+        rootFolderId:
+          type: string
+          description: ID of an existing Drive folder. Either rootFolderId OR createName is required.
+        rootFolderName:
+          type: string
+          description: Optional display name for the chosen folder. The server resolves it from Drive when omitted.
+        createName:
+          type: string
+          description: When supplied (and no rootFolderId), the server creates a new folder of this name under My Drive.
+        visibilityPolicy:
+          type: string
+          enum: [private, anyone_with_link]
+        deletePolicy:
+          type: string
+          enum: [trash, hard_delete]
+
+    DriveConfigResponse:
+      type: object
+      properties:
+        config: { $ref: "#/components/schemas/DriveIntegrationConfig" }
+      required: [config]
+
+    DriveSyncLogEntry:
+      type: object
+      properties:
+        id: { type: string }
+        timestamp: { type: string }
+        action: { type: string }
+        status:
+          type: string
+          enum: [ok, failed, skipped]
+        projectId:
+          oneOf:
+            - { type: string }
+            - { type: "null" }
+        projectName:
+          oneOf:
+            - { type: string }
+            - { type: "null" }
+        documentId:
+          oneOf:
+            - { type: string }
+            - { type: "null" }
+        documentName:
+          oneOf:
+            - { type: string }
+            - { type: "null" }
+        driveFileId:
+          oneOf:
+            - { type: string }
+            - { type: "null" }
+        message: { type: string }
+        messageEs: { type: string }
+      required:
+        - id
+        - timestamp
+        - action
+        - status
+        - projectId
+        - projectName
+        - documentId
+        - documentName
+        - driveFileId
+        - message
+        - messageEs
+
+    DriveSyncLogResponse:
+      type: object
+      properties:
+        entries:
+          type: array
+          items: { $ref: "#/components/schemas/DriveSyncLogEntry" }
+      required: [entries]
+
+    DriveBackfillResult:
+      type: object
+      properties:
+        documentId: { type: string }
+        status:
+          type: string
+          enum: [uploaded, skipped, failed]
+        driveFileId:
+          oneOf:
+            - { type: string }
+            - { type: "null" }
+        message: { type: string }
+      required: [documentId, status, message]
+
+    DriveBackfillSummary:
+      type: object
+      properties:
+        uploaded: { type: integer }
+        skipped: { type: integer }
+        failed: { type: integer }
+        total: { type: integer }
+      required: [uploaded, skipped, failed, total]
+
+    DriveBackfillResponse:
+      type: object
+      properties:
+        summary: { $ref: "#/components/schemas/DriveBackfillSummary" }
+        results:
+          type: array
+          items: { $ref: "#/components/schemas/DriveBackfillResult" }
+      required: [summary, results]
 
     SiteVisitRequest:
       type: object

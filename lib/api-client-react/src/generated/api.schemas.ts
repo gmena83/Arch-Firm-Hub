@@ -514,6 +514,16 @@ export interface Document {
   fileSize: string;
   description?: string;
   previewable?: boolean;
+  /** Google Drive file ID set when the document was synced to Drive (Task */
+  driveFileId?: string;
+  /** Google Drive folder the file was placed in (project sub-folder). */
+  driveFolderId?: string;
+  /** Drive viewer URL — clickable in the dashboard to open the file in Google Drive. */
+  driveWebViewLink?: string;
+  /** Direct download URL provided by Drive. Used by the photo lightbox to render the original. */
+  driveWebContentLink?: string;
+  /** Drive-generated thumbnail URL (small preview). */
+  driveThumbnailLink?: string;
   versions?: DocumentVersion[];
 }
 
@@ -589,6 +599,8 @@ export interface DocumentCreateRequest {
   caption?: string;
   /** Optional URL for the photo thumbnail/full-size image. */
   imageUrl?: string;
+  /** Optional base64-encoded payload (raw or `data:` URL). When the Drive integration is enabled, the bytes are streamed to the project's Drive sub-folder and the response includes driveFileId/driveWebViewLink. Ignored when Drive is disabled. */
+  fileBase64?: string;
 }
 
 export interface DocumentUpdateRequest {
@@ -1035,6 +1047,149 @@ export interface AsanaSyncLogResponse {
 
 export interface AsanaRetryResponse {
   ok: boolean;
+}
+
+export interface DriveFolder {
+  id: string;
+  name: string;
+  parents?: string[];
+}
+
+export type DriveProjectFolderMapSubFolders = { [key: string]: string };
+
+export interface DriveProjectFolderMap {
+  projectFolderId: string;
+  subFolders: DriveProjectFolderMapSubFolders;
+}
+
+export type DriveIntegrationConfigVisibilityPolicy =
+  (typeof DriveIntegrationConfigVisibilityPolicy)[keyof typeof DriveIntegrationConfigVisibilityPolicy];
+
+export const DriveIntegrationConfigVisibilityPolicy = {
+  private: "private",
+  anyone_with_link: "anyone_with_link",
+} as const;
+
+export type DriveIntegrationConfigDeletePolicy =
+  (typeof DriveIntegrationConfigDeletePolicy)[keyof typeof DriveIntegrationConfigDeletePolicy];
+
+export const DriveIntegrationConfigDeletePolicy = {
+  trash: "trash",
+  hard_delete: "hard_delete",
+} as const;
+
+export type DriveIntegrationConfigProjectFolders = {
+  [key: string]: DriveProjectFolderMap;
+};
+
+export interface DriveIntegrationConfig {
+  enabled: boolean;
+  rootFolderId: string | null;
+  rootFolderName: string | null;
+  visibilityPolicy: DriveIntegrationConfigVisibilityPolicy;
+  deletePolicy: DriveIntegrationConfigDeletePolicy;
+  connectedAt: string | null;
+  connectedBy: string | null;
+  projectFolders: DriveIntegrationConfigProjectFolders;
+}
+
+export interface DriveStatusResponse {
+  connected: boolean;
+  configured: boolean;
+  connectionMessage: string;
+  connectionMessageEs: string;
+  config: DriveIntegrationConfig;
+}
+
+export interface DriveFoldersResponse {
+  folders: DriveFolder[];
+  parentId: string | null;
+}
+
+export type DriveConfigureRequestVisibilityPolicy =
+  (typeof DriveConfigureRequestVisibilityPolicy)[keyof typeof DriveConfigureRequestVisibilityPolicy];
+
+export const DriveConfigureRequestVisibilityPolicy = {
+  private: "private",
+  anyone_with_link: "anyone_with_link",
+} as const;
+
+export type DriveConfigureRequestDeletePolicy =
+  (typeof DriveConfigureRequestDeletePolicy)[keyof typeof DriveConfigureRequestDeletePolicy];
+
+export const DriveConfigureRequestDeletePolicy = {
+  trash: "trash",
+  hard_delete: "hard_delete",
+} as const;
+
+export interface DriveConfigureRequest {
+  /** ID of an existing Drive folder. Either rootFolderId OR createName is required. */
+  rootFolderId?: string;
+  /** Optional display name for the chosen folder. The server resolves it from Drive when omitted. */
+  rootFolderName?: string;
+  /** When supplied (and no rootFolderId), the server creates a new folder of this name under My Drive. */
+  createName?: string;
+  visibilityPolicy?: DriveConfigureRequestVisibilityPolicy;
+  deletePolicy?: DriveConfigureRequestDeletePolicy;
+}
+
+export interface DriveConfigResponse {
+  config: DriveIntegrationConfig;
+}
+
+export type DriveSyncLogEntryStatus =
+  (typeof DriveSyncLogEntryStatus)[keyof typeof DriveSyncLogEntryStatus];
+
+export const DriveSyncLogEntryStatus = {
+  ok: "ok",
+  failed: "failed",
+  skipped: "skipped",
+} as const;
+
+export interface DriveSyncLogEntry {
+  id: string;
+  timestamp: string;
+  action: string;
+  status: DriveSyncLogEntryStatus;
+  projectId: string | null;
+  projectName: string | null;
+  documentId: string | null;
+  documentName: string | null;
+  driveFileId: string | null;
+  message: string;
+  messageEs: string;
+}
+
+export interface DriveSyncLogResponse {
+  entries: DriveSyncLogEntry[];
+}
+
+export type DriveBackfillResultStatus =
+  (typeof DriveBackfillResultStatus)[keyof typeof DriveBackfillResultStatus];
+
+export const DriveBackfillResultStatus = {
+  uploaded: "uploaded",
+  skipped: "skipped",
+  failed: "failed",
+} as const;
+
+export interface DriveBackfillResult {
+  documentId: string;
+  status: DriveBackfillResultStatus;
+  driveFileId?: string | null;
+  message: string;
+}
+
+export interface DriveBackfillSummary {
+  uploaded: number;
+  skipped: number;
+  failed: number;
+  total: number;
+}
+
+export interface DriveBackfillResponse {
+  summary: DriveBackfillSummary;
+  results: DriveBackfillResult[];
 }
 
 export type SiteVisitRequestChannel =
@@ -2010,6 +2165,10 @@ export type ListAsanaBoardsParams = {
 
 export type ListAsanaBoards200 = {
   boards: AsanaResource[];
+};
+
+export type ListDriveFoldersParams = {
+  parentId?: string;
 };
 
 export type ListProjectAsanaCandidates200 = {

@@ -367,6 +367,34 @@ export const GetProjectDocumentsResponseItem = zod.object({
   fileSize: zod.string(),
   description: zod.string().optional(),
   previewable: zod.boolean().optional(),
+  driveFileId: zod
+    .string()
+    .optional()
+    .describe(
+      "Google Drive file ID set when the document was synced to Drive (Task",
+    ),
+  driveFolderId: zod
+    .string()
+    .optional()
+    .describe(
+      "Google Drive folder the file was placed in (project sub-folder).",
+    ),
+  driveWebViewLink: zod
+    .string()
+    .optional()
+    .describe(
+      "Drive viewer URL — clickable in the dashboard to open the file in Google Drive.",
+    ),
+  driveWebContentLink: zod
+    .string()
+    .optional()
+    .describe(
+      "Direct download URL provided by Drive. Used by the photo lightbox to render the original.",
+    ),
+  driveThumbnailLink: zod
+    .string()
+    .optional()
+    .describe("Drive-generated thumbnail URL (small preview)."),
   versions: zod
     .array(
       zod.object({
@@ -457,6 +485,12 @@ export const CreateProjectDocumentBody = zod.object({
     .string()
     .optional()
     .describe("Optional URL for the photo thumbnail\/full-size image."),
+  fileBase64: zod
+    .string()
+    .optional()
+    .describe(
+      "Optional base64-encoded payload (raw or `data:` URL). When the Drive integration is enabled, the bytes are streamed to the project's Drive sub-folder and the response includes driveFileId\/driveWebViewLink. Ignored when Drive is disabled.",
+    ),
 });
 
 /**
@@ -523,6 +557,34 @@ export const UpdateProjectDocumentResponse = zod.object({
   fileSize: zod.string(),
   description: zod.string().optional(),
   previewable: zod.boolean().optional(),
+  driveFileId: zod
+    .string()
+    .optional()
+    .describe(
+      "Google Drive file ID set when the document was synced to Drive (Task",
+    ),
+  driveFolderId: zod
+    .string()
+    .optional()
+    .describe(
+      "Google Drive folder the file was placed in (project sub-folder).",
+    ),
+  driveWebViewLink: zod
+    .string()
+    .optional()
+    .describe(
+      "Drive viewer URL — clickable in the dashboard to open the file in Google Drive.",
+    ),
+  driveWebContentLink: zod
+    .string()
+    .optional()
+    .describe(
+      "Direct download URL provided by Drive. Used by the photo lightbox to render the original.",
+    ),
+  driveThumbnailLink: zod
+    .string()
+    .optional()
+    .describe("Drive-generated thumbnail URL (small preview)."),
   versions: zod
     .array(
       zod.object({
@@ -3438,6 +3500,158 @@ export const RetryAsanaSyncEntryParams = zod.object({
 
 export const RetryAsanaSyncEntryResponse = zod.object({
   ok: zod.boolean(),
+});
+
+/**
+ * @summary Current Google Drive integration status (Task
+ */
+export const GetDriveStatusResponse = zod.object({
+  connected: zod.boolean(),
+  configured: zod.boolean(),
+  connectionMessage: zod.string(),
+  connectionMessageEs: zod.string(),
+  config: zod.object({
+    enabled: zod.boolean(),
+    rootFolderId: zod.union([zod.string(), zod.null()]),
+    rootFolderName: zod.union([zod.string(), zod.null()]),
+    visibilityPolicy: zod.enum(["private", "anyone_with_link"]),
+    deletePolicy: zod.enum(["trash", "hard_delete"]),
+    connectedAt: zod.union([zod.string(), zod.null()]),
+    connectedBy: zod.union([zod.string(), zod.null()]),
+    projectFolders: zod.record(
+      zod.string(),
+      zod.object({
+        projectFolderId: zod.string(),
+        subFolders: zod.record(zod.string(), zod.string()),
+      }),
+    ),
+  }),
+});
+
+/**
+ * @summary List Drive folders directly under a parent (defaults to "root")
+ */
+export const ListDriveFoldersQueryParams = zod.object({
+  parentId: zod.coerce.string().optional(),
+});
+
+export const ListDriveFoldersResponse = zod.object({
+  folders: zod.array(
+    zod.object({
+      id: zod.string(),
+      name: zod.string(),
+      parents: zod.array(zod.string()).optional(),
+    }),
+  ),
+  parentId: zod.union([zod.string(), zod.null()]),
+});
+
+/**
+ * @summary Save the chosen root Drive folder and turn the integration on
+ */
+export const ConfigureDriveBody = zod.object({
+  rootFolderId: zod
+    .string()
+    .optional()
+    .describe(
+      "ID of an existing Drive folder. Either rootFolderId OR createName is required.",
+    ),
+  rootFolderName: zod
+    .string()
+    .optional()
+    .describe(
+      "Optional display name for the chosen folder. The server resolves it from Drive when omitted.",
+    ),
+  createName: zod
+    .string()
+    .optional()
+    .describe(
+      "When supplied (and no rootFolderId), the server creates a new folder of this name under My Drive.",
+    ),
+  visibilityPolicy: zod.enum(["private", "anyone_with_link"]).optional(),
+  deletePolicy: zod.enum(["trash", "hard_delete"]).optional(),
+});
+
+export const ConfigureDriveResponse = zod.object({
+  config: zod.object({
+    enabled: zod.boolean(),
+    rootFolderId: zod.union([zod.string(), zod.null()]),
+    rootFolderName: zod.union([zod.string(), zod.null()]),
+    visibilityPolicy: zod.enum(["private", "anyone_with_link"]),
+    deletePolicy: zod.enum(["trash", "hard_delete"]),
+    connectedAt: zod.union([zod.string(), zod.null()]),
+    connectedBy: zod.union([zod.string(), zod.null()]),
+    projectFolders: zod.record(
+      zod.string(),
+      zod.object({
+        projectFolderId: zod.string(),
+        subFolders: zod.record(zod.string(), zod.string()),
+      }),
+    ),
+  }),
+});
+
+/**
+ * @summary Forget configured root folder (keeps the OAuth connection)
+ */
+export const DisconnectDriveResponse = zod.object({
+  config: zod.object({
+    enabled: zod.boolean(),
+    rootFolderId: zod.union([zod.string(), zod.null()]),
+    rootFolderName: zod.union([zod.string(), zod.null()]),
+    visibilityPolicy: zod.enum(["private", "anyone_with_link"]),
+    deletePolicy: zod.enum(["trash", "hard_delete"]),
+    connectedAt: zod.union([zod.string(), zod.null()]),
+    connectedBy: zod.union([zod.string(), zod.null()]),
+    projectFolders: zod.record(
+      zod.string(),
+      zod.object({
+        projectFolderId: zod.string(),
+        subFolders: zod.record(zod.string(), zod.string()),
+      }),
+    ),
+  }),
+});
+
+/**
+ * @summary Recent Drive sync attempts (most recent first)
+ */
+export const GetDriveSyncLogResponse = zod.object({
+  entries: zod.array(
+    zod.object({
+      id: zod.string(),
+      timestamp: zod.string(),
+      action: zod.string(),
+      status: zod.enum(["ok", "failed", "skipped"]),
+      projectId: zod.union([zod.string(), zod.null()]),
+      projectName: zod.union([zod.string(), zod.null()]),
+      documentId: zod.union([zod.string(), zod.null()]),
+      documentName: zod.union([zod.string(), zod.null()]),
+      driveFileId: zod.union([zod.string(), zod.null()]),
+      message: zod.string(),
+      messageEs: zod.string(),
+    }),
+  ),
+});
+
+/**
+ * @summary Upload existing in-memory documents to Drive (idempotent)
+ */
+export const BackfillDriveDocumentsResponse = zod.object({
+  summary: zod.object({
+    uploaded: zod.number(),
+    skipped: zod.number(),
+    failed: zod.number(),
+    total: zod.number(),
+  }),
+  results: zod.array(
+    zod.object({
+      documentId: zod.string(),
+      status: zod.enum(["uploaded", "skipped", "failed"]),
+      driveFileId: zod.union([zod.string(), zod.null()]).optional(),
+      message: zod.string(),
+    }),
+  ),
 });
 
 /**

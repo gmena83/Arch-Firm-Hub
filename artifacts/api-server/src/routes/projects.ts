@@ -50,8 +50,13 @@ import {
 import { savePunchlist } from "../data/punchlist-store";
 import { requireRole } from "../middlewares/require-role";
 import { EXTRA_MATERIALS, PROJECT_REPORT_TEMPLATE, PROJECT_CONTRACTOR_ESTIMATE, type ContractorEstimateLine, type ReportTemplate } from "./estimating";
-import { getAsanaConfig, isAsanaEnabled } from "../lib/integrations-config";
+import { getAsanaConfig, isAsanaEnabled, isDriveEnabled } from "../lib/integrations-config";
 import { listTasksForProject, AsanaNotConnectedError, AsanaApiError } from "../lib/asana-client";
+import {
+  uploadDocumentToDrive,
+  deleteDocumentFromDrive,
+  applyVisibilityToDrive,
+} from "../lib/drive-sync";
 
 const router: IRouter = Router();
 
@@ -246,10 +251,15 @@ router.get("/projects/:projectId/weather", (req, res) => {
   return res.json({ ...weather, lastUpdated: new Date().toISOString() });
 });
 
-// Records document metadata for an upload (in-memory backend, no binary stream).
-router.post("/projects/:projectId/documents", requireRole(["team", "admin", "superadmin", "client"]), (req, res) => {
+// Records document metadata for an upload. When Drive is connected and the
+// caller supplies `fileBase64`, the bytes are streamed to the project's Drive
+// sub-folder and only the Drive ID + viewer link are stored on the document
+// record (no in-memory binary). Falls back to metadata-only when Drive is off
+// or no payload was supplied so the demo stays usable disconnected.
+router.post("/projects/:projectId/documents", requireRole(["team", "admin", "superadmin", "client"]), async (req, res) => {
   const projectId = req.params["projectId"] as string;
-  if (!PROJECTS.find((p) => p.id === projectId)) {
+  const project = PROJECTS.find((p) => p.id === projectId);
+  if (!project) {
     return res.status(404).json({ error: "not_found", message: "Project not found" });
   }
   // Clients may only upload to projects they own.
@@ -260,6 +270,9 @@ router.post("/projects/:projectId/documents", requireRole(["team", "admin", "sup
     name?: string; type?: string; category?: string; isClientVisible?: boolean;
     fileSize?: string; description?: string; mimeType?: string;
     photoCategory?: string; caption?: string; imageUrl?: string;
+    /** Optional base64 payload (raw or data: URL) — when present and Drive is
+     *  enabled, the bytes are streamed to Drive instead of held in memory. */
+    fileBase64?: string;
   };
   if (typeof body.name !== "string" || body.name.length === 0 || body.name.length > 200) {
     return res.status(400).json({ error: "bad_request", message: "name required" });
@@ -323,13 +336,77 @@ router.post("/projects/:projectId/documents", requireRole(["team", "admin", "sup
   }
 
   const list = (DOCUMENTS as Record<string, unknown[]>)[projectId] ?? [];
+  const documentId = `doc-${projectId}-${list.length + 1}-${Date.now()}`;
+  const isClientVisible = body.isClientVisible ?? true;
+
+  // Drive upload (Task #128). Triggered when (a) the integration is on and
+  // (b) we actually have bytes — either the caller's explicit fileBase64
+  // field or the photo dropzone's data:URL imageUrl. Decoded once so the
+  // body fragment we ship to Drive matches what the dashboard would render.
+  const inboundBase64 =
+    typeof body.fileBase64 === "string" && body.fileBase64.length > 0
+      ? body.fileBase64
+      : (imageUrl && /^data:[^;]+;base64,/.test(imageUrl) ? imageUrl : "");
+  let driveFileId: string | undefined;
+  let driveFolderId: string | undefined;
+  let driveWebViewLink: string | undefined;
+  let driveWebContentLink: string | undefined;
+  let driveThumbnailLink: string | undefined;
+  let storedImageUrl = imageUrl;
+  if (isDriveEnabled() && inboundBase64) {
+    // Strip the optional data:URL prefix to recover the raw base64 payload.
+    const m = inboundBase64.match(/^data:([^;]+);base64,(.+)$/);
+    const inferredMime = m ? m[1] : (body.mimeType || "application/octet-stream");
+    const rawBase64 = m ? (m[2] ?? "") : inboundBase64;
+    let buf: Buffer;
+    try {
+      buf = Buffer.from(rawBase64, "base64");
+    } catch {
+      return res.status(400).json({ error: "bad_request", message: "fileBase64 is not valid base64" });
+    }
+    if (buf.length === 0) {
+      return res.status(400).json({ error: "bad_request", message: "fileBase64 decoded to empty payload" });
+    }
+    try {
+      const result = await uploadDocumentToDrive({
+        projectId,
+        projectName: project.name,
+        documentId,
+        documentName: body.name,
+        category: body.category,
+        mimeType: inferredMime ?? "application/octet-stream",
+        data: buf,
+        isClientVisible,
+      });
+      driveFileId = result.driveFileId;
+      driveFolderId = result.driveFolderId;
+      driveWebViewLink = result.driveWebViewLink ?? undefined;
+      driveWebContentLink = result.driveWebContentLink ?? undefined;
+      driveThumbnailLink = result.driveThumbnailLink ?? undefined;
+      // Once the file is in Drive we don't need the inline base64 — the
+      // gallery prefers the Drive thumbnailLink and the lightbox uses the
+      // webContentLink. Strip the heavy data:URL to keep the API response
+      // (and persisted memory) small.
+      if (storedImageUrl && /^data:/.test(storedImageUrl)) storedImageUrl = undefined;
+    } catch (err) {
+      // Hard failure on the Drive upload: do NOT half-record metadata. The
+      // task acceptance criteria is "either the file is in Drive and metadata
+      // is saved, or neither" — we surface a 502 and let the client retry.
+      const status = err instanceof Error && (err as { status?: number }).status === 404 ? 404 : 502;
+      return res.status(status).json({
+        error: "drive_upload_failed",
+        message: (err as Error).message ?? "Drive upload failed",
+      });
+    }
+  }
+
   const doc = {
-    id: `doc-${projectId}-${list.length + 1}-${Date.now()}`,
+    id: documentId,
     projectId,
     name: body.name,
     type: normalizedType,
     category: body.category,
-    isClientVisible: body.isClientVisible ?? true,
+    isClientVisible,
     uploadedBy: (req as { user?: { id?: string } }).user?.id ?? "system",
     uploadedAt: new Date().toISOString(),
     fileSize: body.fileSize ?? "0 KB",
@@ -337,7 +414,12 @@ router.post("/projects/:projectId/documents", requireRole(["team", "admin", "sup
     description: body.description ?? "",
     ...(photoCategory ? { photoCategory } : {}),
     ...(caption ? { caption } : {}),
-    ...(imageUrl ? { imageUrl } : {}),
+    ...(storedImageUrl ? { imageUrl: storedImageUrl } : {}),
+    ...(driveFileId ? { driveFileId } : {}),
+    ...(driveFolderId ? { driveFolderId } : {}),
+    ...(driveWebViewLink ? { driveWebViewLink } : {}),
+    ...(driveWebContentLink ? { driveWebContentLink } : {}),
+    ...(driveThumbnailLink ? { driveThumbnailLink } : {}),
   };
   (DOCUMENTS as Record<string, unknown[]>)[projectId] = [...list, doc];
   // Surface upload in the project timeline. Use a dedicated audit type when
@@ -356,13 +438,16 @@ router.post("/projects/:projectId/documents", requireRole(["team", "admin", "sup
 router.patch(
   "/projects/:projectId/documents/:documentId",
   requireRole(["team", "admin", "superadmin"]),
-  (req, res) => {
+  async (req, res) => {
     const projectId = req.params["projectId"] as string;
     const documentId = req.params["documentId"] as string;
-    if (!PROJECTS.find((p) => p.id === projectId)) {
+    const project = PROJECTS.find((p) => p.id === projectId);
+    if (!project) {
       return res.status(404).json({ error: "not_found", message: "Project not found" });
     }
-    const list = (DOCUMENTS as Record<string, Array<{ id: string; name: string; isClientVisible: boolean }>>)[projectId] ?? [];
+    const list = (DOCUMENTS as Record<string, Array<{
+      id: string; name: string; isClientVisible: boolean; driveFileId?: string;
+    }>>)[projectId] ?? [];
     const doc = list.find((d) => d.id === documentId);
     if (!doc) return res.status(404).json({ error: "not_found", message: "Document not found" });
     const body = (req.body ?? {}) as { isClientVisible?: boolean };
@@ -370,11 +455,34 @@ router.patch(
       return res.status(400).json({ error: "bad_request", message: "isClientVisible (boolean) required" });
     }
     const previous = doc.isClientVisible;
-    doc.isClientVisible = body.isClientVisible;
-    if (previous !== doc.isClientVisible) {
+    const next = body.isClientVisible;
+    if (previous !== next) {
+      // Drive sharing propagation (Task #128) — atomic. If Drive is the
+      // active backend we MUST update the file's permissions before mutating
+      // our own record so the dashboard never claims "client visible" when
+      // the file is still private in Drive (or vice versa). If Drive fails
+      // we leave local state untouched and surface a 502.
+      if (doc.driveFileId && isDriveEnabled()) {
+        const ok = await applyVisibilityToDrive({
+          projectId,
+          projectName: project.name,
+          documentId: doc.id,
+          documentName: doc.name,
+          driveFileId: doc.driveFileId,
+          isClientVisible: next,
+        });
+        if (!ok) {
+          return res.status(502).json({
+            error: "drive_visibility_failed",
+            message:
+              "Could not update visibility in Google Drive. The document was not changed.",
+          });
+        }
+      }
+      doc.isClientVisible = next;
       const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
-      const visEn = doc.isClientVisible ? "visible to client" : "hidden from client";
-      const visEs = doc.isClientVisible ? "visible al cliente" : "oculto al cliente";
+      const visEn = next ? "visible to client" : "hidden from client";
+      const visEs = next ? "visible al cliente" : "oculto al cliente";
       appendActivity(projectId, {
         type: "document_visibility_change",
         actor,
@@ -393,15 +501,16 @@ router.patch(
 router.delete(
   "/projects/:projectId/documents/:documentId",
   requireRole(["team", "admin", "superadmin", "client"]),
-  (req, res) => {
+  async (req, res) => {
     const projectId = req.params["projectId"] as string;
     const documentId = req.params["documentId"] as string;
-    if (!PROJECTS.find((p) => p.id === projectId)) {
+    const project = PROJECTS.find((p) => p.id === projectId);
+    if (!project) {
       return res.status(404).json({ error: "not_found", message: "Project not found" });
     }
     if (!enforceClientOwnership(req, res, projectId)) return;
     const list = (DOCUMENTS as Record<string, Array<{
-      id: string; name: string; category: string; uploadedBy: string;
+      id: string; name: string; category: string; uploadedBy: string; driveFileId?: string;
     }>>)[projectId] ?? [];
     const idx = list.findIndex((d) => d.id === documentId);
     if (idx < 0) {
@@ -416,6 +525,26 @@ router.delete(
         error: "forbidden",
         message: "Clients can only delete documents they uploaded themselves",
       });
+    }
+    // Drive delete first — atomic. If Drive fails we keep the local record
+    // so the user can retry; otherwise the dashboard would lose its only
+    // pointer to a still-living file in Drive (an orphan they can't
+    // re-discover from the UI).
+    if (doc.driveFileId && isDriveEnabled()) {
+      const ok = await deleteDocumentFromDrive({
+        projectId,
+        projectName: project.name,
+        documentId: doc.id,
+        documentName: doc.name,
+        driveFileId: doc.driveFileId,
+      });
+      if (!ok) {
+        return res.status(502).json({
+          error: "drive_delete_failed",
+          message:
+            "Could not remove the file from Google Drive. The document was not deleted.",
+        });
+      }
     }
     list.splice(idx, 1);
     (DOCUMENTS as Record<string, unknown[]>)[projectId] = list;

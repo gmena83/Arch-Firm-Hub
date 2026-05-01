@@ -1052,6 +1052,19 @@ function DocCard({ doc, isClientView, projectId }: { doc: Document; isClientView
                     v{versions.length}
                   </span>
                 )}
+                {doc.driveWebViewLink && (
+                  <a
+                    href={doc.driveWebViewLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="text-xs px-1.5 py-0.5 rounded font-semibold bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 inline-flex items-center gap-1"
+                    data-testid={`link-open-in-drive-${doc.id}`}
+                    title={t("Open in Google Drive", "Abrir en Google Drive")}
+                  >
+                    {t("Drive", "Drive")}
+                  </a>
+                )}
               </div>
             </div>
           </div>
