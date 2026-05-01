@@ -42,3 +42,9 @@ id = "gSy_WaVAGX8gVqRRNPLZF"
 uri = "file://attached_assets/reports/KONTi_Feedback_Status_2026-04-30.md"
 type = "text"
 title = "KONTi Feedback Status — 2026-04-30 (Fixed & Pending)"
+
+[[outputs]]
+id = "eEqJzssjfdclrDC10MuQA"
+uri = "file://reports/feedback-status-2026-05-01.md"
+type = "text"
+title = "KONTi Feedback Status — May 1, 2026 (categorized + prioritized)"
