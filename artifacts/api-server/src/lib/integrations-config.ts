@@ -389,6 +389,15 @@ export function setDriveSubFolder(
   persist();
 }
 
+// Wipes the per-project folder map. Used when an admin reconnects to a
+// different Drive root — the cached folder IDs live under the OLD root and
+// would silently misroute uploads if reused.
+export function clearDriveProjectFolders(): void {
+  const state = getState();
+  state.drive.projectFolders = {};
+  persist();
+}
+
 export function appendDriveSyncLog(entry: Omit<DriveSyncLogEntry, "id" | "timestamp"> & {
   id?: string;
   timestamp?: string;

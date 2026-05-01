@@ -16,6 +16,7 @@ import {
   getDriveConfig,
   updateDriveConfig,
   getDriveSyncLog,
+  clearDriveProjectFolders,
 } from "../lib/integrations-config";
 import {
   listWorkspaces,
@@ -314,7 +315,25 @@ router.post("/integrations/drive/configure", requireRole([...ADMIN_ROLES]), asyn
         ? body.deletePolicy
         : "trash";
     const user = (req as { user?: { name?: string } }).user;
-    const wasFirstConnect = !getDriveConfig().firstConnectCompletedAt;
+    const previousCfg = getDriveConfig();
+    const wasFirstConnect = !previousCfg.firstConnectCompletedAt;
+    // If the admin is reconnecting to a *different* Drive root than the one
+    // we previously remembered, the cached projectFolders map points at
+    // folder IDs that live under the old root. Continuing to use them would
+    // silently send uploads into the wrong Drive — clear the map so the
+    // next upload re-provisions a fresh per-project folder under the new
+    // root. (Same-root reconnects keep the map for free.)
+    if (
+      previousCfg.rootFolderId &&
+      previousCfg.rootFolderId !== rootFolderId &&
+      Object.keys(previousCfg.projectFolders).length > 0
+    ) {
+      clearDriveProjectFolders();
+      logger.info(
+        { previousRoot: previousCfg.rootFolderId, newRoot: rootFolderId },
+        "drive: root folder changed on reconnect — cleared per-project folder map",
+      );
+    }
     let next = updateDriveConfig({
       enabled: true,
       rootFolderId,
