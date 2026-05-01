@@ -7,8 +7,6 @@ import { useAuth } from "@/hooks/use-auth";
 import { useLang } from "@/hooks/use-lang";
 import { useToast } from "@/hooks/use-toast";
 import { useUpdateMe } from "@workspace/api-client-react";
-import { AsanaIntegrationPanel } from "@/components/asana-integration-panel";
-import { DriveIntegrationPanel } from "@/components/drive-integration-panel";
 
 export default function SettingsPage() {
   const { user, updateUser } = useAuth();
@@ -230,12 +228,10 @@ export default function SettingsPage() {
 
             <div className="border-t border-border" />
 
-            {/* Integrations:
-                - Superadmin: panels live on the dedicated /integrations page
-                  (Task #130). We render a link here so the entry point stays
-                  discoverable from Settings.
-                - Admin (non-super): keeps the inline panels they have always
-                  used (Tasks #127 and #128). */}
+            {/* Integrations live on the dedicated /integrations page (Task
+                #130). Settings no longer mounts the Asana / Drive panels.
+                Superadmins see a quick link below; non-superadmins simply
+                don't see this section. */}
             {user?.role === "superadmin" && (
               <>
                 <Link
@@ -259,14 +255,6 @@ export default function SettingsPage() {
                   </div>
                   <ChevronRight className="w-4 h-4 text-muted-foreground" />
                 </Link>
-                <div className="border-t border-border" />
-              </>
-            )}
-            {user?.role === "admin" && (
-              <>
-                <AsanaIntegrationPanel />
-                <div className="border-t border-border" />
-                <DriveIntegrationPanel />
                 <div className="border-t border-border" />
               </>
             )}

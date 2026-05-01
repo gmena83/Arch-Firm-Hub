@@ -151,7 +151,9 @@ router.post(
     }
     const meta = MANAGED_SECRETS.find((s) => s.name === name);
     if (!meta?.testable) {
-      res.status(400).json({
+      // 200 (with ok:false) so the row's inline result renders the message
+      // rather than throwing a generic mutation error in the toast layer.
+      res.status(200).json({
         ok: false,
         message: "Test not yet wired for this key.",
         messageEs: "La prueba aún no está conectada para esta llave.",
@@ -160,7 +162,7 @@ router.post(
     }
     const value = getManagedSecret(name);
     if (!value) {
-      res.status(400).json({
+      res.status(200).json({
         ok: false,
         message: "No value configured.",
         messageEs: "No hay valor configurado.",

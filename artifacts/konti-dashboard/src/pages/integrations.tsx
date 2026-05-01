@@ -234,22 +234,25 @@ function SecretRow({ secret }: { secret: ManagedSecretStatus }) {
         </td>
         <td className="px-2 py-3 align-top">
           <div className="flex items-center justify-end gap-1.5">
-            {meta.testable && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={onTest}
-                disabled={test.isPending}
-                data-testid={`btn-test-${meta.name}`}
-              >
-                {test.isPending ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                )}
-                <span className="ml-1">{t("Test", "Probar")}</span>
-              </Button>
-            )}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onTest}
+              disabled={test.isPending}
+              data-testid={`btn-test-${meta.name}`}
+              title={
+                meta.testable
+                  ? t("Run live probe", "Probar en vivo")
+                  : t("Test not yet wired", "Prueba aún no conectada")
+              }
+            >
+              {test.isPending ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <CheckCircle2 className="w-3.5 h-3.5" />
+              )}
+              <span className="ml-1">{t("Test", "Probar")}</span>
+            </Button>
             <Button
               size="sm"
               onClick={() => setOpen(true)}

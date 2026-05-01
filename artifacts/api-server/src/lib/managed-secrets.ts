@@ -85,6 +85,30 @@ export const MANAGED_SECRETS: readonly ManagedSecretMeta[] = [
     category: "presentation",
     testable: false,
   },
+  {
+    name: "GOOGLE_CLIENT_ID",
+    label: "Google OAuth client ID",
+    labelEs: "ID de cliente OAuth de Google",
+    description:
+      "OAuth client ID for the Drive integration. Pair with GOOGLE_CLIENT_SECRET. Paste-only — testing is not yet wired.",
+    descriptionEs:
+      "ID del cliente OAuth para la integración con Drive. Acompáñala con GOOGLE_CLIENT_SECRET. Solo guarda — la prueba aún no está conectada.",
+    category: "oauth",
+    testable: false,
+    formatHint: "…apps.googleusercontent.com",
+  },
+  {
+    name: "GOOGLE_CLIENT_SECRET",
+    label: "Google OAuth client secret",
+    labelEs: "Secreto de cliente OAuth de Google",
+    description:
+      "OAuth client secret for the Drive integration. Pair with GOOGLE_CLIENT_ID. Paste-only — testing is not yet wired.",
+    descriptionEs:
+      "Secreto del cliente OAuth para la integración con Drive. Acompáñalo con GOOGLE_CLIENT_ID. Solo guarda — la prueba aún no está conectada.",
+    category: "oauth",
+    testable: false,
+    formatHint: "GOCSPX-…",
+  },
 ] as const;
 
 export function isManagedSecretName(name: string): boolean {
