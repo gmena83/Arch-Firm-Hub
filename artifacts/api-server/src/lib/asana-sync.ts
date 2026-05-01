@@ -71,8 +71,13 @@ let installed = false;
 // Composing the comment body
 // ---------------------------------------------------------------------------
 function dashboardLinkFor(projectId: string, baseUrl: string | null): string {
+  // Path matches the wouter route in App.tsx: <Route path="/projects/:id">.
+  // When baseUrl is null (Asana not configured / pre-derive), we still emit a
+  // path so the comment body is well-formed; in practice we now derive the
+  // base URL from the configure request's Origin header so this is only "/"
+  // in tests and one-off code paths.
   const root = (baseUrl ?? "").replace(/\/+$/, "");
-  return `${root}/konti-dashboard/projects/${projectId}`;
+  return `${root}/projects/${projectId}`;
 }
 
 export function composeCommentBody(
@@ -224,36 +229,53 @@ async function attemptSync(job: QueuedSyncJob): Promise<void> {
     const isNotConnected = err instanceof AsanaNotConnectedError;
     const status = err instanceof AsanaApiError ? err.status : 0;
     const nextAttempts = job.attempts + 1;
-    if (nextAttempts >= MAX_ATTEMPTS) {
+    const reason = (err as Error).message ?? "unknown";
+    const terminal = nextAttempts >= MAX_ATTEMPTS;
+
+    // Always log per-attempt failure to the sync log AND emit an
+    // `asana_sync_failed` activity so the project timeline shows operational
+    // visibility on every failure, not only on the terminal give-up. This is
+    // a deliberate design choice: when Asana is flaky, the team needs to see
+    // each failed attempt in-context (and the retry status) rather than
+    // discovering 5 stale events at the end.
+    appendSyncLog({
+      projectId: job.projectId,
+      projectName: project.name,
+      activityType: job.activity.type,
+      asanaTaskGid: taskGid,
+      status: "failed",
+      attempts: nextAttempts,
+      message: terminal
+        ? `Gave up after ${nextAttempts} attempts: ${reason}`
+        : `Attempt ${nextAttempts} of ${MAX_ATTEMPTS} failed; will retry: ${reason}`,
+      messageEs: terminal
+        ? `Falló después de ${nextAttempts} intentos: ${reason}`
+        : `Intento ${nextAttempts} de ${MAX_ATTEMPTS} falló; se reintentará: ${reason}`,
+      payload: {
+        actor: job.activity.actor,
+        description: job.activity.description,
+        descriptionEs: job.activity.descriptionEs,
+        type: job.activity.type,
+        activityId: job.activity.id,
+      },
+    });
+    appendActivity(job.projectId, {
+      type: "asana_sync_failed",
+      actor: "Asana sync",
+      description: terminal
+        ? `Gave up syncing "${job.activity.type}" to Asana after ${nextAttempts} attempts (${reason.slice(0, 80)})`
+        : `Sync attempt ${nextAttempts}/${MAX_ATTEMPTS} for "${job.activity.type}" failed; will retry (${reason.slice(0, 80)})`,
+      descriptionEs: terminal
+        ? `Sincronización de "${job.activity.type}" abandonada tras ${nextAttempts} intentos (${reason.slice(0, 80)})`
+        : `Intento ${nextAttempts}/${MAX_ATTEMPTS} de sincronizar "${job.activity.type}" falló; se reintentará (${reason.slice(0, 80)})`,
+    });
+
+    if (terminal) {
       dequeueJob(job.id);
-      const reason = (err as Error).message ?? "unknown";
-      appendSyncLog({
-        projectId: job.projectId,
-        projectName: project.name,
-        activityType: job.activity.type,
-        asanaTaskGid: taskGid,
-        status: "failed",
-        attempts: nextAttempts,
-        message: `Gave up after ${nextAttempts} attempts: ${reason}`,
-        messageEs: `Falló después de ${nextAttempts} intentos: ${reason}`,
-        payload: {
-          actor: job.activity.actor,
-          description: job.activity.description,
-          descriptionEs: job.activity.descriptionEs,
-          type: job.activity.type,
-          activityId: job.activity.id,
-        },
-      });
-      appendActivity(job.projectId, {
-        type: "asana_sync_failed",
-        actor: "Asana sync",
-        description: `Failed to sync "${job.activity.type}" to Asana (${reason.slice(0, 80)})`,
-        descriptionEs: `Error al sincronizar "${job.activity.type}" con Asana (${reason.slice(0, 80)})`,
-      });
     } else {
       bumpJobAttempt(job.id, nextBackoffISO(nextAttempts));
       logger.warn(
-        { err: (err as Error).message, isNotConnected, status, jobId: job.id, nextAttempts },
+        { err: reason, isNotConnected, status, jobId: job.id, nextAttempts },
         "asana-sync: attempt failed; will retry",
       );
     }

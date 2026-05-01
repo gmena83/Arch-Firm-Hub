@@ -94,8 +94,28 @@ router.get("/integrations/asana/boards", requireRole([...ADMIN_ROLES]), async (r
 });
 
 // Save the chosen workspace + board and flip the integration on. The
-// dashboardBaseUrl is optional but we accept it so the comments link back to
-// the right hostname for this Repl.
+// dashboardBaseUrl is captured so deep-link URLs in Asana comments are
+// absolute (e.g. https://abc-def.replit.dev). If the admin doesn't supply
+// one, we derive it from the request — first preference is the Origin
+// header (sent by the browser when the admin clicks Save in the panel),
+// falling back to REPLIT_DEV_DOMAIN. Without an absolute URL the comments
+// would contain bare paths like "/konti-dashboard/..." which are useless
+// from inside Asana.
+function deriveDashboardBaseUrl(req: { get(name: string): string | undefined }): string | null {
+  const origin = req.get("origin");
+  if (origin && /^https?:\/\//i.test(origin)) return origin.replace(/\/+$/, "");
+  const referer = req.get("referer");
+  if (referer) {
+    try {
+      const u = new URL(referer);
+      return `${u.protocol}//${u.host}`;
+    } catch { /* fall through */ }
+  }
+  const replitDomain = process.env["REPLIT_DEV_DOMAIN"];
+  if (replitDomain) return `https://${replitDomain}`;
+  return null;
+}
+
 router.post("/integrations/asana/configure", requireRole([...ADMIN_ROLES]), (req, res) => {
   const body = (req.body ?? {}) as {
     workspaceGid?: unknown; workspaceName?: unknown;
@@ -108,6 +128,10 @@ router.post("/integrations/asana/configure", requireRole([...ADMIN_ROLES]), (req
     return res.status(400).json({ error: "bad_request", message: "workspaceGid and boardGid required" });
   }
   const user = (req as { user?: { name?: string } }).user;
+  const explicitBaseUrl =
+    typeof body.dashboardBaseUrl === "string" && body.dashboardBaseUrl.length > 0
+      ? body.dashboardBaseUrl.replace(/\/+$/, "").slice(0, 200)
+      : null;
   const next = updateAsanaConfig({
     enabled: true,
     workspaceGid,
@@ -118,10 +142,7 @@ router.post("/integrations/asana/configure", requireRole([...ADMIN_ROLES]), (req
       typeof body.defaultAssigneeGid === "string" && body.defaultAssigneeGid.length > 0
         ? body.defaultAssigneeGid.slice(0, 64)
         : null,
-    dashboardBaseUrl:
-      typeof body.dashboardBaseUrl === "string" && body.dashboardBaseUrl.length > 0
-        ? body.dashboardBaseUrl.slice(0, 200)
-        : null,
+    dashboardBaseUrl: explicitBaseUrl ?? deriveDashboardBaseUrl(req),
     connectedAt: new Date().toISOString(),
     connectedBy: user?.name ?? "Admin",
   });

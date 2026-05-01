@@ -206,6 +206,14 @@ export function enqueueJob(job: Omit<QueuedSyncJob, "id" | "enqueuedAt" | "nextA
   attempts?: number;
 }): QueuedSyncJob {
   const state = getState();
+  // Dedupe by activityId + projectId: if the same activity is already queued
+  // we return the existing job rather than enqueueing twice. This prevents a
+  // burst of writes (e.g. an activity fired during a manual retry) from
+  // posting two identical comments to the same Asana task.
+  const existing = state.queue.find(
+    (q) => q.projectId === job.projectId && q.activity.id === job.activity.id,
+  );
+  if (existing) return existing;
   const now = new Date().toISOString();
   const entry: QueuedSyncJob = {
     id: job.id ?? `job-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
