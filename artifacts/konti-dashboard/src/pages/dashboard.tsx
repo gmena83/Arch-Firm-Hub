@@ -12,6 +12,7 @@ import { WeatherBadge } from "@/components/weather-badge";
 import { useGetProjectWeather } from "@workspace/api-client-react";
 import { ArrowRight, TrendingUp, FolderOpen, FileText, Clock, Activity, BarChart3, CheckCircle, Receipt } from "lucide-react";
 import { ConstructionStatusCard } from "@/components/construction-status-card";
+import { resolveSeedImageUrl } from "@/lib/seed-image-url";
 import { formatDistanceToNow } from "date-fns";
 import { es as dateEs } from "date-fns/locale";
 
@@ -46,7 +47,7 @@ function ProjectCard({ project, isClientUser }: {
       {project.coverImage && (
         <div className="relative h-44 overflow-hidden">
           <img
-            src={project.coverImage}
+            src={resolveSeedImageUrl(project.coverImage)}
             alt={project.name}
             className="w-full h-full object-cover"
           />

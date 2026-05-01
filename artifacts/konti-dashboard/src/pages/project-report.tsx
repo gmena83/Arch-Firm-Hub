@@ -26,6 +26,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { Check, ArrowLeft, MapPin, Calendar, TrendingUp, Download, Loader2, Sun, Moon, Square } from "lucide-react";
 import logoWhite from "@assets/Horizontal02_WhitePNG_1776258303461.png";
 import logoGreen from "@assets/Horizontal02_VerdePNG_1776258303461.png";
+import { resolveSeedImageUrl } from "@/lib/seed-image-url";
 
 // Brand-only chart palette — sourced from `--rep-chart-1..5` CSS variables
 // declared in `index.css` so the report colors live in one central place
@@ -319,7 +320,7 @@ function ReportContent({ projectId }: { projectId: string }) {
   // Prefer the Drive thumbnail (lightweight, signed) → proxy (works for
   // every role incl. client) → legacy inline imageUrl fallback.
   const pickReportPhotoUrl = (p: ReportPhoto): string | undefined =>
-    p.driveThumbnailLink ?? p.driveDownloadProxyUrl ?? p.driveWebContentLink ?? p.imageUrl;
+    p.driveThumbnailLink ?? p.driveDownloadProxyUrl ?? p.driveWebContentLink ?? resolveSeedImageUrl(p.imageUrl);
   const reportPhotos = useMemo<ReportPhoto[]>(() => (
     (allDocs as ReportPhoto[] & { type?: string }[])
       .filter((d) => (d as { type?: string }).type === "photo")

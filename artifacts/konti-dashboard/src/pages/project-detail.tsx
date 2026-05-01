@@ -49,6 +49,7 @@ import { StatusSentence } from "@/components/status-sentence";
 import { SitePhotosGallery, PHOTO_CATEGORY_OPTIONS, type PhotoCategoryKey } from "@/components/site-photos-gallery";
 import { ContractorMonitoringSection } from "@/components/contractor-monitoring-section";
 import { ProjectMetadataCard } from "@/components/project-metadata-card";
+import { resolveSeedImageUrl } from "@/lib/seed-image-url";
 import { InspectionsSection } from "@/components/inspections-section";
 import { PunchlistPanel } from "@/components/punchlist-panel";
 import { MilestonesTimeline } from "@/components/milestones-timeline";
@@ -1448,7 +1449,7 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
 
         <div className="relative rounded-xl overflow-hidden h-48 sm:h-56">
           {project.coverImage && (
-            <img src={project.coverImage} alt={project.name} className="w-full h-full object-cover" />
+            <img src={resolveSeedImageUrl(project.coverImage)} alt={project.name} className="w-full h-full object-cover" />
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-konti-slate/65 via-konti-slate/35 to-konti-slate/0" />
           {/* Localized darker bottom band guarantees contrast for the title block on bright cover photos without darkening the top of the image. */}

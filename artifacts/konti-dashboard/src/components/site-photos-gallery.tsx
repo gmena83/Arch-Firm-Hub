@@ -6,6 +6,7 @@ import {
   type Document,
 } from "@workspace/api-client-react";
 import { useLang } from "@/hooks/use-lang";
+import { resolveSeedImageUrl } from "@/lib/seed-image-url";
 
 export type PhotoCategoryKey =
   | "site_conditions"
@@ -46,10 +47,10 @@ function selectPhotos(
 // stripped server-side as well, leaving `driveDownloadProxyUrl` as the only
 // safe choice — that's why it's always the last sturdy fallback.
 function pickThumbUrl(p: Document): string | undefined {
-  return p.driveThumbnailLink ?? p.driveDownloadProxyUrl ?? p.imageUrl;
+  return p.driveThumbnailLink ?? p.driveDownloadProxyUrl ?? resolveSeedImageUrl(p.imageUrl);
 }
 function pickFullUrl(p: Document): string | undefined {
-  return p.driveDownloadProxyUrl ?? p.driveWebContentLink ?? p.imageUrl;
+  return p.driveDownloadProxyUrl ?? p.driveWebContentLink ?? resolveSeedImageUrl(p.imageUrl);
 }
 
 function groupByCategory(photos: Document[]): Record<PhotoCategoryKey, Document[]> {

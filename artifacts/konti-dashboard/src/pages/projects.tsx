@@ -12,6 +12,7 @@ import { RequireAuth } from "@/hooks/auth-provider";
 import { useAuth } from "@/hooks/use-auth";
 import { useLang } from "@/hooks/use-lang";
 import { useToast } from "@/hooks/use-toast";
+import { resolveSeedImageUrl } from "@/lib/seed-image-url";
 import { ArrowRight, MapPin, Plus, X } from "lucide-react";
 
 function NewProjectDialog({ onClose }: { onClose: () => void }) {
@@ -249,7 +250,7 @@ export default function ProjectsPage() {
                   >
                     {project.coverImage && (
                       <img
-                        src={project.coverImage}
+                        src={resolveSeedImageUrl(project.coverImage)}
                         alt={project.name}
                         className="w-20 h-16 object-cover rounded-lg shrink-0 hidden sm:block"
                       />
