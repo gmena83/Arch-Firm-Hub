@@ -1,40 +1,19 @@
-// Mirror of REPORT_CATEGORY_KEYS / REPORT_CATEGORY_LABELS in
-// artifacts/api-server/src/data/seed.ts so the report.tsx category card uses
-// the same canonical en/es labels as the server-side estimating bucketing.
-// Update both files together when categories change.
-export type ReportCategoryKey =
-  | "foundation"
-  | "steel"
-  | "electrical"
-  | "plumbing"
-  | "finishes"
-  | "labor"
-  | "subcontractor";
+// Re-export the shared report-category model so existing
+// `@/lib/report-categories` imports keep working. The single source of truth
+// lives in lib/report-categories so the api-server rollup and the dashboard
+// renderer can never drift out of sync.
+export {
+  bucketForTradeCategory,
+  REPORT_BUCKET_KEYS,
+  REPORT_BUCKET_LABELS,
+  reportBucketLabel,
+  rollupByBucket,
+  rollupRecordByBucket,
+  tradeCategoryLabel,
+} from "@workspace/report-categories";
+export type { BucketRollupRow, ReportBucketKey } from "@workspace/report-categories";
 
-export const REPORT_CATEGORY_KEYS: ReportCategoryKey[] = [
-  "foundation",
-  "steel",
-  "electrical",
-  "plumbing",
-  "finishes",
-  "labor",
-  "subcontractor",
-];
-
-export const REPORT_CATEGORY_LABELS: Record<ReportCategoryKey, { en: string; es: string }> = {
-  foundation:    { en: "Foundation",        es: "Cimientos" },
-  steel:         { en: "Steel / Container", es: "Acero / Contenedor" },
-  electrical:    { en: "Electrical",        es: "Eléctrico" },
-  plumbing:      { en: "Plumbing",          es: "Plomería" },
-  finishes:      { en: "Finishes",          es: "Acabados" },
-  labor:         { en: "Labor",             es: "Mano de Obra" },
-  subcontractor: { en: "Subcontractor",     es: "Subcontratistas" },
-};
-
-export function reportCategoryLabel(key: string, lang: string): string {
-  const k = key.toLowerCase() as ReportCategoryKey;
-  const entry = REPORT_CATEGORY_LABELS[k];
-  if (entry) return lang === "es" ? entry.es : entry.en;
-  // Fall through to the raw category name for unknown / spreadsheet-extra keys.
-  return key.charAt(0).toUpperCase() + key.slice(1);
-}
+// Backwards-compatible alias — older call sites still import this name and
+// expect a friendly trade-level label (Foundation, Steel, …) for raw line
+// items in the Material Cost Summary.
+export { tradeCategoryLabel as reportCategoryLabel } from "@workspace/report-categories";

@@ -15,13 +15,22 @@ import { RequireAuth, useAuth } from "@/hooks/use-auth";
 import { useLang } from "@/hooks/use-lang";
 import { PunchlistPanel } from "@/components/punchlist-panel";
 import { ContractorMonitoringSection } from "@/components/contractor-monitoring-section";
-import { reportCategoryLabel } from "@/lib/report-categories";
+import {
+  REPORT_BUCKET_KEYS,
+  reportBucketLabel,
+  rollupRecordByBucket,
+  type ReportBucketKey,
+} from "@workspace/report-categories";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { Check, ArrowLeft, MapPin, Calendar, TrendingUp, Download, Loader2, Sun, Moon, Square } from "lucide-react";
 import logoWhite from "@assets/Horizontal02_WhitePNG_1776258303461.png";
 import logoGreen from "@assets/Horizontal02_VerdePNG_1776258303461.png";
 
-const CHART_COLORS = ["#4F5E2A", "#778894", "#A3B38C", "#2A2622", "#9FB0BA"];
+// Brand-only chart palette — olive primary, slate secondary, sage accent, plus
+// two derived tonal extensions (mid-olive, deep-slate) so charts with up to 9
+// segments still cycle within the KONTi palette instead of falling back to
+// off-brand recharts defaults.
+const CHART_COLORS = ["#4F5E2A", "#778894", "#A3B38C", "#6F8B58", "#5A6F7C"];
 
 // Industry-typical share of project budget per macro phase. Sums to 1.00.
 const PHASE_BUDGET_WEIGHTS: Record<string, number> = {
@@ -117,18 +126,23 @@ const THEME_VARS: Record<ReportTheme, ThemeVars> = {
     "--rep-border": "rgba(28,24,20,0.08)",
     "--rep-border-strong": "rgba(28,24,20,0.18)",
   },
+  // Brand-dark variant — KONTi olive/slate/sage on a near-black warm-brown
+  // base. Replaces the previous monochrome white-on-black surfaces so the
+  // dark report still reads as a KONTi document instead of a generic dark
+  // theme. Persisted users with the legacy "dark" preference are migrated
+  // automatically because the theme key is unchanged.
   dark: {
     "--rep-bg": "#1C1814",
-    "--rep-bg-strong": "#2A2622",
+    "--rep-bg-strong": "#26301A",
     "--rep-fg": "#E6EAEB",
     "--rep-fg-strong": "#FFFFFF",
-    "--rep-fg-muted": "rgba(230,234,235,0.78)",
-    "--rep-fg-soft": "rgba(230,234,235,0.62)",
-    "--rep-fg-faint": "rgba(230,234,235,0.50)",
-    "--rep-surface": "rgba(255,255,255,0.05)",
-    "--rep-surface-2": "rgba(255,255,255,0.10)",
-    "--rep-border": "rgba(255,255,255,0.10)",
-    "--rep-border-strong": "rgba(255,255,255,0.20)",
+    "--rep-fg-muted": "rgba(230,234,235,0.82)",
+    "--rep-fg-soft": "rgba(163,179,140,0.78)",
+    "--rep-fg-faint": "rgba(163,179,140,0.58)",
+    "--rep-surface": "rgba(163,179,140,0.06)",
+    "--rep-surface-2": "rgba(119,136,148,0.18)",
+    "--rep-border": "rgba(119,136,148,0.22)",
+    "--rep-border-strong": "rgba(163,179,140,0.32)",
   },
 };
 
@@ -403,24 +417,46 @@ function ReportContent({ projectId }: { projectId: string }) {
   const completedTasks = tasks.filter((task) => task.completed);
   const pendingTasks = tasks.filter((task) => !task.completed);
 
-  const chartData = calc?.subtotalByCategory
-    ? Object.entries(calc.subtotalByCategory).map(([name, value]) => ({ name: reportCategoryLabel(name, lang), value }))
-    : [
-        { name: reportCategoryLabel("steel", lang),      value: 45000 },
-        { name: reportCategoryLabel("foundation", lang), value: 32000 },
-        { name: reportCategoryLabel("electrical", lang), value: 18000 },
-        { name: reportCategoryLabel("plumbing", lang),   value: 12000 },
-        { name: reportCategoryLabel("finishes", lang),   value: 22000 },
-      ];
+  // Roll the trade-level subtotals into the team's five canonical PROJECT
+  // ESTIMATE buckets so the client-facing report mirrors the structure the
+  // team emails. The api-server already returns `subtotalByBucket`/`bucketRollup`
+  // when present; we re-derive client-side from `subtotalByCategory` as a
+  // resilient fallback (e.g. older deployments, or a future report path that
+  // assembles the rollup from a different data source).
+  const calcWithBucket = calc as
+    | (typeof calc & { subtotalByBucket?: Record<string, number> })
+    | undefined;
+  const bucketRows: Array<{ key: ReportBucketKey; label: string; total: number }> = (() => {
+    if (!calc?.subtotalByCategory) {
+      return REPORT_BUCKET_KEYS.map((key) => ({
+        key,
+        label: reportBucketLabel(key, lang),
+        total: 0,
+      }));
+    }
+    const fromServer = calcWithBucket?.subtotalByBucket;
+    if (fromServer) {
+      return REPORT_BUCKET_KEYS.map((key) => ({
+        key,
+        label: reportBucketLabel(key, lang),
+        total: fromServer[key] ?? 0,
+      }));
+    }
+    return rollupRecordByBucket(calc.subtotalByCategory).map((row) => ({
+      key: row.key as ReportBucketKey,
+      label: reportBucketLabel(row.key, lang),
+      total: row.total,
+    }));
+  })();
 
-  // Category rollup row data (used by the client-facing card that replaces
-  // the BOM detail and by the team report as a summary above the BOM).
-  const categoryRows: Array<{ key: string; label: string; total: number }> = calc?.subtotalByCategory
-    ? Object.entries(calc.subtotalByCategory)
-        .map(([key, total]) => ({ key, label: reportCategoryLabel(key, lang), total }))
-        .sort((a, b) => b.total - a.total)
-    : [];
+  const categoryRows = bucketRows;
   const categoryTotal = categoryRows.reduce((sum, r) => sum + r.total, 0);
+  // Pie chart: only render buckets that actually have spend so the donut
+  // doesn't show empty slivers, but the table below it always lists all five
+  // canonical buckets so clients can see the structure.
+  const chartData = bucketRows
+    .filter((r) => r.total > 0)
+    .map((r) => ({ name: r.label, value: r.total }));
 
   // Render the editable yyyy-mm-dd in the user's locale for display in the
   // sticky header. Parse as local time (append T00:00) so the displayed day
@@ -436,7 +472,7 @@ function ReportContent({ projectId }: { projectId: string }) {
   // Recharts tooltip styled per active theme so it stays readable on light or dark.
   const tooltipContentStyle = isLight
     ? { background: "#FFFFFF", border: "1px solid rgba(28,24,20,0.15)", borderRadius: 8, color: "#1C1814", boxShadow: "0 4px 12px rgba(28,24,20,0.10)" }
-    : { background: "#1C1814", border: "1px solid rgba(255,255,255,0.10)", borderRadius: 8, color: "white" };
+    : { background: "#1C1814", border: "1px solid rgba(163,179,140,0.30)", borderRadius: 8, color: "#E6EAEB", boxShadow: "0 4px 12px rgba(0,0,0,0.40)" };
 
   const reportLogo = isLight ? logoGreen : logoWhite;
 
@@ -709,41 +745,46 @@ function ReportContent({ projectId }: { projectId: string }) {
           </section>
         )}
 
-        {/* Budget breakdown — pie by category */}
-        <section className="grid md:grid-cols-2 gap-8 items-center">
-          <div>
-            <h2 className="text-[color:var(--rep-fg-faint)] text-xs font-semibold uppercase tracking-widest mb-4">
-              {t("Budget Breakdown", "Desglose del Presupuesto")}
-            </h2>
-            <div className="space-y-2">
-              {chartData.map((item, i) => (
-                <div key={item.name} className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }} />
-                    <span className="text-sm text-[color:var(--rep-fg-muted)]">{item.name}</span>
+        {/* Budget breakdown — pie by canonical bucket. Hidden entirely when
+            no bucket has spend yet so the report doesn't show an empty donut;
+            the structured Cost-by-Category table below still surfaces the
+            five-bucket layout with "—" placeholders. */}
+        {chartData.length > 0 && (
+          <section className="grid md:grid-cols-2 gap-8 items-center">
+            <div>
+              <h2 className="text-[color:var(--rep-fg-faint)] text-xs font-semibold uppercase tracking-widest mb-4">
+                {t("Budget Breakdown", "Desglose del Presupuesto")}
+              </h2>
+              <div className="space-y-2">
+                {chartData.map((item, i) => (
+                  <div key={item.name} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }} />
+                      <span className="text-sm text-[color:var(--rep-fg-muted)]">{item.name}</span>
+                    </div>
+                    <span className="text-sm font-medium text-[color:var(--rep-fg-strong)]">${item.value.toLocaleString()}</span>
                   </div>
-                  <span className="text-sm font-medium text-[color:var(--rep-fg-strong)]">${item.value.toLocaleString()}</span>
+                ))}
+                <div className="border-t border-[color:var(--rep-border)] pt-2 flex items-center justify-between">
+                  <span className="text-sm font-bold text-[color:var(--rep-fg-strong)]">{t("Grand Total", "Total General")}</span>
+                  <span className="text-sm font-bold text-konti-olive">${chartData.reduce((a, b) => a + b.value, 0).toLocaleString()}</span>
                 </div>
-              ))}
-              <div className="border-t border-[color:var(--rep-border)] pt-2 flex items-center justify-between">
-                <span className="text-sm font-bold text-[color:var(--rep-fg-strong)]">{t("Grand Total", "Total General")}</span>
-                <span className="text-sm font-bold text-konti-olive">${chartData.reduce((a, b) => a + b.value, 0).toLocaleString()}</span>
               </div>
             </div>
-          </div>
-          <div className="h-56">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={chartData} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={3} dataKey="value">
-                  {chartData.map((_, index) => (
-                    <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(value: number) => [`$${value.toLocaleString()}`, ""]} contentStyle={tooltipContentStyle} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </section>
+            <div className="h-56">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={chartData} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={3} dataKey="value">
+                    {chartData.map((_, index) => (
+                      <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value: number) => [`$${value.toLocaleString()}`, ""]} contentStyle={tooltipContentStyle} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </section>
+        )}
 
         {/* Budget by phase */}
         {phaseBudgetTotal > 0 && (
@@ -888,42 +929,51 @@ function ReportContent({ projectId }: { projectId: string }) {
           </section>
         )}
 
-        {/* Cost-by-category card — clients see this in place of the raw BOM. Team
-            view also renders it as a summary above the BOM detail table. */}
-        {categoryRows.length > 0 && (
-          <section data-testid="report-category-breakdown">
-            <h2 className="text-[color:var(--rep-fg-faint)] text-xs font-semibold uppercase tracking-widest mb-4">
-              {t("Cost by Category", "Costo por Categoría")}
-            </h2>
-            <div className="bg-[color:var(--rep-surface)] rounded-xl border border-[color:var(--rep-border)] overflow-hidden">
-              <table className="w-full text-sm" data-testid="report-category-table">
-                <thead className="bg-[color:var(--rep-surface-2)]">
-                  <tr>
-                    <th className="text-left px-4 py-2 text-xs uppercase tracking-wider text-[color:var(--rep-fg-soft)]">{t("Category", "Categoría")}</th>
-                    <th className="text-right px-4 py-2 text-xs uppercase tracking-wider text-[color:var(--rep-fg-soft)]">{t("Subtotal", "Subtotal")}</th>
-                    <th className="text-right px-4 py-2 text-xs uppercase tracking-wider text-[color:var(--rep-fg-soft)]">{t("Share", "Participación")}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[color:var(--rep-border)]">
-                  {categoryRows.map((row) => (
-                    <tr key={row.key} data-testid={`report-category-row-${row.key}`}>
+        {/* Cost-by-category card — mirrors the team's PROJECT ESTIMATE
+            spreadsheet by always rendering the same five canonical buckets in
+            the same order, even when a bucket has no spend yet. Empty buckets
+            display "—" so clients can see the structure of the report. Clients
+            see this in place of the raw BOM; the team view renders it as a
+            summary above the BOM detail table. */}
+        <section data-testid="report-category-breakdown">
+          <h2 className="text-[color:var(--rep-fg-faint)] text-xs font-semibold uppercase tracking-widest mb-4">
+            {t("Cost by Category", "Costo por Categoría")}
+          </h2>
+          <div className="bg-[color:var(--rep-surface)] rounded-xl border border-[color:var(--rep-border)] overflow-hidden">
+            <table className="w-full text-sm" data-testid="report-category-table">
+              <thead className="bg-[color:var(--rep-surface-2)]">
+                <tr>
+                  <th className="text-left px-4 py-2 text-xs uppercase tracking-wider text-[color:var(--rep-fg-soft)]">{t("Category", "Categoría")}</th>
+                  <th className="text-right px-4 py-2 text-xs uppercase tracking-wider text-[color:var(--rep-fg-soft)]">{t("Subtotal", "Subtotal")}</th>
+                  <th className="text-right px-4 py-2 text-xs uppercase tracking-wider text-[color:var(--rep-fg-soft)]">{t("Share", "Participación")}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[color:var(--rep-border)]">
+                {categoryRows.map((row) => {
+                  const isEmpty = row.total <= 0;
+                  return (
+                    <tr key={row.key} data-testid={`report-category-row-${row.key}`} data-empty={isEmpty || undefined}>
                       <td className="px-4 py-2 text-[color:var(--rep-fg-muted)]">{row.label}</td>
-                      <td className="px-4 py-2 text-right text-[color:var(--rep-fg-strong)]">${row.total.toLocaleString()}</td>
+                      <td className="px-4 py-2 text-right text-[color:var(--rep-fg-strong)]">
+                        {isEmpty
+                          ? <span className="text-[color:var(--rep-fg-faint)]" title={t("No charges yet", "Sin cargos")}>—</span>
+                          : `$${row.total.toLocaleString()}`}
+                      </td>
                       <td className="px-4 py-2 text-right text-[color:var(--rep-fg-soft)]">
-                        {categoryTotal > 0 ? Math.round((row.total / categoryTotal) * 100) : 0}%
+                        {categoryTotal > 0 && !isEmpty ? `${Math.round((row.total / categoryTotal) * 100)}%` : "—"}
                       </td>
                     </tr>
-                  ))}
-                  <tr className="bg-konti-olive/20">
-                    <td className="px-4 py-3 font-bold text-[color:var(--rep-fg-strong)]">{t("Grand Total", "Total General")}</td>
-                    <td className="px-4 py-3 text-right font-bold text-konti-olive">${categoryTotal.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-right font-bold text-konti-olive">100%</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </section>
-        )}
+                  );
+                })}
+                <tr className="bg-konti-olive/20">
+                  <td className="px-4 py-3 font-bold text-[color:var(--rep-fg-strong)]">{t("Grand Total", "Total General")}</td>
+                  <td className="px-4 py-3 text-right font-bold text-konti-olive">${categoryTotal.toLocaleString()}</td>
+                  <td className="px-4 py-3 text-right font-bold text-konti-olive">{categoryTotal > 0 ? "100%" : "—"}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
 
         {/* Punchlist (read-only on the report). Always rendered — `PunchlistPanel`
             self-disables editing for client viewers via `isClientView`. */}

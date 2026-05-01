@@ -55,6 +55,7 @@ const router: IRouter = Router();
 
 // Phase labels for UI sync — mirrors PHASE_LABELS_MAP in seed.ts
 import { PHASE_LABELS_MAP } from "../data/seed";
+import { rollupRecordByBucket } from "@workspace/report-categories";
 const PHASE_LABELS = PHASE_LABELS_MAP;
 
 const VALID_CHECKLIST_STATUS: ChecklistStatus[] = ["pending", "in_progress", "done"];
@@ -468,7 +469,22 @@ router.get("/projects/:projectId/calculations", requireRole(["team", "admin", "s
     grandTotal += entry.lineTotal;
   }
 
-  return res.json({ projectId, entries, subtotalByCategory, grandTotal });
+  // Roll the trade-level subtotals into the team's five canonical buckets so
+  // the project report matches the PROJECT ESTIMATE spreadsheet structure.
+  // All five keys are always returned (zero for empty buckets) so the client
+  // can render the structure even before any line items are recorded.
+  const bucketRollup = rollupRecordByBucket(subtotalByCategory);
+  const subtotalByBucket: Record<string, number> = {};
+  for (const row of bucketRollup) subtotalByBucket[row.key] = row.total;
+
+  return res.json({
+    projectId,
+    entries,
+    subtotalByCategory,
+    subtotalByBucket,
+    bucketRollup,
+    grandTotal,
+  });
 });
 
 // Inline-edit a calculator line (quantity, base price, manual override).

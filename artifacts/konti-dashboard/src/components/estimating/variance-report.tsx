@@ -105,8 +105,8 @@ export function VarianceReportPanel({
                     <YAxis tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
                     <Tooltip formatter={(v: number) => `$${v.toLocaleString()}`} />
                     <Legend />
-                    <Bar dataKey="Estimated" fill="#94a3b8" />
-                    <Bar dataKey="Actual" fill="#7a8450" />
+                    <Bar dataKey="Estimated" fill="#778894" />
+                    <Bar dataKey="Actual" fill="#4F5E2A" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>

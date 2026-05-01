@@ -2128,41 +2128,22 @@ function attachNonBillable(cp: CostPlusBudget, items: NonBillableExpense[]): Cos
 }
 
 // --------------------------------------------------------------------------
-// REPORT_CATEGORY_KEYS — single source of truth for the cost-breakdown
-// categories rendered on the client/team progress report. The server-side
-// estimating bucket grouping and the report.tsx category card both consume
-// this map so that English/Spanish labels stay in lockstep with the team
-// spreadsheet (attached_assets/2a)_Construction_Report_Benito_Colon… and
-// 1b)_KONTI_DESIGN_CONSTRUCTION_ESTIMATE…). Keys match the lower-cased
-// `category` field already attached to estimate lines in routes/estimating.ts.
-export type ReportCategoryKey =
-  | "foundation"
-  | "steel"
-  | "electrical"
-  | "plumbing"
-  | "finishes"
-  | "labor"
-  | "subcontractor";
-
-export const REPORT_CATEGORY_KEYS: ReportCategoryKey[] = [
-  "foundation",
-  "steel",
-  "electrical",
-  "plumbing",
-  "finishes",
-  "labor",
-  "subcontractor",
-];
-
-export const REPORT_CATEGORY_LABELS: Record<ReportCategoryKey, { en: string; es: string }> = {
-  foundation:    { en: "Foundation",    es: "Cimientos" },
-  steel:         { en: "Steel / Container", es: "Acero / Contenedor" },
-  electrical:    { en: "Electrical",    es: "Eléctrico" },
-  plumbing:      { en: "Plumbing",      es: "Plomería" },
-  finishes:      { en: "Finishes",      es: "Acabados" },
-  labor:         { en: "Labor",         es: "Mano de Obra" },
-  subcontractor: { en: "Subcontractor", es: "Subcontratistas" },
-};
+// Report category model lives in @workspace/report-categories so the
+// api-server rollup, the dashboard renderer, and any future PDF exporter all
+// share one definition of the team's five top-level buckets (DESIGN AND DATA
+// COLLECTION, PERMITS & SERVICE FEES, PRODUCT (CONTAINERS), EXTERIOR &
+// ADD-ONS, CONSTRUCTION CONTINGENCY) — see
+// attached_assets/1b)_KONTI_DESIGN_CONSTRUCTION_ESTIMATE_-_BENITO_COLON…
+// Re-exported here so legacy server-side imports keep resolving.
+export {
+  REPORT_BUCKET_KEYS,
+  REPORT_BUCKET_LABELS,
+  bucketForTradeCategory,
+  reportBucketLabel,
+  rollupRecordByBucket,
+  tradeCategoryLabel,
+} from "@workspace/report-categories";
+export type { ReportBucketKey, BucketRollupRow } from "@workspace/report-categories";
 
 // --------------------------------------------------------------------------
 // PROJECT_CONTRACTOR_MONITORING — narrative monitoring rows that mirror the
