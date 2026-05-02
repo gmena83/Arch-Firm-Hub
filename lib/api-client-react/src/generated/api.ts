@@ -144,6 +144,7 @@ import type {
   UpdatePunchlistStatusRequest,
   User,
   UserUpdateRequest,
+  VarianceReport,
   WeatherStatus,
 } from "./api.schemas";
 
@@ -1344,6 +1345,120 @@ export const useUpdateProjectCalculationLine = <
 > => {
   return useMutation(getUpdateProjectCalculationLineMutationOptions(options));
 };
+
+/**
+ * Rolls up the project's contractor estimate (or calculator entries),
+billed invoices, and cost-plus actuals into the canonical 5-bucket
+layout used by the variance panel on `/calculator?tab=variance`.
+
+Each bucket and each material category exposes three cost columns
+(estimated, invoiced, actual) and two deltas: `varianceVsInvoiced`
+(`actual - invoiced`, the headline signal) and `variance`
+(`actual - estimated`, kept for back-compat).
+
+Invoices that don't fit Materials/Labor/Subcontractor (design-phase,
+closeout, overhead) surface in a dedicated `unassigned` bucket so
+nothing is silently dropped. The headline `totals.varianceVsInvoiced`
+compares matched scopes only — it uses `totals.invoicedInPlan` as
+the base and excludes `totals.invoicedUnassigned` from the delta.
+
+Percent fields are nullable: when the base is zero and the value is
+non-zero, the API returns `null` so the UI can render "—" instead
+of a misleading "0%".
+
+ * @summary Estimated vs Invoiced vs Actual rollup for the calculator's variance tab
+ */
+export const getGetProjectVarianceReportUrl = (projectId: string) => {
+  return `/api/projects/${projectId}/variance-report`;
+};
+
+export const getProjectVarianceReport = async (
+  projectId: string,
+  options?: RequestInit,
+): Promise<VarianceReport> => {
+  return customFetch<VarianceReport>(
+    getGetProjectVarianceReportUrl(projectId),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetProjectVarianceReportQueryKey = (projectId: string) => {
+  return [`/api/projects/${projectId}/variance-report`] as const;
+};
+
+export const getGetProjectVarianceReportQueryOptions = <
+  TData = Awaited<ReturnType<typeof getProjectVarianceReport>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  projectId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getProjectVarianceReport>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetProjectVarianceReportQueryKey(projectId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getProjectVarianceReport>>
+  > = ({ signal }) =>
+    getProjectVarianceReport(projectId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!projectId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getProjectVarianceReport>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetProjectVarianceReportQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getProjectVarianceReport>>
+>;
+export type GetProjectVarianceReportQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Estimated vs Invoiced vs Actual rollup for the calculator's variance tab
+ */
+
+export function useGetProjectVarianceReport<
+  TData = Awaited<ReturnType<typeof getProjectVarianceReport>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  projectId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getProjectVarianceReport>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetProjectVarianceReportQueryOptions(
+    projectId,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary Get Phase-2 Pre-Design & Viability state for a project

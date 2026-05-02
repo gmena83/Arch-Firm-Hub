@@ -76,64 +76,17 @@ export async function readFileAsText(file: File): Promise<string> {
   });
 }
 
-export interface VarianceBucket {
-  key: string;
-  labelEn: string;
-  labelEs: string;
-  estimated: number;
-  actual: number;
-  // Total amount the team has billed the client against this bucket
-  // (sourced from PROJECT_INVOICES on the API). The "unassigned" bucket
-  // captures invoices that were billed but don't belong to M/L/S
-  // (design-phase, closeout, overhead).
-  invoiced: number;
-  variance: number;
-  // `null` whenever the comparison base is zero (e.g. invoiced=0 with
-  // actual>0). The UI renders these as "—" instead of a misleading "0%".
-  variancePercent: number | null;
-  // Actual − Invoiced (positive = team spent more than it billed; negative
-  // = invoiced more than spent so far). Surfaced alongside the existing
-  // estimated-vs-actual variance pill so the team can see both deltas.
-  varianceVsInvoiced: number;
-  varianceVsInvoicedPercent: number | null;
-  status: "on_track" | "warning" | "over";
-}
-
-export interface VarianceReport {
-  projectId: string;
-  projectName: string;
-  estimateSource: "contractor_estimate" | "calculator_entries";
-  generatedAt: string;
-  buckets: VarianceBucket[];
-  materialCategories: Array<{
-    category: string;
-    estimated: number;
-    actual: number;
-    invoiced: number;
-    variance: number;
-    variancePercent: number | null;
-    varianceVsInvoiced: number;
-    varianceVsInvoicedPercent: number | null;
-  }>;
-  totals: {
-    estimated: number;
-    actual: number;
-    // Total of every invoice on the project, including ones that don't
-    // fit the M/L/S cost plan (kept for cashflow displays).
-    invoiced: number;
-    // Apples-to-apples comparison base for `varianceVsInvoiced`: only the
-    // M/L/S invoices, so the delta has matching scope on both sides.
-    invoicedInPlan: number;
-    // Invoices that fell outside M/L/S (design / closeout / overhead).
-    // Surfaced separately so we can show "$X also billed outside plan".
-    invoicedUnassigned: number;
-    variance: number;
-    variancePercent: number | null;
-    // = totals.actual − totals.invoicedInPlan (NOT − totals.invoiced).
-    varianceVsInvoiced: number;
-    varianceVsInvoicedPercent: number | null;
-  };
-}
+// Variance schema lives in the OpenAPI spec at
+// `lib/api-spec/openapi.yaml#/components/schemas/VarianceReport`. We
+// re-export the generated types here so existing imports
+// (`from "./estimating-helpers"`) keep working without forcing every
+// consumer to know about the codegen path.
+export type {
+  VarianceBucket,
+  VarianceMaterialCategory,
+  VarianceReport,
+  VarianceTotals,
+} from "@workspace/api-client-react";
 
 export interface ContractorEstimate {
   projectId: string;

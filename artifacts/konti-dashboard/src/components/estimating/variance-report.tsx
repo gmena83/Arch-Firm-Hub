@@ -188,37 +188,43 @@ export function VarianceReportPanel({
             </div>
           )}
 
+          {/* Totals strip per task spec: three primary headlines (Estimated,
+              Invoiced, Actual) + two deltas. The headline "Total Invoiced"
+              is the everything-billed number (in-plan + unassigned). The
+              "Δ vs Invoiced" pill below uses the matched-scope number
+              (in-plan only) so the comparison is apples-to-apples; we expose
+              both with explicit sub-lines so the accounting is transparent. */}
           <div className="bg-konti-dark rounded-xl p-5 grid grid-cols-2 md:grid-cols-5 gap-3 text-white" data-testid="variance-totals">
             <div>
-              <p className="text-xs text-white/50">{t("Total estimated", "Total estimado")}</p>
+              <p className="text-xs text-white/50">{t("Total Estimated", "Total Estimado")}</p>
               <p className="text-xl font-bold">${report.totals.estimated.toLocaleString()}</p>
             </div>
             <div>
-              <p
-                className="text-xs text-white/50"
-                title={t(
-                  "In-plan invoiced (M/L/S only). Δ vs Invoiced uses this base.",
-                  "Facturado en plan (sólo M/L/S). Δ vs Facturado usa esta base.",
-                )}
-              >
-                {t("Total invoiced (in plan)", "Total facturado (en plan)")}
+              <p className="text-xs text-white/50" title={t(
+                "All invoices billed to the client for this project (in-plan + unassigned).",
+                "Todas las facturas emitidas al cliente del proyecto (en plan + fuera de plan).",
+              )}>
+                {t("Total Invoiced", "Total Facturado")}
               </p>
               <p className="text-xl font-bold" data-testid="variance-totals-invoiced">
-                ${report.totals.invoicedInPlan.toLocaleString()}
+                ${(report.totals.invoicedInPlan + report.totals.invoicedUnassigned).toLocaleString()}
               </p>
-              {report.totals.invoicedUnassigned > 0 && (
-                <p className="text-[10px] text-white/40 mt-0.5" data-testid="variance-totals-invoiced-unassigned">
-                  {t("+ ", "+ ")}${report.totals.invoicedUnassigned.toLocaleString()}{" "}
-                  {t("billed outside plan", "facturado fuera del plan")}
-                </p>
-              )}
+              <p className="text-[10px] text-white/40 mt-0.5" data-testid="variance-totals-invoiced-breakdown">
+                ${report.totals.invoicedInPlan.toLocaleString()} {t("in plan", "en plan")}
+                {report.totals.invoicedUnassigned > 0 && (
+                  <> · ${report.totals.invoicedUnassigned.toLocaleString()} {t("unassigned", "fuera de plan")}</>
+                )}
+              </p>
             </div>
             <div>
-              <p className="text-xs text-white/50">{t("Total actual", "Total real")}</p>
+              <p className="text-xs text-white/50">{t("Total Actual", "Total Real")}</p>
               <p className="text-xl font-bold">${report.totals.actual.toLocaleString()}</p>
             </div>
             <div>
-              <p className="text-xs text-white/50" title={t("Actual minus In-plan Invoiced (matched scope)", "Real menos Facturado en plan (alcance equivalente)")}>{t("Δ vs Invoiced", "Δ vs Facturado")}</p>
+              <p className="text-xs text-white/50" title={t(
+                "Actual minus In-plan Invoiced (matched scope: M/L/S only).",
+                "Real menos Facturado en plan (alcance equivalente: sólo M/L/S).",
+              )}>{t("Δ vs Invoiced", "Δ vs Facturado")}</p>
               <p className={`text-xl font-bold ${report.totals.varianceVsInvoiced > 0 ? "text-red-300" : report.totals.varianceVsInvoiced < 0 ? "text-emerald-300" : "text-white/70"}`} data-testid="variance-totals-delta-invoiced">
                 {report.totals.varianceVsInvoiced >= 0 ? "+" : ""}${report.totals.varianceVsInvoiced.toLocaleString()} ({fmtPct(report.totals.varianceVsInvoicedPercent)})
               </p>

@@ -133,7 +133,16 @@ interface ReportTemplate {
   footer: string;
 }
 
-const DEFAULT_TEMPLATE_COLUMNS = ["Category", "Item", "Qty", "Unit", "Unit Price", "Total"];
+function defaultTemplateColumns(t: (en: string, es: string) => string): string[] {
+  return [
+    t("Category", "Categoría"),
+    t("Item", "Material"),
+    t("Qty", "Cant."),
+    t("Unit", "Unidad"),
+    t("Unit Price", "Precio Unitario"),
+    t("Total", "Total"),
+  ];
+}
 
 function templateCellForColumn(col: string, entry: LocalEntry): string {
   const c = col.trim().toLowerCase();
@@ -182,7 +191,7 @@ function TemplatePreviewPanel({ projectId, entries, grandTotal }: { projectId: s
     );
   }
 
-  const columns = template.columns.length > 0 ? template.columns : DEFAULT_TEMPLATE_COLUMNS;
+  const columns = template.columns.length > 0 ? template.columns : defaultTemplateColumns(t);
 
   return (
     <div data-testid="template-preview" className="bg-card border border-card-border rounded-xl shadow-sm overflow-hidden">

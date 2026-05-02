@@ -423,6 +423,48 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
 
+  /projects/{projectId}/variance-report:
+    get:
+      operationId: getProjectVarianceReport
+      tags: [calculator]
+      summary: Estimated vs Invoiced vs Actual rollup for the calculator's variance tab
+      description: |
+        Rolls up the project's contractor estimate (or calculator entries),
+        billed invoices, and cost-plus actuals into the canonical 5-bucket
+        layout used by the variance panel on `/calculator?tab=variance`.
+
+        Each bucket and each material category exposes three cost columns
+        (estimated, invoiced, actual) and two deltas: `varianceVsInvoiced`
+        (`actual - invoiced`, the headline signal) and `variance`
+        (`actual - estimated`, kept for back-compat).
+
+        Invoices that don't fit Materials/Labor/Subcontractor (design-phase,
+        closeout, overhead) surface in a dedicated `unassigned` bucket so
+        nothing is silently dropped. The headline `totals.varianceVsInvoiced`
+        compares matched scopes only — it uses `totals.invoicedInPlan` as
+        the base and excludes `totals.invoicedUnassigned` from the delta.
+
+        Percent fields are nullable: when the base is zero and the value is
+        non-zero, the API returns `null` so the UI can render "—" instead
+        of a misleading "0%".
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Variance rollup
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VarianceReport"
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
   /projects/{projectId}/pre-design:
     get:
       operationId: getProjectPreDesign
@@ -4838,3 +4880,159 @@ components:
         message: { type: string }
         messageEs: { type: string }
       required: [id, timestamp, actorUserId, actorEmail, action, target, message, messageEs]
+
+    VarianceBucketStatus:
+      type: string
+      enum: [on_track, warning, over]
+      description: |
+        Traffic-light state for a variance bucket. `on_track` = within ±5%
+        of estimate, `warning` = ±5–15%, `over` = > +15%.
+
+    VarianceBucket:
+      type: object
+      description: |
+        Per-bucket rollup for the variance panel. The four buckets are
+        Materials, Labor, Subcontractor, and Unassigned (invoices that
+        were billed but don't fit M/L/S — design-phase, closeout, etc).
+      properties:
+        key:
+          type: string
+          description: Canonical bucket key (`materials`, `labor`, `subcontractor`, `unassigned`).
+        labelEn: { type: string }
+        labelEs: { type: string }
+        estimated:
+          type: number
+          description: Estimated cost from the contractor estimate or calculator entries.
+        invoiced:
+          type: number
+          description: Total billed to the client for this bucket.
+        actual:
+          type: number
+          description: Cost-plus actual spend recorded against this bucket.
+        variance:
+          type: number
+          description: actual − estimated. Positive = over budget.
+        variancePercent:
+          type: number
+          nullable: true
+          description: |
+            (actual − estimated) ÷ estimated × 100, rounded to int. Returns
+            `null` when estimated=0 and actual≠0 so the UI can render "—"
+            instead of a misleading "0%".
+        varianceVsInvoiced:
+          type: number
+          description: actual − invoiced. The headline signal — "did we spend more than we billed?"
+        varianceVsInvoicedPercent:
+          type: number
+          nullable: true
+          description: Same null-on-zero-base contract as `variancePercent`.
+        status: { $ref: "#/components/schemas/VarianceBucketStatus" }
+      required:
+        - key
+        - labelEn
+        - labelEs
+        - estimated
+        - invoiced
+        - actual
+        - variance
+        - variancePercent
+        - varianceVsInvoiced
+        - varianceVsInvoicedPercent
+        - status
+
+    VarianceMaterialCategory:
+      type: object
+      description: Per-material-category rollup inside the Materials bucket.
+      properties:
+        category: { type: string }
+        estimated: { type: number }
+        invoiced: { type: number }
+        actual: { type: number }
+        variance: { type: number }
+        variancePercent:
+          type: number
+          nullable: true
+        varianceVsInvoiced: { type: number }
+        varianceVsInvoicedPercent:
+          type: number
+          nullable: true
+      required:
+        - category
+        - estimated
+        - invoiced
+        - actual
+        - variance
+        - variancePercent
+        - varianceVsInvoiced
+        - varianceVsInvoicedPercent
+
+    VarianceTotals:
+      type: object
+      description: |
+        Whole-project totals used by the totals strip on the variance panel.
+        `invoiced` is the everything-billed number (in-plan + unassigned);
+        `invoicedInPlan` is the matched-scope base used by
+        `varianceVsInvoiced` so the headline delta compares apples-to-apples.
+      properties:
+        estimated: { type: number }
+        actual: { type: number }
+        invoiced:
+          type: number
+          description: All invoices billed to the client (in-plan + unassigned).
+        invoicedInPlan:
+          type: number
+          description: M/L/S invoices only — the matched-scope base for `varianceVsInvoiced`.
+        invoicedUnassigned:
+          type: number
+          description: Invoices that didn't fit M/L/S (design, closeout, overhead).
+        variance: { type: number }
+        variancePercent:
+          type: number
+          nullable: true
+        varianceVsInvoiced:
+          type: number
+          description: actual − invoicedInPlan. Excludes unassigned so scopes match.
+        varianceVsInvoicedPercent:
+          type: number
+          nullable: true
+      required:
+        - estimated
+        - actual
+        - invoiced
+        - invoicedInPlan
+        - invoicedUnassigned
+        - variance
+        - variancePercent
+        - varianceVsInvoiced
+        - varianceVsInvoicedPercent
+
+    VarianceReport:
+      type: object
+      description: |
+        Estimated vs Invoiced vs Actual rollup for the calculator's variance
+        tab. Returned by `GET /api/projects/:projectId/variance-report`.
+      properties:
+        projectId: { type: string }
+        projectName: { type: string }
+        estimateSource:
+          type: string
+          enum: [contractor_estimate, calculator_entries]
+          description: Which input drove the Estimated column.
+        generatedAt:
+          type: string
+          format: date-time
+        buckets:
+          type: array
+          items: { $ref: "#/components/schemas/VarianceBucket" }
+        materialCategories:
+          type: array
+          items: { $ref: "#/components/schemas/VarianceMaterialCategory" }
+        totals: { $ref: "#/components/schemas/VarianceTotals" }
+      required:
+        - projectId
+        - projectName
+        - estimateSource
+        - generatedAt
+        - buckets
+        - materialCategories
+        - totals

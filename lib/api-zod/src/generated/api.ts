@@ -796,6 +796,139 @@ export const UpdateProjectCalculationLineResponse = zod.object({
 });
 
 /**
+ * Rolls up the project's contractor estimate (or calculator entries),
+billed invoices, and cost-plus actuals into the canonical 5-bucket
+layout used by the variance panel on `/calculator?tab=variance`.
+
+Each bucket and each material category exposes three cost columns
+(estimated, invoiced, actual) and two deltas: `varianceVsInvoiced`
+(`actual - invoiced`, the headline signal) and `variance`
+(`actual - estimated`, kept for back-compat).
+
+Invoices that don't fit Materials/Labor/Subcontractor (design-phase,
+closeout, overhead) surface in a dedicated `unassigned` bucket so
+nothing is silently dropped. The headline `totals.varianceVsInvoiced`
+compares matched scopes only — it uses `totals.invoicedInPlan` as
+the base and excludes `totals.invoicedUnassigned` from the delta.
+
+Percent fields are nullable: when the base is zero and the value is
+non-zero, the API returns `null` so the UI can render "—" instead
+of a misleading "0%".
+
+ * @summary Estimated vs Invoiced vs Actual rollup for the calculator's variance tab
+ */
+export const GetProjectVarianceReportParams = zod.object({
+  projectId: zod.coerce.string(),
+});
+
+export const GetProjectVarianceReportResponse = zod
+  .object({
+    projectId: zod.string(),
+    projectName: zod.string(),
+    estimateSource: zod
+      .enum(["contractor_estimate", "calculator_entries"])
+      .describe("Which input drove the Estimated column."),
+    generatedAt: zod.coerce.date(),
+    buckets: zod.array(
+      zod
+        .object({
+          key: zod
+            .string()
+            .describe(
+              "Canonical bucket key (`materials`, `labor`, `subcontractor`, `unassigned`).",
+            ),
+          labelEn: zod.string(),
+          labelEs: zod.string(),
+          estimated: zod
+            .number()
+            .describe(
+              "Estimated cost from the contractor estimate or calculator entries.",
+            ),
+          invoiced: zod
+            .number()
+            .describe("Total billed to the client for this bucket."),
+          actual: zod
+            .number()
+            .describe("Cost-plus actual spend recorded against this bucket."),
+          variance: zod
+            .number()
+            .describe("actual − estimated. Positive = over budget."),
+          variancePercent: zod
+            .number()
+            .nullable()
+            .describe(
+              '(actual − estimated) ÷ estimated × 100, rounded to int. Returns\n`null` when estimated=0 and actual≠0 so the UI can render \"—\"\ninstead of a misleading \"0%\".\n',
+            ),
+          varianceVsInvoiced: zod
+            .number()
+            .describe(
+              'actual − invoiced. The headline signal — \"did we spend more than we billed?\"',
+            ),
+          varianceVsInvoicedPercent: zod
+            .number()
+            .nullable()
+            .describe("Same null-on-zero-base contract as `variancePercent`."),
+          status: zod
+            .enum(["on_track", "warning", "over"])
+            .describe(
+              "Traffic-light state for a variance bucket. `on_track` = within ±5%\nof estimate, `warning` = ±5–15%, `over` = > +15%.\n",
+            ),
+        })
+        .describe(
+          "Per-bucket rollup for the variance panel. The four buckets are\nMaterials, Labor, Subcontractor, and Unassigned (invoices that\nwere billed but don't fit M\/L\/S — design-phase, closeout, etc).\n",
+        ),
+    ),
+    materialCategories: zod.array(
+      zod
+        .object({
+          category: zod.string(),
+          estimated: zod.number(),
+          invoiced: zod.number(),
+          actual: zod.number(),
+          variance: zod.number(),
+          variancePercent: zod.number().nullable(),
+          varianceVsInvoiced: zod.number(),
+          varianceVsInvoicedPercent: zod.number().nullable(),
+        })
+        .describe("Per-material-category rollup inside the Materials bucket."),
+    ),
+    totals: zod
+      .object({
+        estimated: zod.number(),
+        actual: zod.number(),
+        invoiced: zod
+          .number()
+          .describe(
+            "All invoices billed to the client (in-plan + unassigned).",
+          ),
+        invoicedInPlan: zod
+          .number()
+          .describe(
+            "M\/L\/S invoices only — the matched-scope base for `varianceVsInvoiced`.",
+          ),
+        invoicedUnassigned: zod
+          .number()
+          .describe(
+            "Invoices that didn't fit M\/L\/S (design, closeout, overhead).",
+          ),
+        variance: zod.number(),
+        variancePercent: zod.number().nullable(),
+        varianceVsInvoiced: zod
+          .number()
+          .describe(
+            "actual − invoicedInPlan. Excludes unassigned so scopes match.",
+          ),
+        varianceVsInvoicedPercent: zod.number().nullable(),
+      })
+      .describe(
+        "Whole-project totals used by the totals strip on the variance panel.\n`invoiced` is the everything-billed number (in-plan + unassigned);\n`invoicedInPlan` is the matched-scope base used by\n`varianceVsInvoiced` so the headline delta compares apples-to-apples.\n",
+      ),
+  })
+  .describe(
+    "Estimated vs Invoiced vs Actual rollup for the calculator's variance\ntab. Returned by `GET \/api\/projects\/:projectId\/variance-report`.\n",
+  );
+
+/**
  * @summary Get Phase-2 Pre-Design & Viability state for a project
  */
 export const GetProjectPreDesignParams = zod.object({

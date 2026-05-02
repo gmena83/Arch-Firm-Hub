@@ -30,7 +30,10 @@ export function ContractorCalculator({ defaultProjectId }: { defaultProjectId?: 
   const { data: projects = [] } = useListProjects();
   const [projectId, setProjectId] = useState<string>(defaultProjectId ?? "");
   const [scope, setScope] = useState<string[]>(["pool", "solar"]);
-  const [source, setSource] = useState<string>("Preliminary project doc — site visit notes");
+  const [source, setSource] = useState<string>(() => t(
+    "Preliminary project doc — site visit notes",
+    "Documento preliminar del proyecto — notas de visita",
+  ));
   const [marginPercent, setMarginPercent] = useState<string>("12");
   const [managementFeePercent, setManagementFeePercent] = useState<string>("5");
   const [estimate, setEstimate] = useState<ContractorEstimate | null>(null);

@@ -1931,6 +1931,115 @@ export interface SuperadminAuditEntry {
   messageEs: string;
 }
 
+/**
+ * Traffic-light state for a variance bucket. `on_track` = within ±5%
+of estimate, `warning` = ±5–15%, `over` = > +15%.
+
+ */
+export type VarianceBucketStatus =
+  (typeof VarianceBucketStatus)[keyof typeof VarianceBucketStatus];
+
+export const VarianceBucketStatus = {
+  on_track: "on_track",
+  warning: "warning",
+  over: "over",
+} as const;
+
+/**
+ * Per-bucket rollup for the variance panel. The four buckets are
+Materials, Labor, Subcontractor, and Unassigned (invoices that
+were billed but don't fit M/L/S — design-phase, closeout, etc).
+
+ */
+export interface VarianceBucket {
+  /** Canonical bucket key (`materials`, `labor`, `subcontractor`, `unassigned`). */
+  key: string;
+  labelEn: string;
+  labelEs: string;
+  /** Estimated cost from the contractor estimate or calculator entries. */
+  estimated: number;
+  /** Total billed to the client for this bucket. */
+  invoiced: number;
+  /** Cost-plus actual spend recorded against this bucket. */
+  actual: number;
+  /** actual − estimated. Positive = over budget. */
+  variance: number;
+  /** (actual − estimated) ÷ estimated × 100, rounded to int. Returns
+`null` when estimated=0 and actual≠0 so the UI can render "—"
+instead of a misleading "0%".
+ */
+  variancePercent: number | null;
+  /** actual − invoiced. The headline signal — "did we spend more than we billed?" */
+  varianceVsInvoiced: number;
+  /** Same null-on-zero-base contract as `variancePercent`. */
+  varianceVsInvoicedPercent: number | null;
+  status: VarianceBucketStatus;
+}
+
+/**
+ * Per-material-category rollup inside the Materials bucket.
+ */
+export interface VarianceMaterialCategory {
+  category: string;
+  estimated: number;
+  invoiced: number;
+  actual: number;
+  variance: number;
+  variancePercent: number | null;
+  varianceVsInvoiced: number;
+  varianceVsInvoicedPercent: number | null;
+}
+
+/**
+ * Whole-project totals used by the totals strip on the variance panel.
+`invoiced` is the everything-billed number (in-plan + unassigned);
+`invoicedInPlan` is the matched-scope base used by
+`varianceVsInvoiced` so the headline delta compares apples-to-apples.
+
+ */
+export interface VarianceTotals {
+  estimated: number;
+  actual: number;
+  /** All invoices billed to the client (in-plan + unassigned). */
+  invoiced: number;
+  /** M/L/S invoices only — the matched-scope base for `varianceVsInvoiced`. */
+  invoicedInPlan: number;
+  /** Invoices that didn't fit M/L/S (design, closeout, overhead). */
+  invoicedUnassigned: number;
+  variance: number;
+  variancePercent: number | null;
+  /** actual − invoicedInPlan. Excludes unassigned so scopes match. */
+  varianceVsInvoiced: number;
+  varianceVsInvoicedPercent: number | null;
+}
+
+/**
+ * Which input drove the Estimated column.
+ */
+export type VarianceReportEstimateSource =
+  (typeof VarianceReportEstimateSource)[keyof typeof VarianceReportEstimateSource];
+
+export const VarianceReportEstimateSource = {
+  contractor_estimate: "contractor_estimate",
+  calculator_entries: "calculator_entries",
+} as const;
+
+/**
+ * Estimated vs Invoiced vs Actual rollup for the calculator's variance
+tab. Returned by `GET /api/projects/:projectId/variance-report`.
+
+ */
+export interface VarianceReport {
+  projectId: string;
+  projectName: string;
+  /** Which input drove the Estimated column. */
+  estimateSource: VarianceReportEstimateSource;
+  generatedAt: string;
+  buckets: VarianceBucket[];
+  materialCategories: VarianceMaterialCategory[];
+  totals: VarianceTotals;
+}
+
 export type GetProjectDocumentsParams = {
   clientVisible?: boolean;
 };
