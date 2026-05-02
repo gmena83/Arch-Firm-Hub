@@ -380,6 +380,68 @@ test("DB-5: index.ts boot path wires hydration BEFORE app.listen", () => {
   assert.ok(idxCalculator < idxListen, "ensureCalculatorHydrated must be wired before app.listen");
 });
 
+test("DB-6: 200 OK guarantees durability — calculator + estimating writes are committed BEFORE response (no flush)", async () => {
+  // Crash-window regression: the previous fire-and-forget design queued
+  // DB writes after responding 200, so a crash between ack and queue
+  // drain silently lost acknowledged writes. The fix awaits the persist
+  // promise inside each mutating handler so the response cannot beat the
+  // commit. This test proves the contract by deliberately NOT calling
+  // `flushCalculatorPersistence()` / `flushEstimatingPersistence()` —
+  // the rows must already be in Postgres by the time the HTTP response
+  // resolves.
+  const projectId = "proj-1";
+  const before = snapshotCalc(projectId);
+  await __resetEstimatingTablesForTest();
+  __resetCalculatorHydrationForTest();
+
+  try {
+    const lineId = "calc-1-1";
+    await withServer(async (baseUrl) => {
+      const token = await login(baseUrl, "demo@konti.com");
+      const auth = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
+
+      // 1. Calculator PATCH — handler must await persist before responding.
+      const patchRes = await fetch(`${baseUrl}/api/projects/${projectId}/calculations/${lineId}`, {
+        method: "PATCH",
+        headers: auth,
+        body: JSON.stringify({ quantity: 9, manualPriceOverride: 777.77 }),
+      });
+      assert.equal(patchRes.status, 200);
+      // NO flush call — the next line reads the DB directly. If the
+      // handler responded 200 before the commit, this read would miss it
+      // and the assertion below would fail.
+      const byProject = await loadCalculatorEntriesFromDb();
+      const persisted = byProject[projectId]?.find((e) => e.id === lineId);
+      assert.ok(persisted, "PATCH 200 OK must mean calculator row is already in DB (no flush)");
+      assert.equal(persisted!.quantity, 9);
+      assert.equal(persisted!.manualPriceOverride, 777.77);
+
+      // 2. Estimating labor-rates import — same contract for the
+      // estimating snapshot path.
+      const importRes = await fetch(`${baseUrl}/api/estimating/labor-rates/import`, {
+        method: "POST",
+        headers: auth,
+        body: JSON.stringify({
+          csv: "trade,trade_es,unit,hourly_rate\nDurability Trade,Oficio Durabilidad,hour,42.42\n",
+        }),
+      });
+      assert.equal(importRes.status, 200);
+      // Again, NO flush — read directly from DB.
+      const snap = await loadEstimatingSnapshotFromDb();
+      assert.ok(snap, "estimating snapshot must already be in DB after 200 OK");
+      assert.ok(
+        snap!.laborRates.some((r) => r.trade === "Durability Trade" && r.hourlyRate === 42.42),
+        "imported labor rate must be in DB before response resolves (no flush)",
+      );
+    });
+  } finally {
+    restoreCalc(projectId, before);
+    await saveCalculatorEntriesForProject(projectId, []);
+    __resetCalculatorHydrationForTest();
+    await __resetEstimatingTablesForTest();
+  }
+});
+
 // Suppress unused warning — these helpers are exported for downstream use
 // and we want to keep them in the test surface in case future tests need
 // them, but only some are referenced above.

@@ -48,7 +48,7 @@ function snapshotState() {
     estimates: { ...PROJECT_CONTRACTOR_ESTIMATE },
   };
 }
-function restoreState(snap: ReturnType<typeof snapshotState>) {
+async function restoreState(snap: ReturnType<typeof snapshotState>) {
   EXTRA_MATERIALS.splice(snap.extra);
   LABOR_RATES.splice(0, LABOR_RATES.length);
   for (const r of snap.laborRates) {
@@ -60,9 +60,9 @@ function restoreState(snap: ReturnType<typeof snapshotState>) {
   Object.assign(PROJECT_RECEIPTS, snap.receipts);
   Object.assign(PROJECT_REPORT_TEMPLATE, snap.template);
   Object.assign(PROJECT_CONTRACTOR_ESTIMATE, snap.estimates);
-  // Keep the persisted file aligned with the restored in-memory state so other
-  // tests in the same process don't see leftover mutations on disk.
-  persistEstimatingState();
+  // Keep the DB aligned with the restored in-memory state so other
+  // tests in the same process don't see leftover mutations.
+  await persistEstimatingState();
 }
 
 test("estimating end-to-end: import → contractor estimate → receipts → variance report", async () => {
@@ -234,7 +234,7 @@ test("estimating end-to-end: import → contractor estimate → receipts → var
       assert.equal(v.totals.invoiced, 42000 + 198000 + 48000, "totals.invoiced sums every M/L/S invoice");
     });
   } finally {
-    restoreState(snap);
+    await restoreState(snap);
   }
 });
 
@@ -306,7 +306,7 @@ test("PDF export uses saved report template header/columns/footer", async () => 
     globalThis.fetch = originalFetch;
     if (originalKey === undefined) delete process.env["PDF_CO_API_KEY"];
     else process.env["PDF_CO_API_KEY"] = originalKey;
-    restoreState(snap);
+    await restoreState(snap);
   }
 });
 
@@ -350,7 +350,7 @@ test("PDF export falls back to default layout when no template is saved", async 
     globalThis.fetch = originalFetch;
     if (originalKey === undefined) delete process.env["PDF_CO_API_KEY"];
     else process.env["PDF_CO_API_KEY"] = originalKey;
-    restoreState(snap);
+    await restoreState(snap);
   }
 });
 
@@ -492,7 +492,7 @@ test("estimating state survives a server restart (persists to Postgres and reloa
   } finally {
     await flushEstimatingPersistence();
     await __resetEstimatingTablesForTest();
-    restoreState(snap);
+    await restoreState(snap);
     await flushEstimatingPersistence();
   }
 });
@@ -600,7 +600,7 @@ test("B-05: contractor estimate math is unchanged when metadata is read from the
       assert.equal(explicit.grandTotal, 154293, "baseline: grand total");
     });
   } finally {
-    restoreState(snap);
+    await restoreState(snap);
   }
 });
 
@@ -675,7 +675,7 @@ test("B-05: PATCH /projects/:id/metadata updates Project and feeds the next esti
       assert.equal(bad.status, 400);
     });
   } finally {
-    restoreState(snap);
+    await restoreState(snap);
     // Reset the in-memory project metadata back to seed values so this test
     // doesn't bleed into others that rely on proj-1's defaults.
     const { PROJECTS: liveProjects } = await import("../../data/seed");

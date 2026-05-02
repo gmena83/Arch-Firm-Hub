@@ -159,20 +159,23 @@ export function applyEstimatingSnapshot(snap: PersistedSnapshot | null): void {
   }
 }
 
-// Persistence is fire-and-forget but serialized through `_pendingPersistence`
-// so a burst of POSTs (e.g. CSV import then estimate then template) cannot
-// race each other and overwrite the wrong snapshot. Tests can wait on
-// `flushEstimatingPersistence()` to see writes settle before asserting.
+// Persistence is request-coupled (callers `await persistEstimatingState()`
+// before responding) and serialized through `_pendingPersistence` so a
+// burst of POSTs (e.g. CSV import then estimate then template) cannot
+// race each other and overwrite the wrong snapshot. Tests can also wait
+// on `flushEstimatingPersistence()` to see writes settle before asserting.
 let _pendingPersistence: Promise<unknown> = Promise.resolve();
 
-export function persistEstimatingState(): void {
+export function persistEstimatingState(): Promise<void> {
   const next = _pendingPersistence
     .catch(() => undefined) // never let an old failure block new writes
     .then(() => saveEstimatingSnapshotToDb(snapshotEstimatingState()));
-  next.catch((err) => {
-    logger.error({ err }, "estimating: persist to Postgres failed");
-  });
-  _pendingPersistence = next;
+  // Keep the chained promise on the queue (with errors swallowed) so a
+  // follow-up call serialises behind this one, but return a separate
+  // promise that propagates the error to the awaiting route handler so
+  // it can 500 instead of silently 200-ing on a failed commit.
+  _pendingPersistence = next.catch(() => undefined);
+  return next.then(() => undefined);
 }
 
 export function flushEstimatingPersistence(): Promise<void> {
@@ -320,7 +323,7 @@ router.get("/estimating/materials", requireRole(["team","admin","superadmin","ar
 // When `projectId` is provided, also append imported materials as calculator
 // lines for that project (default qty = 1) so the team doesn't have to add
 // them again under Estimate → Add Material (CSV item #57).
-router.post("/estimating/materials/import", requireRole(["team", "admin", "superadmin"]), (req, res) => {
+router.post("/estimating/materials/import", requireRole(["team", "admin", "superadmin"]), async (req, res) => {
   const body = (req.body ?? {}) as Record<string, unknown>;
 
   let rows: Array<Record<string, string>> = [];
@@ -400,14 +403,20 @@ router.post("/estimating/materials/import", requireRole(["team", "admin", "super
     });
   }
 
-  persistEstimatingState();
-  // The materials snapshot persists via `persistEstimatingState()` above,
-  // but the calculator entries it appended for `targetProject` live in a
-  // different table (`project_calculator_entries`) and need their own
-  // per-project queue write — otherwise the imported lines disappear on
-  // the next restart even though the materials catalog survives.
-  if (targetProject && accepted.length > 0) {
-    persistCalculatorEntriesForProject(targetProject.id);
+  // Couple the response to the DB commit (durability fix): if either
+  // write rejects, surface a 500 instead of silently 200-ing while the
+  // queued promise rejects in the background. The materials snapshot
+  // and the calculator entries live in different tables (catalog vs
+  // per-project queue), so both writes must complete before we ack.
+  try {
+    await persistEstimatingState();
+    if (targetProject && accepted.length > 0) {
+      await persistCalculatorEntriesForProject(targetProject.id);
+    }
+  } catch (err) {
+    logger.error({ err }, "estimating: materials/import persist failed");
+    res.status(500).json({ error: "persist_failed", message: "Materials were parsed but failed to save. Please retry." });
+    return;
   }
 
   res.json({
@@ -430,7 +439,7 @@ router.get("/estimating/labor-rates", requireRole(["team","admin","superadmin","
 });
 
 // POST import labor rates (replaces overrides for matching trade names; appends new).
-router.post("/estimating/labor-rates/import", requireRole(["team", "admin", "superadmin"]), (req, res) => {
+router.post("/estimating/labor-rates/import", requireRole(["team", "admin", "superadmin"]), async (req, res) => {
   const body = (req.body ?? {}) as Record<string, unknown>;
   let rows: Array<Record<string, string>> = [];
   if (typeof body["csv"] === "string") {
@@ -467,14 +476,20 @@ router.post("/estimating/labor-rates/import", requireRole(["team", "admin", "sup
     else LABOR_RATES.push(next);
     updated.push(next);
   }
-  persistEstimatingState();
+  try {
+    await persistEstimatingState();
+  } catch (err) {
+    logger.error({ err }, "estimating: labor-rates/import persist failed");
+    res.status(500).json({ error: "persist_failed", message: "Labor rates were parsed but failed to save. Please retry." });
+    return;
+  }
   res.json({ imported: updated.length, skipped: skipped.length, skippedDetails: skipped, rates: LABOR_RATES });
 });
 
 // Internal helper: persist receipts (last 3 by date), recompute labor baseline,
 // log activity, and return the response payload. Used by both the CSV/JSON
 // endpoint and the OCR file-upload endpoint.
-function applyReceipts(projectId: string, parsed: Receipt[], actor: string, source: "csv" | "ocr") {
+async function applyReceipts(projectId: string, parsed: Receipt[], actor: string, source: "csv" | "ocr") {
   // Keep most recent 3 (by date string desc).
   const sorted = [...parsed].sort((a, b) => (a.date < b.date ? 1 : -1));
   const lastThree = sorted.slice(0, 3);
@@ -516,13 +531,15 @@ function applyReceipts(projectId: string, parsed: Receipt[], actor: string, sour
     descriptionEs: `Se subieron los últimos ${lastThree.length} recibos ${sourceLabelEs}; tarifas de mano de obra actualizadas para ${updatedTrades.length} oficio(s).`,
   });
 
-  persistEstimatingState();
+  // Couple the response to the DB commit so a 200 OK to the caller
+  // means the receipts + recomputed labor rates are durably stored.
+  await persistEstimatingState();
 
   return { projectId, receipts: lastThree, updatedTrades, rates: LABOR_RATES };
 }
 
 // POST receipts for a project — recomputes labor baseline from last 3 receipts.
-router.post("/projects/:id/receipts", requireRole(["team", "admin", "superadmin"]), (req, res) => {
+router.post("/projects/:id/receipts", requireRole(["team", "admin", "superadmin"]), async (req, res) => {
   const project = PROJECTS.find((p) => p.id === req.params["id"]);
   if (!project) { res.status(404).json({ error: "not_found" }); return; }
 
@@ -570,7 +587,14 @@ router.post("/projects/:id/receipts", requireRole(["team", "admin", "superadmin"
   }
 
   const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
-  const result = applyReceipts(project.id, parsed, actor, "csv");
+  let result;
+  try {
+    result = await applyReceipts(project.id, parsed, actor, "csv");
+  } catch (err) {
+    logger.error({ err }, "estimating: receipts persist failed (csv)");
+    res.status(500).json({ error: "persist_failed", message: "Receipts were parsed but failed to save. Please retry." });
+    return;
+  }
   res.json({ ...result, imported: parsed.length, skipped: skipped.length, skippedDetails: skipped });
 });
 
@@ -671,7 +695,14 @@ router.post(
     const combined = [...previous, newReceipt];
 
     const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
-    const result = applyReceipts(project.id, combined, actor, "ocr");
+    let result;
+    try {
+      result = await applyReceipts(project.id, combined, actor, "ocr");
+    } catch (err) {
+      logger.error({ err }, "estimating: receipts persist failed (ocr)");
+      res.status(500).json({ error: "persist_failed", message: "Receipt was parsed but failed to save. Please retry." });
+      return;
+    }
 
     // Drive copy (Task #128 step 6) — best-effort. The OCR pipeline owns
     // the source-of-truth for the parsed receipt rows; the Drive copy is a
@@ -725,7 +756,7 @@ router.get("/projects/:id/receipts", requireRole(["team","admin","superadmin","a
 });
 
 // POST report template
-router.post("/projects/:id/report-template", requireRole(["team", "admin", "superadmin"]), (req, res) => {
+router.post("/projects/:id/report-template", requireRole(["team", "admin", "superadmin"]), async (req, res) => {
   const project = PROJECTS.find((p) => p.id === req.params["id"]);
   if (!project) { res.status(404).json({ error: "not_found" }); return; }
   const body = (req.body ?? {}) as Record<string, unknown>;
@@ -748,7 +779,13 @@ router.post("/projects/:id/report-template", requireRole(["team", "admin", "supe
     description: `Report template "${name}" uploaded for export reuse.`,
     descriptionEs: `Plantilla de reporte "${name}" subida para reutilización en exportaciones.`,
   });
-  persistEstimatingState();
+  try {
+    await persistEstimatingState();
+  } catch (err) {
+    logger.error({ err }, "estimating: report-template persist failed");
+    res.status(500).json({ error: "persist_failed", message: "Template was uploaded but failed to save. Please retry." });
+    return;
+  }
   res.json({ projectId: project.id, template: tpl });
 });
 
@@ -767,7 +804,7 @@ router.get("/projects/:id/report-template", requireRole(["team","admin","superad
 // Project Detail page. The Contractor Calculator no longer collects those
 // inputs — when they are missing from the request body we read them from the
 // project so the estimate math stays unchanged.
-router.post("/projects/:id/contractor-estimate", requireRole(["team", "admin", "superadmin"]), (req, res) => {
+router.post("/projects/:id/contractor-estimate", requireRole(["team", "admin", "superadmin"]), async (req, res) => {
   const project = PROJECTS.find((p) => p.id === req.params["id"]) as
     | (typeof PROJECTS[number] & {
         squareMeters?: number;
@@ -965,7 +1002,13 @@ router.post("/projects/:id/contractor-estimate", requireRole(["team", "admin", "
     descriptionEs: `Estimado de contratista generado: $${grandTotal.toLocaleString()} (${lines.length} líneas).`,
   });
 
-  persistEstimatingState();
+  try {
+    await persistEstimatingState();
+  } catch (err) {
+    logger.error({ err }, "estimating: contractor-estimate persist failed");
+    res.status(500).json({ error: "persist_failed", message: "Estimate was generated but failed to save. Please retry." });
+    return;
+  }
 
   res.json(estimate);
 });
@@ -979,7 +1022,7 @@ router.get("/projects/:id/contractor-estimate", requireRole(["team","admin","sup
 });
 
 // PUT — update editable contractor estimate lines (description, quantity, unit, unitPrice).
-router.put("/projects/:id/contractor-estimate/lines", requireRole(["team", "admin", "superadmin"]), (req, res) => {
+router.put("/projects/:id/contractor-estimate/lines", requireRole(["team", "admin", "superadmin"]), async (req, res) => {
   const id = req.params["id"] as string;
   const project = PROJECTS.find((p) => p.id === id);
   if (!project) { res.status(404).json({ error: "not_found" }); return; }
@@ -1039,7 +1082,13 @@ router.put("/projects/:id/contractor-estimate/lines", requireRole(["team", "admi
     description: `Contractor estimate edited: ${updatedLines.length} lines · $${grandTotal.toLocaleString()}`,
     descriptionEs: `Estimado de contratista editado: ${updatedLines.length} líneas · $${grandTotal.toLocaleString()}`,
   });
-  persistEstimatingState();
+  try {
+    await persistEstimatingState();
+  } catch (err) {
+    logger.error({ err }, "estimating: contractor-estimate-lines persist failed");
+    res.status(500).json({ error: "persist_failed", message: "Edits were applied but failed to save. Please retry." });
+    return;
+  }
   res.json(updated);
 });
 

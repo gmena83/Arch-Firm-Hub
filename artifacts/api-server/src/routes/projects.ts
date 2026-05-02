@@ -788,7 +788,7 @@ router.get(
 router.patch(
   "/projects/:projectId/calculations/:lineId",
   requireRole(["team", "admin", "superadmin", "architect"]),
-  (req, res) => {
+  async (req, res) => {
     const projectId = req.params["projectId"] as string;
     const lineId = req.params["lineId"] as string;
     const list = CALCULATOR_ENTRIES[projectId as keyof typeof CALCULATOR_ENTRIES] as
@@ -844,11 +844,17 @@ router.patch(
       descriptionEs: `Línea de calculadora "${entry["materialNameEs"] ?? entry["materialName"] ?? lineId}" actualizada`,
     });
 
-    // Task #141 — persist the whole project's entries so the edit survives a
-    // restart. Fire-and-forget through the same serialised queue pattern the
-    // estimating routes use; we don't want the response to wait on a DB write
-    // for a UI inline edit.
-    persistCalculatorEntriesForProject(projectId);
+    // Task #141 — persist the whole project's entries before responding so
+    // a 200 OK guarantees the edit is durably stored. Per-project
+    // serialised queue keeps concurrent edits ordered; awaiting it here
+    // also surfaces commit failures as 500s instead of silently losing the
+    // change after acking.
+    try {
+      await persistCalculatorEntriesForProject(projectId);
+    } catch (err) {
+      logger.error({ err, projectId, lineId }, "calculator: PATCH persist failed");
+      return res.status(500).json({ error: "persist_failed", message: "Edit was applied in memory but failed to save. Please retry." });
+    }
 
     return res.json({ entry });
   },

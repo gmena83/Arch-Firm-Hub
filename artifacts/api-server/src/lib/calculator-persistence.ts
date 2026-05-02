@@ -10,9 +10,11 @@
 // so adding a brand new project to seed.ts still works without touching
 // the DB.
 //
-// Every mutating route calls `persistCalculatorEntriesForProject(id)`,
-// which is fire-and-forget but serialised through a per-project queue so
-// two rapid edits cannot race to overwrite each other.
+// Every mutating route calls `await persistCalculatorEntriesForProject(id)`,
+// which is request-coupled and serialised through a per-project queue so
+// two rapid edits cannot race to overwrite each other AND a 200 OK
+// response cannot be sent before the row is committed (durability:
+// crash-after-ack does not lose acknowledged writes).
 
 import { CALCULATOR_ENTRIES } from "../data/seed";
 import {
@@ -49,17 +51,19 @@ export function __resetCalculatorHydrationForTest(): void {
 // in parallel.
 const _calcPendingByProject: Map<string, Promise<unknown>> = new Map();
 
-export function persistCalculatorEntriesForProject(projectId: string): void {
+export function persistCalculatorEntriesForProject(projectId: string): Promise<void> {
   const calc = CALCULATOR_ENTRIES as unknown as Record<string, CalculatorEntry[]>;
   const entries = calc[projectId] ?? [];
   const prev = _calcPendingByProject.get(projectId) ?? Promise.resolve();
   const next = prev
     .catch(() => undefined)
     .then(() => saveCalculatorEntriesForProject(projectId, entries));
-  next.catch((err) => {
-    logger.error({ err, projectId }, "calculator: persist to Postgres failed");
-  });
-  _calcPendingByProject.set(projectId, next);
+  // Keep the chained promise on the queue so a follow-up call serialises
+  // behind this one, but do NOT swallow its error: callers `await` the
+  // returned promise to couple the route response to the DB commit, so
+  // they need to see the failure (the route can then 500 instead of 200).
+  _calcPendingByProject.set(projectId, next.catch(() => undefined));
+  return next.then(() => undefined);
 }
 
 export function flushCalculatorPersistence(): Promise<void> {
