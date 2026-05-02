@@ -87,38 +87,64 @@ function pickPhotoUrl(doc: PhotoDoc): string | undefined {
   );
 }
 
-export function pickLiveCoverImage(
-  project: ProjectShape,
+// Internal helper: returns the best `construction_progress` photo for a
+// project (URL + its uploadedAt timestamp), or `undefined` when none
+// qualify. The `uploadedAt` is what the dashboard surfaces so the staff
+// alt text can read "from {date}".
+export function pickLatestLivePhoto(
   docs: PhotoDoc[] | undefined,
-): string | undefined {
+): { url: string; uploadedAt: string } | undefined {
   const candidates = (docs ?? [])
     .filter((d) => d.type === "photo")
     .filter((d) => d.photoCategory === "construction_progress")
     .filter((d) => typeof d.uploadedAt === "string");
-  if (candidates.length === 0) return project.coverImage;
+  if (candidates.length === 0) return undefined;
   // Sort by uploadedAt DESC. We re-sort instead of mutating the caller's
   // array to keep the function side-effect free (DOCUMENTS is the live
   // seed object — mutating it would silently reorder the gallery).
   const latest = candidates
     .slice()
-    .sort((a, b) => (a.uploadedAt! < b.uploadedAt! ? 1 : -1))[0];
-  return pickPhotoUrl(latest!) ?? project.coverImage;
+    .sort((a, b) => (a.uploadedAt! < b.uploadedAt! ? 1 : -1))[0]!;
+  const url = pickPhotoUrl(latest);
+  if (!url) return undefined;
+  return { url, uploadedAt: latest.uploadedAt! };
+}
+
+export function pickLiveCoverImage(
+  project: ProjectShape,
+  docs: PhotoDoc[] | undefined,
+): string | undefined {
+  return pickLatestLivePhoto(docs)?.url ?? project.coverImage;
 }
 
 // Returns a shallow-merged copy of `project` with the role-appropriate
 // derived field attached. The wrong-role field is OMITTED (not nulled) so
 // the JSON payload stays minimal and tells client-side TypeScript exactly
 // which path the renderer should take.
+//
+// Staff payloads also carry `liveCoverUploadedAt` whenever the live image
+// was sourced from a real construction-progress photo (i.e. NOT the
+// `coverImage` fallback) — the dashboard uses that date in the alt text.
 export function enrichProjectForRole<T extends ProjectShape>(
   project: T,
   role: string | undefined,
   docs: PhotoDoc[] | undefined,
-): T & { liveCoverImage?: string; clientCoverImage?: string; clientCoverLandmark?: Landmark } {
+): T & {
+  liveCoverImage?: string;
+  liveCoverUploadedAt?: string;
+  clientCoverImage?: string;
+  clientCoverLandmark?: Landmark;
+} {
   if (role === "client") {
     const { url, landmark } = pickClientCoverImage(project);
     return { ...project, clientCoverImage: url, clientCoverLandmark: landmark };
   }
-  const live = pickLiveCoverImage(project, docs);
-  if (live === undefined) return { ...project };
-  return { ...project, liveCoverImage: live };
+  const photo = pickLatestLivePhoto(docs);
+  if (photo) {
+    return { ...project, liveCoverImage: photo.url, liveCoverUploadedAt: photo.uploadedAt };
+  }
+  if (project.coverImage !== undefined) {
+    return { ...project, liveCoverImage: project.coverImage };
+  }
+  return { ...project };
 }

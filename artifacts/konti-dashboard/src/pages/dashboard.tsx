@@ -17,7 +17,7 @@ import { formatDistanceToNow } from "date-fns";
 import { es as dateEs } from "date-fns/locale";
 
 function ProjectCard({ project, isClientUser }: {
-  project: { id: string; name: string; clientName: string; location: string; phase: string; phaseLabel: string; phaseLabelEs: string; phaseNumber: number; progressPercent: number; budgetAllocated: number; budgetUsed: number; coverImage?: string; liveCoverImage?: string; clientCoverImage?: string; clientCoverLandmark?: number; status: string };
+  project: { id: string; name: string; clientName: string; location: string; phase: string; phaseLabel: string; phaseLabelEs: string; phaseNumber: number; progressPercent: number; budgetAllocated: number; budgetUsed: number; coverImage?: string; liveCoverImage?: string; liveCoverUploadedAt?: string; clientCoverImage?: string; clientCoverLandmark?: number; status: string };
   isClientUser: boolean;
 }) {
   const { t, lang } = useLang();
@@ -31,12 +31,25 @@ function ProjectCard({ project, isClientUser }: {
   const cardImage = isClientUser
     ? (project.clientCoverImage ?? project.coverImage)
     : (project.liveCoverImage ?? project.coverImage);
+  // Staff alt text reads "from {date}" when the live image is sourced
+  // from a real construction-progress photo (the API only sets
+  // `liveCoverUploadedAt` in that case — a coverImage fallback omits it).
+  const liveDateLabel = !isClientUser && project.liveCoverUploadedAt
+    ? new Date(project.liveCoverUploadedAt).toLocaleDateString(lang === "es" ? "es-PR" : "en-US", {
+        year: "numeric", month: "short", day: "numeric",
+      })
+    : undefined;
   const cardImageAlt = isClientUser
     ? t(
         `${project.name} — milestone mockup at ${project.clientCoverLandmark ?? project.progressPercent}%`,
         `${project.name} — maqueta de hito al ${project.clientCoverLandmark ?? project.progressPercent}%`,
       )
-    : t(`${project.name} — latest site photo`, `${project.name} — última foto del sitio`);
+    : liveDateLabel
+      ? t(
+          `${project.name} — latest site photo (from ${liveDateLabel})`,
+          `${project.name} — última foto del sitio (del ${liveDateLabel})`,
+        )
+      : t(`${project.name} — latest site photo`, `${project.name} — última foto del sitio`);
 
   const phaseColors: Record<string, string> = {
     discovery: "bg-sky-100 text-sky-800",

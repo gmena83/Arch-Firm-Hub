@@ -248,12 +248,26 @@ export default function ProjectsPage() {
                 const rowImage = isClientUser
                   ? (project.clientCoverImage ?? project.coverImage)
                   : (project.liveCoverImage ?? project.coverImage);
+                // Surface the photo's upload date in the staff alt text
+                // (matches dashboard ProjectCard). Only present when the
+                // image was sourced from a real construction-progress doc.
+                const liveDateLabel = !isClientUser && project.liveCoverUploadedAt
+                  ? new Date(project.liveCoverUploadedAt).toLocaleDateString(
+                      lang === "es" ? "es-PR" : "en-US",
+                      { year: "numeric", month: "short", day: "numeric" },
+                    )
+                  : undefined;
                 const rowImageAlt = isClientUser
                   ? t(
                       `${project.name} — milestone mockup at ${project.clientCoverLandmark ?? project.progressPercent}%`,
                       `${project.name} — maqueta de hito al ${project.clientCoverLandmark ?? project.progressPercent}%`,
                     )
-                  : t(`${project.name} — latest site photo`, `${project.name} — última foto del sitio`);
+                  : liveDateLabel
+                    ? t(
+                        `${project.name} — latest site photo (from ${liveDateLabel})`,
+                        `${project.name} — última foto del sitio (del ${liveDateLabel})`,
+                      )
+                    : t(`${project.name} — latest site photo`, `${project.name} — última foto del sitio`);
                 return (
                   <div
                     key={project.id}

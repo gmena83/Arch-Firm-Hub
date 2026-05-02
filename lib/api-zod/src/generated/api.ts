@@ -74,6 +74,12 @@ export const ListProjectsResponseItem = zod.object({
     .describe(
       "Task #134. Derived at read time for KONTi roles only (admin\/architect\/team\/superadmin).\nResolves to the most recently uploaded `construction_progress` photo's URL for the\nproject, falling back to `coverImage` when none exists. OMITTED for the client role.\n",
     ),
+  liveCoverUploadedAt: zod
+    .string()
+    .optional()
+    .describe(
+      "Task #134. ISO timestamp of the photo behind `liveCoverImage`. Present iff the live\nimage was sourced from a real `construction_progress` document (i.e. NOT the\n`coverImage` fallback) — the dashboard surfaces this date in the staff alt text so\nthe team can tell at a glance when the jobsite shot was taken. KONTi roles only.\n",
+    ),
   clientCoverImage: zod
     .string()
     .optional()
@@ -211,6 +217,12 @@ export const GetProjectResponse = zod.object({
     .optional()
     .describe(
       "Task #134. Derived at read time for KONTi roles only (admin\/architect\/team\/superadmin).\nResolves to the most recently uploaded `construction_progress` photo's URL for the\nproject, falling back to `coverImage` when none exists. OMITTED for the client role.\n",
+    ),
+  liveCoverUploadedAt: zod
+    .string()
+    .optional()
+    .describe(
+      "Task #134. ISO timestamp of the photo behind `liveCoverImage`. Present iff the live\nimage was sourced from a real `construction_progress` document (i.e. NOT the\n`coverImage` fallback) — the dashboard surfaces this date in the staff alt text so\nthe team can tell at a glance when the jobsite shot was taken. KONTi roles only.\n",
     ),
   clientCoverImage: zod
     .string()
@@ -933,6 +945,12 @@ export const AdvanceProjectPhaseResponse = zod.object({
       .describe(
         "Task #134. Derived at read time for KONTi roles only (admin\/architect\/team\/superadmin).\nResolves to the most recently uploaded `construction_progress` photo's URL for the\nproject, falling back to `coverImage` when none exists. OMITTED for the client role.\n",
       ),
+    liveCoverUploadedAt: zod
+      .string()
+      .optional()
+      .describe(
+        "Task #134. ISO timestamp of the photo behind `liveCoverImage`. Present iff the live\nimage was sourced from a real `construction_progress` document (i.e. NOT the\n`coverImage` fallback) — the dashboard surfaces this date in the staff alt text so\nthe team can tell at a glance when the jobsite shot was taken. KONTi roles only.\n",
+      ),
     clientCoverImage: zod
       .string()
       .optional()
@@ -1282,6 +1300,12 @@ export const DeclineProjectPhaseResponse = zod.object({
       .describe(
         "Task #134. Derived at read time for KONTi roles only (admin\/architect\/team\/superadmin).\nResolves to the most recently uploaded `construction_progress` photo's URL for the\nproject, falling back to `coverImage` when none exists. OMITTED for the client role.\n",
       ),
+    liveCoverUploadedAt: zod
+      .string()
+      .optional()
+      .describe(
+        "Task #134. ISO timestamp of the photo behind `liveCoverImage`. Present iff the live\nimage was sourced from a real `construction_progress` document (i.e. NOT the\n`coverImage` fallback) — the dashboard surfaces this date in the staff alt text so\nthe team can tell at a glance when the jobsite shot was taken. KONTi roles only.\n",
+      ),
     clientCoverImage: zod
       .string()
       .optional()
@@ -1607,6 +1631,12 @@ export const AdvanceDesignSubPhaseResponse = zod.object({
         .describe(
           "Task #134. Derived at read time for KONTi roles only (admin\/architect\/team\/superadmin).\nResolves to the most recently uploaded `construction_progress` photo's URL for the\nproject, falling back to `coverImage` when none exists. OMITTED for the client role.\n",
         ),
+      liveCoverUploadedAt: zod
+        .string()
+        .optional()
+        .describe(
+          "Task #134. ISO timestamp of the photo behind `liveCoverImage`. Present iff the live\nimage was sourced from a real `construction_progress` document (i.e. NOT the\n`coverImage` fallback) — the dashboard surfaces this date in the staff alt text so\nthe team can tell at a glance when the jobsite shot was taken. KONTi roles only.\n",
+        ),
       clientCoverImage: zod
         .string()
         .optional()
@@ -1806,6 +1836,12 @@ export const ApproveProposalResponse = zod.object({
         .optional()
         .describe(
           "Task #134. Derived at read time for KONTi roles only (admin\/architect\/team\/superadmin).\nResolves to the most recently uploaded `construction_progress` photo's URL for the\nproject, falling back to `coverImage` when none exists. OMITTED for the client role.\n",
+        ),
+      liveCoverUploadedAt: zod
+        .string()
+        .optional()
+        .describe(
+          "Task #134. ISO timestamp of the photo behind `liveCoverImage`. Present iff the live\nimage was sourced from a real `construction_progress` document (i.e. NOT the\n`coverImage` fallback) — the dashboard surfaces this date in the staff alt text so\nthe team can tell at a glance when the jobsite shot was taken. KONTi roles only.\n",
         ),
       clientCoverImage: zod
         .string()
@@ -2862,6 +2898,12 @@ export const SetPermitItemStateResponse = zod.object({
       .describe(
         "Task #134. Derived at read time for KONTi roles only (admin\/architect\/team\/superadmin).\nResolves to the most recently uploaded `construction_progress` photo's URL for the\nproject, falling back to `coverImage` when none exists. OMITTED for the client role.\n",
       ),
+    liveCoverUploadedAt: zod
+      .string()
+      .optional()
+      .describe(
+        "Task #134. ISO timestamp of the photo behind `liveCoverImage`. Present iff the live\nimage was sourced from a real `construction_progress` document (i.e. NOT the\n`coverImage` fallback) — the dashboard surfaces this date in the staff alt text so\nthe team can tell at a glance when the jobsite shot was taken. KONTi roles only.\n",
+      ),
     clientCoverImage: zod
       .string()
       .optional()
@@ -3320,6 +3362,12 @@ export const AcceptLeadResponse = zod.object({
       .optional()
       .describe(
         "Task #134. Derived at read time for KONTi roles only (admin\/architect\/team\/superadmin).\nResolves to the most recently uploaded `construction_progress` photo's URL for the\nproject, falling back to `coverImage` when none exists. OMITTED for the client role.\n",
+      ),
+    liveCoverUploadedAt: zod
+      .string()
+      .optional()
+      .describe(
+        "Task #134. ISO timestamp of the photo behind `liveCoverImage`. Present iff the live\nimage was sourced from a real `construction_progress` document (i.e. NOT the\n`coverImage` fallback) — the dashboard surfaces this date in the staff alt text so\nthe team can tell at a glance when the jobsite shot was taken. KONTi roles only.\n",
       ),
     clientCoverImage: zod
       .string()

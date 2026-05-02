@@ -134,14 +134,28 @@ test("enrichProjectForRole emits clientCoverImage only for client role and never
   assert.equal(forClient.clientCoverLandmark, 75);
   assert.equal((forClient as { liveCoverImage?: string }).liveCoverImage, undefined,
     "client payload must NEVER include liveCoverImage");
+  assert.equal((forClient as { liveCoverUploadedAt?: string }).liveCoverUploadedAt, undefined,
+    "client payload must NEVER include liveCoverUploadedAt");
 
   for (const role of ["superadmin", "admin", "team", "architect"]) {
     const forStaff = enrichProjectForRole(project, role, docs);
     assert.equal(forStaff.liveCoverImage, "/seed-images/latest.png");
+    // The uploadedAt of the chosen photo flows through so the dashboard
+    // can surface "from {date}" in the staff alt text.
+    assert.equal(forStaff.liveCoverUploadedAt, "2026-04-12T00:00:00Z");
     assert.equal((forStaff as { clientCoverImage?: string }).clientCoverImage, undefined,
       `${role} payload must NEVER include clientCoverImage`);
     assert.equal((forStaff as { clientCoverLandmark?: number }).clientCoverLandmark, undefined);
   }
+});
+
+test("enrichProjectForRole omits liveCoverUploadedAt when falling back to coverImage", () => {
+  // No qualifying photos → `liveCoverImage` falls back to coverImage; the
+  // date field stays absent so the dashboard knows it's a static fallback.
+  const project = { id: "x", progressPercent: 30, coverImage: "/seed-images/fallback.png" };
+  const enriched = enrichProjectForRole(project, "admin", []);
+  assert.equal(enriched.liveCoverImage, "/seed-images/fallback.png");
+  assert.equal(enriched.liveCoverUploadedAt, undefined);
 });
 
 // ---- End-to-end through the live router ------------------------------------
@@ -156,6 +170,7 @@ test("GET /api/projects enriches each project with the role-correct cover (super
     const list = (await res.json()) as Array<{
       id: string;
       liveCoverImage?: string;
+      liveCoverUploadedAt?: string;
       clientCoverImage?: string;
       clientCoverLandmark?: number;
     }>;
@@ -164,6 +179,10 @@ test("GET /api/projects enriches each project with the role-correct cover (super
     const proj2 = list.find((p) => p.id === "proj-2");
     assert.ok(proj2, "proj-2 should be visible to superadmin");
     assert.equal(proj2!.liveCoverImage, "/seed-images/konti-portfolio-collage.png");
+    // The uploadedAt of the chosen photo (doc-2-8 → 2026-04-12) flows
+    // through so the staff alt text can read "latest site photo (from …)".
+    assert.equal(typeof proj2!.liveCoverUploadedAt, "string");
+    assert.match(proj2!.liveCoverUploadedAt!, /^2026-04-12/);
     assert.equal(proj2!.clientCoverImage, undefined);
     assert.equal(proj2!.clientCoverLandmark, undefined);
     // proj-1 has no construction_progress photo → falls back to coverImage.

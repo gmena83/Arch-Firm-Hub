@@ -370,6 +370,12 @@ Resolves to the most recently uploaded `construction_progress` photo's URL for t
 project, falling back to `coverImage` when none exists. OMITTED for the client role.
  */
   liveCoverImage?: string;
+  /** Task #134. ISO timestamp of the photo behind `liveCoverImage`. Present iff the live
+image was sourced from a real `construction_progress` document (i.e. NOT the
+`coverImage` fallback) — the dashboard surfaces this date in the staff alt text so
+the team can tell at a glance when the jobsite shot was taken. KONTi roles only.
+ */
+  liveCoverUploadedAt?: string;
   /** Task #134. Derived at read time for the client role only. One of five curated KONTi
 mockup images, chosen by snapping `progressPercent` to the nearest landmark
 (0 / 25 / 50 / 75 / 100) using midpoints 12.5 / 37.5 / 62.5 / 87.5. OMITTED for
