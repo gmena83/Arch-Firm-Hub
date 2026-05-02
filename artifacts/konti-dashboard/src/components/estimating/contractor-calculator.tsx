@@ -276,7 +276,7 @@ export function ContractorCalculator({ defaultProjectId }: { defaultProjectId?: 
                     <td className="px-2 py-1 text-right text-xs font-semibold">
                       <div className="flex items-center justify-end gap-1">
                         <span>${l.lineTotal.toLocaleString()}</span>
-                        <button onClick={() => removeLine(i)} className="p-1 text-destructive hover:bg-destructive/10 rounded" aria-label="Remove"><Trash2 className="w-3 h-3" /></button>
+                        <button onClick={() => removeLine(i)} className="p-1 text-destructive hover:bg-destructive/10 rounded" aria-label={t("Remove line", "Eliminar línea")}><Trash2 className="w-3 h-3" /></button>
                       </div>
                     </td>
                   </tr>

@@ -5,6 +5,7 @@ import {
   CALCULATOR_ENTRIES,
   PROJECT_COST_PLUS,
   PROJECT_CSV_MAPPINGS,
+  PROJECT_INVOICES,
   type CsvImportKind,
   appendActivity,
 } from "../data/seed";
@@ -1007,39 +1008,115 @@ router.get("/projects/:id/variance-report", requireRole(["team","admin","superad
   const actualLabor = cp?.laborCost ?? 0;
   const actualSubcontractor = cp?.subcontractorCost ?? 0;
 
-  function pct(estimated: number, actual: number): number {
-    if (estimated === 0) return 0;
-    return Math.round(((actual - estimated) / estimated) * 1000) / 10;
+  // Roll up project invoices into the same M/L/S buckets and per-category
+  // breakdown. Invoices that don't fit any of those (design-phase, closeout)
+  // surface as a separate "unassigned" bucket so the variance report doesn't
+  // silently drop them. Per-category invoiced is only populated when an
+  // invoice has an explicit `category` matching the contractor estimate.
+  const projectInvoices = PROJECT_INVOICES[project.id] ?? [];
+  const invoicedByBucket: Record<"materials" | "labor" | "subcontractor" | "unassigned", number> = {
+    materials: 0, labor: 0, subcontractor: 0, unassigned: 0,
+  };
+  const invoicedByCategory: Record<string, number> = {};
+  for (const inv of projectInvoices) {
+    invoicedByBucket[inv.bucket] += inv.total;
+    if (inv.category) {
+      invoicedByCategory[inv.category] = (invoicedByCategory[inv.category] ?? 0) + inv.total;
+    }
   }
 
-  const buckets = [
-    { key: "materials", labelEn: "Materials", labelEs: "Materiales", estimated: estimatedMaterials, actual: actualMaterials },
-    { key: "labor", labelEn: "Labor", labelEs: "Mano de Obra", estimated: estimatedLabor, actual: actualLabor },
-    { key: "subcontractor", labelEn: "Subcontractor", labelEs: "Subcontratistas", estimated: estimatedSubcontractor, actual: actualSubcontractor },
-  ].map((b) => ({
+  // Percent change from `base` → `value`. Returns `null` (rendered as "—" in
+  // the UI) when the base is zero so we never publish a misleading "0%" for
+  // a bucket that has, e.g., real spend but zero invoiced. Tests assert this.
+  function pct(base: number, value: number): number | null {
+    if (base === 0) return value === 0 ? 0 : null;
+    return Math.round(((value - base) / base) * 1000) / 10;
+  }
+
+  type VarianceBucketRow = {
+    key: "materials" | "labor" | "subcontractor" | "unassigned";
+    labelEn: string;
+    labelEs: string;
+    estimated: number;
+    actual: number;
+    invoiced: number;
+    variance: number;
+    variancePercent: number | null;
+    varianceVsInvoiced: number;
+    varianceVsInvoicedPercent: number | null;
+    status: "on_track" | "warning" | "over";
+  };
+  const baseBuckets = [
+    { key: "materials" as const,     labelEn: "Materials",     labelEs: "Materiales",       estimated: estimatedMaterials,     actual: actualMaterials,     invoiced: invoicedByBucket.materials },
+    { key: "labor" as const,         labelEn: "Labor",         labelEs: "Mano de Obra",     estimated: estimatedLabor,         actual: actualLabor,         invoiced: invoicedByBucket.labor },
+    { key: "subcontractor" as const, labelEn: "Subcontractor", labelEs: "Subcontratistas",  estimated: estimatedSubcontractor, actual: actualSubcontractor, invoiced: invoicedByBucket.subcontractor },
+  ];
+  const buckets: VarianceBucketRow[] = baseBuckets.map((b) => ({
     ...b,
     variance: b.actual - b.estimated,
     variancePercent: pct(b.estimated, b.actual),
+    varianceVsInvoiced: b.actual - b.invoiced,
+    varianceVsInvoicedPercent: pct(b.invoiced, b.actual),
     status: (b.actual <= b.estimated * 1.05 ? "on_track" : b.actual <= b.estimated * 1.15 ? "warning" : "over") as "on_track" | "warning" | "over",
   }));
 
+  // Surface invoices that don't fit M/L/S (design, closeout, overhead) as a
+  // dedicated bucket so the variance UI accounts for every dollar billed.
+  if (invoicedByBucket.unassigned > 0) {
+    buckets.push({
+      key: "unassigned",
+      labelEn: "Unassigned (billed, not in cost plan)",
+      labelEs: "Sin asignar (facturado, fuera del plan)",
+      estimated: 0,
+      actual: 0,
+      invoiced: invoicedByBucket.unassigned,
+      variance: 0,
+      variancePercent: null,
+      varianceVsInvoiced: -invoicedByBucket.unassigned,
+      varianceVsInvoicedPercent: null,
+      status: "on_track",
+    });
+  }
+
   // Material category breakdown (only when estimate by category exists).
-  const materialCategories = Object.entries(estByCategory)
-    .filter(([cat]) => cat !== "labor" && cat !== "subcontractor")
-    .map(([category, estimated]) => {
+  // Pre-collect category keys from BOTH the estimate and the invoices so
+  // categories that were billed but not estimated still appear with a
+  // visible "$0 estimated" row instead of vanishing.
+  const materialCategoryKeys = new Set<string>();
+  for (const cat of Object.keys(estByCategory)) {
+    if (cat !== "labor" && cat !== "subcontractor") materialCategoryKeys.add(cat);
+  }
+  for (const cat of Object.keys(invoicedByCategory)) {
+    if (cat !== "labor" && cat !== "subcontractor") materialCategoryKeys.add(cat);
+  }
+  const materialCategories = Array.from(materialCategoryKeys)
+    .map((category) => {
+      const estimated = estByCategory[category] ?? 0;
       const actualShare = actualMaterials === 0 || estimatedMaterials === 0 ? 0 : Math.round((estimated / estimatedMaterials) * actualMaterials);
+      const invoiced = invoicedByCategory[category] ?? 0;
       return {
         category,
         estimated,
         actual: actualShare,
+        invoiced,
         variance: actualShare - estimated,
         variancePercent: pct(estimated, actualShare),
+        varianceVsInvoiced: actualShare - invoiced,
+        varianceVsInvoicedPercent: pct(invoiced, actualShare),
       };
     })
     .sort((a, b) => b.estimated - a.estimated);
 
   const totalEstimated = estimatedMaterials + estimatedLabor + estimatedSubcontractor;
   const totalActual = actualMaterials + actualLabor + actualSubcontractor;
+  // Split invoiced into "in-plan" (M/L/S — the part that has a matching
+  // Actual to compare against) and "unassigned" (design / closeout / overhead
+  // — billed but with no cost-plan counterpart). The primary Δ-vs-Invoiced
+  // pill compares Actual against in-plan invoiced ONLY so the scopes match.
+  // `invoiced` (= in-plan + unassigned) is kept for cashflow displays.
+  const invoicedInPlan = invoicedByBucket.materials + invoicedByBucket.labor + invoicedByBucket.subcontractor;
+  const invoicedUnassigned = invoicedByBucket.unassigned;
+  const totalInvoiced = invoicedInPlan + invoicedUnassigned;
 
   res.json({
     projectId: project.id,
@@ -1051,8 +1128,15 @@ router.get("/projects/:id/variance-report", requireRole(["team","admin","superad
     totals: {
       estimated: totalEstimated,
       actual: totalActual,
+      invoiced: totalInvoiced,
+      invoicedInPlan,
+      invoicedUnassigned,
       variance: totalActual - totalEstimated,
       variancePercent: pct(totalEstimated, totalActual),
+      // Apples-to-apples: Actual M/L/S − Invoiced M/L/S only. Excludes
+      // unassigned so the delta reads as a real cost-plan variance.
+      varianceVsInvoiced: totalActual - invoicedInPlan,
+      varianceVsInvoicedPercent: pct(invoicedInPlan, totalActual),
     },
   });
 });

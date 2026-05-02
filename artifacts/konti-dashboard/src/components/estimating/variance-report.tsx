@@ -40,12 +40,27 @@ export function VarianceReportPanel({
     return () => { cancel = true; };
   }, [projectId]);
 
+  // Helper: render an Actual vs <base> delta as a colored pill. The variance
+  // formula matches the backend (Actual − base; positive = over). When the
+  // base is zero the percent is `null` from the API and we render "—" so
+  // we never show a misleading "0%" for a non-zero dollar delta.
+  const fmtPct = (p: number | null): string => (p === null ? "—" : `${p >= 0 ? "+" : ""}${p}%`);
+  const renderDelta = (value: number, percent: number | null, testid?: string) => (
+    <span
+      data-testid={testid}
+      className={`font-bold ${value > 0 ? "text-destructive" : value < 0 ? "text-konti-olive" : "text-muted-foreground"} flex items-center gap-1`}
+    >
+      {value > 0 ? <TrendingUp className="w-3.5 h-3.5" /> : value < 0 ? <TrendingDown className="w-3.5 h-3.5" /> : <Minus className="w-3.5 h-3.5" />}
+      {value >= 0 ? "+" : ""}${value.toLocaleString()} ({fmtPct(percent)})
+    </span>
+  );
+
   return (
     <div className="space-y-4" data-testid="variance-report-panel">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-2">
           <BarChart3 className="w-5 h-5 text-konti-olive" />
-          <h2 className="font-bold text-foreground">{t("Estimated vs Actual", "Estimado vs Real")}</h2>
+          <h2 className="font-bold text-foreground">{t("Estimated vs Invoiced vs Actual", "Estimado vs Facturado vs Real")}</h2>
         </div>
         {showProjectPicker && (
           <select
@@ -66,6 +81,13 @@ export function VarianceReportPanel({
         <>
           <p className="text-xs text-muted-foreground">
             {t("Source:", "Fuente:")} {report.estimateSource === "contractor_estimate" ? t("Contractor estimate", "Estimado de contratista") : t("Calculator entries", "Entradas de calculadora")}
+            {" · "}
+            <span title={t(
+              "Variance pills compare Actual minus the column to their left (Invoiced for the per-bucket pill, Estimated for the secondary delta).",
+              "Las píldoras de varianza comparan Real menos la columna a la izquierda (Facturado para la principal, Estimado para la secundaria).",
+            )} className="cursor-help underline decoration-dotted">
+              {t("How variance is computed", "Cómo se calcula la varianza")}
+            </span>
           </p>
 
           <div className={`grid gap-3 ${compact ? "grid-cols-1" : "grid-cols-1 md:grid-cols-3"}`}>
@@ -80,14 +102,21 @@ export function VarianceReportPanel({
                   <span className="font-semibold text-foreground">${b.estimated.toLocaleString()}</span>
                 </div>
                 <div className="flex items-baseline justify-between text-xs mt-1">
+                  <span className="text-muted-foreground">{t("Invoiced", "Facturado")}</span>
+                  <span className="font-semibold text-foreground" data-testid={`variance-bucket-${b.key}-invoiced`}>${b.invoiced.toLocaleString()}</span>
+                </div>
+                <div className="flex items-baseline justify-between text-xs mt-1">
                   <span className="text-muted-foreground">{t("Actual", "Real")}</span>
                   <span className="font-semibold text-foreground">${b.actual.toLocaleString()}</span>
                 </div>
                 <div className="flex items-baseline justify-between text-sm border-t border-border pt-1.5 mt-1.5">
-                  <span className="text-muted-foreground">{t("Variance", "Varianza")}</span>
-                  <span className={`font-bold ${b.variance > 0 ? "text-destructive" : "text-konti-olive"} flex items-center gap-1`}>
-                    {b.variance > 0 ? <TrendingUp className="w-3.5 h-3.5" /> : b.variance < 0 ? <TrendingDown className="w-3.5 h-3.5" /> : <Minus className="w-3.5 h-3.5" />}
-                    {b.variance >= 0 ? "+" : ""}${b.variance.toLocaleString()} ({b.variancePercent >= 0 ? "+" : ""}{b.variancePercent}%)
+                  <span className="text-muted-foreground" title={t("Actual minus Invoiced", "Real menos Facturado")}>{t("Δ vs Invoiced", "Δ vs Facturado")}</span>
+                  {renderDelta(b.varianceVsInvoiced, b.varianceVsInvoicedPercent, `variance-bucket-${b.key}-delta-invoiced`)}
+                </div>
+                <div className="flex items-baseline justify-between text-xs mt-1">
+                  <span className="text-muted-foreground" title={t("Actual minus Estimated", "Real menos Estimado")}>{t("Δ vs Estimated", "Δ vs Estimado")}</span>
+                  <span className={`font-medium ${b.variance > 0 ? "text-destructive/80" : b.variance < 0 ? "text-konti-olive/80" : "text-muted-foreground"}`}>
+                    {b.variance >= 0 ? "+" : ""}${b.variance.toLocaleString()} ({fmtPct(b.variancePercent)})
                   </span>
                 </div>
               </div>
@@ -99,17 +128,24 @@ export function VarianceReportPanel({
               <p className="text-xs font-semibold text-muted-foreground uppercase mb-3">{t("Top-line comparison", "Comparación general")}</p>
               <div className="h-56">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={report.buckets.map((b) => ({ name: lang === "es" ? b.labelEs : b.labelEn, Estimated: b.estimated, Actual: b.actual }))}>
+                  <BarChart data={report.buckets.map((b) => ({
+                    name: lang === "es" ? b.labelEs : b.labelEn,
+                    [t("Estimated", "Estimado")]: b.estimated,
+                    [t("Invoiced", "Facturado")]: b.invoiced,
+                    [t("Actual", "Real")]: b.actual,
+                  }))}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                     <YAxis tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
                     <Tooltip formatter={(v: number) => `$${v.toLocaleString()}`} />
                     <Legend />
                     {/* Brand bar fills sourced from the central KONTi palette
-                        in `index.css` (`--konti-slate` / `--konti-olive`),
-                        with hex fallbacks if the var hasn't resolved yet. */}
-                    <Bar dataKey="Estimated" fill="var(--konti-slate, #778894)" />
-                    <Bar dataKey="Actual" fill="var(--konti-olive, #4F5E2A)" />
+                        in `index.css` (`--konti-slate` / `--konti-olive` /
+                        `--konti-dark`), with hex fallbacks if the var
+                        hasn't resolved yet. */}
+                    <Bar dataKey={t("Estimated", "Estimado")} fill="var(--konti-slate, #778894)" />
+                    <Bar dataKey={t("Invoiced", "Facturado")} fill="var(--konti-dark, #2A2D2F)" />
+                    <Bar dataKey={t("Actual", "Real")} fill="var(--konti-olive, #4F5E2A)" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -120,13 +156,15 @@ export function VarianceReportPanel({
             <div className="bg-card rounded-xl border border-card-border p-5 shadow-sm">
               <p className="text-xs font-semibold text-muted-foreground uppercase mb-3">{t("Materials by category", "Materiales por categoría")}</p>
               <div className="overflow-x-auto">
-                <table className="w-full text-xs min-w-[480px]">
+                <table className="w-full text-xs min-w-[560px]">
                   <thead className="bg-muted/40">
                     <tr>
                       <th className="text-left px-3 py-2">{t("Category", "Categoría")}</th>
                       <th className="text-right px-3 py-2">{t("Estimated", "Estimado")}</th>
+                      <th className="text-right px-3 py-2">{t("Invoiced", "Facturado")}</th>
                       <th className="text-right px-3 py-2">{t("Actual", "Real")}</th>
-                      <th className="text-right px-3 py-2">{t("Variance", "Varianza")}</th>
+                      <th className="text-right px-3 py-2">{t("Δ vs Invoiced", "Δ vs Facturado")}</th>
+                      <th className="text-right px-3 py-2">{t("Δ vs Estimated", "Δ vs Estimado")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
@@ -134,9 +172,13 @@ export function VarianceReportPanel({
                       <tr key={c.category}>
                         <td className="px-3 py-1.5 capitalize">{c.category}</td>
                         <td className="px-3 py-1.5 text-right">${c.estimated.toLocaleString()}</td>
+                        <td className="px-3 py-1.5 text-right" data-testid={`variance-cat-${c.category}-invoiced`}>${c.invoiced.toLocaleString()}</td>
                         <td className="px-3 py-1.5 text-right">${c.actual.toLocaleString()}</td>
-                        <td className={`px-3 py-1.5 text-right font-semibold ${c.variance > 0 ? "text-destructive" : "text-konti-olive"}`}>
-                          {c.variance >= 0 ? "+" : ""}${c.variance.toLocaleString()} ({c.variancePercent >= 0 ? "+" : ""}{c.variancePercent}%)
+                        <td className={`px-3 py-1.5 text-right font-semibold ${c.varianceVsInvoiced > 0 ? "text-destructive" : c.varianceVsInvoiced < 0 ? "text-konti-olive" : "text-muted-foreground"}`}>
+                          {c.varianceVsInvoiced >= 0 ? "+" : ""}${c.varianceVsInvoiced.toLocaleString()} ({fmtPct(c.varianceVsInvoicedPercent)})
+                        </td>
+                        <td className={`px-3 py-1.5 text-right ${c.variance > 0 ? "text-destructive/80" : c.variance < 0 ? "text-konti-olive/80" : "text-muted-foreground"}`}>
+                          {c.variance >= 0 ? "+" : ""}${c.variance.toLocaleString()} ({fmtPct(c.variancePercent)})
                         </td>
                       </tr>
                     ))}
@@ -146,19 +188,45 @@ export function VarianceReportPanel({
             </div>
           )}
 
-          <div className="bg-konti-dark rounded-xl p-5 flex flex-wrap items-center justify-between gap-3 text-white" data-testid="variance-totals">
+          <div className="bg-konti-dark rounded-xl p-5 grid grid-cols-2 md:grid-cols-5 gap-3 text-white" data-testid="variance-totals">
             <div>
               <p className="text-xs text-white/50">{t("Total estimated", "Total estimado")}</p>
               <p className="text-xl font-bold">${report.totals.estimated.toLocaleString()}</p>
+            </div>
+            <div>
+              <p
+                className="text-xs text-white/50"
+                title={t(
+                  "In-plan invoiced (M/L/S only). Δ vs Invoiced uses this base.",
+                  "Facturado en plan (sólo M/L/S). Δ vs Facturado usa esta base.",
+                )}
+              >
+                {t("Total invoiced (in plan)", "Total facturado (en plan)")}
+              </p>
+              <p className="text-xl font-bold" data-testid="variance-totals-invoiced">
+                ${report.totals.invoicedInPlan.toLocaleString()}
+              </p>
+              {report.totals.invoicedUnassigned > 0 && (
+                <p className="text-[10px] text-white/40 mt-0.5" data-testid="variance-totals-invoiced-unassigned">
+                  {t("+ ", "+ ")}${report.totals.invoicedUnassigned.toLocaleString()}{" "}
+                  {t("billed outside plan", "facturado fuera del plan")}
+                </p>
+              )}
             </div>
             <div>
               <p className="text-xs text-white/50">{t("Total actual", "Total real")}</p>
               <p className="text-xl font-bold">${report.totals.actual.toLocaleString()}</p>
             </div>
             <div>
-              <p className="text-xs text-white/50">{t("Variance", "Varianza")}</p>
-              <p className={`text-xl font-bold ${report.totals.variance > 0 ? "text-red-300" : "text-emerald-300"}`}>
-                {report.totals.variance >= 0 ? "+" : ""}${report.totals.variance.toLocaleString()} ({report.totals.variancePercent >= 0 ? "+" : ""}{report.totals.variancePercent}%)
+              <p className="text-xs text-white/50" title={t("Actual minus In-plan Invoiced (matched scope)", "Real menos Facturado en plan (alcance equivalente)")}>{t("Δ vs Invoiced", "Δ vs Facturado")}</p>
+              <p className={`text-xl font-bold ${report.totals.varianceVsInvoiced > 0 ? "text-red-300" : report.totals.varianceVsInvoiced < 0 ? "text-emerald-300" : "text-white/70"}`} data-testid="variance-totals-delta-invoiced">
+                {report.totals.varianceVsInvoiced >= 0 ? "+" : ""}${report.totals.varianceVsInvoiced.toLocaleString()} ({fmtPct(report.totals.varianceVsInvoicedPercent)})
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-white/50" title={t("Actual minus Estimated", "Real menos Estimado")}>{t("Δ vs Estimated", "Δ vs Estimado")}</p>
+              <p className={`text-xl font-bold ${report.totals.variance > 0 ? "text-red-300" : report.totals.variance < 0 ? "text-emerald-300" : "text-white/70"}`}>
+                {report.totals.variance >= 0 ? "+" : ""}${report.totals.variance.toLocaleString()} ({fmtPct(report.totals.variancePercent)})
               </p>
             </div>
           </div>

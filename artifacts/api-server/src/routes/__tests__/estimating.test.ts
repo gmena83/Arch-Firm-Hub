@@ -168,14 +168,73 @@ test("estimating end-to-end: import → contractor estimate → receipts → var
       assert.equal(varRes.status, 200);
       const v = (await varRes.json()) as {
         estimateSource: string;
-        buckets: Array<{ key: string; estimated: number; actual: number; variance: number; status: string }>;
-        totals: { estimated: number; actual: number; variance: number };
+        buckets: Array<{ key: string; estimated: number; actual: number; invoiced: number; variance: number; variancePercent: number | null; varianceVsInvoiced: number; varianceVsInvoicedPercent: number | null; status: string }>;
+        materialCategories: Array<{ category: string; invoiced: number; varianceVsInvoiced: number; varianceVsInvoicedPercent: number | null }>;
+        totals: { estimated: number; actual: number; invoiced: number; invoicedInPlan: number; invoicedUnassigned: number; variance: number; variancePercent: number | null; varianceVsInvoiced: number; varianceVsInvoicedPercent: number | null };
       };
       assert.equal(v.estimateSource, "contractor_estimate");
-      assert.equal(v.buckets.length, 3);
+      const mlsBuckets = v.buckets.filter((b) => b.key === "materials" || b.key === "labor" || b.key === "subcontractor");
+      assert.equal(mlsBuckets.length, 3, "M/L/S buckets always present");
       const matBucket = v.buckets.find((b) => b.key === "materials");
       assert.ok(matBucket && matBucket.estimated > 0);
-      assert.ok(typeof v.totals.variance === "number");
+      // Each M/L/S bucket carries an invoiced field plus the Δ-vs-Invoiced numbers.
+      for (const b of mlsBuckets) {
+        assert.equal(typeof b.invoiced, "number", `${b.key} bucket should expose invoiced`);
+        assert.equal(typeof b.varianceVsInvoiced, "number", `${b.key} bucket should expose varianceVsInvoiced`);
+      }
+      // proj-1 has actuals (cost-plus entries) but ZERO M/L/S invoices, so
+      // varianceVsInvoicedPercent must be `null` (not 0) — otherwise the UI
+      // would show a misleading "+0%" next to a non-zero dollar delta.
+      for (const b of mlsBuckets) {
+        if (b.invoiced === 0 && b.actual !== 0) {
+          assert.equal(b.varianceVsInvoicedPercent, null, `${b.key} percent should be null when invoiced=0 and actual>0`);
+        }
+      }
+      // proj-1 has 2 design-phase invoices (no M/L/S match) so the
+      // "unassigned" bucket must surface them instead of hiding them.
+      const unassigned = v.buckets.find((b) => b.key === "unassigned");
+      assert.ok(unassigned, "unassigned bucket should appear when invoices don't fit M/L/S");
+      assert.equal(unassigned!.invoiced, 8500 + 18000, "unassigned bucket sums all design-phase invoices");
+      assert.equal(unassigned!.estimated, 0);
+      assert.equal(unassigned!.actual, 0);
+      assert.equal(unassigned!.variancePercent, null, "unassigned percent must be null (estimated=0)");
+      assert.equal(unassigned!.varianceVsInvoicedPercent, null, "unassigned vs-invoiced percent must be null (actual=0)");
+      // Totals expose split invoiced (in-plan vs unassigned). The primary
+      // Δ-vs-Invoiced compares Actual against IN-PLAN invoiced only so the
+      // scopes match — it must NOT subtract the unassigned amount.
+      assert.equal(typeof v.totals.invoiced, "number");
+      assert.equal(typeof v.totals.invoicedInPlan, "number");
+      assert.equal(typeof v.totals.invoicedUnassigned, "number");
+      assert.equal(v.totals.invoiced, v.totals.invoicedInPlan + v.totals.invoicedUnassigned, "totals.invoiced = in-plan + unassigned");
+      assert.equal(v.totals.invoicedUnassigned, 8500 + 18000, "unassigned design invoices roll up into totals");
+      assert.equal(v.totals.varianceVsInvoiced, v.totals.actual - v.totals.invoicedInPlan, "Δ vs Invoiced uses in-plan only (matched scope)");
+    });
+
+    // 6b. proj-2 has invoices spread across labor/subcontractor/materials so
+    //     the M/L/S buckets must each carry a non-zero invoiced amount and
+    //     the per-category breakdown must surface the "finishes" invoice.
+    await withServer(async (baseUrl) => {
+      const token = await login(baseUrl, "demo@konti.com");
+      const auth = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
+      const varRes = await fetch(`${baseUrl}/api/projects/proj-2/variance-report`, { headers: auth });
+      assert.equal(varRes.status, 200);
+      const v = (await varRes.json()) as {
+        buckets: Array<{ key: string; invoiced: number }>;
+        materialCategories: Array<{ category: string; invoiced: number }>;
+        totals: { invoiced: number };
+      };
+      const labor = v.buckets.find((b) => b.key === "labor");
+      const sub = v.buckets.find((b) => b.key === "subcontractor");
+      const mats = v.buckets.find((b) => b.key === "materials");
+      // Seed totals: labor 42000, subcontractor 58000+76000+64000=198000,
+      // materials 48000 (finishes) — all from PROJECT_INVOICES["proj-2"].
+      assert.equal(labor?.invoiced, 42000, "labor bucket aggregates the mobilization invoice");
+      assert.equal(sub?.invoiced, 198000, "subcontractor bucket aggregates foundation+container+plumbing");
+      assert.equal(mats?.invoiced, 48000, "materials bucket aggregates the finishes invoice");
+      const finishesCat = v.materialCategories.find((c) => c.category === "finishes");
+      assert.ok(finishesCat, "finishes category should appear when invoiced");
+      assert.equal(finishesCat!.invoiced, 48000, "per-category invoiced totals to the finishes invoice");
+      assert.equal(v.totals.invoiced, 42000 + 198000 + 48000, "totals.invoiced sums every M/L/S invoice");
     });
   } finally {
     restoreState(snap);
@@ -431,7 +490,10 @@ test("estimating state survives a server restart (persists to disk and reloads)"
         buckets: Array<{ key: string; estimated: number }>;
       };
       assert.equal(v.estimateSource, "contractor_estimate");
-      assert.ok(v.buckets.length === 3);
+      // M/L/S are always present; an "unassigned" bucket may also appear
+      // for projects whose invoices live outside the cost plan (proj-1).
+      const mls = v.buckets.filter((b) => b.key === "materials" || b.key === "labor" || b.key === "subcontractor");
+      assert.equal(mls.length, 3);
     });
   } finally {
     fs.rmSync(tmpFile, { force: true });

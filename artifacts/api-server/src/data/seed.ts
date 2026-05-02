@@ -2231,6 +2231,11 @@ export const PROJECT_CONTRACTOR_MONITORING: Record<string, ContractorMonitoringR
 
 export type InvoiceStatus = "draft" | "sent" | "partial" | "paid" | "overdue";
 
+// Variance-report bucket each invoice rolls up into. "unassigned" surfaces
+// design-phase / closeout / overhead invoices that don't fit M/L/S so they
+// are visible on the variance report instead of being silently dropped.
+export type InvoiceBucket = "materials" | "labor" | "subcontractor" | "unassigned";
+
 export interface ProjectInvoice {
   id: string;
   projectId: string;
@@ -2243,6 +2248,12 @@ export interface ProjectInvoice {
   status: InvoiceStatus;
   issuedAt: string;     // YYYY-MM-DD
   dueAt: string;        // YYYY-MM-DD
+  // Variance-report rollup hints. `bucket` is the M/L/S/unassigned bucket
+  // shown on the per-bucket Invoiced row; `category` is the trade-level
+  // material category (matches contractor-estimate `line.category`) used
+  // for the per-category Invoiced column when present.
+  bucket: InvoiceBucket;
+  category?: string;
 }
 
 function buildInvoice(
@@ -2256,24 +2267,26 @@ function buildInvoice(
   status: InvoiceStatus,
   issuedAt: string,
   dueAt: string,
+  bucket: InvoiceBucket,
+  category?: string,
 ): ProjectInvoice {
-  return { id, projectId, number, title, titleEs, total, paid, balance: Math.max(0, total - paid), status, issuedAt, dueAt };
+  return { id, projectId, number, title, titleEs, total, paid, balance: Math.max(0, total - paid), status, issuedAt, dueAt, bucket, ...(category ? { category } : {}) };
 }
 
 export const PROJECT_INVOICES: Record<string, ProjectInvoice[]> = {
   "proj-1": [
-    buildInvoice("proj-1", "inv-1-1", "INV-2026-014", "Pre-Design & Viability Study",          "Estudio de Prefactibilidad y Viabilidad",      8500,  8500, "paid",    "2026-04-08", "2026-04-22"),
-    buildInvoice("proj-1", "inv-1-2", "INV-2026-031", "Schematic Design — Milestone 1",        "Diseño Esquemático — Hito 1",                  18000, 9000, "partial", "2026-04-22", "2026-05-06"),
+    buildInvoice("proj-1", "inv-1-1", "INV-2026-014", "Pre-Design & Viability Study",          "Estudio de Prefactibilidad y Viabilidad",      8500,  8500, "paid",    "2026-04-08", "2026-04-22", "unassigned"),
+    buildInvoice("proj-1", "inv-1-2", "INV-2026-031", "Schematic Design — Milestone 1",        "Diseño Esquemático — Hito 1",                  18000, 9000, "partial", "2026-04-22", "2026-05-06", "unassigned"),
   ],
   "proj-2": [
-    buildInvoice("proj-2", "inv-2-1", "INV-2025-088", "Construction Mobilization",             "Movilización de Construcción",                  42000, 42000, "paid",    "2025-08-01", "2025-08-15"),
-    buildInvoice("proj-2", "inv-2-2", "INV-2025-104", "Foundation Pour & Inspection",          "Vaciado y Inspección de Cimientos",             58000, 58000, "paid",    "2025-08-25", "2025-09-08"),
-    buildInvoice("proj-2", "inv-2-3", "INV-2025-122", "Container Set & Welding",               "Colocación y Soldadura de Contenedores",        76000, 76000, "paid",    "2025-10-12", "2025-10-26"),
-    buildInvoice("proj-2", "inv-2-4", "INV-2026-007", "Electrical & Plumbing Rough-In",        "Eléctrico y Plomería Inicial",                  64000, 32000, "partial", "2026-02-04", "2026-02-18"),
-    buildInvoice("proj-2", "inv-2-5", "INV-2026-019", "Interior Finishes — Progress Billing",  "Acabados Interiores — Facturación de Avance",   48000, 0,     "sent",    "2026-04-10", "2026-04-24"),
+    buildInvoice("proj-2", "inv-2-1", "INV-2025-088", "Construction Mobilization",             "Movilización de Construcción",                  42000, 42000, "paid",    "2025-08-01", "2025-08-15", "labor"),
+    buildInvoice("proj-2", "inv-2-2", "INV-2025-104", "Foundation Pour & Inspection",          "Vaciado y Inspección de Cimientos",             58000, 58000, "paid",    "2025-08-25", "2025-09-08", "subcontractor"),
+    buildInvoice("proj-2", "inv-2-3", "INV-2025-122", "Container Set & Welding",               "Colocación y Soldadura de Contenedores",        76000, 76000, "paid",    "2025-10-12", "2025-10-26", "subcontractor"),
+    buildInvoice("proj-2", "inv-2-4", "INV-2026-007", "Electrical & Plumbing Rough-In",        "Eléctrico y Plomería Inicial",                  64000, 32000, "partial", "2026-02-04", "2026-02-18", "subcontractor"),
+    buildInvoice("proj-2", "inv-2-5", "INV-2026-019", "Interior Finishes — Progress Billing",  "Acabados Interiores — Facturación de Avance",   48000, 0,     "sent",    "2026-04-10", "2026-04-24", "materials", "finishes"),
   ],
   "proj-3": [
-    buildInvoice("proj-3", "inv-3-1", "INV-2025-201", "Project Closeout & C/O",                "Cierre del Proyecto y Certificado de Ocupación", 12000, 12000, "paid",    "2025-11-26", "2025-12-10"),
+    buildInvoice("proj-3", "inv-3-1", "INV-2025-201", "Project Closeout & C/O",                "Cierre del Proyecto y Certificado de Ocupación", 12000, 12000, "paid",    "2025-11-26", "2025-12-10", "unassigned"),
   ],
 };
 
