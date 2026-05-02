@@ -69,10 +69,13 @@ export function saveEstimatingToDisk(
 }
 
 /**
- * @deprecated Task #141 — file-based persistence is gone. The path is
- * still tracked for the one-time JSON migration in
- * `migrateEstimatingJsonIfNeeded({ jsonPath })`, but no live writes
- * target this file anymore.
+ * @deprecated Task #141 — file-based persistence is gone. This getter
+ * only echoes back whatever was last passed to
+ * `setEstimatingPersistFile`; nothing in the api-server actually reads
+ * this value. The legacy-JSON migration takes its path explicitly via
+ * `migrateEstimatingJsonIfNeeded({ jsonPath })` and never consults
+ * this module. Provided solely so out-of-tree code that used to read
+ * the active disk path doesn't crash on a missing export.
  */
 export function getEstimatingPersistFile(): string {
   warnOnce(fileFlag, "getEstimatingPersistFile");
@@ -80,9 +83,15 @@ export function getEstimatingPersistFile(): string {
 }
 
 /**
- * @deprecated Task #141 — file-based persistence is gone. Setting this
- * value only affects the path passed to the legacy-JSON migration on
- * the next call to `migrateEstimatingJsonIfNeeded`.
+ * @deprecated Task #141 — file-based persistence is gone. Calling this
+ * is a true no-op as far as the running server is concerned: the
+ * legacy-JSON migration takes its path explicitly via
+ * `migrateEstimatingJsonIfNeeded({ jsonPath })` and ignores any value
+ * stored here. The setter simply remembers the value so a later
+ * `getEstimatingPersistFile()` call returns it; it does NOT influence
+ * any DB read/write or migration path resolution. Provided solely so
+ * out-of-tree code that used to set the active disk path doesn't
+ * crash on a missing export.
  */
 export function setEstimatingPersistFile(p: string): void {
   warnOnce(fileFlag, "setEstimatingPersistFile");
