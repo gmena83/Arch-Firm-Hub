@@ -40,6 +40,7 @@ import {
   __resetCalculatorHydrationForTest,
   ensureCalculatorHydrated,
 } from "../projects";
+import { flushEstimatingPersistence } from "../estimating";
 
 type LoginResponse = { token: string; user: { id: string; role: string } };
 
@@ -279,6 +280,82 @@ test("DB-3: legacy JSON migration is idempotent and renames the source file", as
     assert.ok(fs.existsSync(jsonPath));
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
+    await __resetEstimatingTablesForTest();
+  }
+});
+
+test("DB-4: importing materials with projectId persists the auto-added calculator lines", async () => {
+  // Regression for the materials/import path: it auto-appends calculator
+  // lines for the target project on top of the materials catalog. Both the
+  // catalog (estimating snapshot) AND the calculator entries
+  // (`project_calculator_entries`) must survive a restart — earlier wiring
+  // only persisted the catalog, so imported lines vanished.
+  const projectId = "proj-1";
+  const before = snapshotCalc(projectId);
+  await __resetEstimatingTablesForTest();
+  __resetCalculatorHydrationForTest();
+
+  try {
+    await withServer(async (baseUrl) => {
+      const token = await login(baseUrl, "demo@konti.com");
+      const auth = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
+      const res = await fetch(`${baseUrl}/api/estimating/materials/import`, {
+        method: "POST",
+        headers: auth,
+        body: JSON.stringify({
+          projectId,
+          materials: [
+            { item: "Imported Slab", item_es: "Losa Importada", category: "structure", unit: "sqft", base_price: 12.5, qty: 3 },
+            { item: "Imported Bolt", item_es: "Perno Importado", category: "fasteners", unit: "each", base_price: 0.75, qty: 100 },
+          ],
+        }),
+      });
+      assert.equal(res.status, 200);
+      const body = (await res.json()) as { imported: number; addedToProjectCalculator: number; addedToProjectCalculatorId: string | null };
+      assert.equal(body.imported, 2);
+      assert.equal(body.addedToProjectCalculator, 2);
+      assert.equal(body.addedToProjectCalculatorId, projectId);
+    });
+
+    // Wait for both the estimating snapshot (materials catalog) and the
+    // per-project calculator write to drain — they live in different
+    // queues but the test asserts both writes survived.
+    await flushEstimatingPersistence();
+    await flushCalculatorPersistence();
+
+    // Both the catalog and the calculator rows should now be in Postgres.
+    const snap = await loadEstimatingSnapshotFromDb();
+    assert.ok(snap);
+    assert.ok(snap!.extraMaterials.some((m) => m.item === "Imported Slab"));
+    assert.ok(snap!.extraMaterials.some((m) => m.item === "Imported Bolt"));
+
+    const byProject = await loadCalculatorEntriesFromDb();
+    const persisted = byProject[projectId];
+    assert.ok(persisted, "calculator rows for the target project should be persisted");
+    const slabLine = persisted!.find((e) => e.materialName === "Imported Slab");
+    const boltLine = persisted!.find((e) => e.materialName === "Imported Bolt");
+    assert.ok(slabLine, "imported Slab line should be in DB");
+    assert.ok(boltLine, "imported Bolt line should be in DB");
+    assert.equal(slabLine!.quantity, 3);
+    assert.equal(slabLine!.lineTotal, 37.5);
+    assert.equal(boltLine!.quantity, 100);
+    assert.equal(boltLine!.lineTotal, 75);
+
+    // Simulate restart: drop in-memory state and re-hydrate. The imported
+    // lines must come back from the DB on top of the existing seed lines.
+    const calc = CALCULATOR_ENTRIES as unknown as Record<string, CalculatorEntry[]>;
+    delete calc[projectId];
+    __resetCalculatorHydrationForTest();
+    await ensureCalculatorHydrated();
+
+    const reloaded = (CALCULATOR_ENTRIES as unknown as Record<string, CalculatorEntry[]>)[projectId];
+    assert.ok(reloaded, "calc entries should rehydrate from DB after restart");
+    assert.ok(reloaded!.some((e) => e.materialName === "Imported Slab"), "imported Slab survives restart");
+    assert.ok(reloaded!.some((e) => e.materialName === "Imported Bolt"), "imported Bolt survives restart");
+  } finally {
+    restoreCalc(projectId, before);
+    await saveCalculatorEntriesForProject(projectId, []);
+    __resetCalculatorHydrationForTest();
     await __resetEstimatingTablesForTest();
   }
 });

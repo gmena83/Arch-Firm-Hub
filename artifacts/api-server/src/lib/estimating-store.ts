@@ -455,12 +455,12 @@ export async function migrateEstimatingJsonIfNeeded(opts: {
     return { status: "no_file", jsonPath };
   }
 
-  // Clobber guard (architect HIGH finding): if the migration row is missing
-  // (e.g. fresh DB pointed at a backup, marker accidentally deleted, or a
-  // partial restore) but the estimating tables already hold real data, we
-  // must NOT replay an old JSON snapshot on top of it — that would silently
+  // Clobber guard: if the migration marker is missing (fresh DB pointed at
+  // a backup, marker accidentally deleted, partial restore) but the
+  // estimating tables already hold real data, do NOT replay an old JSON
+  // snapshot on top of it — `_writeSnapshot` truncates and would silently
   // wipe live materials / receipts / estimates. Insert the marker so we
-  // stop checking, log loudly, and bail out without touching the data.
+  // stop checking on every boot, log loudly, and bail out untouched.
   const [matCount, laborCount, receiptCount, tplCount, estCount] = await Promise.all([
     db.select({ n: sql<number>`count(*)::int` }).from(importedMaterialsTable),
     db.select({ n: sql<number>`count(*)::int` }).from(laborRatesTable),
@@ -520,11 +520,11 @@ export async function migrateEstimatingJsonIfNeeded(opts: {
         : {},
   };
 
-  // Atomicity (architect MEDIUM finding): use the outer transaction's `tx`
-  // for the snapshot write so the data import and the migration-marker
-  // insert succeed or fail together. Calling `saveEstimatingSnapshotToDb`
-  // here would open a *separate* transaction and let one half commit
-  // without the other.
+  // One transaction for both the snapshot write and the migration-marker
+  // insert: either both commit or neither does. Note we call the private
+  // `_writeSnapshot(tx, ...)` helper rather than the public
+  // `saveEstimatingSnapshotToDb` — the latter would open a *separate*
+  // transaction and let one half commit without the other.
   await db.transaction(async (tx) => {
     await _writeSnapshot(tx, safe);
     await tx

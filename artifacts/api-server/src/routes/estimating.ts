@@ -17,6 +17,7 @@ import {
   saveEstimatingSnapshotToDb,
   migrateEstimatingJsonIfNeeded,
 } from "../lib/estimating-store";
+import { persistCalculatorEntriesForProject } from "./projects";
 import { logger } from "../lib/logger";
 import { extractAndParseReceipt } from "../lib/receipt-ocr";
 import { isDriveEnabled } from "../lib/integrations-config";
@@ -400,6 +401,14 @@ router.post("/estimating/materials/import", requireRole(["team", "admin", "super
   }
 
   persistEstimatingState();
+  // The materials snapshot persists via `persistEstimatingState()` above,
+  // but the calculator entries it appended for `targetProject` live in a
+  // different table (`project_calculator_entries`) and need their own
+  // per-project queue write — otherwise the imported lines disappear on
+  // the next restart even though the materials catalog survives.
+  if (targetProject && accepted.length > 0) {
+    persistCalculatorEntriesForProject(targetProject.id);
+  }
 
   res.json({
     imported: accepted.length,
