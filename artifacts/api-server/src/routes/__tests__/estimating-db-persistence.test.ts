@@ -360,6 +360,26 @@ test("DB-4: importing materials with projectId persists the auto-added calculato
   }
 });
 
+test("DB-5: index.ts boot path wires hydration BEFORE app.listen", () => {
+  // Static-check guard: if someone deletes the hydration calls from
+  // index.ts (or moves `app.listen` ahead of them), this test fails so
+  // the regression is caught before a deploy. Hydration must run before
+  // we accept traffic — otherwise calculator entries / estimating
+  // snapshots come from seed defaults and live edits get clobbered on
+  // the next persist.
+  // Resolve relative to the api-server package root so the test works
+  // under both ESM (no __dirname) and the future bundled build path.
+  const indexPath = path.join(process.cwd(), "src", "index.ts");
+  const src = fs.readFileSync(indexPath, "utf8");
+  assert.match(src, /ensureEstimatingHydrated\(\)/, "boot must call ensureEstimatingHydrated()");
+  assert.match(src, /ensureCalculatorHydrated\(\)/, "boot must call ensureCalculatorHydrated()");
+  const idxEstimating = src.indexOf("ensureEstimatingHydrated()");
+  const idxCalculator = src.indexOf("ensureCalculatorHydrated()");
+  const idxListen = src.indexOf("app.listen");
+  assert.ok(idxEstimating < idxListen, "ensureEstimatingHydrated must be wired before app.listen");
+  assert.ok(idxCalculator < idxListen, "ensureCalculatorHydrated must be wired before app.listen");
+});
+
 // Suppress unused warning — these helpers are exported for downstream use
 // and we want to keep them in the test surface in case future tests need
 // them, but only some are referenced above.

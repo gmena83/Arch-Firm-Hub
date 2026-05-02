@@ -461,19 +461,29 @@ export async function migrateEstimatingJsonIfNeeded(opts: {
   // snapshot on top of it — `_writeSnapshot` truncates and would silently
   // wipe live materials / receipts / estimates. Insert the marker so we
   // stop checking on every boot, log loudly, and bail out untouched.
-  const [matCount, laborCount, receiptCount, tplCount, estCount] = await Promise.all([
-    db.select({ n: sql<number>`count(*)::int` }).from(importedMaterialsTable),
-    db.select({ n: sql<number>`count(*)::int` }).from(laborRatesTable),
-    db.select({ n: sql<number>`count(*)::int` }).from(projectReceiptsTable),
-    db.select({ n: sql<number>`count(*)::int` }).from(projectReportTemplatesTable),
-    db.select({ n: sql<number>`count(*)::int` }).from(projectContractorEstimatesTable),
-  ]);
+  // Count every table that participates in the snapshot/calculator stores.
+  // Includes the line-detail tables (`project_contractor_estimate_lines`,
+  // `project_calculator_entries`) so the clobber guard catches partial /
+  // inconsistent states where header rows were truncated but child rows
+  // remain — not just the headers themselves.
+  const [matCount, laborCount, receiptCount, tplCount, estCount, estLineCount, calcCount] =
+    await Promise.all([
+      db.select({ n: sql<number>`count(*)::int` }).from(importedMaterialsTable),
+      db.select({ n: sql<number>`count(*)::int` }).from(laborRatesTable),
+      db.select({ n: sql<number>`count(*)::int` }).from(projectReceiptsTable),
+      db.select({ n: sql<number>`count(*)::int` }).from(projectReportTemplatesTable),
+      db.select({ n: sql<number>`count(*)::int` }).from(projectContractorEstimatesTable),
+      db.select({ n: sql<number>`count(*)::int` }).from(projectContractorEstimateLinesTable),
+      db.select({ n: sql<number>`count(*)::int` }).from(projectCalculatorEntriesTable),
+    ]);
   const totalRows =
     (matCount[0]?.n ?? 0) +
     (laborCount[0]?.n ?? 0) +
     (receiptCount[0]?.n ?? 0) +
     (tplCount[0]?.n ?? 0) +
-    (estCount[0]?.n ?? 0);
+    (estCount[0]?.n ?? 0) +
+    (estLineCount[0]?.n ?? 0) +
+    (calcCount[0]?.n ?? 0);
   if (totalRows > 0) {
     logger.warn(
       { jsonPath, totalRows },
