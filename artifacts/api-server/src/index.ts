@@ -24,9 +24,18 @@ if (Number.isNaN(port) || port <= 0) {
 
 // Boot sequence (Task #141): hydrate the estimating + calculator stores from
 // Postgres BEFORE accepting traffic. The hydrate step also runs the one-time
-// JSON → Postgres migration. If either fails the server still starts, but
-// errors are logged loudly so an operator can investigate — silent data loss
-// is the original sin we're fixing here.
+// JSON → Postgres migration.
+//
+// Failure policy:
+//   - In production we FAIL FAST (process.exit(1)) so the deploy platform
+//     restarts us rather than serve traffic from seed defaults — that
+//     would be the exact silent-data-loss footgun this task was supposed
+//     to eliminate. Postgres unreachable at boot is a real outage, not
+//     something to paper over with degraded reads.
+//   - In dev / test we log and continue serving so a developer working
+//     without the DB up isn't blocked from iterating on unrelated
+//     routes. Tests also rely on this path because they sometimes set
+//     up fixtures after `app` is constructed.
 async function bootstrap(): Promise<void> {
   try {
     await Promise.all([
@@ -35,6 +44,11 @@ async function bootstrap(): Promise<void> {
     ]);
   } catch (err) {
     logger.error({ err }, "Estimating/calculator hydration failed at boot");
+    if (process.env["NODE_ENV"] === "production") {
+      logger.error("Refusing to serve traffic in production with stale state — exiting for restart.");
+      process.exit(1);
+    }
+    // dev/test: continue with whatever is in memory + the seed defaults.
   }
 
   app.listen(port, (err) => {
