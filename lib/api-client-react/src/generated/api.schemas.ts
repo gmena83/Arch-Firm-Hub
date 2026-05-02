@@ -554,6 +554,8 @@ export interface Document {
   /** Optional URL the gallery uses to render a thumbnail/full-size image. When omitted, the gallery shows a generic photo tile. */
   imageUrl?: string;
   isClientVisible: boolean;
+  /** When true, this photo is the staff-curated "hero" used as the project's `liveCoverImage`. Only applies to `type === "photo"` + `photoCategory === "construction_progress"` documents. At most one document per project may be flagged at a time — toggling one on flips the previously flagged photo off (server-enforced). */
+  featuredAsCover?: boolean;
   uploadedBy: string;
   uploadedAt: string;
   fileSize: string;
@@ -652,9 +654,14 @@ export interface DocumentCreateRequest {
   fileBase64?: string;
 }
 
+/**
+ * Patch the safe, mutable metadata of a document. At least one of `isClientVisible` or `featuredAsCover` must be present.
+ */
 export interface DocumentUpdateRequest {
   /** Toggle whether the document is visible in the client-facing document list. */
-  isClientVisible: boolean;
+  isClientVisible?: boolean;
+  /** Toggle whether this construction-progress photo is the staff-curated cover. Setting to `true` flips any other photo on the same project off so only one cover is flagged at a time. Only valid for documents with `type === "photo"` and `photoCategory === "construction_progress"`. */
+  featuredAsCover?: boolean;
 }
 
 export type MaterialCategory =

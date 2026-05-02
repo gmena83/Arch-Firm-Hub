@@ -245,6 +245,140 @@ test("GET /api/projects/:id detail respects role gating", async () => {
   });
 });
 
+test("pickLiveCoverImage prefers a featuredAsCover photo even when it is not the latest (Task #136)", () => {
+  const project = { id: "p", progressPercent: 50, coverImage: "/seed-images/fallback.png" };
+  const docs: PhotoDoc[] = [
+    // Newest qualifying photo by date — should LOSE to the older flagged one.
+    {
+      type: "photo", photoCategory: "construction_progress",
+      uploadedAt: "2026-04-30T00:00:00Z", imageUrl: "/seed-images/newest.png",
+    },
+    // Older but staff-flagged "hero" — wins because of featuredAsCover.
+    {
+      type: "photo", photoCategory: "construction_progress",
+      uploadedAt: "2026-03-01T00:00:00Z", imageUrl: "/seed-images/hero.png",
+      featuredAsCover: true,
+    },
+  ];
+  assert.equal(pickLiveCoverImage(project, docs), "/seed-images/hero.png");
+});
+
+test("featuredAsCover only counts when the photo is also construction_progress", () => {
+  // A flagged photo in a different bucket must NOT bypass the category
+  // filter; the picker still falls back to coverImage.
+  const project = { id: "p", progressPercent: 50, coverImage: "/seed-images/fallback.png" };
+  const docs: PhotoDoc[] = [
+    {
+      type: "photo", photoCategory: "site_conditions",
+      uploadedAt: "2026-04-30T00:00:00Z", imageUrl: "/seed-images/site.png",
+      featuredAsCover: true,
+    },
+  ];
+  assert.equal(pickLiveCoverImage(project, docs), "/seed-images/fallback.png");
+});
+
+// ---- PATCH /projects/:projectId/documents/:documentId — featured cover ----
+
+async function findStaffPhotoIds(baseUrl: string, token: string, projectId: string): Promise<string[]> {
+  const docsRes = await fetch(`${baseUrl}/api/projects/${projectId}/documents`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  assert.equal(docsRes.status, 200);
+  const docs = (await docsRes.json()) as Array<{ id: string; type?: string; photoCategory?: string }>;
+  return docs
+    .filter((d) => d.type === "photo" && d.photoCategory === "construction_progress")
+    .map((d) => d.id);
+}
+
+test("PATCH featuredAsCover flips other flagged photos off and updates liveCoverImage", async () => {
+  await withServer(async (baseUrl) => {
+    const { token } = await login(baseUrl, "demo@konti.com");
+    const projectId = "proj-2";
+    const photoIds = await findStaffPhotoIds(baseUrl, token, projectId);
+    assert.ok(photoIds.length >= 2, "proj-2 needs at least two construction_progress photos for this test");
+    const [firstId, secondId] = photoIds as [string, string];
+
+    // Flag the first photo. Server should respond with the doc carrying the flag.
+    const flagFirst = await fetch(`${baseUrl}/api/projects/${projectId}/documents/${firstId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ featuredAsCover: true }),
+    });
+    assert.equal(flagFirst.status, 200);
+    const flaggedFirst = (await flagFirst.json()) as { id: string; featuredAsCover?: boolean };
+    assert.equal(flaggedFirst.featuredAsCover, true);
+
+    // The project's liveCoverImage should now point at the flagged photo,
+    // overriding the latest-by-date pick.
+    const projAfterFirst = await fetch(`${baseUrl}/api/projects/${projectId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const bodyFirst = (await projAfterFirst.json()) as { liveCoverImage?: string };
+    const docsList = (DOCUMENTS as Record<string, Array<{ id: string; imageUrl?: string }>>)[projectId] ?? [];
+    const firstDoc = docsList.find((d) => d.id === firstId);
+    assert.ok(firstDoc, "first photo should still exist in DOCUMENTS");
+    assert.equal(bodyFirst.liveCoverImage, firstDoc!.imageUrl,
+      "liveCoverImage should match the flagged photo's imageUrl");
+
+    // Flag a second photo. The server must flip the first one off so only
+    // one cover is ever active.
+    const flagSecond = await fetch(`${baseUrl}/api/projects/${projectId}/documents/${secondId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ featuredAsCover: true }),
+    });
+    assert.equal(flagSecond.status, 200);
+
+    const docsAfter = (DOCUMENTS as Record<string, Array<{ id: string; featuredAsCover?: boolean }>>)[projectId] ?? [];
+    const flaggedNow = docsAfter.filter((d) => d.featuredAsCover === true).map((d) => d.id);
+    assert.deepEqual(flaggedNow, [secondId],
+      "exactly one photo (the latest flagged) should carry featuredAsCover");
+
+    // Cleanup so this test doesn't leak state into subsequent tests / runs:
+    // unset the flag on whatever is currently flagged.
+    await fetch(`${baseUrl}/api/projects/${projectId}/documents/${secondId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ featuredAsCover: false }),
+    });
+    const finalDocs = (DOCUMENTS as Record<string, Array<{ featuredAsCover?: boolean }>>)[projectId] ?? [];
+    assert.equal(finalDocs.filter((d) => d.featuredAsCover === true).length, 0,
+      "test teardown should leave proj-2 with no flagged cover");
+  });
+});
+
+test("PATCH featuredAsCover rejects non-construction-progress photos", async () => {
+  await withServer(async (baseUrl) => {
+    const { token } = await login(baseUrl, "demo@konti.com");
+    // Find a non-photo or non-construction_progress document on proj-2.
+    const docsRes = await fetch(`${baseUrl}/api/projects/proj-2/documents`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const docs = (await docsRes.json()) as Array<{ id: string; type?: string; photoCategory?: string }>;
+    const target = docs.find((d) => d.type !== "photo" || d.photoCategory !== "construction_progress");
+    assert.ok(target, "proj-2 should have at least one non-cover-eligible document");
+    const res = await fetch(`${baseUrl}/api/projects/proj-2/documents/${target!.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ featuredAsCover: true }),
+    });
+    assert.equal(res.status, 400);
+  });
+});
+
+test("PATCH with neither isClientVisible nor featuredAsCover returns 400", async () => {
+  await withServer(async (baseUrl) => {
+    const { token } = await login(baseUrl, "demo@konti.com");
+    const photoIds = await findStaffPhotoIds(baseUrl, token, "proj-2");
+    const res = await fetch(`${baseUrl}/api/projects/proj-2/documents/${photoIds[0]}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({}),
+    });
+    assert.equal(res.status, 400);
+  });
+});
+
 test("DOCUMENTS array is not mutated by the picker (no gallery reordering)", () => {
   // Important regression guard: we sort a slice, not the live array, so the
   // gallery's UI order in the documents tab stays untouched.

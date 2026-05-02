@@ -422,6 +422,12 @@ export const GetProjectDocumentsResponseItem = zod.object({
       "Optional URL the gallery uses to render a thumbnail\/full-size image. When omitted, the gallery shows a generic photo tile.",
     ),
   isClientVisible: zod.boolean(),
+  featuredAsCover: zod
+    .boolean()
+    .optional()
+    .describe(
+      'When true, this photo is the staff-curated \"hero\" used as the project\'s `liveCoverImage`. Only applies to `type === \"photo\"` + `photoCategory === \"construction_progress\"` documents. At most one document per project may be flagged at a time — toggling one on flips the previously flagged photo off (server-enforced).',
+    ),
   uploadedBy: zod.string(),
   uploadedAt: zod.string(),
   fileSize: zod.string(),
@@ -574,13 +580,24 @@ export const UpdateProjectDocumentParams = zod.object({
   documentId: zod.coerce.string(),
 });
 
-export const UpdateProjectDocumentBody = zod.object({
-  isClientVisible: zod
-    .boolean()
-    .describe(
-      "Toggle whether the document is visible in the client-facing document list.",
-    ),
-});
+export const UpdateProjectDocumentBody = zod
+  .object({
+    isClientVisible: zod
+      .boolean()
+      .optional()
+      .describe(
+        "Toggle whether the document is visible in the client-facing document list.",
+      ),
+    featuredAsCover: zod
+      .boolean()
+      .optional()
+      .describe(
+        'Toggle whether this construction-progress photo is the staff-curated cover. Setting to `true` flips any other photo on the same project off so only one cover is flagged at a time. Only valid for documents with `type === \"photo\"` and `photoCategory === \"construction_progress\"`.',
+      ),
+  })
+  .describe(
+    "Patch the safe, mutable metadata of a document. At least one of `isClientVisible` or `featuredAsCover` must be present.",
+  );
 
 export const UpdateProjectDocumentResponse = zod.object({
   id: zod.string(),
@@ -625,6 +642,12 @@ export const UpdateProjectDocumentResponse = zod.object({
       "Optional URL the gallery uses to render a thumbnail\/full-size image. When omitted, the gallery shows a generic photo tile.",
     ),
   isClientVisible: zod.boolean(),
+  featuredAsCover: zod
+    .boolean()
+    .optional()
+    .describe(
+      'When true, this photo is the staff-curated \"hero\" used as the project\'s `liveCoverImage`. Only applies to `type === \"photo\"` + `photoCategory === \"construction_progress\"` documents. At most one document per project may be flagged at a time — toggling one on flips the previously flagged photo off (server-enforced).',
+    ),
   uploadedBy: zod.string(),
   uploadedAt: zod.string(),
   fileSize: zod.string(),

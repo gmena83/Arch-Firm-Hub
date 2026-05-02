@@ -1,11 +1,16 @@
 import { useMemo, useState } from "react";
-import { Camera, X as XIcon, ImageIcon } from "lucide-react";
+import { Camera, X as XIcon, ImageIcon, Star } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   useGetProjectDocuments,
+  useUpdateProjectDocument,
   getGetProjectDocumentsQueryKey,
+  getGetProjectQueryKey,
+  getListProjectsQueryKey,
   type Document,
 } from "@workspace/api-client-react";
 import { useLang } from "@/hooks/use-lang";
+import { useToast } from "@/hooks/use-toast";
 import { resolveSeedImageUrl } from "@/lib/seed-image-url";
 
 export type PhotoCategoryKey =
@@ -74,7 +79,13 @@ interface SitePhotosGalleryProps {
 
 export function SitePhotosGallery({ projectId, isClientView }: SitePhotosGalleryProps) {
   const { t, lang } = useLang();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [lightboxId, setLightboxId] = useState<string | null>(null);
+  // Track which photo's "Use as cover" toggle is mid-flight so the button
+  // can show a disabled/spinner state without freezing the rest of the
+  // gallery. Keyed by document id (one mutation per photo).
+  const [pendingCoverIds, setPendingCoverIds] = useState<Set<string>>(new Set());
 
   const { data: allDocs = [] } = useGetProjectDocuments(projectId, undefined, {
     query: { enabled: !!projectId, queryKey: getGetProjectDocumentsQueryKey(projectId, undefined) },
@@ -86,6 +97,66 @@ export function SitePhotosGallery({ projectId, isClientView }: SitePhotosGallery
     () => (lightboxId ? photos.find((p) => p.id === lightboxId) ?? null : null),
     [lightboxId, photos],
   );
+
+  // Task #136 — staff-only cover curation. The mutation flips the
+  // featuredAsCover flag on a single construction-progress photo; the
+  // server enforces the single-cover invariant by flipping any other
+  // flagged photo on the same project off.
+  const updateDocument = useUpdateProjectDocument();
+  const handleToggleCover = async (
+    e: React.MouseEvent | React.KeyboardEvent,
+    photo: Document,
+  ) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (isClientView) return; // Defensive — UI doesn't render the button for clients.
+    const next = !(photo.featuredAsCover === true);
+    setPendingCoverIds((prev) => {
+      const out = new Set(prev);
+      out.add(photo.id);
+      return out;
+    });
+    try {
+      await updateDocument.mutateAsync({
+        projectId,
+        documentId: photo.id,
+        data: { featuredAsCover: next },
+      });
+      // The cover affects the project card image (liveCoverImage) on both
+      // the project detail page and the dashboard project list, plus the
+      // documents list (featuredAsCover flag), so we invalidate all three.
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: getGetProjectDocumentsQueryKey(projectId) }),
+        queryClient.invalidateQueries({ queryKey: getGetProjectQueryKey(projectId) }),
+        queryClient.invalidateQueries({ queryKey: getListProjectsQueryKey() }),
+      ]);
+      toast({
+        title: next
+          ? t("Set as project cover", "Establecida como portada del proyecto")
+          : t("Removed from project cover", "Removida de portada del proyecto"),
+        description: next
+          ? t(
+              "This photo will now appear on the project card.",
+              "Esta foto aparecerá en la tarjeta del proyecto.",
+            )
+          : t(
+              "The most recent photo will be used instead.",
+              "Se usará la foto más reciente en su lugar.",
+            ),
+      });
+    } catch {
+      toast({
+        title: t("Could not update cover", "No se pudo actualizar la portada"),
+        variant: "destructive",
+      });
+    } finally {
+      setPendingCoverIds((prev) => {
+        const out = new Set(prev);
+        out.delete(photo.id);
+        return out;
+      });
+    }
+  };
 
   return (
     <div
@@ -130,34 +201,87 @@ export function SitePhotosGallery({ projectId, isClientView }: SitePhotosGallery
                   </span>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                  {items.map((p) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => setLightboxId(p.id)}
-                      data-testid={`photo-thumb-${p.id}`}
-                      className="group relative aspect-square overflow-hidden rounded-lg border border-card-border bg-muted hover:border-konti-olive transition-colors text-left"
-                      aria-label={p.caption ?? p.name}
-                    >
-                      {pickThumbUrl(p) ? (
-                        <img
-                          src={pickThumbUrl(p)}
-                          alt={p.caption ?? p.name}
-                          loading="lazy"
-                          className="w-full h-full object-cover transition-transform group-hover:scale-105"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                          <ImageIcon className="w-6 h-6" />
-                        </div>
-                      )}
-                      {p.caption && (
-                        <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent text-white text-[10px] px-2 py-1 line-clamp-2">
-                          {p.caption}
-                        </span>
-                      )}
-                    </button>
-                  ))}
+                  {items.map((p) => {
+                    // The "Use as cover" affordance is only meaningful for
+                    // construction-progress photos in the staff view (clients
+                    // never see the live cover field, so curating it would be
+                    // a no-op for them).
+                    const isCoverCandidate =
+                      !isClientView && cat.key === "construction_progress";
+                    const isFeatured = p.featuredAsCover === true;
+                    const isPending = pendingCoverIds.has(p.id);
+                    return (
+                      <div key={p.id} className="relative group">
+                        <button
+                          type="button"
+                          onClick={() => setLightboxId(p.id)}
+                          data-testid={`photo-thumb-${p.id}`}
+                          className={`relative aspect-square w-full overflow-hidden rounded-lg border bg-muted hover:border-konti-olive transition-colors text-left ${
+                            isFeatured ? "border-konti-olive ring-2 ring-konti-olive/40" : "border-card-border"
+                          }`}
+                          aria-label={p.caption ?? p.name}
+                        >
+                          {pickThumbUrl(p) ? (
+                            <img
+                              src={pickThumbUrl(p)}
+                              alt={p.caption ?? p.name}
+                              loading="lazy"
+                              className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                              <ImageIcon className="w-6 h-6" />
+                            </div>
+                          )}
+                          {p.caption && (
+                            <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent text-white text-[10px] px-2 py-1 line-clamp-2">
+                              {p.caption}
+                            </span>
+                          )}
+                          {isFeatured && (
+                            <span
+                              className="absolute top-1 left-1 inline-flex items-center gap-1 rounded-full bg-konti-olive text-white text-[10px] font-semibold px-1.5 py-0.5 shadow"
+                              data-testid={`photo-cover-badge-${p.id}`}
+                            >
+                              <Star className="w-3 h-3 fill-current" />
+                              {t("Cover", "Portada")}
+                            </span>
+                          )}
+                        </button>
+                        {isCoverCandidate && (
+                          <button
+                            type="button"
+                            onClick={(e) => void handleToggleCover(e, p)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                void handleToggleCover(e, p);
+                              }
+                            }}
+                            disabled={isPending}
+                            data-testid={`photo-cover-toggle-${p.id}`}
+                            aria-pressed={isFeatured}
+                            aria-label={
+                              isFeatured
+                                ? t("Remove as project cover", "Quitar como portada del proyecto")
+                                : t("Use as project cover", "Usar como portada del proyecto")
+                            }
+                            title={
+                              isFeatured
+                                ? t("Remove as project cover", "Quitar como portada del proyecto")
+                                : t("Use as project cover", "Usar como portada del proyecto")
+                            }
+                            className={`absolute top-1 right-1 inline-flex items-center justify-center w-7 h-7 rounded-full border shadow-sm transition-colors ${
+                              isFeatured
+                                ? "bg-konti-olive text-white border-konti-olive hover:bg-konti-olive/90"
+                                : "bg-white/90 text-konti-olive border-card-border opacity-0 group-hover:opacity-100 focus:opacity-100 hover:bg-white"
+                            } ${isPending ? "opacity-60 cursor-wait" : ""}`}
+                          >
+                            <Star className={`w-4 h-4 ${isFeatured ? "fill-current" : ""}`} />
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             );

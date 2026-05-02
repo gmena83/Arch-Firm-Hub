@@ -1349,6 +1349,7 @@ export type ProjectActivityType =
   | "calculator_line_updated"
   | "punchlist_change"
   | "document_visibility_change"
+  | "document_featured_change"
   | "client_view"
   | "document_download"
   | "client_upload"
@@ -1443,6 +1444,7 @@ const ACTIVITY_TYPE_TO_ENTITY: Record<string, AuditEntity> = {
   calculator_import: "calculator",
   punchlist_change: "punchlist",
   document_visibility_change: "document",
+  document_featured_change: "document",
   document_download: "document",
   client_upload: "document",
   document_removed: "document",

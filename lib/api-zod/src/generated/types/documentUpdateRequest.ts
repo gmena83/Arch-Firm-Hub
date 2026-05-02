@@ -6,7 +6,12 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * Patch the safe, mutable metadata of a document. At least one of `isClientVisible` or `featuredAsCover` must be present.
+ */
 export interface DocumentUpdateRequest {
   /** Toggle whether the document is visible in the client-facing document list. */
-  isClientVisible: boolean;
+  isClientVisible?: boolean;
+  /** Toggle whether this construction-progress photo is the staff-curated cover. Setting to `true` flips any other photo on the same project off so only one cover is flagged at a time. Only valid for documents with `type === "photo"` and `photoCategory === "construction_progress"`. */
+  featuredAsCover?: boolean;
 }

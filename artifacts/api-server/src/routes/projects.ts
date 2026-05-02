@@ -461,7 +461,9 @@ router.post("/projects/:projectId/documents", requireRole(["team", "admin", "sup
   return res.status(201).json(doc);
 });
 
-// Team-only: toggle document visibility (and other safe metadata fields).
+// Team-only: toggle document visibility and/or feature-as-cover. Body may
+// include either `isClientVisible` (boolean), `featuredAsCover` (boolean),
+// or both. At least one is required.
 router.patch(
   "/projects/:projectId/documents/:documentId",
   requireRole(["team", "admin", "superadmin"]),
@@ -473,49 +475,103 @@ router.patch(
       return res.status(404).json({ error: "not_found", message: "Project not found" });
     }
     const list = (DOCUMENTS as Record<string, Array<{
-      id: string; name: string; isClientVisible: boolean; driveFileId?: string;
+      id: string; name: string; type?: string; photoCategory?: string;
+      isClientVisible: boolean; featuredAsCover?: boolean; driveFileId?: string;
     }>>)[projectId] ?? [];
     const doc = list.find((d) => d.id === documentId);
     if (!doc) return res.status(404).json({ error: "not_found", message: "Document not found" });
-    const body = (req.body ?? {}) as { isClientVisible?: boolean };
-    if (typeof body.isClientVisible !== "boolean") {
-      return res.status(400).json({ error: "bad_request", message: "isClientVisible (boolean) required" });
-    }
-    const previous = doc.isClientVisible;
-    const next = body.isClientVisible;
-    let driveWarning: { en: string; es: string } | undefined;
-    if (previous !== next) {
-      doc.isClientVisible = next;
-      const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
-      const visEn = next ? "visible to client" : "hidden from client";
-      const visEs = next ? "visible al cliente" : "oculto al cliente";
-      appendActivity(projectId, {
-        type: "document_visibility_change",
-        actor,
-        description: `Document "${doc.name}" marked ${visEn}`,
-        descriptionEs: `Documento "${doc.name}" marcado ${visEs}`,
+    const body = (req.body ?? {}) as {
+      isClientVisible?: boolean;
+      featuredAsCover?: boolean;
+    };
+    const wantsVisibility = typeof body.isClientVisible === "boolean";
+    const wantsFeatured = typeof body.featuredAsCover === "boolean";
+    if (!wantsVisibility && !wantsFeatured) {
+      return res.status(400).json({
+        error: "bad_request",
+        message: "isClientVisible and/or featuredAsCover (boolean) required",
       });
-      // Drive sharing propagation (Task #128) — non-blocking per spec step 7.
-      // If the Drive call fails the dashboard's own visibility flag still
-      // sticks; the user sees a warning and the failure is recorded in the
-      // Drive sync log so an admin can resync later.
-      if (doc.driveFileId && isDriveEnabled()) {
-        const ok = await applyVisibilityToDrive({
-          projectId,
-          projectName: project.name,
-          documentId: doc.id,
-          documentName: doc.name,
-          driveFileId: doc.driveFileId,
-          isClientVisible: next,
+    }
+
+    // Task #136 — only construction-progress photos can be staff-curated
+    // covers. Reject the request explicitly so a buggy client doesn't
+    // silently set the flag on a PDF or a punchlist-evidence shot.
+    if (wantsFeatured && body.featuredAsCover === true) {
+      if (doc.type !== "photo" || doc.photoCategory !== "construction_progress") {
+        return res.status(400).json({
+          error: "bad_request",
+          message: "featuredAsCover may only be set on construction_progress photos",
         });
-        if (!ok) {
-          driveWarning = {
-            en: "Visibility was updated in the dashboard but the Google Drive sharing change did not go through. Open the Drive integration sync log to retry.",
-            es: "La visibilidad se actualizó en el panel pero el cambio de compartido en Google Drive no se aplicó. Abre el registro de sincronización de Drive para reintentar.",
-          };
+      }
+    }
+
+    let driveWarning: { en: string; es: string } | undefined;
+
+    if (wantsVisibility) {
+      const previous = doc.isClientVisible;
+      const next = body.isClientVisible as boolean;
+      if (previous !== next) {
+        doc.isClientVisible = next;
+        const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
+        const visEn = next ? "visible to client" : "hidden from client";
+        const visEs = next ? "visible al cliente" : "oculto al cliente";
+        appendActivity(projectId, {
+          type: "document_visibility_change",
+          actor,
+          description: `Document "${doc.name}" marked ${visEn}`,
+          descriptionEs: `Documento "${doc.name}" marcado ${visEs}`,
+        });
+        // Drive sharing propagation (Task #128) — non-blocking per spec step 7.
+        // If the Drive call fails the dashboard's own visibility flag still
+        // sticks; the user sees a warning and the failure is recorded in the
+        // Drive sync log so an admin can resync later.
+        if (doc.driveFileId && isDriveEnabled()) {
+          const ok = await applyVisibilityToDrive({
+            projectId,
+            projectName: project.name,
+            documentId: doc.id,
+            documentName: doc.name,
+            driveFileId: doc.driveFileId,
+            isClientVisible: next,
+          });
+          if (!ok) {
+            driveWarning = {
+              en: "Visibility was updated in the dashboard but the Google Drive sharing change did not go through. Open the Drive integration sync log to retry.",
+              es: "La visibilidad se actualizó en el panel pero el cambio de compartido en Google Drive no se aplicó. Abre el registro de sincronización de Drive para reintentar.",
+            };
+          }
         }
       }
     }
+
+    if (wantsFeatured) {
+      const previous = doc.featuredAsCover === true;
+      const next = body.featuredAsCover as boolean;
+      if (previous !== next) {
+        if (next) {
+          // Single-cover invariant: flip every other photo in the project off
+          // so exactly one document carries the flag at any time.
+          for (const other of list) {
+            if (other.id !== doc.id && other.featuredAsCover === true) {
+              other.featuredAsCover = false;
+            }
+          }
+          doc.featuredAsCover = true;
+        } else {
+          doc.featuredAsCover = false;
+        }
+        const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
+        const featEn = next ? "set as project cover" : "removed as project cover";
+        const featEs = next ? "establecida como portada del proyecto" : "removida como portada del proyecto";
+        appendActivity(projectId, {
+          type: "document_featured_change",
+          actor,
+          description: `Photo "${doc.name}" ${featEn}`,
+          descriptionEs: `Foto "${doc.name}" ${featEs}`,
+        });
+      }
+    }
+
     return res.json(driveWarning ? { ...doc, driveWarning } : doc);
   },
 );

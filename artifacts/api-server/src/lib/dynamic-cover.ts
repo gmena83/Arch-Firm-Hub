@@ -35,6 +35,10 @@ export interface PhotoDoc {
   driveThumbnailLink?: string;
   driveDownloadProxyUrl?: string;
   driveWebContentLink?: string;
+  /** Task #136 — when true, this photo is the staff-curated "hero" cover.
+   *  The picker prefers any flagged photo over the most recent one. Only
+   *  one photo per project may be flagged at a time (server-enforced). */
+  featuredAsCover?: boolean;
 }
 
 export type Landmark = 0 | 25 | 50 | 75 | 100;
@@ -91,6 +95,13 @@ function pickPhotoUrl(doc: PhotoDoc): string | undefined {
 // project (URL + its uploadedAt timestamp), or `undefined` when none
 // qualify. The `uploadedAt` is what the dashboard surfaces so the staff
 // alt text can read "from {date}".
+//
+// Selection order (Task #136):
+//   1. The staff-curated cover (`featuredAsCover === true`). If multiple
+//      photos are flagged (which the PATCH route prevents, but defensive
+//      programming for stale seed data), the most recent flagged photo
+//      wins.
+//   2. The most recent qualifying photo by `uploadedAt`.
 export function pickLatestLivePhoto(
   docs: PhotoDoc[] | undefined,
 ): { url: string; uploadedAt: string } | undefined {
@@ -102,12 +113,17 @@ export function pickLatestLivePhoto(
   // Sort by uploadedAt DESC. We re-sort instead of mutating the caller's
   // array to keep the function side-effect free (DOCUMENTS is the live
   // seed object — mutating it would silently reorder the gallery).
-  const latest = candidates
+  const sorted = candidates
     .slice()
-    .sort((a, b) => (a.uploadedAt! < b.uploadedAt! ? 1 : -1))[0]!;
-  const url = pickPhotoUrl(latest);
+    .sort((a, b) => (a.uploadedAt! < b.uploadedAt! ? 1 : -1));
+  // Prefer a staff-flagged "hero" photo if any qualifying photo carries
+  // featuredAsCover. Falls through to the latest-by-date otherwise so
+  // existing projects without a curated pick keep their old behaviour.
+  const featured = sorted.find((d) => d.featuredAsCover === true);
+  const chosen = featured ?? sorted[0]!;
+  const url = pickPhotoUrl(chosen);
   if (!url) return undefined;
-  return { url, uploadedAt: latest.uploadedAt! };
+  return { url, uploadedAt: chosen.uploadedAt! };
 }
 
 export function pickLiveCoverImage(

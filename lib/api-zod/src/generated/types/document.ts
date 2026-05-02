@@ -27,6 +27,8 @@ export interface Document {
   /** Optional URL the gallery uses to render a thumbnail/full-size image. When omitted, the gallery shows a generic photo tile. */
   imageUrl?: string;
   isClientVisible: boolean;
+  /** When true, this photo is the staff-curated "hero" used as the project's `liveCoverImage`. Only applies to `type === "photo"` + `photoCategory === "construction_progress"` documents. At most one document per project may be flagged at a time — toggling one on flips the previously flagged photo off (server-enforced). */
+  featuredAsCover?: boolean;
   uploadedBy: string;
   uploadedAt: string;
   fileSize: string;
