@@ -203,10 +203,20 @@ export function ensureEstimatingHydrated(): Promise<void> {
         );
       }
     } catch (err) {
-      // A bad legacy file shouldn't prevent the server from starting; the
-      // operator gets a loud log line and the server falls back to whatever
-      // is already in the DB (possibly empty defaults).
+      // Migration-failure policy (mirrors the hydration policy in
+      // `index.ts`):
+      //   - production:  rethrow → bootstrap calls `process.exit(1)` so
+      //     the platform restarts us instead of silently serving from
+      //     a possibly-stale DB while the legacy `.data/estimating.json`
+      //     sits unmigrated. This avoids the operator-invisible
+      //     "we shipped, but skipped your legacy data" scenario.
+      //   - dev / test:  log loudly and continue, so a malformed local
+      //     JSON file doesn't block iteration when the operator can
+      //     just delete or repair the file and restart.
       logger.error({ err }, "estimating: legacy JSON migration failed");
+      if (process.env.NODE_ENV === "production") {
+        throw err;
+      }
     }
     const snap = await loadEstimatingSnapshotFromDb();
     applyEstimatingSnapshot(snap);
