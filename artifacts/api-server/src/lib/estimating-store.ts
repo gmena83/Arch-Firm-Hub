@@ -493,11 +493,24 @@ export async function migrateEstimatingJsonIfNeeded(opts: {
     const raw = fs.readFileSync(jsonPath, "utf8");
     if (!raw.trim()) {
       // Empty file — nothing to import but record the migration anyway so
-      // we don't keep checking on every boot.
+      // we don't keep checking on every boot. Rename it too so the next
+      // boot is a no-op even before the marker is consulted (matches
+      // behaviour of the normal migrated path below).
       await db
         .insert(estimatingMigrationsTable)
         .values({ id: JSON_MIGRATION_ID, details: `empty file: ${jsonPath}` });
-      return { status: "migrated", jsonPath };
+      const emptyBackup = `${jsonPath}.migrated.${new Date()
+        .toISOString()
+        .replace(/[:]/g, "-")}`;
+      try {
+        fs.renameSync(jsonPath, emptyBackup);
+      } catch (err) {
+        logger.warn(
+          { err, jsonPath, backupPath: emptyBackup },
+          "estimating-store: empty-file migration succeeded but rename failed",
+        );
+      }
+      return { status: "migrated", jsonPath, backupPath: emptyBackup };
     }
     parsed = JSON.parse(raw) as PersistedEstimatingSnapshot;
   } catch (err) {

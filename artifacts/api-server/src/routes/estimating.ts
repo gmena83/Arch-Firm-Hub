@@ -17,7 +17,7 @@ import {
   saveEstimatingSnapshotToDb,
   migrateEstimatingJsonIfNeeded,
 } from "../lib/estimating-store";
-import { persistCalculatorEntriesForProject } from "./projects";
+import { persistCalculatorEntriesForProject } from "../lib/calculator-persistence";
 import { logger } from "../lib/logger";
 import { extractAndParseReceipt } from "../lib/receipt-ocr";
 import { isDriveEnabled } from "../lib/integrations-config";

@@ -52,11 +52,24 @@ import { requireRole } from "../middlewares/require-role";
 import { getManagedSecret } from "../lib/managed-secrets";
 import { EXTRA_MATERIALS, PROJECT_REPORT_TEMPLATE, PROJECT_CONTRACTOR_ESTIMATE, type ContractorEstimateLine, type ReportTemplate } from "./estimating";
 import {
-  loadCalculatorEntriesFromDb,
-  saveCalculatorEntriesForProject,
-  type CalculatorEntry,
-} from "../lib/estimating-store";
+  ensureCalculatorHydrated,
+  __resetCalculatorHydrationForTest,
+  persistCalculatorEntriesForProject,
+  flushCalculatorPersistence,
+} from "../lib/calculator-persistence";
 import { logger } from "../lib/logger";
+
+// Re-exports kept for backward compatibility — calculator-persistence
+// helpers used to live in this file before being extracted to
+// `lib/calculator-persistence.ts` to break a circular import with
+// `routes/estimating.ts`. Existing callers (tests, index.ts) keep
+// working through these re-exports.
+export {
+  ensureCalculatorHydrated,
+  __resetCalculatorHydrationForTest,
+  persistCalculatorEntriesForProject,
+  flushCalculatorPersistence,
+};
 import { getAsanaConfig, isAsanaEnabled, isDriveEnabled } from "../lib/integrations-config";
 import { listTasksForProject, AsanaNotConnectedError, AsanaApiError } from "../lib/asana-client";
 import {
@@ -83,66 +96,6 @@ const VALID_ZONING = /^[A-Z]{1,3}-[0-9]{1,2}$/;
 // callers that previously imported from this module keep working.
 import { enforceClientOwnership } from "../middlewares/client-ownership";
 export { enforceClientOwnership };
-
-// ---------------------------------------------------------------------------
-// Calculator-entry hydration + persistence (Task #141).
-//
-// CALCULATOR_ENTRIES lives in seed.ts as a const-bound object whose keys are
-// project IDs. Mutations happen in-place via the PATCH endpoint below.  At
-// boot we hydrate the projects that have rows in
-// `project_calculator_entries` (overriding the seed values for those keys),
-// while projects with no rows continue to use the seed defaults — so adding
-// a brand new project to seed.ts still works without touching the DB.
-//
-// Every PATCH mutation calls `persistCalculatorEntriesForProject(id)`, which
-// is fire-and-forget but serialised through a per-project queue so two
-// rapid edits cannot race to overwrite each other.
-// ---------------------------------------------------------------------------
-
-let _calcHydrationPromise: Promise<void> | null = null;
-
-export function ensureCalculatorHydrated(): Promise<void> {
-  if (_calcHydrationPromise) return _calcHydrationPromise;
-  _calcHydrationPromise = (async () => {
-    try {
-      const fromDb = await loadCalculatorEntriesFromDb();
-      const calc = CALCULATOR_ENTRIES as unknown as Record<string, CalculatorEntry[]>;
-      for (const [projectId, entries] of Object.entries(fromDb)) {
-        calc[projectId] = entries;
-      }
-    } catch (err) {
-      logger.error({ err }, "calculator: hydration from Postgres failed");
-    }
-  })();
-  return _calcHydrationPromise;
-}
-
-export function __resetCalculatorHydrationForTest(): void {
-  _calcHydrationPromise = null;
-}
-
-// Per-project serialised write queue. Two PATCHes in quick succession to the
-// SAME project will serialise; PATCHes to different projects can run in
-// parallel.
-const _calcPendingByProject: Map<string, Promise<unknown>> = new Map();
-
-export function persistCalculatorEntriesForProject(projectId: string): void {
-  const calc = CALCULATOR_ENTRIES as unknown as Record<string, CalculatorEntry[]>;
-  const entries = calc[projectId] ?? [];
-  const prev = _calcPendingByProject.get(projectId) ?? Promise.resolve();
-  const next = prev
-    .catch(() => undefined)
-    .then(() => saveCalculatorEntriesForProject(projectId, entries));
-  next.catch((err) => {
-    logger.error({ err, projectId }, "calculator: persist to Postgres failed");
-  });
-  _calcPendingByProject.set(projectId, next);
-}
-
-export function flushCalculatorPersistence(): Promise<void> {
-  const all = Array.from(_calcPendingByProject.values());
-  return Promise.allSettled(all).then(() => undefined);
-}
 
 // HTML escaping for any value that ends up inside the PDF report template
 // to keep saved template strings (header/footer/columns) and project fields
