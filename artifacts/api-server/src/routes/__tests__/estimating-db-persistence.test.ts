@@ -448,6 +448,95 @@ test("DB-6: 200 OK guarantees durability — calculator + estimating writes are 
   }
 });
 
+test("DB-7: clobber guard refuses to overwrite live DB when migration marker is missing", async () => {
+  // Regression for Task #141: if a fresh deploy is pointed at a backup
+  // (or the marker row is accidentally deleted) but the estimating
+  // tables already hold real data, `migrateEstimatingJsonIfNeeded` must
+  // NOT replay the legacy JSON on top — `_writeSnapshot` truncates and
+  // would silently wipe live materials/receipts/estimates. Instead it
+  // should log, insert a "skipped: db non-empty" marker row, leave the
+  // JSON in place for an operator to inspect, and return already_applied.
+  await __resetEstimatingTablesForTest();
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "konti-clobber-"));
+  const jsonPath = path.join(tmpDir, "estimating.json");
+
+  try {
+    // Seed the DB with non-trivial live data across multiple tables.
+    await saveEstimatingSnapshotToDb({
+      extraMaterials: [
+        { id: "mat-live-1", item: "Live Tile", itemEs: "Loseta Viva", category: "finishes", unit: "sqft", basePrice: 9.99 },
+      ],
+      laborRates: [
+        { trade: "Live Trade", tradeEs: "Oficio Vivo", unit: "hour", hourlyRate: 55, source: "import", updatedAt: "2026-04-20T00:00:00Z" },
+      ],
+      receipts: {
+        "proj-live": [
+          { id: "rec-live-1", vendor: "Live Vendor", date: "2026-04-21", trade: "Live Trade", amount: 321, hours: 6 },
+        ],
+      },
+      reportTemplates: {},
+      contractorEstimates: {},
+    });
+
+    // Ensure the migration marker row is absent (this is the dangerous
+    // state the guard exists for).
+    await db
+      .delete(estimatingMigrationsTable)
+      .where(eq(estimatingMigrationsTable.id, "estimating-json-2026-05"));
+
+    // Write a *different* legacy JSON that, if applied, would wipe the
+    // live data above and replace it with these contents.
+    const stale = {
+      extraMaterials: [
+        { id: "mat-stale-1", item: "Stale Tile", itemEs: "Loseta Vieja", category: "finishes", unit: "sqft", basePrice: 1.11 },
+      ],
+      laborRates: [
+        { trade: "Stale Trade", tradeEs: "Oficio Viejo", unit: "hour", hourlyRate: 1, source: "import", updatedAt: "2020-01-01T00:00:00Z" },
+      ],
+      receipts: {
+        "proj-stale": [
+          { id: "rec-stale-1", vendor: "Stale Vendor", date: "2020-01-02", trade: "Stale Trade", amount: 1, hours: 1 },
+        ],
+      },
+      reportTemplates: {},
+      contractorEstimates: {},
+    };
+    fs.writeFileSync(jsonPath, JSON.stringify(stale), "utf8");
+
+    const result = await migrateEstimatingJsonIfNeeded({ jsonPath });
+
+    // Return value: clean already_applied, no backupPath since we did not rename.
+    assert.deepEqual(result, { status: "already_applied", jsonPath });
+
+    // Live DB must be intact — none of the stale ids should have been imported.
+    const snap = await loadEstimatingSnapshotFromDb();
+    assert.ok(snap, "live snapshot must still load");
+    assert.ok(snap!.extraMaterials.some((m) => m.id === "mat-live-1"), "live material survives");
+    assert.ok(snap!.extraMaterials.every((m) => m.id !== "mat-stale-1"), "stale material was NOT imported");
+    assert.ok(snap!.laborRates.some((l) => l.trade === "Live Trade"), "live labor rate survives");
+    assert.ok(snap!.laborRates.every((l) => l.trade !== "Stale Trade"), "stale labor rate was NOT imported");
+    assert.ok(snap!.receipts["proj-live"]?.some((r) => r.id === "rec-live-1"), "live receipt survives");
+    assert.equal(snap!.receipts["proj-stale"], undefined, "stale receipt project was NOT imported");
+
+    // A marker row exists with the skipped-reason details prefix.
+    const recorded = await db
+      .select()
+      .from(estimatingMigrationsTable)
+      .where(eq(estimatingMigrationsTable.id, "estimating-json-2026-05"));
+    assert.equal(recorded.length, 1, "marker row should be inserted to stop re-checking on every boot");
+    assert.ok(
+      recorded[0]!.details?.startsWith("skipped: db non-empty"),
+      `details should start with "skipped: db non-empty", got: ${recorded[0]!.details}`,
+    );
+
+    // The JSON file is left in place (NOT renamed) so an operator can inspect it.
+    assert.ok(fs.existsSync(jsonPath), "stale JSON should be left in place for inspection");
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    await __resetEstimatingTablesForTest();
+  }
+});
+
 // Suppress unused warning — these helpers are exported for downstream use
 // and we want to keep them in the test surface in case future tests need
 // them, but only some are referenced above.
