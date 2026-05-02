@@ -20,6 +20,7 @@
 // stores its own random 12-byte IV.
 
 import * as fs from "node:fs";
+import * as os from "node:os";
 import * as path from "node:path";
 import * as crypto from "node:crypto";
 import { logger } from "./logger";
@@ -140,7 +141,7 @@ function defaultPath(): string {
   }
   if (process.env["NODE_ENV"] === "test") {
     return path.join(
-      require("node:os").tmpdir(),
+      os.tmpdir(),
       `konti-secrets-test-${process.pid}.json`,
     );
   }
