@@ -1,8 +1,5 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import * as fs from "node:fs";
-import * as os from "node:os";
-import * as path from "node:path";
 import type { AddressInfo } from "node:net";
 import app from "../../app";
 import {
@@ -13,12 +10,12 @@ import {
   PROJECT_REPORT_TEMPLATE,
   applyEstimatingSnapshot,
   persistEstimatingState,
+  flushEstimatingPersistence,
 } from "../estimating";
 import {
-  getEstimatingPersistFile,
-  loadEstimatingFromDisk,
-  setEstimatingPersistFile,
-} from "../../lib/estimating-persistence";
+  loadEstimatingSnapshotFromDb,
+  __resetEstimatingTablesForTest,
+} from "../../lib/estimating-store";
 
 type LoginResponse = { token: string; user: { id: string; role: string } };
 
@@ -379,16 +376,14 @@ test("client cannot import materials", async () => {
   });
 });
 
-test("estimating state survives a server restart (persists to disk and reloads)", async () => {
-  // Use an isolated persist file so this test can simulate a "fresh" server.
-  const tmpFile = path.join(
-    os.tmpdir(),
-    `konti-estimating-persist-${process.pid}-${Date.now()}.json`,
-  );
-  const previousFile = getEstimatingPersistFile();
+test("estimating state survives a server restart (persists to Postgres and reloads)", async () => {
+  // Task #141 — persistence now lives in Postgres. The shape of the test
+  // is unchanged: mutate via the HTTP API, simulate a restart by wiping
+  // in-memory state, then verify the data comes back from the DB.
   const snap = snapshotState();
-  setEstimatingPersistFile(tmpFile);
-  // Reset in-memory state so we know what's on disk came from this test.
+  await __resetEstimatingTablesForTest();
+  // Start from a clean in-memory slate too so what we read back has to have
+  // come from the DB (not residue from earlier tests).
   applyEstimatingSnapshot(null);
 
   try {
@@ -448,29 +443,28 @@ test("estimating state survives a server restart (persists to disk and reloads)"
       assert.equal(tplRes.status, 200);
     });
 
-    // The persist file should now exist with all five stores represented.
-    assert.ok(fs.existsSync(tmpFile), "persist file should exist after mutations");
-    const onDisk = JSON.parse(fs.readFileSync(tmpFile, "utf8")) as {
-      extraMaterials: Array<{ item: string }>;
-      laborRates: Array<{ trade: string; hourlyRate: number }>;
-      receipts: Record<string, Array<{ vendor: string }>>;
-      reportTemplates: Record<string, { name: string; footer: string }>;
-      contractorEstimates: Record<string, { grandTotal: number; lines: unknown[] }>;
-    };
-    assert.ok(onDisk.extraMaterials.some((m) => m.item === "Persist Test Tile"));
-    assert.ok(onDisk.laborRates.some((r) => r.trade === "Persist Trade" && r.hourlyRate === 77));
-    assert.ok(onDisk.receipts["proj-1"]?.some((r) => r.vendor === "Persist Vendor"));
-    assert.equal(onDisk.reportTemplates["proj-1"]?.name, "Persist Template");
-    assert.ok((onDisk.contractorEstimates["proj-1"]?.grandTotal ?? 0) > 0);
+    // Persistence is fire-and-forget — wait for the write queue to drain
+    // before asserting against the DB.
+    await flushEstimatingPersistence();
 
-    // Simulate a server restart: blow away in-memory state, then reload from disk.
+    // All five stores should now have rows in Postgres.
+    const fromDb = await loadEstimatingSnapshotFromDb();
+    assert.ok(fromDb, "loadEstimatingSnapshotFromDb should return a snapshot");
+    assert.ok(fromDb!.extraMaterials.some((m) => m.item === "Persist Test Tile"));
+    assert.ok(fromDb!.laborRates.some((r) => r.trade === "Persist Trade" && r.hourlyRate === 77));
+    assert.ok(fromDb!.receipts["proj-1"]?.some((r) => r.vendor === "Persist Vendor"));
+    assert.equal(fromDb!.reportTemplates["proj-1"]?.name, "Persist Template");
+    assert.ok((fromDb!.contractorEstimates["proj-1"]?.grandTotal ?? 0) > 0);
+
+    // Simulate a server restart: blow away in-memory state, then rehydrate
+    // from the DB the same way `ensureEstimatingHydrated()` does at boot.
     applyEstimatingSnapshot(null);
     assert.equal(EXTRA_MATERIALS.length, 0);
     assert.equal(Object.keys(PROJECT_RECEIPTS).length, 0);
     assert.equal(Object.keys(PROJECT_REPORT_TEMPLATE).length, 0);
     assert.equal(Object.keys(PROJECT_CONTRACTOR_ESTIMATE).length, 0);
 
-    applyEstimatingSnapshot(loadEstimatingFromDisk());
+    applyEstimatingSnapshot(await loadEstimatingSnapshotFromDb());
 
     assert.ok(EXTRA_MATERIALS.some((m) => m.item === "Persist Test Tile"));
     assert.ok(LABOR_RATES.some((r) => r.trade === "Persist Trade" && r.hourlyRate === 77));
@@ -496,11 +490,16 @@ test("estimating state survives a server restart (persists to disk and reloads)"
       assert.equal(mls.length, 3);
     });
   } finally {
-    fs.rmSync(tmpFile, { force: true });
-    setEstimatingPersistFile(previousFile);
+    await flushEstimatingPersistence();
+    await __resetEstimatingTablesForTest();
     restoreState(snap);
+    await flushEstimatingPersistence();
   }
 });
+
+// Suppress unused-import noise for `persistEstimatingState` — kept in scope
+// because `restoreState` still calls it via this module's export surface.
+void persistEstimatingState;
 
 // B-05: project metadata (squareMeters, projectType, bathrooms, kitchens,
 // contingencyPercent) lives on the Project record and should produce the

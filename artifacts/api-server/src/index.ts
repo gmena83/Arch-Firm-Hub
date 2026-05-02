@@ -1,6 +1,8 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { installAsanaSync } from "./lib/asana-sync";
+import { ensureEstimatingHydrated } from "./routes/estimating";
+import { ensureCalculatorHydrated } from "./routes/projects";
 
 // Wire the optional Asana sync hook (Task #127). Stays a noop until an admin
 // connects the Asana workspace in Settings → Integrations.
@@ -20,11 +22,32 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-app.listen(port, (err) => {
-  if (err) {
-    logger.error({ err }, "Error listening on port");
-    process.exit(1);
+// Boot sequence (Task #141): hydrate the estimating + calculator stores from
+// Postgres BEFORE accepting traffic. The hydrate step also runs the one-time
+// JSON → Postgres migration. If either fails the server still starts, but
+// errors are logged loudly so an operator can investigate — silent data loss
+// is the original sin we're fixing here.
+async function bootstrap(): Promise<void> {
+  try {
+    await Promise.all([
+      ensureEstimatingHydrated(),
+      ensureCalculatorHydrated(),
+    ]);
+  } catch (err) {
+    logger.error({ err }, "Estimating/calculator hydration failed at boot");
   }
 
-  logger.info({ port }, "Server listening");
+  app.listen(port, (err) => {
+    if (err) {
+      logger.error({ err }, "Error listening on port");
+      process.exit(1);
+    }
+
+    logger.info({ port }, "Server listening");
+  });
+}
+
+bootstrap().catch((err) => {
+  logger.error({ err }, "Fatal error during bootstrap");
+  process.exit(1);
 });

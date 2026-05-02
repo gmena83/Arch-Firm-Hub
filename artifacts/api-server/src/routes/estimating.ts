@@ -13,9 +13,11 @@ import { requireRole } from "../middlewares/require-role";
 import { getManagedSecret } from "../lib/managed-secrets";
 import { enforceClientOwnership } from "../middlewares/client-ownership";
 import {
-  loadEstimatingFromDisk,
-  saveEstimatingToDisk,
-} from "../lib/estimating-persistence";
+  loadEstimatingSnapshotFromDb,
+  saveEstimatingSnapshotToDb,
+  migrateEstimatingJsonIfNeeded,
+} from "../lib/estimating-store";
+import { logger } from "../lib/logger";
 import { extractAndParseReceipt } from "../lib/receipt-ocr";
 import { isDriveEnabled } from "../lib/integrations-config";
 import { uploadDocumentToDrive } from "../lib/drive-sync";
@@ -156,12 +158,75 @@ export function applyEstimatingSnapshot(snap: PersistedSnapshot | null): void {
   }
 }
 
+// Persistence is fire-and-forget but serialized through `_pendingPersistence`
+// so a burst of POSTs (e.g. CSV import then estimate then template) cannot
+// race each other and overwrite the wrong snapshot. Tests can wait on
+// `flushEstimatingPersistence()` to see writes settle before asserting.
+let _pendingPersistence: Promise<unknown> = Promise.resolve();
+
 export function persistEstimatingState(): void {
-  saveEstimatingToDisk(snapshotEstimatingState());
+  const next = _pendingPersistence
+    .catch(() => undefined) // never let an old failure block new writes
+    .then(() => saveEstimatingSnapshotToDb(snapshotEstimatingState()));
+  next.catch((err) => {
+    logger.error({ err }, "estimating: persist to Postgres failed");
+  });
+  _pendingPersistence = next;
 }
 
-// Hydrate from disk on import; falls back to defaults when no file exists yet.
-applyEstimatingSnapshot(loadEstimatingFromDisk<PersistedSnapshot>());
+export function flushEstimatingPersistence(): Promise<void> {
+  return _pendingPersistence.then(
+    () => undefined,
+    () => undefined,
+  );
+}
+
+// Hydration runs once at boot (see `ensureEstimatingHydrated()` invoked from
+// `index.ts` before `app.listen`) and migrates the legacy JSON file in the
+// same step. We export a promise getter so tests + the boot path share the
+// same memoised hydration.
+let _hydrationPromise: Promise<void> | null = null;
+
+export function ensureEstimatingHydrated(): Promise<void> {
+  if (_hydrationPromise) return _hydrationPromise;
+  _hydrationPromise = (async () => {
+    try {
+      const result = await migrateEstimatingJsonIfNeeded();
+      if (result.status === "migrated") {
+        logger.info(
+          { jsonPath: result.jsonPath, backupPath: result.backupPath },
+          "estimating: legacy JSON imported into Postgres",
+        );
+      }
+    } catch (err) {
+      // A bad legacy file shouldn't prevent the server from starting; the
+      // operator gets a loud log line and the server falls back to whatever
+      // is already in the DB (possibly empty defaults).
+      logger.error({ err }, "estimating: legacy JSON migration failed");
+    }
+    const snap = await loadEstimatingSnapshotFromDb();
+    applyEstimatingSnapshot(snap);
+  })();
+  _hydrationPromise.catch((err) => {
+    logger.error({ err }, "estimating: initial hydration failed");
+  });
+  return _hydrationPromise;
+}
+
+// Reset the hydration memo — used by tests that swap the underlying DB state
+// and need a fresh load.
+export function __resetEstimatingHydrationForTest(): void {
+  _hydrationPromise = null;
+}
+
+// Apply default labor rates immediately on module import so anything that
+// reads LABOR_RATES before `ensureEstimatingHydrated()` resolves (notably
+// the test suite, which never calls the bootstrap path) sees the seed
+// values — same observable behaviour as the previous JSON-backed implementation
+// where a missing/empty file fell through to DEFAULT_LABOR_RATES on import.
+// Postgres-backed values from `ensureEstimatingHydrated()` later overwrite
+// these defaults atomically before traffic is served (see `index.ts`).
+applyEstimatingSnapshot(null);
 
 // ---------------------------------------------------------------------------
 // CSV helper — strict, header-row required, comma-delimited, quoted strings OK.
