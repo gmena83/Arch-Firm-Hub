@@ -2,11 +2,27 @@ import { Router, type IRouter } from "express";
 import { PROJECTS, RECENT_ACTIVITY } from "../data/seed";
 import { PROJECT_NOTES } from "./ai";
 import { requireRole } from "../middlewares/require-role";
+import {
+  registerNotificationsSeenApplier,
+  persistNotificationsSeenForUser,
+} from "../lib/lifecycle-persistence";
 
 const router: IRouter = Router();
 
-// Per-user "seen" set kept in memory for the demo session.
+// Per-user "seen" set persisted to Postgres via lifecycle-persistence.
+// On boot, applyLifecycleSnapshot() invokes the applier registered below to
+// hydrate this map from the snapshot. Routes call persistNotificationsSeenForUser()
+// after every mutation to durably record the new state.
 const SEEN: Map<string, Set<string>> = new Map();
+
+// Register the snapshot applier exactly once at module load so the
+// notifications-seen rows from Postgres land back in `SEEN` during boot.
+registerNotificationsSeenApplier((snapshot) => {
+  SEEN.clear();
+  for (const [userId, ids] of Object.entries(snapshot)) {
+    SEEN.set(userId, new Set(ids));
+  }
+});
 
 function seenSetFor(userId: string): Set<string> {
   let set = SEEN.get(userId);
@@ -86,24 +102,28 @@ function buildFor(userRole: string, userId: string): NotificationItem[] {
     .slice(0, 50);
 }
 
-router.get("/notifications", requireRole(["team", "admin", "superadmin", "architect", "client"]), (req, res) => {
+router.get("/notifications", requireRole(["team", "admin", "superadmin", "architect", "client"]), async (req, res) => {
   const user = (req as { user?: { id: string; role: string } }).user!;
   const items = buildFor(user.role, user.id);
   const unread = items.filter((i) => !i.seen).length;
   res.json({ items, unread });
 });
 
-router.post("/notifications/:id/seen", requireRole(["team", "admin", "superadmin", "architect", "client"]), (req, res) => {
+router.post("/notifications/:id/seen", requireRole(["team", "admin", "superadmin", "architect", "client"]), async (req, res) => {
   const user = (req as { user?: { id: string } }).user!;
   const id = req.params["id"] as string;
-  seenSetFor(user.id).add(id);
+  const set = seenSetFor(user.id);
+  set.add(id);
+  // Task #144 — persist the updated seen set before ack so refreshes survive.
+  await persistNotificationsSeenForUser(user.id, [...set]);
   res.json({ ok: true });
 });
 
-router.post("/notifications/seen-all", requireRole(["team", "admin", "superadmin", "architect", "client"]), (req, res) => {
+router.post("/notifications/seen-all", requireRole(["team", "admin", "superadmin", "architect", "client"]), async (req, res) => {
   const user = (req as { user?: { id: string; role: string } }).user!;
   const set = seenSetFor(user.id);
   for (const it of buildFor(user.role, user.id)) set.add(it.id);
+  await persistNotificationsSeenForUser(user.id, [...set]);
   res.json({ ok: true });
 });
 

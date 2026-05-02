@@ -15,12 +15,20 @@ import { requireRole } from "../middlewares/require-role";
 import { getAsanaConfig, isAsanaEnabled } from "../lib/integrations-config";
 import { createTask } from "../lib/asana-client";
 import { logger } from "../lib/logger";
+import {
+  persistLeadsToDb,
+  persistProjectsToDb,
+  persistPreDesignChecklistForProject,
+  persistInspectionsForProject,
+  persistChangeOrdersForProject,
+  persistActivitiesForProject,
+} from "../lib/lifecycle-persistence";
 
 type ProjectRecord = (typeof PROJECTS)[number];
 
 const router: IRouter = Router();
 
-router.get("/leads", requireRole("admin", "architect", "superadmin"), (_req, res) => {
+router.get("/leads", requireRole("admin", "architect", "superadmin"), async (_req, res) => {
   // Sort newest first when equal score
   const sorted = [...LEADS].sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score;
@@ -36,7 +44,7 @@ const VALID_TERRAINS: LeadTerrain[] = ["no_terrain", "with_terrain", "with_plans
 const VALID_BOOKING_TYPES: BookingType[] = ["consultation_30min", "weekly_seminar"];
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-router.post("/leads", (req, res) => {
+router.post("/leads", async (req, res) => {
   const body = req.body as {
     source: LeadSource;
     projectType: LeadProjectType;
@@ -123,6 +131,9 @@ router.post("/leads", (req, res) => {
   };
 
   LEADS.unshift(lead);
+  // Task #144 — persist the new lead row before responding 201 so a
+  // crash-after-ack cannot lose acknowledged leads.
+  await persistLeadsToDb();
   res.status(201).json(lead);
 });
 
@@ -236,6 +247,24 @@ router.post("/leads/:id/accept", requireRole("admin", "architect", "superadmin")
   // the entire lifecycle (pre-design checklist, design stepper, signatures,
   // permit items, calculator/cost-plus/inspections/milestones).
   scaffoldSynthesizedProjectState(projectId);
+
+  // Task #144 — persist BOTH the updated lead (status flip + asanaGid) AND
+  // the synthesized project (plus every lifecycle-backed store the
+  // scaffold writes into: pre-design checklist, inspections, change orders,
+  // initial activity) before we ack 200 so a crash cannot lose any side
+  // of the acceptance.
+  try {
+    await Promise.all([
+      persistProjectsToDb(),
+      persistLeadsToDb(),
+      persistPreDesignChecklistForProject(projectId),
+      persistInspectionsForProject(projectId),
+      persistChangeOrdersForProject(projectId),
+      persistActivitiesForProject(projectId),
+    ]);
+  } catch {
+    return res.status(500).json({ error: "persist_failed", message: "Lead acceptance was applied in memory but failed to save. Please retry." });
+  }
 
   res.json({
     lead,

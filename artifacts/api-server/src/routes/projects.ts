@@ -47,6 +47,17 @@ import {
   type PunchlistItem,
   type PunchlistItemStatus,
 } from "../data/seed";
+import {
+  appendActivityAndPersist,
+  persistProjectsToDb,
+  persistProjectTasksForProject,
+  persistInspectionsForProject,
+  persistChangeOrdersForProject,
+  persistStructuredVarsForProject,
+  persistAssistedBudgetForProject,
+  persistCsvMappingForProject,
+  persistPreDesignChecklistForProject,
+} from "../lib/lifecycle-persistence";
 import { savePunchlist } from "../data/punchlist-store";
 import { requireRole } from "../middlewares/require-role";
 import { getManagedSecret } from "../lib/managed-secrets";
@@ -171,7 +182,7 @@ function withDynamicCover(project: typeof PROJECTS[number], role: string | undef
   return enrichProjectForRole(project, role, docs);
 }
 
-router.get("/projects", requireRole(["team", "admin", "superadmin", "architect", "client"]), (req, res) => {
+router.get("/projects", requireRole(["team", "admin", "superadmin", "architect", "client"]), async (req, res) => {
   const user = (req as { user?: { id: string; role: string } }).user;
   const visible = user?.role === "client"
     ? PROJECTS.filter((p) => (p as { clientUserId?: string }).clientUserId === user.id)
@@ -179,7 +190,7 @@ router.get("/projects", requireRole(["team", "admin", "superadmin", "architect",
   return res.json(visible.map((p) => withDynamicCover(p, user?.role)));
 });
 
-router.post("/projects", requireRole(["team", "admin", "superadmin"]), (req, res) => {
+router.post("/projects", requireRole(["team", "admin", "superadmin"]), async (req, res) => {
   const body = (req.body ?? {}) as Record<string, unknown>;
 
   const name = typeof body["name"] === "string" ? body["name"].trim() : "";
@@ -246,8 +257,11 @@ router.post("/projects", requireRole(["team", "admin", "superadmin"]), (req, res
   };
 
   (PROJECTS as Array<typeof newProject>).push(newProject);
+  // Durability: persist the new project row before recording the activity
+  // (which itself awaits its own persist) and before responding 201.
+  await persistProjectsToDb();
 
-  appendActivity(projectId, {
+  await appendActivityAndPersist(projectId, {
     type: "phase_change",
     actor: (req as { user?: { name?: string } }).user?.name ?? "Team",
     description: `Project "${name}" created in Discovery phase`,
@@ -257,7 +271,7 @@ router.post("/projects", requireRole(["team", "admin", "superadmin"]), (req, res
   return res.status(201).json(newProject);
 });
 
-router.get("/projects/:projectId", requireRole(["team", "admin", "superadmin", "architect", "client"]), (req, res) => {
+router.get("/projects/:projectId", requireRole(["team", "admin", "superadmin", "architect", "client"]), async (req, res) => {
   const project = PROJECTS.find((p) => p.id === req.params["projectId"]);
   if (!project) {
     res.status(404).json({ error: "not_found", message: "Project not found" });
@@ -268,13 +282,13 @@ router.get("/projects/:projectId", requireRole(["team", "admin", "superadmin", "
   return res.json(withDynamicCover(project, role));
 });
 
-router.get("/projects/:projectId/tasks", requireRole(["team", "admin", "superadmin", "architect", "client"]), (req, res) => {
+router.get("/projects/:projectId/tasks", requireRole(["team", "admin", "superadmin", "architect", "client"]), async (req, res) => {
   if (!enforceClientOwnership(req, res, req.params["projectId"] as string)) return;
   const tasks = PROJECT_TASKS[req.params["projectId"] as keyof typeof PROJECT_TASKS] ?? [];
   return res.json(tasks);
 });
 
-router.get("/projects/:projectId/weather", (req, res) => {
+router.get("/projects/:projectId/weather", async (req, res) => {
   const weather = WEATHER_DATA[req.params["projectId"] as keyof typeof WEATHER_DATA];
   if (!weather) {
     res.status(404).json({ error: "not_found", message: "Weather data not found for project" });
@@ -471,7 +485,7 @@ router.post("/projects/:projectId/documents", requireRole(["team", "admin", "sup
   // Surface upload in the project timeline. Use a dedicated audit type when
   // the uploader is a client so the team's audit log can highlight it.
   const actor = (req as { user?: { name?: string } }).user?.name ?? (isClient ? "Client" : "Team");
-  appendActivity(projectId, {
+  await appendActivityAndPersist(projectId, {
     type: isClient ? "client_upload" : "receipts_upload",
     actor,
     description: `Document "${doc.name}" uploaded to ${body.category}`,
@@ -534,7 +548,7 @@ router.patch(
         const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
         const visEn = next ? "visible to client" : "hidden from client";
         const visEs = next ? "visible al cliente" : "oculto al cliente";
-        appendActivity(projectId, {
+        await appendActivityAndPersist(projectId, {
           type: "document_visibility_change",
           actor,
           description: `Document "${doc.name}" marked ${visEn}`,
@@ -582,7 +596,7 @@ router.patch(
         const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
         const featEn = next ? "set as project cover" : "removed as project cover";
         const featEs = next ? "establecida como portada del proyecto" : "removida como portada del proyecto";
-        appendActivity(projectId, {
+        await appendActivityAndPersist(projectId, {
           type: "document_featured_change",
           actor,
           description: `Photo "${doc.name}" ${featEn}`,
@@ -650,7 +664,7 @@ router.delete(
     list.splice(idx, 1);
     (DOCUMENTS as Record<string, unknown[]>)[projectId] = list;
     const actor = user?.name ?? (isClient ? "Client" : "Team");
-    appendActivity(projectId, {
+    await appendActivityAndPersist(projectId, {
       type: "document_removed",
       actor,
       description: `Document "${doc.name}" removed from ${doc.category}`,
@@ -670,7 +684,7 @@ router.delete(
 router.get(
   "/projects/:projectId/documents",
   requireRole(["team", "admin", "superadmin", "architect", "client"]),
-  (req, res) => {
+  async (req, res) => {
     const projectId = req.params["projectId"] as string;
     if (!enforceClientOwnership(req, res, projectId)) return;
     const role = (req as { user?: { role?: string } }).user?.role;
@@ -718,7 +732,7 @@ router.get(
   },
 );
 
-router.get("/projects/:projectId/calculations", requireRole(["team", "admin", "superadmin", "architect"]), (req, res) => {
+router.get("/projects/:projectId/calculations", requireRole(["team", "admin", "superadmin", "architect"]), async (req, res) => {
   const projectId = req.params["projectId"];
   const entries = CALCULATOR_ENTRIES[projectId as keyof typeof CALCULATOR_ENTRIES] ?? [];
 
@@ -757,7 +771,7 @@ router.get("/projects/:projectId/calculations", requireRole(["team", "admin", "s
 router.get(
   "/projects/:projectId/report-rollup",
   requireRole(["team", "admin", "superadmin", "architect", "client"]),
-  (req, res) => {
+  async (req, res) => {
     const projectId = req.params["projectId"] as string;
     if (!enforceClientOwnership(req, res, projectId)) return;
     const entries = CALCULATOR_ENTRIES[projectId as keyof typeof CALCULATOR_ENTRIES] ?? [];
@@ -837,7 +851,7 @@ router.patch(
     entry["effectivePrice"] = effective;
     entry["lineTotal"] = Math.round(effective * quantity * 100) / 100;
 
-    appendActivity(projectId, {
+    await appendActivityAndPersist(projectId, {
       type: "calculator_line_updated",
       actor: (req as { user?: { name?: string } }).user?.name ?? "Team",
       description: `Calculator line "${entry["materialName"] ?? lineId}" updated`,
@@ -860,7 +874,7 @@ router.patch(
   },
 );
 
-router.get("/materials", (req, res) => {
+router.get("/materials", async (req, res) => {
   const category = req.query["category"] as string | undefined;
   const all = [...MATERIALS, ...EXTRA_MATERIALS];
   const materials = category ? all.filter((m) => m.category === category) : all;
@@ -1183,7 +1197,7 @@ router.post("/projects/:id/pdf", requireRole(["team", "admin", "superadmin", "ar
 // Phase 2 — Pre-Design & Viability endpoints
 // ---------------------------------------------------------------------------
 
-router.get("/projects/:id/pre-design", requireRole(["team", "client"]), (req, res) => {
+router.get("/projects/:id/pre-design", requireRole(["team", "client"]), async (req, res) => {
   const project = PROJECTS.find((p) => p.id === req.params["id"]);
   if (!project) return res.status(404).json({ error: "not_found" });
   const user = (req as { user?: { id: string; role: string } }).user;
@@ -1200,7 +1214,7 @@ router.get("/projects/:id/pre-design", requireRole(["team", "client"]), (req, re
   });
 });
 
-router.post("/projects/:id/checklist-toggle", requireRole(["team", "admin", "superadmin"]), (req, res) => {
+router.post("/projects/:id/checklist-toggle", requireRole(["team", "admin", "superadmin"]), async (req, res) => {
   const { itemId, status } = req.body ?? {};
   if (typeof itemId !== "string" || !VALID_CHECKLIST_STATUS.includes(status)) {
     return res.status(400).json({ error: "invalid_payload", message: "itemId (string) and status (pending|in_progress|done) required" });
@@ -1213,7 +1227,8 @@ router.post("/projects/:id/checklist-toggle", requireRole(["team", "admin", "sup
   if (!item) return res.status(404).json({ error: "item_not_found" });
   item.status = status;
   item.completedAt = status === "done" ? new Date().toISOString() : undefined;
-  appendActivity(project.id, {
+  await persistPreDesignChecklistForProject(project.id);
+  await appendActivityAndPersist(project.id, {
     type: "checklist_toggle",
     actor: (req as { user?: { name?: string } }).user?.name ?? "Team",
     description: `Checklist item "${item.label}" → ${status}`,
@@ -1222,7 +1237,7 @@ router.post("/projects/:id/checklist-toggle", requireRole(["team", "admin", "sup
   return res.json({ projectId: project.id, item });
 });
 
-router.post("/projects/:id/structured-variables", requireRole(["admin", "superadmin"]), (req, res) => {
+router.post("/projects/:id/structured-variables", requireRole(["admin", "superadmin"]), async (req, res) => {
   const { squareMeters, zoningCode, projectType } = req.body ?? {};
   if (typeof squareMeters !== "number" || squareMeters <= 0 || squareMeters > 100000) {
     return res.status(400).json({ error: "invalid_square_meters" });
@@ -1247,7 +1262,9 @@ router.post("/projects/:id/structured-variables", requireRole(["admin", "superad
   PROJECT_STRUCTURED_VARS[project.id] = vars;
   const budget = computeAssistedBudget(vars);
   PROJECT_ASSISTED_BUDGETS[project.id] = budget;
-  appendActivity(project.id, {
+  await persistStructuredVarsForProject(project.id);
+  await persistAssistedBudgetForProject(project.id);
+  await appendActivityAndPersist(project.id, {
     type: "structured_variables",
     actor,
     description: `Structured variables saved: ${squareMeters} m², ${zoningCode}, ${projectType}`,
@@ -1256,7 +1273,7 @@ router.post("/projects/:id/structured-variables", requireRole(["admin", "superad
   return res.json({ projectId: project.id, structuredVariables: vars, assistedBudgetRange: budget });
 });
 
-router.post("/projects/:id/advance-phase", requireRole(["team", "client"]), (req, res) => {
+router.post("/projects/:id/advance-phase", requireRole(["team", "client"]), async (req, res) => {
   const project = PROJECTS.find((p) => p.id === req.params["id"]);
   if (!project) return res.status(404).json({ error: "not_found" });
   const user = (req as { user?: { id: string; name?: string; role?: string } }).user;
@@ -1300,7 +1317,7 @@ router.post("/projects/:id/advance-phase", requireRole(["team", "client"]), (req
   (project as { phaseNumber: number }).phaseNumber = idx + 2;
 
   const actor = user?.name ?? "Client";
-  appendActivity(project.id, {
+  await appendActivityAndPersist(project.id, {
     type: "phase_change",
     actor,
     description: `Phase advanced to ${labels.en}${isClient ? " (client decision)" : ""}`,
@@ -1309,13 +1326,13 @@ router.post("/projects/:id/advance-phase", requireRole(["team", "client"]), (req
 
   // Simulate the automated comms that follow a client-approved consultation
   if (isClient) {
-    appendActivity(project.id, {
+    await appendActivityAndPersist(project.id, {
       type: "email_sent",
       actor: "System",
       description: "Pre-Design kickoff email sent to client and team",
       descriptionEs: "Correo de inicio de Pre-Diseño enviado al cliente y al equipo",
     });
-    appendActivity(project.id, {
+    await appendActivityAndPersist(project.id, {
       type: "invoice_sent",
       actor: "System",
       description: "Pre-Design & Viability Study invoice issued",
@@ -1323,10 +1340,14 @@ router.post("/projects/:id/advance-phase", requireRole(["team", "client"]), (req
     });
   }
 
+  // Task #144 — persist project (phase + label fields mutated above) before ack.
+  try { await persistProjectsToDb(); }
+  catch { return res.status(500).json({ error: "persist_failed", message: "Phase advance was applied in memory but failed to save. Please retry." }); }
+
   return res.json({ project, advancedTo: nextPhase });
 });
 
-router.post("/projects/:id/decline-phase", requireRole(["client"]), (req, res) => {
+router.post("/projects/:id/decline-phase", requireRole(["client"]), async (req, res) => {
   const project = PROJECTS.find((p) => p.id === req.params["id"]);
   if (!project) return res.status(404).json({ error: "not_found" });
   const { reason } = req.body ?? {};
@@ -1336,13 +1357,13 @@ router.post("/projects/:id/decline-phase", requireRole(["client"]), (req, res) =
     return res.status(400).json({ error: "client_gate_invalid", message: "Decline only available at the consultation gate" });
   }
   const note = typeof reason === "string" && reason.trim().length > 0 ? `: ${reason.trim().slice(0, 200)}` : "";
-  appendActivity(project.id, {
+  await appendActivityAndPersist(project.id, {
     type: "phase_change",
     actor: user?.name ?? "Client",
     description: `Client declined to advance to Pre-Design${note}`,
     descriptionEs: `El cliente no aprobó avanzar a Pre-Diseño${note}`,
   });
-  appendActivity(project.id, {
+  await appendActivityAndPersist(project.id, {
     type: "email_sent",
     actor: "System",
     description: "Internal team notified of client decline",
@@ -1355,7 +1376,7 @@ router.post("/projects/:id/decline-phase", requireRole(["client"]), (req, res) =
 // Phase Punchlist — phase advancement gate
 // ---------------------------------------------------------------------------
 
-router.get("/projects/:id/punchlist", requireRole(["team", "client"]), (req, res) => {
+router.get("/projects/:id/punchlist", requireRole(["team", "client"]), async (req, res) => {
   const project = PROJECTS.find((p) => p.id === req.params["id"]);
   if (!project) return res.status(404).json({ error: "not_found" });
   if (!enforceClientOwnership(req, res, project.id)) return;
@@ -1373,7 +1394,7 @@ router.get("/projects/:id/punchlist", requireRole(["team", "client"]), (req, res
   });
 });
 
-router.post("/projects/:id/punchlist", requireRole(["team", "admin", "superadmin"]), (req, res) => {
+router.post("/projects/:id/punchlist", requireRole(["team", "admin", "superadmin"]), async (req, res) => {
   const project = PROJECTS.find((p) => p.id === req.params["id"]);
   if (!project) return res.status(404).json({ error: "not_found" });
   if (!enforceClientOwnership(req, res, project.id)) return;
@@ -1401,7 +1422,7 @@ router.post("/projects/:id/punchlist", requireRole(["team", "admin", "superadmin
   list.push(item);
   savePunchlist(PROJECT_PUNCHLIST);
   const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
-  appendActivity(project.id, {
+  await appendActivityAndPersist(project.id, {
     type: "punchlist_change",
     actor,
     description: `Punchlist item added: "${item.label}"`,
@@ -1410,7 +1431,7 @@ router.post("/projects/:id/punchlist", requireRole(["team", "admin", "superadmin
   return res.status(201).json({ projectId: project.id, item });
 });
 
-router.patch("/projects/:id/punchlist/:itemId", requireRole(["team", "admin", "superadmin"]), (req, res) => {
+router.patch("/projects/:id/punchlist/:itemId", requireRole(["team", "admin", "superadmin"]), async (req, res) => {
   const project = PROJECTS.find((p) => p.id === req.params["id"]);
   if (!project) return res.status(404).json({ error: "not_found" });
   if (!enforceClientOwnership(req, res, project.id)) return;
@@ -1429,7 +1450,7 @@ router.patch("/projects/:id/punchlist/:itemId", requireRole(["team", "admin", "s
   found.updatedAt = new Date().toISOString();
   savePunchlist(PROJECT_PUNCHLIST);
   const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
-  appendActivity(project.id, {
+  await appendActivityAndPersist(project.id, {
     type: "punchlist_change",
     actor,
     description: `Punchlist item edited: "${found.label}"`,
@@ -1438,7 +1459,7 @@ router.patch("/projects/:id/punchlist/:itemId", requireRole(["team", "admin", "s
   return res.json({ projectId: project.id, item: found });
 });
 
-router.post("/projects/:id/punchlist/:itemId/status", requireRole(["team", "admin", "superadmin"]), (req, res) => {
+router.post("/projects/:id/punchlist/:itemId/status", requireRole(["team", "admin", "superadmin"]), async (req, res) => {
   const project = PROJECTS.find((p) => p.id === req.params["id"]);
   if (!project) return res.status(404).json({ error: "not_found" });
   if (!enforceClientOwnership(req, res, project.id)) return;
@@ -1466,7 +1487,7 @@ router.post("/projects/:id/punchlist/:itemId/status", requireRole(["team", "admi
   savePunchlist(PROJECT_PUNCHLIST);
   const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
   const justSuffix = status === "waived" ? `: ${found.waiverReason}` : "";
-  appendActivity(project.id, {
+  await appendActivityAndPersist(project.id, {
     type: "punchlist_change",
     actor,
     description: `Punchlist "${found.label}" → ${status} (was ${prev})${justSuffix}`,
@@ -1475,7 +1496,7 @@ router.post("/projects/:id/punchlist/:itemId/status", requireRole(["team", "admi
   return res.json({ projectId: project.id, item: found });
 });
 
-router.delete("/projects/:id/punchlist/:itemId", requireRole(["team", "admin", "superadmin"]), (req, res) => {
+router.delete("/projects/:id/punchlist/:itemId", requireRole(["team", "admin", "superadmin"]), async (req, res) => {
   const project = PROJECTS.find((p) => p.id === req.params["id"]);
   if (!project) return res.status(404).json({ error: "not_found" });
   if (!enforceClientOwnership(req, res, project.id)) return;
@@ -1487,7 +1508,7 @@ router.delete("/projects/:id/punchlist/:itemId", requireRole(["team", "admin", "
       if (list.length === 0) delete PROJECT_PUNCHLIST[key];
       savePunchlist(PROJECT_PUNCHLIST);
       const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
-      appendActivity(project.id, {
+      await appendActivityAndPersist(project.id, {
         type: "punchlist_change",
         actor,
         description: `Punchlist item removed: "${removed!.label}"`,
@@ -1499,19 +1520,21 @@ router.delete("/projects/:id/punchlist/:itemId", requireRole(["team", "admin", "
   return res.status(404).json({ error: "item_not_found" });
 });
 
-router.post("/projects/:id/gamma-report", requireRole(["team"]), (req, res) => {
+router.post("/projects/:id/gamma-report", requireRole(["team"]), async (req, res) => {
   const project = PROJECTS.find((p) => p.id === req.params["id"]);
   if (!project) return res.status(404).json({ error: "not_found" });
   const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
   const reportId = `gamma-${project.id}-${Date.now()}`;
   const url = `https://gamma.app/docs/konti-${project.id}-${reportId}`;
   (project as { gammaReportUrl?: string }).gammaReportUrl = url;
-  appendActivity(project.id, {
+  await appendActivityAndPersist(project.id, {
     type: "gamma_generated",
     actor: `${actor} via GAMMA`,
     description: "GAMMA presentation generated for client review",
     descriptionEs: "Presentación GAMMA generada para revisión del cliente",
   });
+  try { await persistProjectsToDb(); }
+  catch { return res.status(500).json({ error: "persist_failed", message: "GAMMA URL was set in memory but failed to save. Please retry." }); }
   return res.json({
     projectId: project.id,
     reportId,
@@ -1542,7 +1565,7 @@ function getProjectOr404(id: string, res: import("express").Response) {
 // should call enforceClientOwnership directly.
 const clientCanReadOrForbid = enforceClientOwnership;
 
-router.get("/projects/:id/design", requireRole(["team", "client"]), (req, res) => {
+router.get("/projects/:id/design", requireRole(["team", "client"]), async (req, res) => {
   const project = getProjectOr404(String(req.params["id"]), res);
   if (!project) return;
   if (!clientCanReadOrForbid(req, res, project.id)) return;
@@ -1571,7 +1594,7 @@ router.get("/projects/:id/design", requireRole(["team", "client"]), (req, res) =
   });
 });
 
-router.post("/projects/:id/design/deliverable", requireRole(["team", "admin", "superadmin"]), (req, res) => {
+router.post("/projects/:id/design/deliverable", requireRole(["team", "admin", "superadmin"]), async (req, res) => {
   const project = getProjectOr404(String(req.params["id"]), res);
   if (!project) return;
   const { subPhase, deliverableId, status } = req.body ?? {};
@@ -1587,7 +1610,7 @@ router.post("/projects/:id/design/deliverable", requireRole(["team", "admin", "s
   return res.json({ projectId: project.id, subPhase, item });
 });
 
-router.post("/projects/:id/design/advance-sub-phase", requireRole(["team", "admin", "superadmin"]), (req, res) => {
+router.post("/projects/:id/design/advance-sub-phase", requireRole(["team", "admin", "superadmin"]), async (req, res) => {
   const project = getProjectOr404(String(req.params["id"]), res);
   if (!project) return;
   const state = PROJECT_DESIGN_STATE[project.id];
@@ -1610,7 +1633,7 @@ router.post("/projects/:id/design/advance-sub-phase", requireRole(["team", "admi
   if (idx === DESIGN_SUB_PHASE_ORDER.length - 1) {
     state.currentSubPhase = "complete";
     nextPhase = "permits";
-    appendActivity(project.id, {
+    await appendActivityAndPersist(project.id, {
       type: "sub_phase_advanced",
       actor: (req as { user?: { name?: string } }).user?.name ?? "Team",
       description: `Design complete — ${completedLabel.en} signed off, advanced to Permits`,
@@ -1622,7 +1645,7 @@ router.post("/projects/:id/design/advance-sub-phase", requireRole(["team", "admi
     state.subPhases[next].startedAt = now;
     nextPhase = next;
     const nextLabel = DESIGN_SUB_PHASE_LABELS[next];
-    appendActivity(project.id, {
+    await appendActivityAndPersist(project.id, {
       type: "sub_phase_advanced",
       actor: (req as { user?: { name?: string } }).user?.name ?? "Team",
       description: `Advanced to ${nextLabel.en} (${completedLabel.en} complete)`,
@@ -1635,17 +1658,19 @@ router.post("/projects/:id/design/advance-sub-phase", requireRole(["team", "admi
   (project as { phaseLabel: string }).phaseLabel = labels.en;
   (project as { phaseLabelEs: string }).phaseLabelEs = labels.es;
   (project as { phaseNumber: number }).phaseNumber = PHASE_ORDER.indexOf(nextPhase) + 1;
+  try { await persistProjectsToDb(); }
+  catch { return res.status(500).json({ error: "persist_failed", message: "Sub-phase advance was applied in memory but failed to save. Please retry." }); }
   return res.json({ projectId: project.id, state, project });
 });
 
-router.get("/projects/:id/proposals", requireRole(["team", "client"]), (req, res) => {
+router.get("/projects/:id/proposals", requireRole(["team", "client"]), async (req, res) => {
   const project = getProjectOr404(String(req.params["id"]), res);
   if (!project) return;
   if (!clientCanReadOrForbid(req, res, project.id)) return;
   return res.json({ projectId: project.id, proposals: PROJECT_PROPOSALS[project.id] ?? [] });
 });
 
-router.post("/projects/:id/proposals/:proposalId/approve", requireRole(["client"]), (req, res) => {
+router.post("/projects/:id/proposals/:proposalId/approve", requireRole(["client"]), async (req, res) => {
   const project = getProjectOr404(String(req.params["id"]), res);
   if (!project) return;
   if (!enforceClientOwnership(req, res, project.id)) return;
@@ -1676,13 +1701,13 @@ router.post("/projects/:id/proposals/:proposalId/approve", requireRole(["client"
       p.decidedBy = user?.name ?? "Client";
     }
   }
-  appendActivity(project.id, {
+  await appendActivityAndPersist(project.id, {
     type: "proposal_decision",
     actor: user?.name ?? "Client",
     description: `Client approved "${target.title}" ($${target.totalCost.toLocaleString()})`,
     descriptionEs: `Cliente aprobó "${target.titleEs}" ($${target.totalCost.toLocaleString()})`,
   });
-  appendActivity(project.id, {
+  await appendActivityAndPersist(project.id, {
     type: "email_sent",
     actor: "System",
     description: "Proposal acceptance receipt and contract draft sent",
@@ -1694,16 +1719,18 @@ router.post("/projects/:id/proposals/:proposalId/approve", requireRole(["client"
   (project as { phaseLabel: string }).phaseLabel = labels.en;
   (project as { phaseLabelEs: string }).phaseLabelEs = labels.es;
   (project as { phaseNumber: number }).phaseNumber = PHASE_ORDER.indexOf("permits") + 1;
-  appendActivity(project.id, {
+  await appendActivityAndPersist(project.id, {
     type: "phase_change",
     actor: "System",
     description: `Phase advanced to ${labels.en} (proposal approved)`,
     descriptionEs: `Fase avanzada a ${labels.es} (propuesta aprobada)`,
   });
+  try { await persistProjectsToDb(); }
+  catch { return res.status(500).json({ error: "persist_failed", message: "Proposal approval was applied in memory but failed to save. Please retry." }); }
   return res.json({ projectId: project.id, proposals: list, approved: target, project });
 });
 
-router.get("/projects/:id/change-orders", requireRole(["team", "client"]), (req, res) => {
+router.get("/projects/:id/change-orders", requireRole(["team", "client"]), async (req, res) => {
   const project = getProjectOr404(String(req.params["id"]), res);
   if (!project) return;
   if (!clientCanReadOrForbid(req, res, project.id)) return;
@@ -1716,7 +1743,7 @@ router.get("/projects/:id/change-orders", requireRole(["team", "client"]), (req,
   return res.json({ projectId: project.id, changeOrders: orders, totals });
 });
 
-router.post("/projects/:id/change-orders", requireRole(["team", "admin", "superadmin"]), (req, res) => {
+router.post("/projects/:id/change-orders", requireRole(["team", "admin", "superadmin"]), async (req, res) => {
   const project = getProjectOr404(String(req.params["id"]), res);
   if (!project) return;
   const { title, titleEs, description, descriptionEs, amountDelta, scheduleImpactDays, reason, reasonEs, outsideOfScope } = req.body ?? {};
@@ -1746,7 +1773,8 @@ router.post("/projects/:id/change-orders", requireRole(["team", "admin", "supera
     outsideOfScope: typeof outsideOfScope === "boolean" ? outsideOfScope : false,
   };
   list.push(co);
-  appendActivity(project.id, {
+  await persistChangeOrdersForProject(project.id);
+  await appendActivityAndPersist(project.id, {
     type: "change_order_created",
     actor,
     description: `${number} created: ${co.title} (${amountDelta >= 0 ? "+" : "−"}$${Math.abs(amountDelta).toLocaleString()})`,
@@ -1755,7 +1783,7 @@ router.post("/projects/:id/change-orders", requireRole(["team", "admin", "supera
   return res.status(201).json({ projectId: project.id, changeOrder: co });
 });
 
-router.patch("/projects/:id/change-orders/:coId", requireRole(["team", "admin", "superadmin"]), (req, res) => {
+router.patch("/projects/:id/change-orders/:coId", requireRole(["team", "admin", "superadmin"]), async (req, res) => {
   const project = getProjectOr404(String(req.params["id"]), res);
   if (!project) return;
   const list = PROJECT_CHANGE_ORDERS[project.id] ?? [];
@@ -1797,7 +1825,8 @@ router.patch("/projects/:id/change-orders/:coId", requireRole(["team", "admin", 
     return res.status(400).json({ error: "no_changes" });
   }
   const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
-  appendActivity(project.id, {
+  await persistChangeOrdersForProject(project.id);
+  await appendActivityAndPersist(project.id, {
     type: "change_order_created",
     actor,
     description: `${co.number} edited (${changes.join(", ")})`,
@@ -1806,7 +1835,7 @@ router.patch("/projects/:id/change-orders/:coId", requireRole(["team", "admin", 
   return res.json({ projectId: project.id, changeOrder: co });
 });
 
-router.delete("/projects/:id/change-orders/:coId", requireRole(["team", "admin", "superadmin"]), (req, res) => {
+router.delete("/projects/:id/change-orders/:coId", requireRole(["team", "admin", "superadmin"]), async (req, res) => {
   const project = getProjectOr404(String(req.params["id"]), res);
   if (!project) return;
   const list = PROJECT_CHANGE_ORDERS[project.id] ?? [];
@@ -1817,7 +1846,8 @@ router.delete("/projects/:id/change-orders/:coId", requireRole(["team", "admin",
     return res.status(400).json({ error: "cannot_delete_decided", message: "Only pending change orders can be deleted" });
   }
   list.splice(idx, 1);
-  appendActivity(project.id, {
+  await persistChangeOrdersForProject(project.id);
+  await appendActivityAndPersist(project.id, {
     type: "change_order_decision",
     actor: (req as { user?: { name?: string } }).user?.name ?? "Team",
     description: `${co.number} withdrawn before decision`,
@@ -1827,7 +1857,7 @@ router.delete("/projects/:id/change-orders/:coId", requireRole(["team", "admin",
 });
 
 // Change-order status is admin/architect-only per spec — clients have read-only access.
-router.post("/projects/:id/change-orders/:coId/status", requireRole(["team", "admin", "superadmin"]), (req, res) => {
+router.post("/projects/:id/change-orders/:coId/status", requireRole(["team", "admin", "superadmin"]), async (req, res) => {
   const project = getProjectOr404(String(req.params["id"]), res);
   if (!project) return;
   const user = (req as { user?: { id: string; name?: string } }).user;
@@ -1848,7 +1878,8 @@ router.post("/projects/:id/change-orders/:coId/status", requireRole(["team", "ad
     co.decidedBy = user?.name ?? "Team";
     if (typeof note === "string" && note.trim()) co.decisionNote = note.trim().slice(0, 300);
   }
-  appendActivity(project.id, {
+  await persistChangeOrdersForProject(project.id);
+  await appendActivityAndPersist(project.id, {
     type: "change_order_decision",
     actor: user?.name ?? "Team",
     description: `${co.number} marked ${status}${co.decisionNote ? `: ${co.decisionNote}` : ""}`,
@@ -1881,7 +1912,7 @@ function computePermitMilestones(projectId: string) {
   };
 }
 
-router.get("/projects/:id/permits", requireRole(["team", "client"]), (req, res) => {
+router.get("/projects/:id/permits", requireRole(["team", "client"]), async (req, res) => {
   const project = getProjectOr404(String(req.params["id"]), res);
   if (!project) return;
   if (!clientCanReadOrForbid(req, res, project.id)) return;
@@ -1897,7 +1928,7 @@ router.get("/projects/:id/permits", requireRole(["team", "client"]), (req, res) 
   });
 });
 
-router.post("/projects/:id/authorize-permits", requireRole(["client"]), (req, res) => {
+router.post("/projects/:id/authorize-permits", requireRole(["client"]), async (req, res) => {
   const project = getProjectOr404(String(req.params["id"]), res);
   if (!project) return;
   if (!enforceClientOwnership(req, res, project.id)) return;
@@ -1917,7 +1948,7 @@ router.post("/projects/:id/authorize-permits", requireRole(["client"]), (req, re
   // accept the proxied request IP and fall back to a mock placeholder.
   const fwd = (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim();
   auth.authorizedIpMock = fwd || req.ip || req.socket?.remoteAddress || "127.0.0.1 (mock)";
-  appendActivity(project.id, {
+  await appendActivityAndPersist(project.id, {
     type: "permit_authorization",
     actor: user?.name ?? "Client",
     description: "Client authorized OGPE submission packet",
@@ -1926,7 +1957,7 @@ router.post("/projects/:id/authorize-permits", requireRole(["client"]), (req, re
   return res.json({ projectId: project.id, authorization: auth });
 });
 
-router.post("/projects/:id/sign/:signatureId", requireRole(["client"]), (req, res) => {
+router.post("/projects/:id/sign/:signatureId", requireRole(["client"]), async (req, res) => {
   const project = getProjectOr404(String(req.params["id"]), res);
   if (!project) return;
   if (!enforceClientOwnership(req, res, project.id)) return;
@@ -1948,7 +1979,7 @@ router.post("/projects/:id/sign/:signatureId", requireRole(["client"]), (req, re
   if (sig.signedAt) return res.status(400).json({ error: "already_signed" });
   sig.signedBy = signatureName.trim().slice(0, 100);
   sig.signedAt = new Date().toISOString();
-  appendActivity(project.id, {
+  await appendActivityAndPersist(project.id, {
     type: "permit_signature",
     actor: sig.signedBy,
     description: `Signed: ${sig.formName}`,
@@ -1957,7 +1988,7 @@ router.post("/projects/:id/sign/:signatureId", requireRole(["client"]), (req, re
   return res.json({ projectId: project.id, signature: sig });
 });
 
-router.post("/projects/:id/permit-items/submit-to-ogpe", requireRole(["admin", "architect", "superadmin"]), (req, res) => {
+router.post("/projects/:id/permit-items/submit-to-ogpe", requireRole(["admin", "architect", "superadmin"]), async (req, res) => {
   const project = getProjectOr404(String(req.params["id"]), res);
   if (!project) return;
   const auth = PROJECT_PERMIT_AUTHORIZATIONS[project.id];
@@ -1982,7 +2013,7 @@ router.post("/projects/:id/permit-items/submit-to-ogpe", requireRole(["admin", "
     return res.status(400).json({ error: "nothing_to_submit", message: "All permit items have already been submitted" });
   }
   const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
-  appendActivity(project.id, {
+  await appendActivityAndPersist(project.id, {
     type: "permit_submitted",
     actor,
     description: `Submitted ${count} permit item${count === 1 ? "" : "s"} to OGPE`,
@@ -1991,7 +2022,7 @@ router.post("/projects/:id/permit-items/submit-to-ogpe", requireRole(["admin", "
   return res.json({ projectId: project.id, permitItems: items, submittedCount: count });
 });
 
-router.post("/projects/:id/permit-items/:itemId/state", requireRole(["admin", "architect", "superadmin"]), (req, res) => {
+router.post("/projects/:id/permit-items/:itemId/state", requireRole(["admin", "architect", "superadmin"]), async (req, res) => {
   const project = getProjectOr404(String(req.params["id"]), res);
   if (!project) return;
   const { state, revisionNote, revisionNoteEs } = req.body ?? {};
@@ -2012,7 +2043,7 @@ router.post("/projects/:id/permit-items/:itemId/state", requireRole(["admin", "a
     item.revisionNoteEs = undefined;
   }
   const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
-  appendActivity(project.id, {
+  await appendActivityAndPersist(project.id, {
     type: "permit_state_change",
     actor,
     description: `${item.name} → ${targetState}`,
@@ -2026,13 +2057,18 @@ router.post("/projects/:id/permit-items/:itemId/state", requireRole(["admin", "a
     (project as { phaseLabel: string }).phaseLabel = labels.en;
     (project as { phaseLabelEs: string }).phaseLabelEs = labels.es;
     (project as { phaseNumber: number }).phaseNumber = PHASE_ORDER.indexOf("construction") + 1;
-    appendActivity(project.id, {
+    await appendActivityAndPersist(project.id, {
       type: "phase_change",
       actor: "System",
       description: "All permits approved — advanced to Construction",
       descriptionEs: "Todos los permisos aprobados — avanzado a Construcción",
     });
     advanced = true;
+  }
+  // Task #144 — `project.phase` may have been auto-advanced; persist before ack.
+  if (advanced) {
+    try { await persistProjectsToDb(); }
+    catch { return res.status(500).json({ error: "persist_failed", message: "Phase auto-advance was applied in memory but failed to save. Please retry." }); }
   }
   return res.json({ projectId: project.id, permitItem: item, project, advancedToConstruction: advanced });
 });
@@ -2045,11 +2081,11 @@ const VALID_INSPECTION_TYPES: InspectionType[] = ["foundation", "framing", "elec
 const VALID_INSPECTION_STATUS: InspectionStatus[] = ["scheduled", "passed", "failed", "re_inspect"];
 const VALID_MILESTONE_STATUS: MilestoneStatus[] = ["completed", "in_progress", "upcoming"];
 
-router.get("/structural-engineers", requireRole(["admin", "architect", "superadmin"]), (_req, res) => {
+router.get("/structural-engineers", requireRole(["admin", "architect", "superadmin"]), async (_req, res) => {
   res.json(STRUCTURAL_ENGINEERS);
 });
 
-router.get("/projects/:id/cost-plus", requireRole(["team", "client"]), (req, res) => {
+router.get("/projects/:id/cost-plus", requireRole(["team", "client"]), async (req, res) => {
   const project = PROJECTS.find((p) => p.id === req.params["id"]);
   if (!project) return res.status(404).json({ error: "not_found", message: "Project not found" });
   if (!enforceClientOwnership(req, res, project.id)) return;
@@ -2058,7 +2094,7 @@ router.get("/projects/:id/cost-plus", requireRole(["team", "client"]), (req, res
   return res.json(cp);
 });
 
-router.get("/projects/:id/invoices", requireRole(["team", "client"]), (req, res) => {
+router.get("/projects/:id/invoices", requireRole(["team", "client"]), async (req, res) => {
   const project = PROJECTS.find((p) => p.id === req.params["id"]);
   if (!project) return res.status(404).json({ error: "not_found", message: "Project not found" });
   if (!enforceClientOwnership(req, res, project.id)) return;
@@ -2066,7 +2102,7 @@ router.get("/projects/:id/invoices", requireRole(["team", "client"]), (req, res)
   return res.json({ projectId: project.id, invoices });
 });
 
-router.get("/projects/:id/contractor-monitoring", requireRole(["team", "client"]), (req, res) => {
+router.get("/projects/:id/contractor-monitoring", requireRole(["team", "client"]), async (req, res) => {
   const project = PROJECTS.find((p) => p.id === req.params["id"]);
   if (!project) return res.status(404).json({ error: "not_found", message: "Project not found" });
   if (!enforceClientOwnership(req, res, project.id)) return;
@@ -2077,7 +2113,7 @@ router.get("/projects/:id/contractor-monitoring", requireRole(["team", "client"]
 // Last-100 client-facing activity feed. Team consumes this on the project page;
 // `?clientOnly=true` narrows to entries triggered by client behaviour. Clients
 // may only fetch the audit log for projects they own (enforceClientOwnership).
-router.get("/projects/:id/audit-log", requireRole(["team", "client", "admin", "superadmin"]), (req, res) => {
+router.get("/projects/:id/audit-log", requireRole(["team", "client", "admin", "superadmin"]), async (req, res) => {
   const project = PROJECTS.find((p) => p.id === req.params["id"]);
   if (!project) return res.status(404).json({ error: "not_found", message: "Project not found" });
   if (!enforceClientOwnership(req, res, project.id)) return;
@@ -2098,7 +2134,7 @@ router.get("/projects/:id/audit-log", requireRole(["team", "client", "admin", "s
   return res.json({ projectId: project.id, entries: sorted });
 });
 
-router.get("/projects/:id/inspections", requireRole(["team", "admin", "superadmin", "architect", "client"]), (req, res) => {
+router.get("/projects/:id/inspections", requireRole(["team", "admin", "superadmin", "architect", "client"]), async (req, res) => {
   const project = PROJECTS.find((p) => p.id === req.params["id"]);
   if (!project) return res.status(404).json({ error: "not_found", message: "Project not found" });
   if (!enforceClientOwnership(req, res, project.id)) return;
@@ -2106,7 +2142,7 @@ router.get("/projects/:id/inspections", requireRole(["team", "admin", "superadmi
   return res.json({ projectId: project.id, inspections: list });
 });
 
-router.get("/projects/:id/inspections/:insId", requireRole(["team", "admin", "superadmin", "architect", "client"]), (req, res) => {
+router.get("/projects/:id/inspections/:insId", requireRole(["team", "admin", "superadmin", "architect", "client"]), async (req, res) => {
   const project = PROJECTS.find((p) => p.id === req.params["id"]);
   if (!project) return res.status(404).json({ error: "not_found", message: "Project not found" });
   if (!enforceClientOwnership(req, res, project.id)) return;
@@ -2115,7 +2151,7 @@ router.get("/projects/:id/inspections/:insId", requireRole(["team", "admin", "su
   return res.json({ projectId: project.id, inspection: insp });
 });
 
-router.post("/projects/:id/inspections", requireRole(["admin", "architect", "superadmin"]), (req, res) => {
+router.post("/projects/:id/inspections", requireRole(["admin", "architect", "superadmin"]), async (req, res) => {
   const project = PROJECTS.find((p) => p.id === req.params["id"]);
   if (!project) return res.status(404).json({ error: "not_found", message: "Project not found" });
   const body = (req.body ?? {}) as Partial<Inspection>;
@@ -2141,8 +2177,9 @@ router.post("/projects/:id/inspections", requireRole(["admin", "architect", "sup
     ...(body.notesEs ? { notesEs: body.notesEs } : {}),
   };
   list.push(inspection);
+  await persistInspectionsForProject(project.id);
   const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
-  appendActivity(project.id, {
+  await appendActivityAndPersist(project.id, {
     type: "inspection_scheduled",
     actor,
     description: `Inspection scheduled: ${inspection.title} (${inspection.scheduledDate})`,
@@ -2151,7 +2188,7 @@ router.post("/projects/:id/inspections", requireRole(["admin", "architect", "sup
   return res.status(201).json({ projectId: project.id, inspection });
 });
 
-router.patch("/projects/:id/inspections/:insId", requireRole(["admin", "architect", "superadmin"]), (req, res) => {
+router.patch("/projects/:id/inspections/:insId", requireRole(["admin", "architect", "superadmin"]), async (req, res) => {
   const project = PROJECTS.find((p) => p.id === req.params["id"]);
   if (!project) return res.status(404).json({ error: "not_found", message: "Project not found" });
   const list = PROJECT_INSPECTIONS[project.id] ?? [];
@@ -2177,9 +2214,10 @@ router.patch("/projects/:id/inspections/:insId", requireRole(["admin", "architec
   if (body.titleEs !== undefined) insp.titleEs = body.titleEs;
   if (body.reportDocumentUrl !== undefined) insp.reportDocumentUrl = body.reportDocumentUrl;
   if (body.reportDocumentName !== undefined) insp.reportDocumentName = body.reportDocumentName;
+  await persistInspectionsForProject(project.id);
   const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
   if (body.status !== undefined && body.status !== prevStatus) {
-    appendActivity(project.id, {
+    await appendActivityAndPersist(project.id, {
       type: "inspection_status_change",
       actor,
       description: `${insp.title}: ${prevStatus} → ${insp.status}`,
@@ -2189,7 +2227,7 @@ router.patch("/projects/:id/inspections/:insId", requireRole(["admin", "architec
   return res.json({ projectId: project.id, inspection: insp });
 });
 
-router.delete("/projects/:id/inspections/:insId", requireRole(["admin", "architect", "superadmin"]), (req, res) => {
+router.delete("/projects/:id/inspections/:insId", requireRole(["admin", "architect", "superadmin"]), async (req, res) => {
   const project = PROJECTS.find((p) => p.id === req.params["id"]);
   if (!project) return res.status(404).json({ error: "not_found", message: "Project not found" });
   const list = PROJECT_INSPECTIONS[project.id] ?? [];
@@ -2197,8 +2235,9 @@ router.delete("/projects/:id/inspections/:insId", requireRole(["admin", "archite
   if (idx === -1) return res.status(404).json({ error: "not_found", message: "Inspection not found" });
   const removed = list[idx]!;
   list.splice(idx, 1);
+  await persistInspectionsForProject(project.id);
   const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
-  appendActivity(project.id, {
+  await appendActivityAndPersist(project.id, {
     type: "inspection_removed",
     actor,
     description: `Inspection removed: ${removed.title} (${removed.scheduledDate})`,
@@ -2207,7 +2246,7 @@ router.delete("/projects/:id/inspections/:insId", requireRole(["admin", "archite
   return res.json({ projectId: project.id, deleted: removed.id });
 });
 
-router.post("/projects/:id/inspections/:insId/send-report", requireRole(["admin", "architect", "superadmin"]), (req, res) => {
+router.post("/projects/:id/inspections/:insId/send-report", requireRole(["admin", "architect", "superadmin"]), async (req, res) => {
   const project = PROJECTS.find((p) => p.id === req.params["id"]);
   if (!project) return res.status(404).json({ error: "not_found", message: "Project not found" });
   const list = PROJECT_INSPECTIONS[project.id] ?? [];
@@ -2223,8 +2262,9 @@ router.post("/projects/:id/inspections/:insId/send-report", requireRole(["admin"
   insp.reportSentToName = engineer.name;
   insp.reportSentAt = new Date().toISOString();
   if (body.note) insp.reportSentNote = body.note;
+  await persistInspectionsForProject(project.id);
   const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
-  appendActivity(project.id, {
+  await appendActivityAndPersist(project.id, {
     type: "inspection_report_sent",
     actor,
     description: `${insp.title} report sent to ${engineer.name} (${engineer.firm})`,
@@ -2233,7 +2273,7 @@ router.post("/projects/:id/inspections/:insId/send-report", requireRole(["admin"
   return res.json({ projectId: project.id, inspection: insp });
 });
 
-router.get("/projects/:id/milestones", requireRole(["team", "admin", "superadmin", "architect", "client"]), (req, res) => {
+router.get("/projects/:id/milestones", requireRole(["team", "admin", "superadmin", "architect", "client"]), async (req, res) => {
   const project = PROJECTS.find((p) => p.id === req.params["id"]);
   if (!project) return res.status(404).json({ error: "not_found", message: "Project not found" });
   if (!enforceClientOwnership(req, res, project.id)) return;
@@ -2241,7 +2281,7 @@ router.get("/projects/:id/milestones", requireRole(["team", "admin", "superadmin
   return res.json({ projectId: project.id, milestones: list });
 });
 
-router.patch("/projects/:id/milestones/:milestoneId", requireRole(["admin", "architect", "superadmin"]), (req, res) => {
+router.patch("/projects/:id/milestones/:milestoneId", requireRole(["admin", "architect", "superadmin"]), async (req, res) => {
   const project = PROJECTS.find((p) => p.id === req.params["id"]);
   if (!project) return res.status(404).json({ error: "not_found", message: "Project not found" });
   const list = PROJECT_MILESTONES[project.id] ?? [];
@@ -2259,7 +2299,7 @@ router.patch("/projects/:id/milestones/:milestoneId", requireRole(["admin", "arc
   if (body.endDate !== undefined) m.endDate = body.endDate;
   const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
   if (body.status !== undefined && body.status !== prev) {
-    appendActivity(project.id, {
+    await appendActivityAndPersist(project.id, {
       type: "milestone_status_change",
       actor,
       description: `Milestone ${m.title}: ${prev} → ${m.status}`,
@@ -2275,7 +2315,7 @@ router.patch("/projects/:id/milestones/:milestoneId", requireRole(["admin", "arc
 router.patch(
   "/projects/:projectId/client-contact",
   requireRole(["team", "admin", "superadmin"]),
-  (req, res) => {
+  async (req, res) => {
     const project = PROJECTS.find((p) => p.id === req.params["projectId"]);
     if (!project) return res.status(404).json({ error: "not_found", message: "Project not found" });
     const body = (req.body ?? {}) as Record<string, unknown>;
@@ -2293,7 +2333,8 @@ router.patch(
     apply("clientPhone");
     apply("clientPostalAddress");
     apply("clientPhysicalAddress");
-    appendActivity(project.id, {
+    await persistProjectsToDb();
+    await appendActivityAndPersist(project.id, {
       type: "client_contact_updated",
       actor: (req as { user?: { name?: string } }).user?.name ?? "Team",
       description: `Client contact info updated for ${project.clientName}.`,
@@ -2314,7 +2355,7 @@ router.patch(
 router.patch(
   "/projects/:projectId/status-note",
   requireRole(["team", "admin", "superadmin"]),
-  (req, res) => {
+  async (req, res) => {
     const project = PROJECTS.find((p) => p.id === req.params["projectId"]);
     if (!project) return res.status(404).json({ error: "not_found", message: "Project not found" });
     const body = (req.body ?? {}) as Record<string, unknown>;
@@ -2330,7 +2371,8 @@ router.patch(
     };
     apply("currentStatusNote");
     apply("currentStatusNoteEs");
-    appendActivity(project.id, {
+    await persistProjectsToDb();
+    await appendActivityAndPersist(project.id, {
       type: "status_note_updated",
       actor: (req as { user?: { name?: string } }).user?.name ?? "Team",
       description: `Status note updated for ${project.clientName}.`,
@@ -2355,7 +2397,7 @@ type ProjectType = (typeof PROJECT_TYPE_VALUES)[number];
 router.patch(
   "/projects/:projectId/metadata",
   requireRole(["team", "admin", "superadmin"]),
-  (req, res) => {
+  async (req, res) => {
     const project = PROJECTS.find((p) => p.id === req.params["projectId"]);
     if (!project) return res.status(404).json({ error: "not_found", message: "Project not found" });
     const body = (req.body ?? {}) as Record<string, unknown>;
@@ -2407,12 +2449,15 @@ router.patch(
       });
     }
 
-    appendActivity(project.id, {
+    await appendActivityAndPersist(project.id, {
       type: "project_metadata_updated",
       actor: (req as { user?: { name?: string } }).user?.name ?? "Team",
       description: `Project metadata updated for ${project.name}.`,
       descriptionEs: `Metadatos del proyecto actualizados para ${project.name}.`,
     });
+
+    try { await persistProjectsToDb(); }
+    catch { return res.status(500).json({ error: "persist_failed", message: "Metadata edits were applied in memory but failed to save. Please retry." }); }
 
     return res.json({
       projectId: project.id,
@@ -2436,7 +2481,7 @@ type SiteVisitChannel = "site" | "remote";
 router.post(
   "/projects/:projectId/site-visits",
   requireRole(["team", "admin", "superadmin", "architect"]),
-  (req, res) => {
+  async (req, res) => {
     const projectId = req.params["projectId"] as string;
     if (!PROJECTS.find((p) => p.id === projectId)) {
       return res.status(404).json({ error: "not_found", message: "Project not found" });
@@ -2457,7 +2502,7 @@ router.post(
     const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
     const channelEn = channel === "remote" ? "remote check" : "on-site visit";
     const channelEs = channel === "remote" ? "revisión remota" : "visita al sitio";
-    const entry = appendActivity(projectId, {
+    const entry = await appendActivityAndPersist(projectId, {
       type: "site_visit_logged",
       actor,
       description: `${channelEn} on ${visitDate} by ${visitor}${note ? `: ${note}` : ""}`,
@@ -2473,7 +2518,7 @@ const VALID_CHANNELS: ClientChannel[] = ["call", "meeting", "email", "whatsapp"]
 router.post(
   "/projects/:projectId/client-interactions",
   requireRole(["team", "admin", "superadmin", "architect"]),
-  (req, res) => {
+  async (req, res) => {
     const projectId = req.params["projectId"] as string;
     if (!PROJECTS.find((p) => p.id === projectId)) {
       return res.status(404).json({ error: "not_found", message: "Project not found" });
@@ -2497,7 +2542,7 @@ router.post(
     const channelEn = { call: "Call", meeting: "Meeting", email: "Email", whatsapp: "WhatsApp" }[channel];
     const channelEs = { call: "Llamada", meeting: "Reunión", email: "Email", whatsapp: "WhatsApp" }[channel];
     const actor = (req as { user?: { name?: string } }).user?.name ?? "Team";
-    const entry = appendActivity(projectId, {
+    const entry = await appendActivityAndPersist(projectId, {
       type: "client_interaction_logged",
       actor,
       description: `${channelEn} with ${withWhom} on ${occurredAt}${note ? `: ${note}` : ""}`,
@@ -2536,7 +2581,7 @@ router.get(
 router.post(
   "/projects/:projectId/asana-link",
   requireRole(["team", "admin", "superadmin"]),
-  (req, res) => {
+  async (req, res) => {
     const projectId = req.params["projectId"] as string;
     const project = PROJECTS.find((p) => p.id === projectId) as { id: string; name: string; asanaGid?: string } | undefined;
     if (!project) {
@@ -2548,8 +2593,9 @@ router.post(
       return res.status(400).json({ error: "bad_request", message: "asanaGid required" });
     }
     project.asanaGid = gid;
+    await persistProjectsToDb();
     const taskName = typeof body.asanaTaskName === "string" ? body.asanaTaskName.trim() : "";
-    appendActivity(projectId, {
+    await appendActivityAndPersist(projectId, {
       type: "asana_task_linked",
       actor: (req as { user?: { name?: string } }).user?.name ?? "Team",
       description: `Project linked to Asana task ${gid}${taskName ? ` ("${taskName}")` : ""}`,

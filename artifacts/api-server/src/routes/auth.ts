@@ -1,8 +1,9 @@
 import { Router, type IRouter } from "express";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
-import { USERS, PROJECTS, appendActivity } from "../data/seed";
+import { USERS, PROJECTS } from "../data/seed";
 import { userFromAuthHeader } from "../middlewares/require-role";
+import { appendActivityAndPersist, persistUserProfile } from "../lib/lifecycle-persistence";
 
 const router: IRouter = Router();
 
@@ -41,7 +42,7 @@ router.post("/auth/login", async (req, res) => {
 
 // Refresh the authenticated user (used by the dashboard after PATCH /me to
 // re-hydrate localStorage with the latest contact fields).
-router.get("/me", (req, res) => {
+router.get("/me", async (req, res) => {
   const user = userFromAuthHeader(req);
   if (!user) {
     res.status(401).json({ error: "unauthorized", message: "Authentication required" });
@@ -54,7 +55,7 @@ router.get("/me", (req, res) => {
 // Update the authenticated user's editable contact fields. For client users
 // every owned project receives a `profile_update` activity entry so the team
 // can see the change in the project timeline (T5 audit prep).
-router.patch("/me", (req, res) => {
+router.patch("/me", async (req, res) => {
   const user = userFromAuthHeader(req);
   if (!user) {
     res.status(401).json({ error: "unauthorized", message: "Authentication required" });
@@ -80,6 +81,12 @@ router.patch("/me", (req, res) => {
     }
   }
 
+  // Durability: persist the profile row before recording per-project activities
+  // so a crash-after-ack cannot lose the user-visible profile change.
+  if (changedKeys.length > 0) {
+    await persistUserProfile(user.id);
+  }
+
   if (changedKeys.length > 0 && user.role === "client") {
     const labelEn: Record<string, string> = {
       phone: "phone",
@@ -95,7 +102,7 @@ router.patch("/me", (req, res) => {
     const fieldsEs = changedKeys.map((k) => labelEs[k]).join(", ");
     for (const project of PROJECTS as Array<{ id: string; clientUserId?: string }>) {
       if (project.clientUserId === user.id) {
-        appendActivity(project.id, {
+        await appendActivityAndPersist(project.id, {
           type: "profile_update",
           actor: user.name,
           description: `Client updated their ${fieldsEn}.`,

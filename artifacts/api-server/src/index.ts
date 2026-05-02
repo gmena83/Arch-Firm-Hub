@@ -3,6 +3,7 @@ import { logger } from "./lib/logger";
 import { installAsanaSync } from "./lib/asana-sync";
 import { ensureEstimatingHydrated } from "./routes/estimating";
 import { ensureCalculatorHydrated } from "./routes/projects";
+import { ensureLifecycleHydrated } from "./lib/lifecycle-persistence";
 
 // Wire the optional Asana sync hook (Task #127). Stays a noop until an admin
 // connects the Asana workspace in Settings → Integrations.
@@ -41,9 +42,10 @@ async function bootstrap(): Promise<void> {
     await Promise.all([
       ensureEstimatingHydrated(),
       ensureCalculatorHydrated(),
+      ensureLifecycleHydrated(),
     ]);
   } catch (err) {
-    logger.error({ err }, "Estimating/calculator hydration failed at boot");
+    logger.error({ err }, "Estimating/calculator/lifecycle hydration failed at boot");
     if (process.env["NODE_ENV"] === "production") {
       logger.error("Refusing to serve traffic in production with stale state — exiting for restart.");
       process.exit(1);
