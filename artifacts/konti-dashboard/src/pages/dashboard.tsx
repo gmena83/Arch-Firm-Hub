@@ -17,11 +17,26 @@ import { formatDistanceToNow } from "date-fns";
 import { es as dateEs } from "date-fns/locale";
 
 function ProjectCard({ project, isClientUser }: {
-  project: { id: string; name: string; clientName: string; location: string; phase: string; phaseLabel: string; phaseLabelEs: string; phaseNumber: number; progressPercent: number; budgetAllocated: number; budgetUsed: number; coverImage?: string; status: string };
+  project: { id: string; name: string; clientName: string; location: string; phase: string; phaseLabel: string; phaseLabelEs: string; phaseNumber: number; progressPercent: number; budgetAllocated: number; budgetUsed: number; coverImage?: string; liveCoverImage?: string; clientCoverImage?: string; clientCoverLandmark?: number; status: string };
   isClientUser: boolean;
 }) {
   const { t, lang } = useLang();
   const { data: weather } = useGetProjectWeather(project.id);
+
+  // Task #134: prefer the role-derived cover the API enriched onto the
+  // project (`liveCoverImage` for KONTi staff = latest construction-progress
+  // photo; `clientCoverImage` for clients = milestone mockup). Fall back to
+  // the static `coverImage` if a freshly-created project hasn't been
+  // enriched yet (or for older cached payloads).
+  const cardImage = isClientUser
+    ? (project.clientCoverImage ?? project.coverImage)
+    : (project.liveCoverImage ?? project.coverImage);
+  const cardImageAlt = isClientUser
+    ? t(
+        `${project.name} — milestone mockup at ${project.clientCoverLandmark ?? project.progressPercent}%`,
+        `${project.name} — maqueta de hito al ${project.clientCoverLandmark ?? project.progressPercent}%`,
+      )
+    : t(`${project.name} — latest site photo`, `${project.name} — última foto del sitio`);
 
   const phaseColors: Record<string, string> = {
     discovery: "bg-sky-100 text-sky-800",
@@ -44,12 +59,13 @@ function ProjectCard({ project, isClientUser }: {
       data-testid={`card-project-${project.id}`}
       className="bg-card rounded-xl border border-card-border shadow-sm overflow-hidden hover:shadow-md transition-shadow"
     >
-      {project.coverImage && (
+      {cardImage && (
         <div className="relative h-44 overflow-hidden">
           <img
-            src={resolveSeedImageUrl(project.coverImage)}
-            alt={project.name}
+            src={resolveSeedImageUrl(cardImage)}
+            alt={cardImageAlt}
             className="w-full h-full object-cover"
+            data-testid={`img-project-cover-${project.id}`}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-konti-dark/80 to-transparent" />
           <div className="absolute bottom-3 left-4 right-4">
@@ -59,6 +75,14 @@ function ProjectCard({ project, isClientUser }: {
           <span className={`absolute top-3 right-3 text-xs font-semibold px-2.5 py-0.5 rounded-full ${phaseColors[project.phase] ?? "bg-gray-100 text-gray-800"}`}>
             {phaseLabel}
           </span>
+          {isClientUser && typeof project.clientCoverLandmark === "number" && (
+            <span
+              className="absolute top-3 left-3 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/85 text-konti-dark backdrop-blur-sm"
+              data-testid={`pill-milestone-${project.id}`}
+            >
+              {project.clientCoverLandmark}% {t("milestone", "hito")}
+            </span>
+          )}
         </div>
       )}
 

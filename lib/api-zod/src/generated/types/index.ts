@@ -180,6 +180,7 @@ export * from "./projectActivity";
 export * from "./projectAuditLogResponse";
 export * from "./projectClientContact";
 export * from "./projectClientContactUpdate";
+export * from "./projectClientCoverLandmark";
 export * from "./projectCreateRequest";
 export * from "./projectCsvMappings";
 export * from "./projectCsvMappingsMappings";

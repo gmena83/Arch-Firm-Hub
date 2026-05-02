@@ -68,6 +68,30 @@ export const ListProjectsResponseItem = zod.object({
   estimatedEndDate: zod.string(),
   description: zod.string().optional(),
   coverImage: zod.string().optional(),
+  liveCoverImage: zod
+    .string()
+    .optional()
+    .describe(
+      "Task #134. Derived at read time for KONTi roles only (admin\/architect\/team\/superadmin).\nResolves to the most recently uploaded `construction_progress` photo's URL for the\nproject, falling back to `coverImage` when none exists. OMITTED for the client role.\n",
+    ),
+  clientCoverImage: zod
+    .string()
+    .optional()
+    .describe(
+      "Task #134. Derived at read time for the client role only. One of five curated KONTi\nmockup images, chosen by snapping `progressPercent` to the nearest landmark\n(0 \/ 25 \/ 50 \/ 75 \/ 100) using midpoints 12.5 \/ 37.5 \/ 62.5 \/ 87.5. OMITTED for\nnon-client roles.\n",
+    ),
+  clientCoverLandmark: zod
+    .union([
+      zod.literal(0),
+      zod.literal(25),
+      zod.literal(50),
+      zod.literal(75),
+      zod.literal(100),
+    ])
+    .optional()
+    .describe(
+      'Task #134. The landmark percent the `clientCoverImage` was snapped to, surfaced so\nthe dashboard can render a tiny \"X% milestone\" pill. Client role only.\n',
+    ),
   asanaGid: zod.string().optional(),
   gammaReportUrl: zod.string().optional(),
   teamMembers: zod.array(zod.string()).optional(),
@@ -182,6 +206,30 @@ export const GetProjectResponse = zod.object({
   estimatedEndDate: zod.string(),
   description: zod.string().optional(),
   coverImage: zod.string().optional(),
+  liveCoverImage: zod
+    .string()
+    .optional()
+    .describe(
+      "Task #134. Derived at read time for KONTi roles only (admin\/architect\/team\/superadmin).\nResolves to the most recently uploaded `construction_progress` photo's URL for the\nproject, falling back to `coverImage` when none exists. OMITTED for the client role.\n",
+    ),
+  clientCoverImage: zod
+    .string()
+    .optional()
+    .describe(
+      "Task #134. Derived at read time for the client role only. One of five curated KONTi\nmockup images, chosen by snapping `progressPercent` to the nearest landmark\n(0 \/ 25 \/ 50 \/ 75 \/ 100) using midpoints 12.5 \/ 37.5 \/ 62.5 \/ 87.5. OMITTED for\nnon-client roles.\n",
+    ),
+  clientCoverLandmark: zod
+    .union([
+      zod.literal(0),
+      zod.literal(25),
+      zod.literal(50),
+      zod.literal(75),
+      zod.literal(100),
+    ])
+    .optional()
+    .describe(
+      'Task #134. The landmark percent the `clientCoverImage` was snapped to, surfaced so\nthe dashboard can render a tiny \"X% milestone\" pill. Client role only.\n',
+    ),
   asanaGid: zod.string().optional(),
   gammaReportUrl: zod.string().optional(),
   teamMembers: zod.array(zod.string()).optional(),
@@ -879,6 +927,30 @@ export const AdvanceProjectPhaseResponse = zod.object({
     estimatedEndDate: zod.string(),
     description: zod.string().optional(),
     coverImage: zod.string().optional(),
+    liveCoverImage: zod
+      .string()
+      .optional()
+      .describe(
+        "Task #134. Derived at read time for KONTi roles only (admin\/architect\/team\/superadmin).\nResolves to the most recently uploaded `construction_progress` photo's URL for the\nproject, falling back to `coverImage` when none exists. OMITTED for the client role.\n",
+      ),
+    clientCoverImage: zod
+      .string()
+      .optional()
+      .describe(
+        "Task #134. Derived at read time for the client role only. One of five curated KONTi\nmockup images, chosen by snapping `progressPercent` to the nearest landmark\n(0 \/ 25 \/ 50 \/ 75 \/ 100) using midpoints 12.5 \/ 37.5 \/ 62.5 \/ 87.5. OMITTED for\nnon-client roles.\n",
+      ),
+    clientCoverLandmark: zod
+      .union([
+        zod.literal(0),
+        zod.literal(25),
+        zod.literal(50),
+        zod.literal(75),
+        zod.literal(100),
+      ])
+      .optional()
+      .describe(
+        'Task #134. The landmark percent the `clientCoverImage` was snapped to, surfaced so\nthe dashboard can render a tiny \"X% milestone\" pill. Client role only.\n',
+      ),
     asanaGid: zod.string().optional(),
     gammaReportUrl: zod.string().optional(),
     teamMembers: zod.array(zod.string()).optional(),
@@ -1204,6 +1276,30 @@ export const DeclineProjectPhaseResponse = zod.object({
     estimatedEndDate: zod.string(),
     description: zod.string().optional(),
     coverImage: zod.string().optional(),
+    liveCoverImage: zod
+      .string()
+      .optional()
+      .describe(
+        "Task #134. Derived at read time for KONTi roles only (admin\/architect\/team\/superadmin).\nResolves to the most recently uploaded `construction_progress` photo's URL for the\nproject, falling back to `coverImage` when none exists. OMITTED for the client role.\n",
+      ),
+    clientCoverImage: zod
+      .string()
+      .optional()
+      .describe(
+        "Task #134. Derived at read time for the client role only. One of five curated KONTi\nmockup images, chosen by snapping `progressPercent` to the nearest landmark\n(0 \/ 25 \/ 50 \/ 75 \/ 100) using midpoints 12.5 \/ 37.5 \/ 62.5 \/ 87.5. OMITTED for\nnon-client roles.\n",
+      ),
+    clientCoverLandmark: zod
+      .union([
+        zod.literal(0),
+        zod.literal(25),
+        zod.literal(50),
+        zod.literal(75),
+        zod.literal(100),
+      ])
+      .optional()
+      .describe(
+        'Task #134. The landmark percent the `clientCoverImage` was snapped to, surfaced so\nthe dashboard can render a tiny \"X% milestone\" pill. Client role only.\n',
+      ),
     asanaGid: zod.string().optional(),
     gammaReportUrl: zod.string().optional(),
     teamMembers: zod.array(zod.string()).optional(),
@@ -1505,6 +1601,30 @@ export const AdvanceDesignSubPhaseResponse = zod.object({
       estimatedEndDate: zod.string(),
       description: zod.string().optional(),
       coverImage: zod.string().optional(),
+      liveCoverImage: zod
+        .string()
+        .optional()
+        .describe(
+          "Task #134. Derived at read time for KONTi roles only (admin\/architect\/team\/superadmin).\nResolves to the most recently uploaded `construction_progress` photo's URL for the\nproject, falling back to `coverImage` when none exists. OMITTED for the client role.\n",
+        ),
+      clientCoverImage: zod
+        .string()
+        .optional()
+        .describe(
+          "Task #134. Derived at read time for the client role only. One of five curated KONTi\nmockup images, chosen by snapping `progressPercent` to the nearest landmark\n(0 \/ 25 \/ 50 \/ 75 \/ 100) using midpoints 12.5 \/ 37.5 \/ 62.5 \/ 87.5. OMITTED for\nnon-client roles.\n",
+        ),
+      clientCoverLandmark: zod
+        .union([
+          zod.literal(0),
+          zod.literal(25),
+          zod.literal(50),
+          zod.literal(75),
+          zod.literal(100),
+        ])
+        .optional()
+        .describe(
+          'Task #134. The landmark percent the `clientCoverImage` was snapped to, surfaced so\nthe dashboard can render a tiny \"X% milestone\" pill. Client role only.\n',
+        ),
       asanaGid: zod.string().optional(),
       gammaReportUrl: zod.string().optional(),
       teamMembers: zod.array(zod.string()).optional(),
@@ -1681,6 +1801,30 @@ export const ApproveProposalResponse = zod.object({
       estimatedEndDate: zod.string(),
       description: zod.string().optional(),
       coverImage: zod.string().optional(),
+      liveCoverImage: zod
+        .string()
+        .optional()
+        .describe(
+          "Task #134. Derived at read time for KONTi roles only (admin\/architect\/team\/superadmin).\nResolves to the most recently uploaded `construction_progress` photo's URL for the\nproject, falling back to `coverImage` when none exists. OMITTED for the client role.\n",
+        ),
+      clientCoverImage: zod
+        .string()
+        .optional()
+        .describe(
+          "Task #134. Derived at read time for the client role only. One of five curated KONTi\nmockup images, chosen by snapping `progressPercent` to the nearest landmark\n(0 \/ 25 \/ 50 \/ 75 \/ 100) using midpoints 12.5 \/ 37.5 \/ 62.5 \/ 87.5. OMITTED for\nnon-client roles.\n",
+        ),
+      clientCoverLandmark: zod
+        .union([
+          zod.literal(0),
+          zod.literal(25),
+          zod.literal(50),
+          zod.literal(75),
+          zod.literal(100),
+        ])
+        .optional()
+        .describe(
+          'Task #134. The landmark percent the `clientCoverImage` was snapped to, surfaced so\nthe dashboard can render a tiny \"X% milestone\" pill. Client role only.\n',
+        ),
       asanaGid: zod.string().optional(),
       gammaReportUrl: zod.string().optional(),
       teamMembers: zod.array(zod.string()).optional(),
@@ -2712,6 +2856,30 @@ export const SetPermitItemStateResponse = zod.object({
     estimatedEndDate: zod.string(),
     description: zod.string().optional(),
     coverImage: zod.string().optional(),
+    liveCoverImage: zod
+      .string()
+      .optional()
+      .describe(
+        "Task #134. Derived at read time for KONTi roles only (admin\/architect\/team\/superadmin).\nResolves to the most recently uploaded `construction_progress` photo's URL for the\nproject, falling back to `coverImage` when none exists. OMITTED for the client role.\n",
+      ),
+    clientCoverImage: zod
+      .string()
+      .optional()
+      .describe(
+        "Task #134. Derived at read time for the client role only. One of five curated KONTi\nmockup images, chosen by snapping `progressPercent` to the nearest landmark\n(0 \/ 25 \/ 50 \/ 75 \/ 100) using midpoints 12.5 \/ 37.5 \/ 62.5 \/ 87.5. OMITTED for\nnon-client roles.\n",
+      ),
+    clientCoverLandmark: zod
+      .union([
+        zod.literal(0),
+        zod.literal(25),
+        zod.literal(50),
+        zod.literal(75),
+        zod.literal(100),
+      ])
+      .optional()
+      .describe(
+        'Task #134. The landmark percent the `clientCoverImage` was snapped to, surfaced so\nthe dashboard can render a tiny \"X% milestone\" pill. Client role only.\n',
+      ),
     asanaGid: zod.string().optional(),
     gammaReportUrl: zod.string().optional(),
     teamMembers: zod.array(zod.string()).optional(),
@@ -3147,6 +3315,30 @@ export const AcceptLeadResponse = zod.object({
     estimatedEndDate: zod.string(),
     description: zod.string().optional(),
     coverImage: zod.string().optional(),
+    liveCoverImage: zod
+      .string()
+      .optional()
+      .describe(
+        "Task #134. Derived at read time for KONTi roles only (admin\/architect\/team\/superadmin).\nResolves to the most recently uploaded `construction_progress` photo's URL for the\nproject, falling back to `coverImage` when none exists. OMITTED for the client role.\n",
+      ),
+    clientCoverImage: zod
+      .string()
+      .optional()
+      .describe(
+        "Task #134. Derived at read time for the client role only. One of five curated KONTi\nmockup images, chosen by snapping `progressPercent` to the nearest landmark\n(0 \/ 25 \/ 50 \/ 75 \/ 100) using midpoints 12.5 \/ 37.5 \/ 62.5 \/ 87.5. OMITTED for\nnon-client roles.\n",
+      ),
+    clientCoverLandmark: zod
+      .union([
+        zod.literal(0),
+        zod.literal(25),
+        zod.literal(50),
+        zod.literal(75),
+        zod.literal(100),
+      ])
+      .optional()
+      .describe(
+        'Task #134. The landmark percent the `clientCoverImage` was snapped to, surfaced so\nthe dashboard can render a tiny \"X% milestone\" pill. Client role only.\n',
+      ),
     asanaGid: zod.string().optional(),
     gammaReportUrl: zod.string().optional(),
     teamMembers: zod.array(zod.string()).optional(),

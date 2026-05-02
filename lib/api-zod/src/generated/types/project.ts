@@ -5,6 +5,7 @@
  * KONTi Design | Build Studio - Project Management API
  * OpenAPI spec version: 0.1.0
  */
+import type { ProjectClientCoverLandmark } from "./projectClientCoverLandmark";
 import type { ProjectPhase } from "./projectPhase";
 import type { ProjectProjectType } from "./projectProjectType";
 import type { ProjectStatus } from "./projectStatus";
@@ -27,6 +28,21 @@ export interface Project {
   estimatedEndDate: string;
   description?: string;
   coverImage?: string;
+  /** Task #134. Derived at read time for KONTi roles only (admin/architect/team/superadmin).
+Resolves to the most recently uploaded `construction_progress` photo's URL for the
+project, falling back to `coverImage` when none exists. OMITTED for the client role.
+ */
+  liveCoverImage?: string;
+  /** Task #134. Derived at read time for the client role only. One of five curated KONTi
+mockup images, chosen by snapping `progressPercent` to the nearest landmark
+(0 / 25 / 50 / 75 / 100) using midpoints 12.5 / 37.5 / 62.5 / 87.5. OMITTED for
+non-client roles.
+ */
+  clientCoverImage?: string;
+  /** Task #134. The landmark percent the `clientCoverImage` was snapped to, surfaced so
+the dashboard can render a tiny "X% milestone" pill. Client role only.
+ */
+  clientCoverLandmark?: ProjectClientCoverLandmark;
   asanaGid?: string;
   gammaReportUrl?: string;
   teamMembers?: string[];

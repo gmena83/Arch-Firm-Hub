@@ -242,17 +242,30 @@ export default function ProjectsPage() {
               {projects.map((project) => {
                 const phaseLabel = lang === "es" ? project.phaseLabelEs : project.phaseLabel;
                 const spendPct = Math.round((project.budgetUsed / project.budgetAllocated) * 100);
+                // Task #134: role-derived cover image. Client → milestone
+                // mockup; KONTi staff → latest construction-progress photo
+                // (with `coverImage` as the universal fallback).
+                const rowImage = isClientUser
+                  ? (project.clientCoverImage ?? project.coverImage)
+                  : (project.liveCoverImage ?? project.coverImage);
+                const rowImageAlt = isClientUser
+                  ? t(
+                      `${project.name} — milestone mockup at ${project.clientCoverLandmark ?? project.progressPercent}%`,
+                      `${project.name} — maqueta de hito al ${project.clientCoverLandmark ?? project.progressPercent}%`,
+                    )
+                  : t(`${project.name} — latest site photo`, `${project.name} — última foto del sitio`);
                 return (
                   <div
                     key={project.id}
                     data-testid={`row-project-${project.id}`}
                     className="bg-card rounded-xl border border-card-border shadow-sm p-3 sm:p-4 flex items-center gap-3 sm:gap-4 hover:shadow-md transition-shadow"
                   >
-                    {project.coverImage && (
+                    {rowImage && (
                       <img
-                        src={resolveSeedImageUrl(project.coverImage)}
-                        alt={project.name}
+                        src={resolveSeedImageUrl(rowImage)}
+                        alt={rowImageAlt}
                         className="w-20 h-16 object-cover rounded-lg shrink-0 hidden sm:block"
+                        data-testid={`img-project-row-cover-${project.id}`}
                       />
                     )}
                     <div className="flex-1 min-w-0">
@@ -261,6 +274,14 @@ export default function ProjectsPage() {
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${phaseColors[project.phase]}`}>
                           {phaseLabel}
                         </span>
+                        {isClientUser && typeof project.clientCoverLandmark === "number" && (
+                          <span
+                            data-testid={`pill-milestone-${project.id}`}
+                            className="text-[11px] px-2 py-0.5 rounded-full bg-konti-olive/10 text-konti-olive font-semibold"
+                          >
+                            {project.clientCoverLandmark}% {t("milestone", "hito")}
+                          </span>
+                        )}
                       </div>
                       <p className="text-sm text-muted-foreground flex items-center gap-1">
                         <MapPin className="w-3 h-3 shrink-0" /> {project.clientName} — {project.location}

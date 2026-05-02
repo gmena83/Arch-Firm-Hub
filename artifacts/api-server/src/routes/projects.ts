@@ -58,6 +58,7 @@ import {
   deleteDocumentFromDrive,
   applyVisibilityToDrive,
 } from "../lib/drive-sync";
+import { enrichProjectForRole, type PhotoDoc } from "../lib/dynamic-cover";
 
 const router: IRouter = Router();
 
@@ -141,12 +142,22 @@ function clientCanAccessProject(userId: string, projectId: string): boolean {
   return project.clientUserId === userId;
 }
 
+// Helper: derive the role-appropriate cover image (Task #134). KONTi roles
+// see the most recent `construction_progress` photo for the project; client
+// role sees a mockup snapped to the nearest 25 % milestone. The branch is
+// enforced server-side via `enrichProjectForRole` so the wrong field is
+// omitted from the payload entirely.
+function withDynamicCover(project: typeof PROJECTS[number], role: string | undefined) {
+  const docs = ((DOCUMENTS as Record<string, unknown[]>)[project.id] ?? []) as PhotoDoc[];
+  return enrichProjectForRole(project, role, docs);
+}
+
 router.get("/projects", requireRole(["team", "admin", "superadmin", "architect", "client"]), (req, res) => {
   const user = (req as { user?: { id: string; role: string } }).user;
-  if (user?.role === "client") {
-    return res.json(PROJECTS.filter((p) => (p as { clientUserId?: string }).clientUserId === user.id));
-  }
-  return res.json(PROJECTS);
+  const visible = user?.role === "client"
+    ? PROJECTS.filter((p) => (p as { clientUserId?: string }).clientUserId === user.id)
+    : PROJECTS;
+  return res.json(visible.map((p) => withDynamicCover(p, user?.role)));
 });
 
 router.post("/projects", requireRole(["team", "admin", "superadmin"]), (req, res) => {
@@ -234,7 +245,8 @@ router.get("/projects/:projectId", requireRole(["team", "admin", "superadmin", "
     return;
   }
   if (!enforceClientOwnership(req, res, req.params["projectId"] as string)) return;
-  return res.json(project);
+  const role = (req as { user?: { role?: string } }).user?.role;
+  return res.json(withDynamicCover(project, role));
 });
 
 router.get("/projects/:projectId/tasks", requireRole(["team", "admin", "superadmin", "architect", "client"]), (req, res) => {
