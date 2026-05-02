@@ -40,7 +40,7 @@ import {
   __resetCalculatorHydrationForTest,
   ensureCalculatorHydrated,
 } from "../projects";
-import { flushEstimatingPersistence } from "../estimating";
+import { flushEstimatingPersistence, applyEstimatingSnapshot } from "../estimating";
 
 type LoginResponse = { token: string; user: { id: string; role: string } };
 
@@ -439,6 +439,12 @@ test("DB-6: 200 OK guarantees durability — calculator + estimating writes are 
     await saveCalculatorEntriesForProject(projectId, []);
     __resetCalculatorHydrationForTest();
     await __resetEstimatingTablesForTest();
+    // Reset in-memory estimating state too — the API mutations above
+    // appended a "Durability Trade" labor rate to LABOR_RATES which
+    // would otherwise leak into the next test file in the same process
+    // (the PDF tests in estimating.test.ts snapshot at start, so a
+    // polluted snapshot becomes the new "baseline" they restore to).
+    applyEstimatingSnapshot(null);
   }
 });
 

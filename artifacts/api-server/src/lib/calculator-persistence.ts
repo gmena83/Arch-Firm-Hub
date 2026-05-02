@@ -36,9 +36,18 @@ export function ensureCalculatorHydrated(): Promise<void> {
         calc[projectId] = entries;
       }
     } catch (err) {
+      // Log AND rethrow: the bootstrap path in `index.ts` relies on this
+      // promise rejecting so it can fail-fast in production rather than
+      // serve traffic from seed defaults. Swallowing here would silently
+      // bypass the documented hydration failure policy.
       logger.error({ err }, "calculator: hydration from Postgres failed");
+      throw err;
     }
   })();
+  // Attach a noop catch so an UNAWAITED call (e.g. accidental fire-and-forget
+  // from a route handler) doesn't trigger an UnhandledPromiseRejection — but
+  // the original promise we return still rejects so awaiters see the error.
+  _calcHydrationPromise.catch(() => undefined);
   return _calcHydrationPromise;
 }
 
