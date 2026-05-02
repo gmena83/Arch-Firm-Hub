@@ -93,7 +93,11 @@ export function getEstimatingPersistFile(): string {
  * out-of-tree code that used to set the active disk path doesn't
  * crash on a missing export.
  */
-export function setEstimatingPersistFile(p: string): void {
+export function setEstimatingPersistFile(p: string | null): void {
   warnOnce(fileFlag, "setEstimatingPersistFile");
-  _persistFilePath = p;
+  // The original sync-file implementation accepted `null` to mean "reset
+  // back to the default `.data/estimating.json` path"; preserve that
+  // signature so external callers passing `null` don't break on the
+  // type-narrowed shim. The value is still vestigial — see getter doc.
+  _persistFilePath = p ?? ".data/estimating.json";
 }
