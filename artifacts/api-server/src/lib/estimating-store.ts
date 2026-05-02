@@ -1,7 +1,7 @@
 // Estimating + calculator persistence — Postgres backend (Task #141).
 //
 // History: until #141 these stores lived in `.data/estimating.json`, written
-// by the now-deleted `lib/estimating-persistence.ts`. JSON-on-disk lost data on every
+// by `lib/estimating-persistence.ts` (now reduced to a deprecated re-export shim that delegates here). JSON-on-disk lost data on every
 // container redeploy because Replit deployments don't keep the workspace
 // filesystem. Postgres (currently the local Replit PG; Supabase later) gives
 // us real durability with the same pure-snapshot API the routes already use.
