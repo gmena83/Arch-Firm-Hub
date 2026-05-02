@@ -1008,11 +1008,6 @@ router.get("/projects/:id/variance-report", requireRole(["team","admin","superad
   const actualLabor = cp?.laborCost ?? 0;
   const actualSubcontractor = cp?.subcontractorCost ?? 0;
 
-  // Roll up project invoices into the same M/L/S buckets and per-category
-  // breakdown. Invoices that don't fit any of those (design-phase, closeout)
-  // surface as a separate "unassigned" bucket so the variance report doesn't
-  // silently drop them. Per-category invoiced is only populated when an
-  // invoice has an explicit `category` matching the contractor estimate.
   const projectInvoices = PROJECT_INVOICES[project.id] ?? [];
   const invoicedByBucket: Record<"materials" | "labor" | "subcontractor" | "unassigned", number> = {
     materials: 0, labor: 0, subcontractor: 0, unassigned: 0,
@@ -1025,9 +1020,8 @@ router.get("/projects/:id/variance-report", requireRole(["team","admin","superad
     }
   }
 
-  // Percent change from `base` → `value`. Returns `null` (rendered as "—" in
-  // the UI) when the base is zero so we never publish a misleading "0%" for
-  // a bucket that has, e.g., real spend but zero invoiced. Tests assert this.
+  // Returns null when base is 0 and value is non-zero so the UI can render
+  // "—" instead of a misleading "0%".
   function pct(base: number, value: number): number | null {
     if (base === 0) return value === 0 ? 0 : null;
     return Math.round(((value - base) / base) * 1000) / 10;
@@ -1060,8 +1054,6 @@ router.get("/projects/:id/variance-report", requireRole(["team","admin","superad
     status: (b.actual <= b.estimated * 1.05 ? "on_track" : b.actual <= b.estimated * 1.15 ? "warning" : "over") as "on_track" | "warning" | "over",
   }));
 
-  // Surface invoices that don't fit M/L/S (design, closeout, overhead) as a
-  // dedicated bucket so the variance UI accounts for every dollar billed.
   if (invoicedByBucket.unassigned > 0) {
     buckets.push({
       key: "unassigned",
@@ -1078,10 +1070,6 @@ router.get("/projects/:id/variance-report", requireRole(["team","admin","superad
     });
   }
 
-  // Material category breakdown (only when estimate by category exists).
-  // Pre-collect category keys from BOTH the estimate and the invoices so
-  // categories that were billed but not estimated still appear with a
-  // visible "$0 estimated" row instead of vanishing.
   const materialCategoryKeys = new Set<string>();
   for (const cat of Object.keys(estByCategory)) {
     if (cat !== "labor" && cat !== "subcontractor") materialCategoryKeys.add(cat);
@@ -1109,11 +1097,6 @@ router.get("/projects/:id/variance-report", requireRole(["team","admin","superad
 
   const totalEstimated = estimatedMaterials + estimatedLabor + estimatedSubcontractor;
   const totalActual = actualMaterials + actualLabor + actualSubcontractor;
-  // Split invoiced into "in-plan" (M/L/S — the part that has a matching
-  // Actual to compare against) and "unassigned" (design / closeout / overhead
-  // — billed but with no cost-plan counterpart). The primary Δ-vs-Invoiced
-  // pill compares Actual against in-plan invoiced ONLY so the scopes match.
-  // `invoiced` (= in-plan + unassigned) is kept for cashflow displays.
   const invoicedInPlan = invoicedByBucket.materials + invoicedByBucket.labor + invoicedByBucket.subcontractor;
   const invoicedUnassigned = invoicedByBucket.unassigned;
   const totalInvoiced = invoicedInPlan + invoicedUnassigned;
@@ -1133,8 +1116,6 @@ router.get("/projects/:id/variance-report", requireRole(["team","admin","superad
       invoicedUnassigned,
       variance: totalActual - totalEstimated,
       variancePercent: pct(totalEstimated, totalActual),
-      // Apples-to-apples: Actual M/L/S − Invoiced M/L/S only. Excludes
-      // unassigned so the delta reads as a real cost-plan variance.
       varianceVsInvoiced: totalActual - invoicedInPlan,
       varianceVsInvoicedPercent: pct(invoicedInPlan, totalActual),
     },

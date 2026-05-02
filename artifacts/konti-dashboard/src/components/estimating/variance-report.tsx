@@ -17,12 +17,6 @@ export function VarianceReportPanel({
 }) {
   const { t, lang } = useLang();
   const { data: projects = [] } = useListProjects();
-  // Client viewers (and team members impersonating "client" via the
-  // project-detail toggle) must not see the invoiced columns, series,
-  // totals, or the Δ vs Invoiced deltas. The numbers are billing-internal
-  // and could be misread by the client. Mirrors the existing
-  // `!isClientView` gating elsewhere in the app (cost-plus budget,
-  // project report, contractor estimate panel).
   const { viewRole } = useAuth();
   const isClientView = viewRole === "client";
   const [projectId, setProjectId] = useState<string>(defaultProjectId ?? "");
@@ -49,10 +43,6 @@ export function VarianceReportPanel({
     return () => { cancel = true; };
   }, [projectId]);
 
-  // Helper: render an Actual vs <base> delta as a colored pill. The variance
-  // formula matches the backend (Actual − base; positive = over). When the
-  // base is zero the percent is `null` from the API and we render "—" so
-  // we never show a misleading "0%" for a non-zero dollar delta.
   const fmtPct = (p: number | null): string => (p === null ? "—" : `${p >= 0 ? "+" : ""}${p}%`);
   const renderDelta = (value: number, percent: number | null, testid?: string) => (
     <span
@@ -101,11 +91,6 @@ export function VarianceReportPanel({
 
           <div className={`grid gap-3 ${compact ? "grid-cols-1" : "grid-cols-1 md:grid-cols-3"}`}>
             {report.buckets
-              // The "unassigned" bucket only exists to surface invoices
-              // that are not in the Materials/Labor/Subcontractor cost
-              // plan — there is nothing for a client to compare against,
-              // so we drop it from the client view entirely (mirrors the
-              // gating on the per-bucket Invoiced row below).
               .filter((b) => !(isClientView && b.key === "unassigned"))
               .map((b) => (
               <div key={b.key} className="bg-card rounded-xl border border-card-border p-4 shadow-sm" data-testid={`variance-bucket-${b.key}`}>
@@ -153,9 +138,6 @@ export function VarianceReportPanel({
                     .map((b) => ({
                       name: lang === "es" ? b.labelEs : b.labelEn,
                       [t("Estimated", "Estimado")]: b.estimated,
-                      // Invoiced bar omitted from the client chart so the
-                      // billing-internal series doesn't leak through the
-                      // Recharts data prop.
                       ...(isClientView ? {} : { [t("Invoiced", "Facturado")]: b.invoiced }),
                       [t("Actual", "Real")]: b.actual,
                     }))}>
@@ -164,10 +146,6 @@ export function VarianceReportPanel({
                     <YAxis tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
                     <Tooltip formatter={(v: number) => `$${v.toLocaleString()}`} />
                     <Legend />
-                    {/* Brand bar fills sourced from the central KONTi palette
-                        in `index.css` (`--konti-slate` / `--konti-olive` /
-                        `--konti-dark`), with hex fallbacks if the var
-                        hasn't resolved yet. */}
                     <Bar dataKey={t("Estimated", "Estimado")} fill="var(--konti-slate, #778894)" />
                     {!isClientView && (
                       <Bar dataKey={t("Invoiced", "Facturado")} fill="var(--konti-dark, #2A2D2F)" />
@@ -223,12 +201,6 @@ export function VarianceReportPanel({
             </div>
           )}
 
-          {/* Totals strip per task spec: three primary headlines (Estimated,
-              Invoiced, Actual) + two deltas. The headline "Total Invoiced"
-              is the everything-billed number (in-plan + unassigned). The
-              "Δ vs Invoiced" pill below uses the matched-scope number
-              (in-plan only) so the comparison is apples-to-apples; we expose
-              both with explicit sub-lines so the accounting is transparent. */}
           <div className={`bg-konti-dark rounded-xl p-5 grid grid-cols-2 gap-3 text-white ${isClientView ? "md:grid-cols-3" : "md:grid-cols-5"}`} data-testid="variance-totals">
             <div>
               <p className="text-xs text-white/50">{t("Total Estimated", "Total Estimado")}</p>

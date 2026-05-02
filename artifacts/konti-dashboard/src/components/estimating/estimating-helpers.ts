@@ -76,11 +76,6 @@ export async function readFileAsText(file: File): Promise<string> {
   });
 }
 
-// Variance schema lives in the OpenAPI spec at
-// `lib/api-spec/openapi.yaml#/components/schemas/VarianceReport`. We
-// re-export the generated types here so existing imports
-// (`from "./estimating-helpers"`) keep working without forcing every
-// consumer to know about the codegen path.
 export type {
   VarianceBucket,
   VarianceMaterialCategory,

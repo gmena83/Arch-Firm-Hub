@@ -48,12 +48,6 @@ export function ImportsPanel() {
   const [matCsv, setMatCsv] = useState(SAMPLE_MATERIALS);
   const [labCsv, setLabCsv] = useState(SAMPLE_LABOR);
   const [recCsv, setRecCsv] = useState(SAMPLE_RECEIPTS);
-  // Template-form seed values: re-localized whenever the language pill
-  // is toggled, but only for fields the user hasn't edited. We track an
-  // explicit `dirty` flag per field so a user who has typed their own
-  // text never gets it overwritten by a language switch. Defaults flow
-  // through `t()` (the same helper every other label uses) so the
-  // translation lint stays clean.
   const tplDefaults = () => ({
     name: t("KONTi Standard v2", "KONTi Estándar v2"),
     columns: t(
@@ -74,17 +68,12 @@ export function ImportsPanel() {
   const [tplHeader, setTplHeader] = useState(() => tplDefaults().header);
   const [tplFooter, setTplFooter] = useState(() => tplDefaults().footer);
   const [tplDirty, setTplDirty] = useState({ name: false, columns: false, header: false, footer: false });
-  // Re-seed any untouched template field when the language changes so the
-  // calculator surface flips fully — including default copy that lives
-  // inside editable inputs, not just static labels.
   useEffect(() => {
     const d = tplDefaults();
     setTplName((prev) => (tplDirty.name ? prev : d.name));
     setTplColumns((prev) => (tplDirty.columns ? prev : d.columns));
     setTplHeader((prev) => (tplDirty.header ? prev : d.header));
     setTplFooter((prev) => (tplDirty.footer ? prev : d.footer));
-    // tplDirty intentionally omitted from deps — we only react to lang.
-    // tplDefaults closes over `t` which closes over `lang`.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lang]);
   const [matResult, setMatResult] = useState<UploadResult | null>(null);
