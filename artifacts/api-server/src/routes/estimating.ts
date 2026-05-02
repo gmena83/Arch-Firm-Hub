@@ -167,9 +167,18 @@ export function applyEstimatingSnapshot(snap: PersistedSnapshot | null): void {
 let _pendingPersistence: Promise<unknown> = Promise.resolve();
 
 export function persistEstimatingState(): Promise<void> {
+  // Snapshot AND deep-clone the in-memory state synchronously at enqueue
+  // time. The shallow snapshot returned by `snapshotEstimatingState()`
+  // shares array/object references with the live `EXTRA_MATERIALS` etc.
+  // structures, so without the clone a write that sat in the queue while
+  // a second mutation came in would persist the LATER state, not the
+  // state at this caller's request boundary. `structuredClone` is in the
+  // Node global since 17 (we run >=20) and handles the plain
+  // arrays/objects this snapshot contains.
+  const frozen = structuredClone(snapshotEstimatingState());
   const next = _pendingPersistence
     .catch(() => undefined) // never let an old failure block new writes
-    .then(() => saveEstimatingSnapshotToDb(snapshotEstimatingState()));
+    .then(() => saveEstimatingSnapshotToDb(frozen));
   // Keep the chained promise on the queue (with errors swallowed) so a
   // follow-up call serialises behind this one, but return a separate
   // promise that propagates the error to the awaiting route handler so

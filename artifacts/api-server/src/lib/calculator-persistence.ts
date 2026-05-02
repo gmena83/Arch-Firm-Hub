@@ -62,7 +62,15 @@ const _calcPendingByProject: Map<string, Promise<unknown>> = new Map();
 
 export function persistCalculatorEntriesForProject(projectId: string): Promise<void> {
   const calc = CALCULATOR_ENTRIES as unknown as Record<string, CalculatorEntry[]>;
-  const entries = calc[projectId] ?? [];
+  // Deep-clone the entries SYNCHRONOUSLY at enqueue time so a queued
+  // write captures the state at this caller's request boundary, not
+  // whatever the live in-memory list happens to look like when the
+  // queue actually drains. Without this, two PATCH requests landing
+  // in quick succession could both persist the second request's state
+  // (because the first queued closure would re-read the now-mutated
+  // shared array reference). `structuredClone` is in the Node global
+  // since 17 and handles the plain `CalculatorEntry` shape correctly.
+  const entries = structuredClone(calc[projectId] ?? []);
   const prev = _calcPendingByProject.get(projectId) ?? Promise.resolve();
   const next = prev
     .catch(() => undefined)
