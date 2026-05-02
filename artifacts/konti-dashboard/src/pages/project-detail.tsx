@@ -1467,6 +1467,14 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
                 <span className="text-xs font-semibold px-3 py-1 rounded-full bg-konti-olive text-white">
                   {phaseLabel}
                 </span>
+                {user?.role === "client" && typeof project.clientCoverLandmark === "number" && (
+                  <span
+                    className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/85 text-konti-dark backdrop-blur-sm"
+                    data-testid={`pill-milestone-${projectId}`}
+                  >
+                    {project.clientCoverLandmark}% {t("milestone", "hito")}
+                  </span>
+                )}
                 <Link
                   href={`/projects/${projectId}/report`}
                   className="text-xs flex items-center gap-1 text-white/80 hover:text-white transition-colors [text-shadow:_0_1px_3px_rgb(0_0_0_/_0.55)]"
