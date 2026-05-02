@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLang } from "@/hooks/use-lang";
+import { useAuth } from "@/hooks/use-auth";
 import { useListProjects } from "@workspace/api-client-react";
 import { TrendingUp, TrendingDown, Minus, BarChart3 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from "recharts";
@@ -16,6 +17,14 @@ export function VarianceReportPanel({
 }) {
   const { t, lang } = useLang();
   const { data: projects = [] } = useListProjects();
+  // Client viewers (and team members impersonating "client" via the
+  // project-detail toggle) must not see the invoiced columns, series,
+  // totals, or the Δ vs Invoiced deltas. The numbers are billing-internal
+  // and could be misread by the client. Mirrors the existing
+  // `!isClientView` gating elsewhere in the app (cost-plus budget,
+  // project report, contractor estimate panel).
+  const { viewRole } = useAuth();
+  const isClientView = viewRole === "client";
   const [projectId, setProjectId] = useState<string>(defaultProjectId ?? "");
   const [report, setReport] = useState<VarianceReport | null>(null);
   const [loading, setLoading] = useState(false);
@@ -91,7 +100,14 @@ export function VarianceReportPanel({
           </p>
 
           <div className={`grid gap-3 ${compact ? "grid-cols-1" : "grid-cols-1 md:grid-cols-3"}`}>
-            {report.buckets.map((b) => (
+            {report.buckets
+              // The "unassigned" bucket only exists to surface invoices
+              // that are not in the Materials/Labor/Subcontractor cost
+              // plan — there is nothing for a client to compare against,
+              // so we drop it from the client view entirely (mirrors the
+              // gating on the per-bucket Invoiced row below).
+              .filter((b) => !(isClientView && b.key === "unassigned"))
+              .map((b) => (
               <div key={b.key} className="bg-card rounded-xl border border-card-border p-4 shadow-sm" data-testid={`variance-bucket-${b.key}`}>
                 <div className="flex items-center justify-between mb-1.5">
                   <p className="text-xs font-semibold text-muted-foreground uppercase">{lang === "es" ? b.labelEs : b.labelEn}</p>
@@ -101,19 +117,23 @@ export function VarianceReportPanel({
                   <span className="text-muted-foreground">{t("Estimated", "Estimado")}</span>
                   <span className="font-semibold text-foreground">${b.estimated.toLocaleString()}</span>
                 </div>
-                <div className="flex items-baseline justify-between text-xs mt-1">
-                  <span className="text-muted-foreground">{t("Invoiced", "Facturado")}</span>
-                  <span className="font-semibold text-foreground" data-testid={`variance-bucket-${b.key}-invoiced`}>${b.invoiced.toLocaleString()}</span>
-                </div>
+                {!isClientView && (
+                  <div className="flex items-baseline justify-between text-xs mt-1">
+                    <span className="text-muted-foreground">{t("Invoiced", "Facturado")}</span>
+                    <span className="font-semibold text-foreground" data-testid={`variance-bucket-${b.key}-invoiced`}>${b.invoiced.toLocaleString()}</span>
+                  </div>
+                )}
                 <div className="flex items-baseline justify-between text-xs mt-1">
                   <span className="text-muted-foreground">{t("Actual", "Real")}</span>
                   <span className="font-semibold text-foreground">${b.actual.toLocaleString()}</span>
                 </div>
-                <div className="flex items-baseline justify-between text-sm border-t border-border pt-1.5 mt-1.5">
-                  <span className="text-muted-foreground" title={t("Actual minus Invoiced", "Real menos Facturado")}>{t("Δ vs Invoiced", "Δ vs Facturado")}</span>
-                  {renderDelta(b.varianceVsInvoiced, b.varianceVsInvoicedPercent, `variance-bucket-${b.key}-delta-invoiced`)}
-                </div>
-                <div className="flex items-baseline justify-between text-xs mt-1">
+                {!isClientView && (
+                  <div className="flex items-baseline justify-between text-sm border-t border-border pt-1.5 mt-1.5">
+                    <span className="text-muted-foreground" title={t("Actual minus Invoiced", "Real menos Facturado")}>{t("Δ vs Invoiced", "Δ vs Facturado")}</span>
+                    {renderDelta(b.varianceVsInvoiced, b.varianceVsInvoicedPercent, `variance-bucket-${b.key}-delta-invoiced`)}
+                  </div>
+                )}
+                <div className={`flex items-baseline justify-between text-xs mt-1 ${isClientView ? "border-t border-border pt-1.5" : ""}`}>
                   <span className="text-muted-foreground" title={t("Actual minus Estimated", "Real menos Estimado")}>{t("Δ vs Estimated", "Δ vs Estimado")}</span>
                   <span className={`font-medium ${b.variance > 0 ? "text-destructive/80" : b.variance < 0 ? "text-konti-olive/80" : "text-muted-foreground"}`}>
                     {b.variance >= 0 ? "+" : ""}${b.variance.toLocaleString()} ({fmtPct(b.variancePercent)})
@@ -128,12 +148,17 @@ export function VarianceReportPanel({
               <p className="text-xs font-semibold text-muted-foreground uppercase mb-3">{t("Top-line comparison", "Comparación general")}</p>
               <div className="h-56">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={report.buckets.map((b) => ({
-                    name: lang === "es" ? b.labelEs : b.labelEn,
-                    [t("Estimated", "Estimado")]: b.estimated,
-                    [t("Invoiced", "Facturado")]: b.invoiced,
-                    [t("Actual", "Real")]: b.actual,
-                  }))}>
+                  <BarChart data={report.buckets
+                    .filter((b) => !(isClientView && b.key === "unassigned"))
+                    .map((b) => ({
+                      name: lang === "es" ? b.labelEs : b.labelEn,
+                      [t("Estimated", "Estimado")]: b.estimated,
+                      // Invoiced bar omitted from the client chart so the
+                      // billing-internal series doesn't leak through the
+                      // Recharts data prop.
+                      ...(isClientView ? {} : { [t("Invoiced", "Facturado")]: b.invoiced }),
+                      [t("Actual", "Real")]: b.actual,
+                    }))}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                     <YAxis tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
@@ -144,7 +169,9 @@ export function VarianceReportPanel({
                         `--konti-dark`), with hex fallbacks if the var
                         hasn't resolved yet. */}
                     <Bar dataKey={t("Estimated", "Estimado")} fill="var(--konti-slate, #778894)" />
-                    <Bar dataKey={t("Invoiced", "Facturado")} fill="var(--konti-dark, #2A2D2F)" />
+                    {!isClientView && (
+                      <Bar dataKey={t("Invoiced", "Facturado")} fill="var(--konti-dark, #2A2D2F)" />
+                    )}
                     <Bar dataKey={t("Actual", "Real")} fill="var(--konti-olive, #4F5E2A)" />
                   </BarChart>
                 </ResponsiveContainer>
@@ -161,9 +188,13 @@ export function VarianceReportPanel({
                     <tr>
                       <th className="text-left px-3 py-2">{t("Category", "Categoría")}</th>
                       <th className="text-right px-3 py-2">{t("Estimated", "Estimado")}</th>
-                      <th className="text-right px-3 py-2">{t("Invoiced", "Facturado")}</th>
+                      {!isClientView && (
+                        <th className="text-right px-3 py-2">{t("Invoiced", "Facturado")}</th>
+                      )}
                       <th className="text-right px-3 py-2">{t("Actual", "Real")}</th>
-                      <th className="text-right px-3 py-2">{t("Δ vs Invoiced", "Δ vs Facturado")}</th>
+                      {!isClientView && (
+                        <th className="text-right px-3 py-2">{t("Δ vs Invoiced", "Δ vs Facturado")}</th>
+                      )}
                       <th className="text-right px-3 py-2">{t("Δ vs Estimated", "Δ vs Estimado")}</th>
                     </tr>
                   </thead>
@@ -172,11 +203,15 @@ export function VarianceReportPanel({
                       <tr key={c.category}>
                         <td className="px-3 py-1.5 capitalize">{c.category}</td>
                         <td className="px-3 py-1.5 text-right">${c.estimated.toLocaleString()}</td>
-                        <td className="px-3 py-1.5 text-right" data-testid={`variance-cat-${c.category}-invoiced`}>${c.invoiced.toLocaleString()}</td>
+                        {!isClientView && (
+                          <td className="px-3 py-1.5 text-right" data-testid={`variance-cat-${c.category}-invoiced`}>${c.invoiced.toLocaleString()}</td>
+                        )}
                         <td className="px-3 py-1.5 text-right">${c.actual.toLocaleString()}</td>
-                        <td className={`px-3 py-1.5 text-right font-semibold ${c.varianceVsInvoiced > 0 ? "text-destructive" : c.varianceVsInvoiced < 0 ? "text-konti-olive" : "text-muted-foreground"}`}>
-                          {c.varianceVsInvoiced >= 0 ? "+" : ""}${c.varianceVsInvoiced.toLocaleString()} ({fmtPct(c.varianceVsInvoicedPercent)})
-                        </td>
+                        {!isClientView && (
+                          <td className={`px-3 py-1.5 text-right font-semibold ${c.varianceVsInvoiced > 0 ? "text-destructive" : c.varianceVsInvoiced < 0 ? "text-konti-olive" : "text-muted-foreground"}`}>
+                            {c.varianceVsInvoiced >= 0 ? "+" : ""}${c.varianceVsInvoiced.toLocaleString()} ({fmtPct(c.varianceVsInvoicedPercent)})
+                          </td>
+                        )}
                         <td className={`px-3 py-1.5 text-right ${c.variance > 0 ? "text-destructive/80" : c.variance < 0 ? "text-konti-olive/80" : "text-muted-foreground"}`}>
                           {c.variance >= 0 ? "+" : ""}${c.variance.toLocaleString()} ({fmtPct(c.variancePercent)})
                         </td>
@@ -194,41 +229,45 @@ export function VarianceReportPanel({
               "Δ vs Invoiced" pill below uses the matched-scope number
               (in-plan only) so the comparison is apples-to-apples; we expose
               both with explicit sub-lines so the accounting is transparent. */}
-          <div className="bg-konti-dark rounded-xl p-5 grid grid-cols-2 md:grid-cols-5 gap-3 text-white" data-testid="variance-totals">
+          <div className={`bg-konti-dark rounded-xl p-5 grid grid-cols-2 gap-3 text-white ${isClientView ? "md:grid-cols-3" : "md:grid-cols-5"}`} data-testid="variance-totals">
             <div>
               <p className="text-xs text-white/50">{t("Total Estimated", "Total Estimado")}</p>
               <p className="text-xl font-bold">${report.totals.estimated.toLocaleString()}</p>
             </div>
-            <div>
-              <p className="text-xs text-white/50" title={t(
-                "All invoices billed to the client for this project (in-plan + unassigned).",
-                "Todas las facturas emitidas al cliente del proyecto (en plan + fuera de plan).",
-              )}>
-                {t("Total Invoiced", "Total Facturado")}
-              </p>
-              <p className="text-xl font-bold" data-testid="variance-totals-invoiced">
-                ${(report.totals.invoicedInPlan + report.totals.invoicedUnassigned).toLocaleString()}
-              </p>
-              <p className="text-[10px] text-white/40 mt-0.5" data-testid="variance-totals-invoiced-breakdown">
-                ${report.totals.invoicedInPlan.toLocaleString()} {t("in plan", "en plan")}
-                {report.totals.invoicedUnassigned > 0 && (
-                  <> · ${report.totals.invoicedUnassigned.toLocaleString()} {t("unassigned", "fuera de plan")}</>
-                )}
-              </p>
-            </div>
+            {!isClientView && (
+              <div>
+                <p className="text-xs text-white/50" title={t(
+                  "All invoices billed to the client for this project (in-plan + unassigned).",
+                  "Todas las facturas emitidas al cliente del proyecto (en plan + fuera de plan).",
+                )}>
+                  {t("Total Invoiced", "Total Facturado")}
+                </p>
+                <p className="text-xl font-bold" data-testid="variance-totals-invoiced">
+                  ${(report.totals.invoicedInPlan + report.totals.invoicedUnassigned).toLocaleString()}
+                </p>
+                <p className="text-[10px] text-white/40 mt-0.5" data-testid="variance-totals-invoiced-breakdown">
+                  ${report.totals.invoicedInPlan.toLocaleString()} {t("in plan", "en plan")}
+                  {report.totals.invoicedUnassigned > 0 && (
+                    <> · ${report.totals.invoicedUnassigned.toLocaleString()} {t("unassigned", "fuera de plan")}</>
+                  )}
+                </p>
+              </div>
+            )}
             <div>
               <p className="text-xs text-white/50">{t("Total Actual", "Total Real")}</p>
               <p className="text-xl font-bold">${report.totals.actual.toLocaleString()}</p>
             </div>
-            <div>
-              <p className="text-xs text-white/50" title={t(
-                "Actual minus In-plan Invoiced (matched scope: M/L/S only).",
-                "Real menos Facturado en plan (alcance equivalente: sólo M/L/S).",
-              )}>{t("Δ vs Invoiced", "Δ vs Facturado")}</p>
-              <p className={`text-xl font-bold ${report.totals.varianceVsInvoiced > 0 ? "text-red-300" : report.totals.varianceVsInvoiced < 0 ? "text-emerald-300" : "text-white/70"}`} data-testid="variance-totals-delta-invoiced">
-                {report.totals.varianceVsInvoiced >= 0 ? "+" : ""}${report.totals.varianceVsInvoiced.toLocaleString()} ({fmtPct(report.totals.varianceVsInvoicedPercent)})
-              </p>
-            </div>
+            {!isClientView && (
+              <div>
+                <p className="text-xs text-white/50" title={t(
+                  "Actual minus In-plan Invoiced (matched scope: M/L/S only).",
+                  "Real menos Facturado en plan (alcance equivalente: sólo M/L/S).",
+                )}>{t("Δ vs Invoiced", "Δ vs Facturado")}</p>
+                <p className={`text-xl font-bold ${report.totals.varianceVsInvoiced > 0 ? "text-red-300" : report.totals.varianceVsInvoiced < 0 ? "text-emerald-300" : "text-white/70"}`} data-testid="variance-totals-delta-invoiced">
+                  {report.totals.varianceVsInvoiced >= 0 ? "+" : ""}${report.totals.varianceVsInvoiced.toLocaleString()} ({fmtPct(report.totals.varianceVsInvoicedPercent)})
+                </p>
+              </div>
+            )}
             <div>
               <p className="text-xs text-white/50" title={t("Actual minus Estimated", "Real menos Estimado")}>{t("Δ vs Estimated", "Δ vs Estimado")}</p>
               <p className={`text-xl font-bold ${report.totals.variance > 0 ? "text-red-300" : report.totals.variance < 0 ? "text-emerald-300" : "text-white/70"}`}>
