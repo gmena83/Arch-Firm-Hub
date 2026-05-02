@@ -1,6 +1,6 @@
 // Persisted single-record integrations config (Task #127 + #128).
 //
-// Mirrors the JSON-on-disk pattern used by `estimating-persistence.ts` so a
+// Mirrors the JSON-on-disk pattern that the estimating routes used before
 // server restart preserves the chosen Asana workspace + board, the queued
 // sync attempts, and the rolling sync log without needing a real database.
 // Task #128 extends the same record with a Drive section (root folder +
