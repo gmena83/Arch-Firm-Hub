@@ -247,3 +247,90 @@ test("GET /api/projects/:id/spec-updates-report returns 404 on missing project",
     assert.equal(res.status, 404);
   });
 });
+
+// ----------------------------------------------------------------------------
+// Cross-client isolation (Task #155 / closes follow-up to Task #76)
+//
+// proj-1 is owned by user-client-1 (client@konti.com). The second seeded
+// client user-client-2 (client2@konti.com) must not be able to read or write
+// notes on proj-1, nor chat with the AI about it. The legitimate owner must
+// still get through. These tests pin the `clientOwnsProject` rule so a
+// future refactor of that helper can't silently regress.
+// ----------------------------------------------------------------------------
+
+test("cross-client: client2 → GET /api/projects/proj-1/notes is 403", async () => {
+  await withServer(async (baseUrl) => {
+    const token = await login(baseUrl, "client2@konti.com");
+    const res = await fetch(`${baseUrl}/api/projects/proj-1/notes`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    assert.equal(res.status, 403);
+    const body = (await res.json()) as { error?: string };
+    assert.equal(body.error, "forbidden");
+  });
+});
+
+test("cross-client: client2 → POST /api/projects/proj-1/notes is 403 and does not insert", async () => {
+  await withServer(async (baseUrl) => {
+    const before = (PROJECT_NOTES["proj-1"] ?? []).length;
+    const token = await login(baseUrl, "client2@konti.com");
+    const res = await fetch(`${baseUrl}/api/projects/proj-1/notes`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ text: "spy note", type: "general" }),
+    });
+    assert.equal(res.status, 403);
+    const body = (await res.json()) as { error?: string };
+    assert.equal(body.error, "forbidden");
+    const after = (PROJECT_NOTES["proj-1"] ?? []).length;
+    assert.equal(after, before, "non-owner POST must not append a note");
+  });
+});
+
+test("cross-client: client2 → POST /api/ai/chat with proj-1 is 403", async () => {
+  await withServer(async (baseUrl) => {
+    const token = await login(baseUrl, "client2@konti.com");
+    const res = await fetch(`${baseUrl}/api/ai/chat`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ message: "What is the budget?", mode: "client_assistant", projectId: "proj-1" }),
+    });
+    assert.equal(res.status, 403);
+    const body = (await res.json()) as { error?: string };
+    assert.equal(body.error, "forbidden");
+  });
+});
+
+test("cross-client (control): owner → GET /api/projects/proj-1/notes is 200", async () => {
+  await withServer(async (baseUrl) => {
+    const token = await login(baseUrl, "client@konti.com");
+    const res = await fetch(`${baseUrl}/api/projects/proj-1/notes`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    assert.equal(res.status, 200);
+    const body = (await res.json()) as { projectId: string; notes: unknown[] };
+    assert.equal(body.projectId, "proj-1");
+    assert.ok(Array.isArray(body.notes));
+  });
+});
+
+test("cross-client (control): owner → POST /api/projects/proj-1/notes is 200 and persists", async () => {
+  await withServer(async (baseUrl) => {
+    const before = (PROJECT_NOTES["proj-1"] ?? []).length;
+    try {
+      const token = await login(baseUrl, "client@konti.com");
+      const res = await fetch(`${baseUrl}/api/projects/proj-1/notes`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ text: "owner can write", type: "general" }),
+      });
+      assert.equal(res.status, 200);
+      const note = (await res.json()) as { id: string; text: string };
+      assert.equal(note.text, "owner can write");
+      assert.equal((PROJECT_NOTES["proj-1"] ?? []).length, before + 1);
+    } finally {
+      const list = PROJECT_NOTES["proj-1"] ?? [];
+      while (list.length > before) list.pop();
+    }
+  });
+});
