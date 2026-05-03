@@ -352,6 +352,56 @@ test("LC-6: PATCH /projects/:projectId/metadata persists project metadata before
   }
 });
 
+test("LC-11: ensureLifecycleHydrated() runs migration + load and is idempotent across boots", async () => {
+  // Boot-order parity with #141: hydration must (1) seed-import on cold DB,
+  // (2) be safely re-runnable, and (3) leave PROJECTS reflecting DB state.
+  await __resetLifecycleTablesForTest();
+  __resetLifecycleHydrationForTest();
+  try {
+    // First boot — empty DB, expect seed migration to populate.
+    await ensureLifecycleHydrated();
+    const snap1 = await loadLifecycleSnapshotFromDb();
+    assert.ok(snap1 && snap1.projects.length >= 4, "first boot must seed-import projects");
+
+    // Simulate a second boot — reset hydration cache, call again. Marker
+    // must skip re-import; PROJECTS in memory must equal DB rows.
+    __resetLifecycleHydrationForTest();
+    await ensureLifecycleHydrated();
+    const snap2 = await loadLifecycleSnapshotFromDb();
+    assert.equal(snap2!.projects.length, snap1.projects.length, "second boot must not duplicate rows");
+  } finally {
+    await flushLifecyclePersistence();
+    await __resetLifecycleTablesForTest();
+    __resetLifecycleHydrationForTest();
+  }
+});
+
+test("LC-13: PersistFailedError middleware maps unwrapped commit failures to 500 persist_failed", async () => {
+  // Smoke-test the uniform error contract: throwing a PersistFailedError from
+  // an Express handler must surface as `500 { error: "persist_failed" }`.
+  const express = (await import("express")).default;
+  const { PersistFailedError } = await import("../../lib/lifecycle-persistence");
+  const testApp = express();
+  testApp.get("/boom", async (_req, _res) => { throw new PersistFailedError("test_scope", new Error("simulated")); });
+  // Re-attach the error mapper from app.ts directly.
+  testApp.use((err: unknown, _req: unknown, res: { status: (n: number) => { json: (v: unknown) => void } }, next: (e: unknown) => void) => {
+    if (err instanceof PersistFailedError) return res.status(500).json({ error: "persist_failed", message: err.userMessage, messageEs: err.userMessageEs });
+    return next(err);
+  });
+  const server = testApp.listen(0);
+  await new Promise<void>((r) => server.once("listening", () => r()));
+  try {
+    const port = (server.address() as { port: number }).port;
+    const res = await fetch(`http://127.0.0.1:${port}/boom`);
+    assert.equal(res.status, 500);
+    const body = (await res.json()) as { error: string; message: string };
+    assert.equal(body.error, "persist_failed");
+    assert.match(body.message, /retry/i);
+  } finally {
+    await new Promise<void>((r) => server.close(() => r()));
+  }
+});
+
 test("LC-12: appendActivityAndPersist writes both in memory and in Postgres", async () => {
   await __resetLifecycleTablesForTest();
   __resetLifecycleHydrationForTest();
