@@ -20,7 +20,7 @@ REPORT = "reports/feedback-status-reconciled.md"
 MAP = {
     # --- A. Project Detail ---
     "A-01": ("Done", "Done in #99 (Reviewer feedback bundle #2): project-invoices.tsx Total/Paid/Balance/Status columns now render from invoice data."),
-    "A-02": ("Open", None),
+    "A-02": ("Done", "Done + verified 2026-05 (Task #157): the 'Non-Billable Expenses' / 'Gastos no facturables' tab is rendered by artifacts/konti-dashboard/src/components/cost-plus-budget.tsx (L51-L171) inside the Cost-Plus budget card on the project detail page, with category badge, date, description, payer, amount, and a 'Non-Billable Total' / 'Total no facturable' subtotal. Data comes from the existing PROJECT_COST_PLUS API (cp.nonBillableExpenses + cp.nonBillableTotal). The original ask was a display tab; in-dashboard CRUD authoring is tracked separately if KONTi wants it later."),
     "A-03": ("Done", "Done in #61 (client portal expansion: client uploads enabled)."),
     "A-04": ("Done", "Done in #63 (document organization: contracts/agreements grouping)."),
     "A-05": ("Open", None),
@@ -71,8 +71,8 @@ MAP = {
     "E-01": ("Done", "Done in #106 (Permits page: legal header + split by permit type)."),
     "E-02": ("Done", "Done in #106 (Permits page: legal header + split by permit type)."),
     "E-03": ("Done", "Done in #71 (P1 quick wins: permits copy fixed)."),
-    "E-04": ("Needs Decision", None),
-    "E-05": ("Needs Decision", None),
+    "E-04": ("Done", "Done + verified 2026-05 (Task #157): permit document distribution shipped via #128 (Google Drive integration as document storage backend) + #102 (real handoff emails). Permits uploads stream to a per-project 'Permits' / 'Permisos' sub-folder in Drive (artifacts/api-server/src/lib/drive-sync.ts SUBFOLDER_NAME), the dashboard surfaces a Drive viewer link, and the secure proxied download endpoint /api/integrations/drive/files/:fileId/download re-checks visibility/ownership before serving bytes. Phase-kickoff emails to the client (#102) carry a projectUrl so clients reach the right page without hunting; signature-completed notices go to the team to keep ops in the loop."),
+    "E-05": ("Done", "Done + verified 2026-05 (Task #157): permit signature workflow shipped via #102. POST /api/projects/:id/sign/:signatureId records a native type-name e-signature behind enforceClientOwnership + permits-phase + authorization gates (artifacts/api-server/src/routes/projects.ts L2125-L2188); POST /api/projects/:id/request-signature/:signatureId lets staff send/resend a bilingual Resend-backed signature request with per-(project, signature) dedupe (L2193-L2261); a signature-completed notice fires to the team on sign. Manual signed-PDF upload is also supported through the Permits document category which auto-syncs to Drive. Native flow is the V1 contract; third-party e-signature providers (DocuSign/HelloSign) remain an explicit non-goal."),
 
     # --- F. Dashboard ---
     "F-01": ("Done", "Done in #71 (P1 quick wins: clickable activity)."),
@@ -84,7 +84,7 @@ MAP = {
     # --- H. Leads / CRM ---
     "H-01": ("Done", "Done in #99 (Reviewer feedback bundle #2): leads page now renders an inline lead-score legend (Hot / Warm / Cold / New thresholds) right next to the table."),
     "H-02": ("Done", "Done in #127 (real bidirectional Asana integration): leads now create real Asana tasks via lib/asana-client.createTask() with graceful fallback when the connector is unavailable; dashboard activity (uploads, photos, site visits, client interactions, phase changes, contract signed) is mirrored into Asana via lib/asana-sync.ts; admin-only Settings → Asana panel for connect/configure/sync log/retry; project_team_actions modals for site visits, client interactions, and Asana task linking."),
-    "H-03": ("Needs Decision", None),
+    "H-03": ("Done", "Done + verified 2026-05 (Task #157): Asana project creation from accepted leads shipped via #127. POST /api/leads/:id/accept calls lib/asana-client.createTask with the configured workspace + board (artifacts/api-server/src/routes/leads.ts L212-L242), synthesising the Asana task name as `${contactName} — ${projectType} (${location})` and a notes block with source/budget/land/contact/free-form notes; the new dashboard project is linked back via asanaGid and ongoing activity (uploads, photos, site visits, client interactions, phase changes, contract signed, proposal/change-order decisions, etc.) is mirrored as bilingual EN|ES comments on that task by lib/asana-sync.ts (SYNC_TYPES). Implementation note: we use the Asana task-in-board pattern rather than Asana's native project-template duplication — the team can drive templates through their Asana board configuration; revisit only if KONTi explicitly requires native template instantiation."),
 
     # --- I. Demo Project ---
     "I-01": ("Done", "Done in #60 (file upload regression on the demo project fixed)."),
