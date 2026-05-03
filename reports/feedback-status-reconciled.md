@@ -8,9 +8,9 @@ Reconciled workbook: `attached_assets/KONTi_Dashboard_Feedback_Consolidated_v3_a
 
 | Status | Count |
 |---|---:|
-| Open | 8 |
+| Open | 7 |
 | In Progress | 0 |
-| Done | 43 |
+| Done | 44 |
 | Done — needs verification | 1 |
 | Needs Spec | 0 |
 | Needs Decision | 5 |
@@ -69,6 +69,7 @@ These rows look closed on paper but a PM should eyeball the live UI before promo
 | I-01 | In Progress | Done | Done in #60 (file upload regression on the demo project fixed). |
 | I-02 | Open | Done | Done in #99 (Reviewer feedback bundle #2): document upload modal now requires a category dropdown so demo-project docs are sorted into the correct buckets. |
 | I-03 | In Progress | Done | Done in #32 (punchlist persists across restart). |
+| I-04 | Open | Done | Done in #102 (Real signature handoff emails): permits-panel.tsx adds a 'Request signature' / 'Solicitar firma' button for staff that POSTs to a new dedupe-protected /projects/:id/request-signature/:signatureId endpoint and dispatches a bilingual Resend-backed email; the existing /sign endpoint now also emails the team a signature-completed notice; the previously-simulated Pre-Design kickoff, decline-notify-team, and proposal-acceptance emails are now real sends. All five flows isolate failures (mutation succeeds, email_failed activity row + UI toast surfaced) and are covered by node:test fixtures in artifacts/api-server/src/routes/__tests__/signature-emails.test.ts. |
 | J-01 | Needs Decision | Done | Done in #128 (Google Drive integration as document storage backend): Settings page now exposes a Drive panel where admins/superadmins pick a root folder, choose visibility (private vs anyone-with-link) and delete (trash vs purge) policies, and trigger a backfill of in-app documents. When connected, every project upload streams into a per-project / per-category sub-folder in Drive, deletes are mirrored, and a viewer link is shown next to the file in the project document list. When disconnected, uploads continue to land in the in-app store as before — no behavior change. |
 
 ## Items still **Open**
@@ -82,7 +83,6 @@ These rows look closed on paper but a PM should eyeball the live UI before promo
 | B-02 | Open | Open | — |
 | B-14 | Open | Open | — |
 | C-01 | Open | Open | Punchlist persistence shipped in #32; photo links + categories on the report still pending. |
-| I-04 | Open | Open | — |
 
 ## Items needing a product decision
 

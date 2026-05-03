@@ -113,6 +113,7 @@ import type {
   PutCsvMappingRequest,
   PutCsvMappingResponse,
   RefreshMaterialPricesParams,
+  RequestPermitSignature200,
   SecretTestResult,
   SendInspectionReport200,
   SendInspectionReportBody,
@@ -5304,6 +5305,97 @@ export const useSignPermitForm = <
   TContext
 > => {
   return useMutation(getSignPermitFormMutationOptions(options));
+};
+
+/**
+ * @summary Staff sends/re-sends a signature request email to the client (Task
+ */
+export const getRequestPermitSignatureUrl = (
+  id: string,
+  signatureId: string,
+) => {
+  return `/api/projects/${id}/request-signature/${signatureId}`;
+};
+
+export const requestPermitSignature = async (
+  id: string,
+  signatureId: string,
+  options?: RequestInit,
+): Promise<RequestPermitSignature200> => {
+  return customFetch<RequestPermitSignature200>(
+    getRequestPermitSignatureUrl(id, signatureId),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+};
+
+export const getRequestPermitSignatureMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof requestPermitSignature>>,
+    TError,
+    { id: string; signatureId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof requestPermitSignature>>,
+  TError,
+  { id: string; signatureId: string },
+  TContext
+> => {
+  const mutationKey = ["requestPermitSignature"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof requestPermitSignature>>,
+    { id: string; signatureId: string }
+  > = (props) => {
+    const { id, signatureId } = props ?? {};
+
+    return requestPermitSignature(id, signatureId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RequestPermitSignatureMutationResult = NonNullable<
+  Awaited<ReturnType<typeof requestPermitSignature>>
+>;
+
+export type RequestPermitSignatureMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Staff sends/re-sends a signature request email to the client (Task
+ */
+export const useRequestPermitSignature = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof requestPermitSignature>>,
+    TError,
+    { id: string; signatureId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof requestPermitSignature>>,
+  TError,
+  { id: string; signatureId: string },
+  TContext
+> => {
+  return useMutation(getRequestPermitSignatureMutationOptions(options));
 };
 
 /**

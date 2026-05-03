@@ -87,8 +87,15 @@ export function PreDesignPanel({
   const advancePhase = async () => {
     setBusyAction("advance");
     try {
-      await advanceMutation.mutateAsync({ projectId });
+      const res = (await advanceMutation.mutateAsync({ projectId })) as { emailWarning?: string };
       toast({ title: t("Pre-Design approved", "Pre-Diseño aprobado"), description: t("Kickoff email and invoice sent automatically.", "Correo de inicio y factura enviados automáticamente.") });
+      if (res?.emailWarning) {
+        toast({
+          title: t("Kickoff email could not be sent", "No se pudo enviar el correo de inicio"),
+          description: res.emailWarning,
+          variant: "destructive",
+        });
+      }
       window.location.reload();
     } catch {
       toast({ title: t("Could not advance phase", "No se pudo avanzar la fase"), variant: "destructive" });
@@ -105,8 +112,15 @@ export function PreDesignPanel({
     if (reason === null) return; // user cancelled
     setBusyAction("decline");
     try {
-      await declineMutation.mutateAsync({ projectId, data: { reason } });
+      const res = (await declineMutation.mutateAsync({ projectId, data: { reason } })) as { emailWarning?: string };
       toast({ title: t("Decision sent to team", "Decisión enviada al equipo"), description: t("KONTi will follow up with you.", "KONTi se pondrá en contacto contigo.") });
+      if (res?.emailWarning) {
+        toast({
+          title: t("Team notification email could not be sent", "El correo al equipo no se envió"),
+          description: res.emailWarning,
+          variant: "destructive",
+        });
+      }
       await invalidate();
     } catch {
       toast({ title: t("Could not record decline", "No se pudo registrar el rechazo"), variant: "destructive" });

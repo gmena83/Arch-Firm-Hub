@@ -2915,6 +2915,22 @@ export const SignPermitFormResponse = zod.object({
 });
 
 /**
+ * @summary Staff sends/re-sends a signature request email to the client (Task
+ */
+export const RequestPermitSignatureParams = zod.object({
+  id: zod.coerce.string(),
+  signatureId: zod.coerce.string(),
+});
+
+export const RequestPermitSignatureResponse = zod.object({
+  projectId: zod.string(),
+  signatureId: zod.string(),
+  emailSent: zod.boolean(),
+  deduped: zod.boolean(),
+  reason: zod.string().optional(),
+});
+
+/**
  * @summary Admin/architect submits the permit packet to OGPE (transitions not_submitted → submitted)
  */
 export const SubmitPermitsToOgpeParams = zod.object({

@@ -1326,6 +1326,7 @@ export type ProjectActivityType =
   | "checklist_toggle"
   | "gamma_generated"
   | "email_sent"
+  | "email_failed"
   | "invoice_sent"
   | "weekly_report"
   | "structured_variables"
@@ -1420,6 +1421,7 @@ const ACTIVITY_TYPE_TO_ENTITY: Record<string, AuditEntity> = {
   checklist_toggle: "project",
   gamma_generated: "project",
   email_sent: "project",
+  email_failed: "project",
   invoice_sent: "project",
   weekly_report: "project",
   structured_variables: "project",
@@ -1610,6 +1612,14 @@ export const WEEKLY_REPORTS: Record<string, WeeklyReport[]> = {
     weekly("wr-3-2", "2025-11-24", "2025-11-30", "Project closeout & certificate of occupancy", "Cierre de proyecto y certificado de ocupación", "/projects/proj-3/report"),
   ],
 };
+
+// Pending-signature-request dedupe (Task #102). Tracks `${projectId}:${signatureId}`
+// keys for which a "request signature" email is already in flight / awaiting
+// the client. Cleared automatically when the signature is filled. Exported so
+// tests can reset and inspect the set.
+export const pendingSignatureRequests: Set<string> = new Set();
+export const pendingSignatureKey = (projectId: string, signatureId: string): string =>
+  `${projectId}:${signatureId}`;
 
 // Optional Asana sync hook — wired in by lib/asana-sync.ts at server boot.
 // Stays a noop in tests / when the connector isn't configured so the rest of

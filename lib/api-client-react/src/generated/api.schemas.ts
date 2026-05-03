@@ -2344,6 +2344,14 @@ export type SignPermitForm200 = {
   signature: RequiredSignature;
 };
 
+export type RequestPermitSignature200 = {
+  projectId: string;
+  signatureId: string;
+  emailSent: boolean;
+  deduped: boolean;
+  reason?: string;
+};
+
 export type SubmitPermitsToOgpe200 = {
   projectId: string;
   permitItems: PermitItem[];

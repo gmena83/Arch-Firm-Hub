@@ -90,7 +90,7 @@ MAP = {
     "I-01": ("Done", "Done in #60 (file upload regression on the demo project fixed)."),
     "I-02": ("Done", "Done in #99 (Reviewer feedback bundle #2): document upload modal now requires a category dropdown so demo-project docs are sorted into the correct buckets."),
     "I-03": ("Done", "Done in #32 (punchlist persists across restart)."),
-    "I-04": ("Open", None),
+    "I-04": ("Done", "Done in #102 (Real signature handoff emails): permits-panel.tsx adds a 'Request signature' / 'Solicitar firma' button for staff that POSTs to a new dedupe-protected /projects/:id/request-signature/:signatureId endpoint and dispatches a bilingual Resend-backed email; the existing /sign endpoint now also emails the team a signature-completed notice; the previously-simulated Pre-Design kickoff, decline-notify-team, and proposal-acceptance emails are now real sends. All five flows isolate failures (mutation succeeds, email_failed activity row + UI toast surfaced) and are covered by node:test fixtures in artifacts/api-server/src/routes/__tests__/signature-emails.test.ts."),
 
     # --- J. Drive ---
     "J-01": ("Done", "Done in #128 (Google Drive integration as document storage backend): Settings page now exposes a Drive panel where admins/superadmins pick a root folder, choose visibility (private vs anyone-with-link) and delete (trash vs purge) policies, and trigger a backfill of in-app documents. When connected, every project upload streams into a per-project / per-category sub-folder in Drive, deletes are mirrored, and a viewer link is shown next to the file in the project document list. When disconnected, uploads continue to land in the in-app store as before — no behavior change."),

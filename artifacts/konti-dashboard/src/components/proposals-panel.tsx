@@ -43,8 +43,15 @@ export function ProposalsPanel({ projectId, isClientView, currentPhase }: { proj
   const approve = async (proposalId: string) => {
     if (!isClient || approveMutation.isPending) return;
     try {
-      await approveMutation.mutateAsync({ projectId, proposalId });
+      const res = (await approveMutation.mutateAsync({ projectId, proposalId })) as { emailWarning?: string };
       toast({ title: t("Proposal approved", "Propuesta aprobada"), description: t("Contract draft is on its way. Project advanced to Permits.", "El borrador del contrato está en camino. Proyecto avanzado a Permisos.") });
+      if (res?.emailWarning) {
+        toast({
+          title: t("Confirmation email could not be sent", "No se pudo enviar el correo de confirmación"),
+          description: res.emailWarning,
+          variant: "destructive",
+        });
+      }
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: getGetProjectProposalsQueryKey(projectId) }),
         queryClient.invalidateQueries({ queryKey: getGetProjectQueryKey(projectId) }),

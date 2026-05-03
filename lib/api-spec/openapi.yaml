@@ -1764,6 +1764,35 @@ paths:
                   signature: { $ref: "#/components/schemas/RequiredSignature" }
                 required: [projectId, signature]
 
+  /projects/{id}/request-signature/{signatureId}:
+    post:
+      operationId: requestPermitSignature
+      tags: [permits]
+      summary: Staff sends/re-sends a signature request email to the client (Task #102)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+        - in: path
+          name: signatureId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Request recorded; check `emailSent` for delivery outcome.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [projectId, signatureId, emailSent, deduped]
+                properties:
+                  projectId: { type: string }
+                  signatureId: { type: string }
+                  emailSent: { type: boolean }
+                  deduped: { type: boolean }
+                  reason: { type: string }
+
   /projects/{id}/permit-items/submit-to-ogpe:
     post:
       operationId: submitPermitsToOgpe

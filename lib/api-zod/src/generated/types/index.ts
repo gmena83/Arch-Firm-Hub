@@ -212,6 +212,7 @@ export * from "./putCsvMappingRequest";
 export * from "./putCsvMappingResponse";
 export * from "./putCsvMappingResponseKind";
 export * from "./refreshMaterialPricesParams";
+export * from "./requestPermitSignature200";
 export * from "./requiredSignature";
 export * from "./secretTestResult";
 export * from "./sendInspectionReport200";

@@ -1,6 +1,9 @@
 import { Router, type IRouter } from "express";
 import {
   PROJECTS,
+  USERS,
+  pendingSignatureRequests,
+  pendingSignatureKey,
   PROJECT_TASKS,
   WEATHER_DATA,
   DOCUMENTS,
@@ -70,6 +73,80 @@ import {
   flushCalculatorPersistence,
 } from "../lib/calculator-persistence";
 import { logger } from "../lib/logger";
+import { sendTransactional, type Lang as MailerLang } from "../lib/mailer";
+
+// ---------------------------------------------------------------------------
+// Mailer helpers (Task #102)
+// ---------------------------------------------------------------------------
+
+const SUPERADMIN_NOTIFY_EMAILS = USERS.filter((u) => u.role === "superadmin").map((u) => u.email);
+
+function projectClient(projectId: string): { email: string; name: string; lang: MailerLang } | null {
+  const project = PROJECTS.find((p) => p.id === projectId);
+  if (!project) return null;
+  const user = USERS.find((u) => u.id === project.clientUserId);
+  if (!user) return null;
+  return { email: user.email, name: user.name, lang: "en" };
+}
+
+function teamRecipients(projectId: string): string[] {
+  const project = PROJECTS.find((p) => p.id === projectId);
+  if (!project) return [];
+  const teamEmails = USERS.filter(
+    (u) => (u.role === "admin" || u.role === "architect") && project.teamMembers.includes(u.name),
+  ).map((u) => u.email);
+  // Always include the studio admin so a missed name match can't drop the message.
+  const fallback = USERS.find((u) => u.role === "admin")?.email;
+  if (fallback && !teamEmails.includes(fallback)) teamEmails.push(fallback);
+  return teamEmails;
+}
+
+function projectAbsoluteUrl(projectId: string): string {
+  const base =
+    process.env["DASHBOARD_BASE_URL"] ||
+    (process.env["REPLIT_DEV_DOMAIN"] ? `https://${process.env["REPLIT_DEV_DOMAIN"]}` : "https://app.konti.com");
+  return `${base}/konti-dashboard/projects/${projectId}`;
+}
+
+function signatureSignUrl(projectId: string, signatureId: string): string {
+  return `${projectAbsoluteUrl(projectId)}#sig-${signatureId}`;
+}
+
+/**
+ * Wraps a mailer send so the calling route never throws on a delivery failure.
+ * Records `email_sent` on success and `email_failed` on failure (both via the
+ * activity feed → audit log → Asana hook). The originating mutation has
+ * already been persisted before this is invoked, so a mailer outage cannot
+ * roll back business state.
+ *
+ * Returns `{ ok, reason? }` so the route can surface a non-blocking
+ * `emailWarning` to the client UI.
+ */
+async function sendAndRecord(
+  projectId: string,
+  args: Parameters<typeof sendTransactional>[0],
+  description: { en: string; es: string },
+  actor = "System",
+): Promise<{ ok: boolean; reason?: string }> {
+  const result = await sendTransactional(args);
+  if (result.ok) {
+    await appendActivityAndPersist(projectId, {
+      type: "email_sent",
+      actor,
+      description: description.en,
+      descriptionEs: description.es,
+    });
+    return { ok: true };
+  }
+  await appendActivityAndPersist(projectId, {
+    type: "email_failed",
+    actor,
+    description: `${description.en} — delivery failed (${result.reason ?? "unknown"})`,
+    descriptionEs: `${description.es} — fallo en la entrega (${result.reason ?? "desconocido"})`,
+  });
+  const reason = result.reason ?? "unknown";
+  return { ok: false, reason };
+}
 
 // Re-exports kept for backward compatibility — calculator-persistence
 // helpers used to live in this file before being extracted to
@@ -1338,14 +1415,37 @@ router.post("/projects/:id/advance-phase", requireRole(["team", "client"]), asyn
     descriptionEs: `Fase avanzada a ${labels.es}${isClient ? " (decisión del cliente)" : ""}`,
   });
 
-  // Simulate the automated comms that follow a client-approved consultation
+  // Real Pre-Design kickoff email to client + team (Task #102 — was simulated).
+  let emailWarning: string | undefined;
   if (isClient) {
-    await appendActivityAndPersist(project.id, {
-      type: "email_sent",
-      actor: "System",
-      description: "Pre-Design kickoff email sent to client and team",
-      descriptionEs: "Correo de inicio de Pre-Diseño enviado al cliente y al equipo",
-    });
+    const client = projectClient(project.id);
+    const team = teamRecipients(project.id);
+    const recipients = [
+      ...(client ? [client.email] : []),
+      ...team,
+    ];
+    if (recipients.length > 0) {
+      const send = await sendAndRecord(
+        project.id,
+        {
+          template: "phase_kickoff",
+          lang: client?.lang ?? "en",
+          to: recipients,
+          vars: {
+            projectName: project.name,
+            recipientName: client?.name ?? "Team",
+            nextPhaseEn: labels.en,
+            nextPhaseEs: labels.es,
+            projectUrl: projectAbsoluteUrl(project.id),
+          },
+        },
+        {
+          en: "Pre-Design kickoff email sent to client and team",
+          es: "Correo de inicio de Pre-Diseño enviado al cliente y al equipo",
+        },
+      );
+      if (!send.ok) emailWarning = send.reason;
+    }
     await appendActivityAndPersist(project.id, {
       type: "invoice_sent",
       actor: "System",
@@ -1358,7 +1458,7 @@ router.post("/projects/:id/advance-phase", requireRole(["team", "client"]), asyn
   try { await persistProjectsToDb(); }
   catch { return res.status(500).json({ error: "persist_failed", message: "Phase advance was applied in memory but failed to save. Please retry." }); }
 
-  return res.json({ project, advancedTo: nextPhase });
+  return res.json({ project, advancedTo: nextPhase, ...(emailWarning ? { emailWarning } : {}) });
 });
 
 router.post("/projects/:id/decline-phase", requireRole(["client"]), async (req, res) => {
@@ -1377,13 +1477,35 @@ router.post("/projects/:id/decline-phase", requireRole(["client"]), async (req, 
     description: `Client declined to advance to Pre-Design${note}`,
     descriptionEs: `El cliente no aprobó avanzar a Pre-Diseño${note}`,
   });
-  await appendActivityAndPersist(project.id, {
-    type: "email_sent",
-    actor: "System",
-    description: "Internal team notified of client decline",
-    descriptionEs: "Equipo interno notificado del rechazo del cliente",
+  // Real decline-notify email to the team (Task #102 — was simulated).
+  const teamMails = teamRecipients(project.id);
+  let declineEmailWarning: string | undefined;
+  if (teamMails.length > 0) {
+    const send = await sendAndRecord(
+      project.id,
+      {
+        template: "decline_notify",
+        lang: "en",
+        to: teamMails,
+        vars: {
+          projectName: project.name,
+          clientName: user?.name ?? "Client",
+          reason: typeof reason === "string" ? reason.trim().slice(0, 500) : "",
+          projectUrl: projectAbsoluteUrl(project.id),
+        },
+      },
+      {
+        en: "Internal team notified of client decline",
+        es: "Equipo interno notificado del rechazo del cliente",
+      },
+    );
+    if (!send.ok) declineEmailWarning = send.reason;
+  }
+  return res.json({
+    project,
+    declinedAt: new Date().toISOString(),
+    ...(declineEmailWarning ? { emailWarning: declineEmailWarning } : {}),
   });
-  return res.json({ project, declinedAt: new Date().toISOString() });
 });
 
 // ---------------------------------------------------------------------------
@@ -1721,12 +1843,34 @@ router.post("/projects/:id/proposals/:proposalId/approve", requireRole(["client"
     description: `Client approved "${target.title}" ($${target.totalCost.toLocaleString()})`,
     descriptionEs: `Cliente aprobó "${target.titleEs}" ($${target.totalCost.toLocaleString()})`,
   });
-  await appendActivityAndPersist(project.id, {
-    type: "email_sent",
-    actor: "System",
-    description: "Proposal acceptance receipt and contract draft sent",
-    descriptionEs: "Recibo de aceptación de propuesta y borrador de contrato enviados",
-  });
+  // Real proposal-acceptance receipt to the client (Task #102 — was simulated).
+  const proposalClient = projectClient(project.id);
+  let proposalEmailWarning: string | undefined;
+  if (proposalClient) {
+    const send = await sendAndRecord(
+      project.id,
+      {
+        template: "proposal_accept",
+        lang: proposalClient.lang,
+        to: proposalClient.email,
+        cc: teamRecipients(project.id),
+        vars: {
+          projectName: project.name,
+          proposalTitle: target.title,
+          proposalTitleEs: target.titleEs,
+          totalCost: target.totalCost,
+          recipientName: proposalClient.name,
+        },
+      },
+      {
+        en: "Proposal acceptance receipt and contract draft sent",
+        es: "Recibo de aceptación de propuesta y borrador de contrato enviados",
+      },
+    );
+    if (!send.ok) proposalEmailWarning = send.reason;
+  }
+  // Stash the warning on the closure so the response below can surface it.
+  (req as { _emailWarning?: string })._emailWarning = proposalEmailWarning;
   // Approving a proposal commits the contract — auto-advance the project to Permits
   const labels = PHASE_LABELS["permits"];
   (project as { phase: "permits" }).phase = "permits";
@@ -1741,7 +1885,14 @@ router.post("/projects/:id/proposals/:proposalId/approve", requireRole(["client"
   });
   try { await persistProjectsToDb(); }
   catch { return res.status(500).json({ error: "persist_failed", message: "Proposal approval was applied in memory but failed to save. Please retry." }); }
-  return res.json({ projectId: project.id, proposals: list, approved: target, project });
+  const stashedWarning = (req as { _emailWarning?: string })._emailWarning;
+  return res.json({
+    projectId: project.id,
+    proposals: list,
+    approved: target,
+    project,
+    ...(stashedWarning ? { emailWarning: stashedWarning } : {}),
+  });
 });
 
 router.get("/projects/:id/change-orders", requireRole(["team", "client"]), async (req, res) => {
@@ -1993,14 +2144,121 @@ router.post("/projects/:id/sign/:signatureId", requireRole(["client"]), async (r
   if (sig.signedAt) return res.status(400).json({ error: "already_signed" });
   sig.signedBy = signatureName.trim().slice(0, 100);
   sig.signedAt = new Date().toISOString();
+  // Clear any pending request-signature dedupe key now that the signature is filled.
+  pendingSignatureRequests.delete(pendingSignatureKey(project.id, sig.id));
   await appendActivityAndPersist(project.id, {
     type: "permit_signature",
     actor: sig.signedBy,
     description: `Signed: ${sig.formName}`,
     descriptionEs: `Firmado: ${sig.formNameEs}`,
   });
-  return res.json({ projectId: project.id, signature: sig });
+  // Real signature-completed email to the team (Task #102).
+  const team = teamRecipients(project.id);
+  let signEmailWarning: string | undefined;
+  if (team.length > 0) {
+    const remaining = sigs.filter((s) => s.required && !s.signedAt).length;
+    const send = await sendAndRecord(
+      project.id,
+      {
+        template: "signature_completed",
+        lang: "en",
+        to: team,
+        cc: SUPERADMIN_NOTIFY_EMAILS,
+        vars: {
+          projectName: project.name,
+          formName: sig.formName,
+          formNameEs: sig.formNameEs,
+          signedBy: sig.signedBy,
+          signedAt: new Date(sig.signedAt).toLocaleString(),
+          remainingCount: remaining,
+        },
+      },
+      {
+        en: `Signature completion notice sent to team: ${sig.formName}`,
+        es: `Aviso de firma enviado al equipo: ${sig.formNameEs}`,
+      },
+    );
+    if (!send.ok) signEmailWarning = send.reason;
+  }
+  return res.json({
+    projectId: project.id,
+    signature: sig,
+    ...(signEmailWarning ? { emailWarning: signEmailWarning } : {}),
+  });
 });
+
+// Task #102 — Staff (admin/architect/superadmin) sends or re-sends a signature
+// request email to the project's client. Dedupes per (projectId, signatureId)
+// while pending; the dedupe key is cleared automatically when the client signs.
+router.post(
+  "/projects/:id/request-signature/:signatureId",
+  requireRole(["admin", "architect", "superadmin"]),
+  async (req, res) => {
+    const project = getProjectOr404(String(req.params["id"]), res);
+    if (!project) return;
+    if (project.phase !== "permits") {
+      return res.status(400).json({ error: "invalid_phase", message: "Signature requests are only valid during the permits phase" });
+    }
+    const authzn = PROJECT_PERMIT_AUTHORIZATIONS[project.id];
+    if (!authzn || authzn.status !== "authorized") {
+      return res.status(400).json({ error: "not_authorized", message: "Client must authorize the OGPE packet before signature requests are valid" });
+    }
+    const sigs = PROJECT_REQUIRED_SIGNATURES[project.id] ?? [];
+    const sig = sigs.find((s) => s.id === String(req.params["signatureId"]));
+    if (!sig) return res.status(404).json({ error: "signature_not_found" });
+    if (sig.signedAt) {
+      return res.status(400).json({ error: "already_signed", message: "Signature already collected" });
+    }
+    const dedupeKey = pendingSignatureKey(project.id, sig.id);
+    if (pendingSignatureRequests.has(dedupeKey)) {
+      return res.json({
+        projectId: project.id,
+        signatureId: sig.id,
+        emailSent: false,
+        deduped: true,
+        reason: "already_pending",
+      });
+    }
+    const client = projectClient(project.id);
+    if (!client) {
+      return res.status(400).json({ error: "no_client_email", message: "Project has no client on file" });
+    }
+    const user = (req as { user?: { name?: string } }).user;
+    pendingSignatureRequests.add(dedupeKey);
+    const send = await sendAndRecord(
+      project.id,
+      {
+        template: "signature_request",
+        lang: client.lang,
+        to: client.email,
+        vars: {
+          projectName: project.name,
+          formName: sig.formName,
+          formNameEs: sig.formNameEs,
+          recipientName: client.name,
+          signUrl: signatureSignUrl(project.id, sig.id),
+          requestedBy: user?.name ?? "KONTi Team",
+        },
+      },
+      {
+        en: `Signature request sent to client: ${sig.formName}`,
+        es: `Solicitud de firma enviada al cliente: ${sig.formNameEs}`,
+      },
+      user?.name ?? "System",
+    );
+    if (!send.ok) {
+      // Failed sends free the dedupe key so staff can retry immediately.
+      pendingSignatureRequests.delete(dedupeKey);
+    }
+    return res.json({
+      projectId: project.id,
+      signatureId: sig.id,
+      emailSent: send.ok,
+      deduped: false,
+      ...(send.reason ? { reason: send.reason } : {}),
+    });
+  },
+);
 
 router.post("/projects/:id/permit-items/submit-to-ogpe", requireRole(["admin", "architect", "superadmin"]), async (req, res) => {
   const project = getProjectOr404(String(req.params["id"]), res);

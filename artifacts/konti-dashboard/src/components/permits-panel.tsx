@@ -4,6 +4,7 @@ import {
   useGetProjectPermits,
   useAuthorizePermits,
   useSignPermitForm,
+  useRequestPermitSignature,
   useSubmitPermitsToOgpe,
   useSetPermitItemState,
   getGetProjectPermitsQueryKey,
@@ -101,6 +102,7 @@ export default function PermitsPanel({ projectId, projectPhase, onProjectUpdated
   const { data, isLoading } = useGetProjectPermits(projectId);
   const authorizeMutation = useAuthorizePermits();
   const signMutation = useSignPermitForm();
+  const requestSigMutation = useRequestPermitSignature();
   const submitMutation = useSubmitPermitsToOgpe();
   const itemStateMutation = useSetPermitItemState();
 
@@ -136,12 +138,41 @@ export default function PermitsPanel({ projectId, projectPhase, onProjectUpdated
     }
     setBusyId(`sig-${sigId}`);
     try {
-      await signMutation.mutateAsync({ id: projectId, signatureId: sigId, data: { signatureName: name } });
+      const res = (await signMutation.mutateAsync({ id: projectId, signatureId: sigId, data: { signatureName: name } })) as { emailWarning?: string };
       toast({ title: t("Signature recorded", "Firma registrada") });
+      if (res?.emailWarning) {
+        toast({
+          title: t("Team notification email failed", "El correo de notificación al equipo no se envió"),
+          description: res.emailWarning,
+          variant: "destructive",
+        });
+      }
       setSignatureDraft((d) => ({ ...d, [sigId]: "" }));
       await invalidatePermits();
     } catch {
       toast({ title: t("Could not sign", "No se pudo firmar"), variant: "destructive" });
+    } finally { setBusyId(null); }
+  };
+
+  // Task #102 — staff resend / initial signature request via mailer.
+  const requestSignature = async (sigId: string) => {
+    setBusyId(`req-${sigId}`);
+    try {
+      const res = await requestSigMutation.mutateAsync({ id: projectId, signatureId: sigId });
+      if (res.deduped) {
+        toast({ title: t("Request already pending — no email sent", "Solicitud ya pendiente — no se envió correo") });
+      } else if (res.emailSent) {
+        toast({ title: t("Signature request emailed to client", "Solicitud de firma enviada al cliente") });
+      } else {
+        toast({
+          title: t("Email could not be sent", "No se pudo enviar el correo"),
+          description: res.reason ?? "",
+          variant: "destructive",
+        });
+      }
+      await invalidatePermits();
+    } catch {
+      toast({ title: t("Request failed", "Falló la solicitud"), variant: "destructive" });
     } finally { setBusyId(null); }
   };
 
@@ -375,15 +406,28 @@ export default function PermitsPanel({ projectId, projectPhase, onProjectUpdated
                       {sig.signedAt && ` · ${new Date(sig.signedAt).toLocaleDateString()}`}
                     </div>
                   ) : (
-                    isClient && inPermitsPhase && isAuthorized && (
-                      <button
-                        onClick={() => setSignDialogFor(sig)}
-                        className="mt-2 inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-md bg-emerald-600 text-white hover:bg-emerald-700"
-                      >
-                        <PenLine className="w-3 h-3" />
-                        {t("Sign", "Firmar")}
-                      </button>
-                    )
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {isClient && inPermitsPhase && isAuthorized && (
+                        <button
+                          onClick={() => setSignDialogFor(sig)}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-md bg-emerald-600 text-white hover:bg-emerald-700"
+                        >
+                          <PenLine className="w-3 h-3" />
+                          {t("Sign", "Firmar")}
+                        </button>
+                      )}
+                      {isStaff && inPermitsPhase && isAuthorized && (
+                        <button
+                          onClick={() => requestSignature(sig.id)}
+                          disabled={busyId === `req-${sig.id}`}
+                          data-testid={`request-signature-${sig.id}`}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-md border border-emerald-300 text-emerald-700 bg-white hover:bg-emerald-50 disabled:opacity-50"
+                        >
+                          {busyId === `req-${sig.id}` ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+                          {t("Request signature", "Solicitar firma")}
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
