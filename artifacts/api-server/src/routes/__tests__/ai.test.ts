@@ -324,7 +324,9 @@ test("cross-client (control): owner → POST /api/projects/proj-1/notes is 200 a
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({ text: "owner can write", type: "general" }),
       });
-      assert.equal(res.status, 200);
+      // Accept 200 (current behavior) or 201 (future normalization) — what
+      // matters here is the ownership gate let the owner through.
+      assert.ok(res.status === 200 || res.status === 201, `expected 200/201, got ${res.status}`);
       const note = (await res.json()) as { id: string; text: string };
       assert.equal(note.text, "owner can write");
       assert.equal((PROJECT_NOTES["proj-1"] ?? []).length, before + 1);
