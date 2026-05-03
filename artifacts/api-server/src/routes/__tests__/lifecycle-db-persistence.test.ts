@@ -402,6 +402,193 @@ test("LC-13: PersistFailedError middleware maps unwrapped commit failures to 500
   }
 });
 
+test("LC-14: public lead intake survives a simulated restart and re-appears in GET /leads", async () => {
+  // Task #147 — close the loop on the original feedback item: "every public
+  // intake is lost on restart". Post a lead, drop the in-memory hydration
+  // cache + LEADS array (simulated restart), re-hydrate from Postgres,
+  // confirm the lead is still listed by GET /leads.
+  await __resetLifecycleTablesForTest();
+  __resetLifecycleHydrationForTest();
+  try {
+    await ensureLifecycleHydrated();
+    const { LEADS } = await import("../../data/seed");
+    let createdId = "";
+    await withServer(async (baseUrl) => {
+      const created = await fetch(`${baseUrl}/api/leads`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          source: "website", projectType: "residencial",
+          location: "Carolina", budgetRange: "150k_300k",
+          terrainStatus: "no_terrain",
+          contactName: "LC-14 Restart Lead", email: "lc14@x.com", phone: "555-LC14",
+        }),
+      });
+      assert.equal(created.status, 201);
+      const body = (await created.json()) as { id: string };
+      createdId = body.id;
+    });
+    await flushLifecyclePersistence();
+
+    // Simulated restart — wipe in-memory state, re-hydrate from Postgres.
+    LEADS.length = 0;
+    __resetLifecycleHydrationForTest();
+    await ensureLifecycleHydrated();
+
+    await withServer(async (baseUrl) => {
+      const token = await login(baseUrl, "demo@konti.com");
+      const list = await fetch(`${baseUrl}/api/leads`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      assert.equal(list.status, 200);
+      const leads = (await list.json()) as { id: string; contactName: string }[];
+      const found = leads.find((l) => l.id === createdId);
+      assert.ok(found, "lead submitted before restart must reappear in GET /leads after rehydration");
+      assert.equal(found!.contactName, "LC-14 Restart Lead");
+    });
+  } finally {
+    await flushLifecyclePersistence();
+    await __resetLifecycleTablesForTest();
+    __resetLifecycleHydrationForTest();
+  }
+});
+
+test("LC-15: re-accepting an already-accepted lead after restart returns the same project (no duplicates)", async () => {
+  // Task #147 — the actual gap exposed by the audit: ACCEPTED_LEAD_PROJECTS
+  // is process-local. After a restart the accept handler must still find
+  // the original project via the persisted projects.lead_id column, not
+  // synthesize a new Discovery project.
+  await __resetLifecycleTablesForTest();
+  __resetLifecycleHydrationForTest();
+  try {
+    await ensureLifecycleHydrated();
+    const { LEADS, PROJECTS } = await import("../../data/seed");
+
+    let leadId = "";
+    let firstProjectId = "";
+    let projectsCountAfterFirstAccept = 0;
+
+    await withServer(async (baseUrl) => {
+      const created = await fetch(`${baseUrl}/api/leads`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          source: "website", projectType: "residencial",
+          location: "Ponce", budgetRange: "150k_300k",
+          terrainStatus: "no_terrain",
+          contactName: "LC-15 Accept", email: "lc15@x.com", phone: "555-LC15",
+        }),
+      });
+      assert.equal(created.status, 201);
+      leadId = ((await created.json()) as { id: string }).id;
+
+      const token = await login(baseUrl, "demo@konti.com");
+      const accept1 = await fetch(`${baseUrl}/api/leads/${leadId}/accept`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: "{}",
+      });
+      assert.equal(accept1.status, 200);
+      const body1 = (await accept1.json()) as { project: { id: string; leadId?: string } };
+      firstProjectId = body1.project.id;
+      assert.equal(body1.project.leadId, leadId, "accept response must include the persisted leadId");
+      projectsCountAfterFirstAccept = PROJECTS.length;
+    });
+    await flushLifecyclePersistence();
+
+    // Simulated restart — drop the in-memory ACCEPTED_LEAD_PROJECTS cache
+    // by clearing the seed arrays and re-hydrating from Postgres.
+    LEADS.length = 0;
+    PROJECTS.length = 0;
+    __resetLifecycleHydrationForTest();
+    await ensureLifecycleHydrated();
+
+    const projectsAfterRestart = PROJECTS.length;
+    assert.equal(projectsAfterRestart, projectsCountAfterFirstAccept, "rehydrate must restore the same project count");
+
+    await withServer(async (baseUrl) => {
+      const token = await login(baseUrl, "demo@konti.com");
+      const accept2 = await fetch(`${baseUrl}/api/leads/${leadId}/accept`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: "{}",
+      });
+      assert.equal(accept2.status, 200, "second accept after restart must be idempotent (200, not 201)");
+      const body2 = (await accept2.json()) as { project: { id: string } };
+      assert.equal(body2.project.id, firstProjectId, "second accept must return the SAME project, not a new duplicate");
+      assert.equal(PROJECTS.length, projectsCountAfterFirstAccept, "PROJECTS must NOT have grown");
+
+      // Verify Postgres also has exactly one project with this leadId.
+      const snap = await loadLifecycleSnapshotFromDb();
+      const matching = snap!.projects.filter(
+        (p) => (p as Record<string, unknown>)["leadId"] === leadId,
+      );
+      assert.equal(matching.length, 1, "DB must have exactly one project linked to this lead");
+    });
+  } finally {
+    await flushLifecyclePersistence();
+    await __resetLifecycleTablesForTest();
+    __resetLifecycleHydrationForTest();
+  }
+});
+
+test("LC-16: re-accepting after the project row was manually deleted returns 409 already_accepted_orphan", async () => {
+  // Task #147 — the orphan branch of the hardened accept handler. If the
+  // lead is marked accepted but its project is gone, the handler must
+  // refuse to silently synthesize a duplicate.
+  await __resetLifecycleTablesForTest();
+  __resetLifecycleHydrationForTest();
+  try {
+    await ensureLifecycleHydrated();
+    const { LEADS, PROJECTS } = await import("../../data/seed");
+    const { persistProjectsToDb, persistLeadsToDb } = await import("../../lib/lifecycle-persistence");
+
+    let leadId = "";
+    await withServer(async (baseUrl) => {
+      const created = await fetch(`${baseUrl}/api/leads`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          source: "website", projectType: "residencial",
+          location: "Mayagüez", budgetRange: "150k_300k",
+          terrainStatus: "no_terrain",
+          contactName: "LC-16 Orphan", email: "lc16@x.com", phone: "555-LC16",
+        }),
+      });
+      leadId = ((await created.json()) as { id: string }).id;
+      const baseProjectsCount = PROJECTS.length;
+
+      const token = await login(baseUrl, "demo@konti.com");
+      const accept1 = await fetch(`${baseUrl}/api/leads/${leadId}/accept`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: "{}",
+      });
+      const body1 = (await accept1.json()) as { project: { id: string } };
+      const synthesizedId = body1.project.id;
+
+      // Simulate operator deleting the project (or DB cascade) while the
+      // lead row keeps status="accepted".
+      const idx = PROJECTS.findIndex((p) => p.id === synthesizedId);
+      if (idx >= 0) PROJECTS.splice(idx, 1);
+      await persistProjectsToDb();
+      await persistLeadsToDb();
+
+      const accept2 = await fetch(`${baseUrl}/api/leads/${leadId}/accept`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: "{}",
+      });
+      assert.equal(accept2.status, 409, "orphan re-accept must be refused with 409");
+      const body2 = (await accept2.json()) as { error: string };
+      assert.equal(body2.error, "already_accepted_orphan");
+      assert.equal(PROJECTS.length, baseProjectsCount, "no duplicate project was synthesized");
+      void LEADS;
+    });
+  } finally {
+    await flushLifecyclePersistence();
+    await __resetLifecycleTablesForTest();
+    __resetLifecycleHydrationForTest();
+  }
+});
+
 test("LC-12: appendActivityAndPersist writes both in memory and in Postgres", async () => {
   await __resetLifecycleTablesForTest();
   __resetLifecycleHydrationForTest();

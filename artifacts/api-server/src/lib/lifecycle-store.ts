@@ -203,6 +203,7 @@ export async function loadLifecycleSnapshotFromDb(): Promise<PersistedLifecycleS
       if (r.kitchens !== null) out["kitchens"] = r.kitchens;
       if (r.projectType !== null) out["projectType"] = r.projectType;
       if (r.contingencyPercent !== null) out["contingencyPercent"] = r.contingencyPercent;
+      if (r.leadId !== null) out["leadId"] = r.leadId;
       return out as PersistedProject;
     });
 
@@ -583,6 +584,7 @@ function projectToRow(p: PersistedProject, position: number): typeof projectsTab
     kitchens: get<number>("kitchens") ?? null,
     projectType: get<string>("projectType") ?? null,
     contingencyPercent: get<number>("contingencyPercent") ?? null,
+    leadId: get<string>("leadId") ?? null,
   };
 }
 

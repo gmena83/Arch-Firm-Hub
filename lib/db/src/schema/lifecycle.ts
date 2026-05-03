@@ -73,7 +73,15 @@ export const projectsTable = pgTable(
     kitchens: integer("kitchens"),
     projectType: text("project_type"),
     contingencyPercent: doublePrecision("contingency_percent"),
+    // Task #147 — durable lead → project link. Replaces the in-process
+    // ACCEPTED_LEAD_PROJECTS map so re-accepting an already-accepted lead
+    // after a restart still finds the original synthesized project instead
+    // of silently creating a duplicate.
+    leadId: text("lead_id"),
   },
+  (t) => [
+    index("projects_lead_id_idx").on(t.leadId),
+  ],
 );
 
 // -- project_tasks -----------------------------------------------------------

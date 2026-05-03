@@ -141,8 +141,26 @@ router.post("/leads", async (req, res) => {
   res.status(201).json(lead);
 });
 
-// Track lead -> project for idempotency
+// Task #147 — in-memory cache only. The durable lead → project link is
+// the `leadId` column on the projects table; this map is just a fast
+// lookup populated as accepts happen in the current process. After a
+// restart the map is empty, but the accept handler falls back to a
+// scan over PROJECTS keyed by `leadId` so idempotency still holds.
 const ACCEPTED_LEAD_PROJECTS = new Map<string, string>();
+
+function findProjectForAcceptedLead(leadId: string): ProjectRecord | undefined {
+  const cachedId = ACCEPTED_LEAD_PROJECTS.get(leadId);
+  if (cachedId) {
+    const cached = PROJECTS.find((p) => p.id === cachedId);
+    if (cached) return cached;
+  }
+  // Cache miss (cold start after restart) — scan PROJECTS for the
+  // persisted leadId column. Hydrate the cache on hit so subsequent
+  // calls in the same process are O(1).
+  const found = PROJECTS.find((p) => (p as Record<string, unknown>)["leadId"] === leadId);
+  if (found) ACCEPTED_LEAD_PROJECTS.set(leadId, found.id);
+  return found;
+}
 
 router.post("/leads/:id/accept", requireRole("admin", "architect", "superadmin"), async (req, res) => {
   const lead = LEADS.find((l) => l.id === req.params["id"]);
@@ -152,12 +170,11 @@ router.post("/leads/:id/accept", requireRole("admin", "architect", "superadmin")
   }
   const acceptBody = (req.body ?? {}) as Record<string, unknown>;
 
-  // Idempotent: if already accepted, return the existing project
+  // Idempotent: if already accepted, look up the original synthesized
+  // project. The lookup uses the persisted `leadId` column so it survives
+  // a restart — see findProjectForAcceptedLead above.
   if (lead.status === "accepted") {
-    const existingProjectId = ACCEPTED_LEAD_PROJECTS.get(lead.id);
-    const existingProject = existingProjectId
-      ? PROJECTS.find((p) => p.id === existingProjectId)
-      : undefined;
+    const existingProject = findProjectForAcceptedLead(lead.id);
     if (existingProject) {
       res.status(200).json({
         lead,
@@ -167,7 +184,15 @@ router.post("/leads/:id/accept", requireRole("admin", "architect", "superadmin")
       });
       return;
     }
-    // Fall through if no project recorded (shouldn't happen)
+    // The lead is marked accepted but the project row is gone (e.g. the
+    // operator deleted it manually). Refuse to silently synthesize a
+    // duplicate — the team must reset the lead status before re-accepting.
+    res.status(409).json({
+      error: "already_accepted_orphan",
+      message: "This lead is already marked accepted but the original project was not found. Reset the lead before re-accepting.",
+      messageEs: "Este lead ya está marcado como aceptado pero no se encontró el proyecto original. Restablezca el lead antes de volver a aceptarlo.",
+    });
+    return;
   }
 
   lead.status = "accepted";
@@ -245,6 +270,11 @@ router.post("/leads/:id/accept", requireRole("admin", "architect", "superadmin")
     projectType: lead.projectType,
     contingencyPercent: 8,
   };
+  // Task #147 — stamp the durable lead → project link so the projects
+  // row carries it through `persistProjectsToDb()` below. After a
+  // restart, `findProjectForAcceptedLead()` rebuilds the in-memory map
+  // from this column.
+  (newProject as Record<string, unknown>)["leadId"] = lead.id;
   PROJECTS.push(newProject);
   ACCEPTED_LEAD_PROJECTS.set(lead.id, projectId);
   // Scaffold full per-project state so the new project can be driven through
