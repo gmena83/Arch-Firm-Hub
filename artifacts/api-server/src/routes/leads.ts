@@ -133,7 +133,11 @@ router.post("/leads", async (req, res) => {
   LEADS.unshift(lead);
   // Task #144 — persist the new lead row before responding 201 so a
   // crash-after-ack cannot lose acknowledged leads.
-  await persistLeadsToDb();
+  try { await persistLeadsToDb(); }
+  catch {
+    res.status(500).json({ error: "persist_failed", message: "Lead was captured in memory but failed to save. Please retry." });
+    return;
+  }
   res.status(201).json(lead);
 });
 

@@ -84,7 +84,11 @@ router.patch("/me", async (req, res) => {
   // Durability: persist the profile row before recording per-project activities
   // so a crash-after-ack cannot lose the user-visible profile change.
   if (changedKeys.length > 0) {
-    await persistUserProfile(user.id);
+    try { await persistUserProfile(user.id); }
+    catch {
+      res.status(500).json({ error: "persist_failed", message: "Profile edits were applied in memory but failed to save. Please retry." });
+      return;
+    }
   }
 
   if (changedKeys.length > 0 && user.role === "client") {

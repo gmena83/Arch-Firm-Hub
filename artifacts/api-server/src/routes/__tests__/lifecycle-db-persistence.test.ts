@@ -278,6 +278,80 @@ test("LC-10: seed migration is idempotent and refuses to clobber non-empty table
   }
 });
 
+test("LC-2: POST /projects/:id/advance-phase persists project.phase before 200 OK", async () => {
+  await __resetLifecycleTablesForTest();
+  __resetLifecycleHydrationForTest();
+  try {
+    await ensureLifecycleHydrated();
+    await withServer(async (baseUrl) => {
+      const token = await login(baseUrl, "demo@konti.com");
+      const auth = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
+      // proj-1 starts in consultation with no seeded punchlist; team can advance freely.
+      const before = (await loadLifecycleSnapshotFromDb())!.projects.find((p) => p.id === "proj-1");
+      const beforePhase = (before as unknown as { phase: string }).phase;
+      const res = await fetch(`${baseUrl}/api/projects/proj-1/advance-phase`, { method: "POST", headers: auth, body: "{}" });
+      assert.equal(res.status, 200, "advance-phase must succeed");
+      const snap = await loadLifecycleSnapshotFromDb();
+      const after = snap!.projects.find((p) => p.id === "proj-1") as unknown as { phase: string };
+      assert.notEqual(after.phase, beforePhase, "phase must be persisted (not still old phase)");
+    });
+  } finally {
+    await flushLifecyclePersistence();
+    await __resetLifecycleTablesForTest();
+    __resetLifecycleHydrationForTest();
+  }
+});
+
+test("LC-5: PUT /projects/:id/csv-mappings/:kind persists CSV mapping before 200 OK", async () => {
+  await __resetLifecycleTablesForTest();
+  __resetLifecycleHydrationForTest();
+  try {
+    await ensureLifecycleHydrated();
+    await withServer(async (baseUrl) => {
+      const token = await login(baseUrl, "demo@konti.com");
+      const auth = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
+      const res = await fetch(`${baseUrl}/api/projects/proj-1/csv-mappings/materials`, {
+        method: "PUT",
+        headers: auth,
+        body: JSON.stringify({ mapping: { "Cement LC-5": "Cemento LC-5" } }),
+      });
+      assert.equal(res.status, 200);
+      const snap = await loadLifecycleSnapshotFromDb();
+      assert.equal(snap!.csvMappings["proj-1"]?.materials?.["Cement LC-5"], "Cemento LC-5");
+    });
+  } finally {
+    await flushLifecyclePersistence();
+    await __resetLifecycleTablesForTest();
+    __resetLifecycleHydrationForTest();
+  }
+});
+
+test("LC-6: PATCH /projects/:projectId/metadata persists project metadata before 200 OK", async () => {
+  await __resetLifecycleTablesForTest();
+  __resetLifecycleHydrationForTest();
+  try {
+    await ensureLifecycleHydrated();
+    await withServer(async (baseUrl) => {
+      const token = await login(baseUrl, "demo@konti.com");
+      const auth = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
+      const res = await fetch(`${baseUrl}/api/projects/proj-1/metadata`, {
+        method: "PATCH",
+        headers: auth,
+        body: JSON.stringify({ squareMeters: 246, bathrooms: 4, kitchens: 1, projectType: "residencial", contingencyPercent: 9 }),
+      });
+      assert.equal(res.status, 200);
+      const snap = await loadLifecycleSnapshotFromDb();
+      const proj = snap!.projects.find((p) => p.id === "proj-1") as unknown as { squareMeters?: number; bathrooms?: number };
+      assert.equal(proj.squareMeters, 246);
+      assert.equal(proj.bathrooms, 4);
+    });
+  } finally {
+    await flushLifecyclePersistence();
+    await __resetLifecycleTablesForTest();
+    __resetLifecycleHydrationForTest();
+  }
+});
+
 test("LC-12: appendActivityAndPersist writes both in memory and in Postgres", async () => {
   await __resetLifecycleTablesForTest();
   __resetLifecycleHydrationForTest();

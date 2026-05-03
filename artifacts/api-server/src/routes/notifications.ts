@@ -115,7 +115,11 @@ router.post("/notifications/:id/seen", requireRole(["team", "admin", "superadmin
   const set = seenSetFor(user.id);
   set.add(id);
   // Task #144 — persist the updated seen set before ack so refreshes survive.
-  await persistNotificationsSeenForUser(user.id, [...set]);
+  try { await persistNotificationsSeenForUser(user.id, [...set]); }
+  catch {
+    res.status(500).json({ error: "persist_failed", message: "Notification mark-seen was applied in memory but failed to save. Please retry." });
+    return;
+  }
   res.json({ ok: true });
 });
 
@@ -123,7 +127,11 @@ router.post("/notifications/seen-all", requireRole(["team", "admin", "superadmin
   const user = (req as { user?: { id: string; role: string } }).user!;
   const set = seenSetFor(user.id);
   for (const it of buildFor(user.role, user.id)) set.add(it.id);
-  await persistNotificationsSeenForUser(user.id, [...set]);
+  try { await persistNotificationsSeenForUser(user.id, [...set]); }
+  catch {
+    res.status(500).json({ error: "persist_failed", message: "Notification mark-all-seen was applied in memory but failed to save. Please retry." });
+    return;
+  }
   res.json({ ok: true });
 });
 

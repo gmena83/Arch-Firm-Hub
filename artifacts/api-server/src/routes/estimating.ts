@@ -7,8 +7,8 @@ import {
   PROJECT_CSV_MAPPINGS,
   PROJECT_INVOICES,
   type CsvImportKind,
-  appendActivity,
 } from "../data/seed";
+import { appendActivityAndPersist, persistCsvMappingForProject } from "../lib/lifecycle-persistence";
 import { requireRole } from "../middlewares/require-role";
 import { getManagedSecret } from "../lib/managed-secrets";
 import { enforceClientOwnership } from "../middlewares/client-ownership";
@@ -414,7 +414,7 @@ router.post("/estimating/materials/import", requireRole(["team", "admin", "super
   EXTRA_MATERIALS.push(...accepted);
 
   if (targetProject && accepted.length > 0) {
-    appendActivity(targetProject.id, {
+    await appendActivityAndPersist(targetProject.id, {
       type: "calculator_import",
       actor: (req as { user?: { name?: string } }).user?.name ?? "Team",
       description: `Auto-added ${accepted.length} imported material(s) to the project calculator.`,
@@ -543,7 +543,7 @@ async function applyReceipts(projectId: string, parsed: Receipt[], actor: string
 
   const sourceLabel = source === "ocr" ? "via OCR upload" : "from CSV import";
   const sourceLabelEs = source === "ocr" ? "vía subida con OCR" : "desde importación CSV";
-  appendActivity(projectId, {
+  await appendActivityAndPersist(projectId, {
     type: "receipts_upload",
     actor,
     description: `Last ${lastThree.length} receipts uploaded ${sourceLabel}; labor baseline refreshed for ${updatedTrades.length} trade(s).`,
@@ -792,7 +792,7 @@ router.post("/projects/:id/report-template", requireRole(["team", "admin", "supe
     uploadedBy: (req as { user?: { name?: string } }).user?.name ?? "Team",
   };
   PROJECT_REPORT_TEMPLATE[project.id] = tpl;
-  appendActivity(project.id, {
+  await appendActivityAndPersist(project.id, {
     type: "report_template_upload",
     actor: tpl.uploadedBy,
     description: `Report template "${name}" uploaded for export reuse.`,
@@ -1014,7 +1014,7 @@ router.post("/projects/:id/contractor-estimate", requireRole(["team", "admin", "
   };
   PROJECT_CONTRACTOR_ESTIMATE[project.id] = estimate;
 
-  appendActivity(project.id, {
+  await appendActivityAndPersist(project.id, {
     type: "contractor_estimate",
     actor: estimate.generatedBy,
     description: `Contractor estimate generated: $${grandTotal.toLocaleString()} (${lines.length} line items).`,
@@ -1095,7 +1095,7 @@ router.put("/projects/:id/contractor-estimate/lines", requireRole(["team", "admi
     generatedAt: new Date().toISOString(),
   };
   PROJECT_CONTRACTOR_ESTIMATE[id] = updated;
-  appendActivity(id, {
+  await appendActivityAndPersist(id, {
     type: "contractor_estimate",
     actor: (req as { user?: { name?: string } }).user?.name ?? "Team",
     description: `Contractor estimate edited: ${updatedLines.length} lines · $${grandTotal.toLocaleString()}`,
@@ -1297,7 +1297,7 @@ router.get(
 router.put(
   "/projects/:id/csv-mappings/:kind",
   requireRole(["team", "admin", "superadmin"]),
-  (req, res) => {
+  async (req, res) => {
     const id = req.params["id"];
     const kind = req.params["kind"] as CsvImportKind | undefined;
     if (!id || !PROJECTS.find((p) => p.id === id)) {
@@ -1319,6 +1319,10 @@ router.put(
     const bucket = PROJECT_CSV_MAPPINGS[id] ?? {};
     bucket[kind] = mapping;
     PROJECT_CSV_MAPPINGS[id] = bucket;
+    // Task #144 — persist before ack so a 200 OK guarantees the mapping
+    // survives a restart.
+    try { await persistCsvMappingForProject(id); }
+    catch { return res.status(500).json({ error: "persist_failed", message: "CSV mapping was applied in memory but failed to save. Please retry." }); }
     return res.json({ projectId: id, kind, mapping });
   },
 );
