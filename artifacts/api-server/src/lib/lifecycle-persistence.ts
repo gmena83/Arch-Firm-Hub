@@ -63,6 +63,32 @@ import {
 import { logger } from "./logger";
 
 // ---------------------------------------------------------------------------
+// PersistFailedError — thrown by every helper below when the underlying
+// Postgres commit fails. The Express error middleware in `app.ts` maps it
+// uniformly to `500 { error: "persist_failed" }` so every lifecycle-mutating
+// route returns the same retry-friendly contract whether or not the route
+// wraps the call in a local try/catch.
+// ---------------------------------------------------------------------------
+export class PersistFailedError extends Error {
+  readonly userMessage: string;
+  readonly userMessageEs: string;
+  constructor(scope: string, cause: unknown) {
+    super(`persist_failed: ${scope}`);
+    this.name = "PersistFailedError";
+    this.userMessage = "Your edit was applied in memory but failed to save. Please retry.";
+    this.userMessageEs = "Su cambio se aplicó en memoria pero no se pudo guardar. Por favor reintente.";
+    (this as { cause?: unknown }).cause = cause;
+  }
+}
+
+function wrapPersist<T>(scope: string, p: Promise<T>): Promise<T> {
+  return p.catch((err) => {
+    logger.error({ err, scope }, "lifecycle: persist failed");
+    throw new PersistFailedError(scope, err);
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Hydration
 // ---------------------------------------------------------------------------
 
@@ -214,7 +240,7 @@ export function persistProjectsToDb(): Promise<void> {
   const snapshot = structuredClone(PROJECTS) as unknown as PersistedProject[];
   const next = _projectsPending.catch(() => undefined).then(() => saveProjectsToDb(snapshot));
   _projectsPending = next.catch(() => undefined);
-  return next.then(() => undefined);
+  return wrapPersist("projects", next.then(() => undefined));
 }
 
 // LEADS — single global queue.
@@ -223,58 +249,58 @@ export function persistLeadsToDb(): Promise<void> {
   const snapshot = structuredClone(LEADS) as Lead[];
   const next = _leadsPending.catch(() => undefined).then(() => saveLeadsToDb(snapshot));
   _leadsPending = next.catch(() => undefined);
-  return next.then(() => undefined);
+  return wrapPersist("leads", next.then(() => undefined));
 }
 
 // Per-project queues.
 const _tasksPending = new Map<string, Promise<unknown>>();
 export function persistProjectTasksForProject(projectId: string): Promise<void> {
   const list = structuredClone((PROJECT_TASKS as Record<string, PersistedTask[]>)[projectId] ?? []);
-  return chain(_tasksPending, projectId, () => saveProjectTasksForProject(projectId, list));
+  return wrapPersist("project_tasks", chain(_tasksPending, projectId, () => saveProjectTasksForProject(projectId, list)));
 }
 
 const _inspectionsPending = new Map<string, Promise<unknown>>();
 export function persistInspectionsForProject(projectId: string): Promise<void> {
   const list = structuredClone(PROJECT_INSPECTIONS[projectId] ?? []) as Inspection[];
-  return chain(_inspectionsPending, projectId, () => saveInspectionsForProject(projectId, list));
+  return wrapPersist("inspections", chain(_inspectionsPending, projectId, () => saveInspectionsForProject(projectId, list)));
 }
 
 const _changeOrdersPending = new Map<string, Promise<unknown>>();
 export function persistChangeOrdersForProject(projectId: string): Promise<void> {
   const list = structuredClone(PROJECT_CHANGE_ORDERS[projectId] ?? []) as ChangeOrder[];
-  return chain(_changeOrdersPending, projectId, () => saveChangeOrdersForProject(projectId, list));
+  return wrapPersist("change_orders", chain(_changeOrdersPending, projectId, () => saveChangeOrdersForProject(projectId, list)));
 }
 
 const _structuredPending = new Map<string, Promise<unknown>>();
 export function persistStructuredVarsForProject(projectId: string): Promise<void> {
   const v = PROJECT_STRUCTURED_VARS[projectId];
   const snap = v ? structuredClone(v) as StructuredVariables : undefined;
-  return chain(_structuredPending, projectId, () => saveStructuredVarsForProject(projectId, snap));
+  return wrapPersist("structured_vars", chain(_structuredPending, projectId, () => saveStructuredVarsForProject(projectId, snap)));
 }
 
 const _budgetPending = new Map<string, Promise<unknown>>();
 export function persistAssistedBudgetForProject(projectId: string): Promise<void> {
   const v = PROJECT_ASSISTED_BUDGETS[projectId];
   const snap = v ? structuredClone(v) as AssistedBudgetRange : undefined;
-  return chain(_budgetPending, projectId, () => saveAssistedBudgetForProject(projectId, snap));
+  return wrapPersist("assisted_budgets", chain(_budgetPending, projectId, () => saveAssistedBudgetForProject(projectId, snap)));
 }
 
 const _csvPending = new Map<string, Promise<unknown>>();
 export function persistCsvMappingForProject(projectId: string): Promise<void> {
   const m = structuredClone(PROJECT_CSV_MAPPINGS[projectId] ?? {}) as PersistedCsvMappings;
-  return chain(_csvPending, projectId, () => saveCsvMappingForProject(projectId, m));
+  return wrapPersist("csv_mappings", chain(_csvPending, projectId, () => saveCsvMappingForProject(projectId, m)));
 }
 
 const _checklistPending = new Map<string, Promise<unknown>>();
 export function persistPreDesignChecklistForProject(projectId: string): Promise<void> {
   const list = structuredClone(PRE_DESIGN_CHECKLISTS[projectId] ?? []) as PreDesignChecklistItem[];
-  return chain(_checklistPending, projectId, () => savePreDesignChecklistForProject(projectId, list));
+  return wrapPersist("pre_design_checklists", chain(_checklistPending, projectId, () => savePreDesignChecklistForProject(projectId, list)));
 }
 
 const _activitiesPending = new Map<string, Promise<unknown>>();
 export function persistActivitiesForProject(projectId: string): Promise<void> {
   const list = structuredClone(PROJECT_ACTIVITIES[projectId] ?? []) as ProjectActivity[];
-  return chain(_activitiesPending, projectId, () => saveActivitiesForProject(projectId, list));
+  return wrapPersist("project_activities", chain(_activitiesPending, projectId, () => saveActivitiesForProject(projectId, list)));
 }
 
 // Per-user queues.
@@ -286,13 +312,13 @@ export function persistUserProfile(userId: string): Promise<void> {
   if (u.phone !== undefined) profile.phone = u.phone;
   if (u.postalAddress !== undefined) profile.postalAddress = u.postalAddress;
   if (u.physicalAddress !== undefined) profile.physicalAddress = u.physicalAddress;
-  return chain(_profilePending, userId, () => saveUserProfile(profile));
+  return wrapPersist("user_profiles", chain(_profilePending, userId, () => saveUserProfile(profile)));
 }
 
 const _seenPending = new Map<string, Promise<unknown>>();
 export function persistNotificationsSeenForUser(userId: string, ids: string[]): Promise<void> {
   const snap = [...ids];
-  return chain(_seenPending, userId, () => saveNotificationsSeenForUser(userId, snap));
+  return wrapPersist("notifications_seen", chain(_seenPending, userId, () => saveNotificationsSeenForUser(userId, snap)));
 }
 
 // ---------------------------------------------------------------------------
