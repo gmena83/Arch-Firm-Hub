@@ -467,21 +467,49 @@ async function registerUploadsWithApi(
   projectId: string,
   names: string[],
 ): Promise<number> {
+  // Map the placeholder manifest's human-readable `consumed_by` label
+  // ("Pre-Design", "Lead Intake", "Construction", "Permits", …) onto the
+  // API's `category` enum (client_review/internal/permits/construction/
+  // design/contratos/acuerdos_compra/otros). Without this mapping the
+  // POST /documents call rejects with 400 "category required" and the
+  // M20 doc-completeness gate cannot be proven.
+  const categoryFor = (consumedBy: string | undefined): string => {
+    switch (consumedBy) {
+      case "Permits": return "permits";
+      case "Construction": return "construction";
+      case "Pre-Design": return "design";
+      case "Lead Intake": return "client_review";
+      default: return "otros";
+    }
+  };
+  // Photo uploads require a `photoCategory` from a fixed bucket list — pick
+  // one based on what the placeholder represents so the gallery can file it.
+  const photoCategoryFor = (path: string, consumedBy: string | undefined): string => {
+    if (/signature/i.test(path)) return "final";
+    if (consumedBy === "Construction") return "construction_progress";
+    if (consumedBy === "Permits") return "punchlist_evidence";
+    return "site_conditions";
+  };
+  const isPhotoExt = (ext: string): boolean =>
+    ext === "jpg" || ext === "jpeg" || ext === "png" || ext === "gif" || ext === "webp";
+
   let registered = 0;
   for (const f of PLACEHOLDER_MANIFEST.files) {
     if (!names.includes(f.path)) continue;
-    const ext = f.path.split(".").pop() ?? "file";
+    const ext = (f.path.split(".").pop() ?? "file").toLowerCase();
+    const body: Record<string, unknown> = {
+      name: f.path,
+      type: ext,
+      category: categoryFor(f.consumed_by),
+      isClientVisible: true,
+      fileSize: `${statSync(join(FIXTURES_DIR, "placeholders", f.path)).size} B`,
+      mimeType: f.mimeType ?? "",
+      description: f.powers_assertion ?? "",
+    };
+    if (isPhotoExt(ext)) body["photoCategory"] = photoCategoryFor(f.path, f.consumed_by);
     const r = await call(phase, `Register doc upload (${f.path})`, `/api/projects/${projectId}/documents`, {
       method: "POST", as: "admin",
-      body: {
-        name: f.path,
-        type: ext,
-        category: f.consumed_by ?? "general",
-        isClientVisible: true,
-        fileSize: `${statSync(join(FIXTURES_DIR, "placeholders", f.path)).size} B`,
-        mimeType: f.mimeType ?? "",
-        description: f.powers_assertion ?? "",
-      },
+      body,
       reasoning: "Doc completeness must be derived from API-observed state.",
       predicate: (b) => (typeof b?.id === "string" ? null : "expected created doc with id"),
     });
