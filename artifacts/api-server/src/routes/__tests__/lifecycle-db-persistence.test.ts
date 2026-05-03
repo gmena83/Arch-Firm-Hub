@@ -31,6 +31,7 @@ import {
   ensureLifecycleHydrated,
   appendActivityAndPersist,
 } from "../../lib/lifecycle-persistence";
+import { __resetAcceptedLeadProjectsCacheForTest } from "../leads";
 
 type LoginResponse = { token: string; user: { id: string; role: string } };
 
@@ -494,8 +495,10 @@ test("LC-15: re-accepting an already-accepted lead after restart returns the sam
     });
     await flushLifecyclePersistence();
 
-    // Simulated restart — drop the in-memory ACCEPTED_LEAD_PROJECTS cache
-    // by clearing the seed arrays and re-hydrating from Postgres.
+    // Simulated restart — clear the in-memory ACCEPTED_LEAD_PROJECTS cache,
+    // empty the seed arrays, and re-hydrate from Postgres so the next
+    // accept call must resolve via the DB-backed `leadId` cold path.
+    __resetAcceptedLeadProjectsCacheForTest();
     LEADS.length = 0;
     PROJECTS.length = 0;
     __resetLifecycleHydrationForTest();

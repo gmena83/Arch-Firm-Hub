@@ -148,6 +148,14 @@ router.post("/leads", async (req, res) => {
 // scan over PROJECTS keyed by `leadId` so idempotency still holds.
 const ACCEPTED_LEAD_PROJECTS = new Map<string, string>();
 
+// Test-only: clear the in-process accept cache so a "simulated restart"
+// in the persistence tests truly forces the handler down the
+// `findProjectForAcceptedLead` cold-path (DB-backed `leadId` scan).
+// Production code never calls this.
+export function __resetAcceptedLeadProjectsCacheForTest(): void {
+  ACCEPTED_LEAD_PROJECTS.clear();
+}
+
 function findProjectForAcceptedLead(leadId: string): ProjectRecord | undefined {
   const cachedId = ACCEPTED_LEAD_PROJECTS.get(leadId);
   if (cachedId) {
