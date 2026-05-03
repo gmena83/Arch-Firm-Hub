@@ -655,13 +655,40 @@ export interface DocumentCreateRequest {
 }
 
 /**
- * Patch the safe, mutable metadata of a document. At least one of `isClientVisible` or `featuredAsCover` must be present.
+ * Patch the safe, mutable metadata of a document. At least one of `isClientVisible`, `featuredAsCover`, or `caption` must be present.
  */
 export interface DocumentUpdateRequest {
-  /** Toggle whether the document is visible in the client-facing document list. */
+  /** Toggle whether the document is visible in the client-facing document list. Team-only. */
   isClientVisible?: boolean;
-  /** Toggle whether this construction-progress photo is the staff-curated cover. Setting to `true` flips any other photo on the same project off so only one cover is flagged at a time. Only valid for documents with `type === "photo"` and `photoCategory === "construction_progress"`. */
+  /** Toggle whether this construction-progress photo is the staff-curated cover. Setting to `true` flips any other photo on the same project off so only one cover is flagged at a time. Only valid for documents with `type === "photo"` and `photoCategory === "construction_progress"`. Team-only. */
   featuredAsCover?: boolean;
+  /**
+   * Update the photo caption (max 500 chars). Allowed for team/admin/superadmin OR the original uploader (so clients can edit captions on photos they uploaded themselves).
+   * @maxLength 500
+   */
+  caption?: string;
+}
+
+/**
+ * Append a new version to an existing document. Team-only.
+ */
+export interface DocumentVersionCreateRequest {
+  /** Human-readable file size of the new version (e.g. "1.4 MB"). */
+  fileSize?: string;
+  /**
+   * Optional English notes about what changed in this version.
+   * @maxLength 500
+   */
+  notes?: string;
+  /**
+   * Optional Spanish notes about what changed in this version.
+   * @maxLength 500
+   */
+  notesEs?: string;
+  /** Optional MIME type of the new version. */
+  mimeType?: string;
+  /** Optional base64 payload (raw or `data:` URL) for the new version. */
+  fileBase64?: string;
 }
 
 export type MaterialCategory =
@@ -1786,6 +1813,14 @@ export interface PunchlistItem {
   /** ISO timestamp the item was marked done */
   completedAt?: string;
   updatedAt: string;
+  /** Optional grouping category (English) used to render sticky section headers in the punchlist panel. */
+  category?: string;
+  /** Optional Spanish translation of `category`. */
+  categoryEs?: string;
+  /** Optional thumbnail URL (data URL or http(s)) shown alongside the item. */
+  photoUrl?: string;
+  /** Optional ID of a project document whose `imageUrl` / Drive thumbnail should be shown as the item thumbnail. */
+  photoDocumentId?: string;
 }
 
 export interface PunchlistResponse {

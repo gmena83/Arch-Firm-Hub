@@ -578,12 +578,17 @@ router.post("/projects/:projectId/documents", requireRole(["team", "admin", "sup
   return res.status(201).json(doc);
 });
 
-// Team-only: toggle document visibility and/or feature-as-cover. Body may
-// include either `isClientVisible` (boolean), `featuredAsCover` (boolean),
-// or both. At least one is required.
+// Patch document metadata. The endpoint accepts three independently optional
+// fields:
+//   - `isClientVisible` (team/admin/superadmin only)
+//   - `featuredAsCover`  (team/admin/superadmin only)
+//   - `caption`          (team OR the original uploader — Task #158 / A-09 dual gate)
+// Clients may PATCH ONLY the caption of a document they themselves uploaded;
+// any attempt to set the team-only fields from a client role is rejected
+// before any state is mutated.
 router.patch(
   "/projects/:projectId/documents/:documentId",
-  requireRole(["team", "admin", "superadmin"]),
+  requireRole(["team", "admin", "superadmin", "client"]),
   async (req, res) => {
     const projectId = req.params["projectId"] as string;
     const documentId = req.params["documentId"] as string;
@@ -591,23 +596,46 @@ router.patch(
     if (!project) {
       return res.status(404).json({ error: "not_found", message: "Project not found" });
     }
+    if (!enforceClientOwnership(req, res, projectId)) return;
     const list = (DOCUMENTS as Record<string, Array<{
       id: string; name: string; type?: string; photoCategory?: string;
       isClientVisible: boolean; featuredAsCover?: boolean; driveFileId?: string;
+      uploadedBy?: string; caption?: string;
     }>>)[projectId] ?? [];
     const doc = list.find((d) => d.id === documentId);
     if (!doc) return res.status(404).json({ error: "not_found", message: "Document not found" });
     const body = (req.body ?? {}) as {
       isClientVisible?: boolean;
       featuredAsCover?: boolean;
+      caption?: string;
     };
     const wantsVisibility = typeof body.isClientVisible === "boolean";
     const wantsFeatured = typeof body.featuredAsCover === "boolean";
-    if (!wantsVisibility && !wantsFeatured) {
+    const wantsCaption = typeof body.caption === "string";
+    if (!wantsVisibility && !wantsFeatured && !wantsCaption) {
       return res.status(400).json({
         error: "bad_request",
-        message: "isClientVisible and/or featuredAsCover (boolean) required",
+        message: "isClientVisible, featuredAsCover, and/or caption required",
       });
+    }
+    const user = (req as { user?: { id?: string; role?: string; name?: string } }).user;
+    const isClient = user?.role === "client";
+    if (isClient) {
+      // Clients can only edit captions, and only on documents they uploaded
+      // themselves (mirrors the DELETE rule). Reject team-only fields with
+      // 403 BEFORE mutating anything.
+      if (wantsVisibility || wantsFeatured) {
+        return res.status(403).json({
+          error: "forbidden",
+          message: "Clients cannot change visibility or cover flags",
+        });
+      }
+      if (doc.uploadedBy !== user?.id) {
+        return res.status(403).json({
+          error: "forbidden",
+          message: "Clients can only edit captions on documents they uploaded themselves",
+        });
+      }
     }
 
     // Task #136 — only construction-progress photos can be staff-curated
@@ -689,11 +717,91 @@ router.patch(
       }
     }
 
-    // Persist (Task #150). Both the visibility flip and the cover-photo
-    // single-cover invariant mutate `list` in place; one save call per
-    // request covers both branches.
+    if (wantsCaption) {
+      const previous = doc.caption ?? "";
+      const next = (body.caption as string).slice(0, 500);
+      if (previous !== next) {
+        if (next === "") {
+          delete (doc as { caption?: string }).caption;
+        } else {
+          doc.caption = next;
+        }
+        const actor = user?.name ?? (isClient ? "Client" : "Team");
+        await appendActivityAndPersist(projectId, {
+          type: "document_visibility_change",
+          actor,
+          description: `Caption updated on "${doc.name}"`,
+          descriptionEs: `Subtítulo actualizado en "${doc.name}"`,
+        });
+      }
+    }
+
+    // Persist (Task #150). Visibility, cover-photo invariant, and caption
+    // edits all mutate `list` in place; one save call covers every branch.
     await persistDocumentsForProject(projectId);
     return res.json(driveWarning ? { ...doc, driveWarning } : doc);
+  },
+);
+
+// Task #158 / A-05 — Append a new version to an existing document. Team-only.
+// Auto-increments the version number, refreshes the primary metadata
+// (fileSize / uploadedBy / uploadedAt) so the document list shows the latest
+// version at a glance, and emits a `document_version_added` activity for the
+// project timeline.
+router.post(
+  "/projects/:projectId/documents/:documentId/versions",
+  requireRole(["team", "admin", "superadmin"]),
+  async (req, res) => {
+    const projectId = req.params["projectId"] as string;
+    const documentId = req.params["documentId"] as string;
+    const project = PROJECTS.find((p) => p.id === projectId);
+    if (!project) {
+      return res.status(404).json({ error: "not_found", message: "Project not found" });
+    }
+    const list = (DOCUMENTS as Record<string, Array<{
+      id: string; name: string; fileSize?: string; uploadedBy?: string; uploadedAt?: string;
+      versions?: Array<{ version: number; uploadedBy: string; uploadedAt: string; fileSize: string; notes?: string; notesEs?: string }>;
+    }>>)[projectId] ?? [];
+    const doc = list.find((d) => d.id === documentId);
+    if (!doc) return res.status(404).json({ error: "not_found", message: "Document not found" });
+    const body = (req.body ?? {}) as {
+      fileSize?: string;
+      notes?: string;
+      notesEs?: string;
+    };
+    const user = (req as { user?: { id?: string; name?: string } }).user;
+    const versions = Array.isArray(doc.versions) ? doc.versions : [];
+    const nextVersionNumber = versions.reduce((max, v) => Math.max(max, v.version ?? 0), 0) + 1;
+    const uploadedAt = new Date().toISOString();
+    const uploadedBy = user?.name ?? "Team";
+    const fileSize = typeof body.fileSize === "string" && body.fileSize.length > 0
+      ? body.fileSize
+      : (doc.fileSize ?? "0 KB");
+    const newEntry: { version: number; uploadedBy: string; uploadedAt: string; fileSize: string; notes?: string; notesEs?: string } = {
+      version: nextVersionNumber,
+      uploadedBy,
+      uploadedAt,
+      fileSize,
+    };
+    if (typeof body.notes === "string" && body.notes.length > 0) newEntry.notes = body.notes.slice(0, 500);
+    if (typeof body.notesEs === "string" && body.notesEs.length > 0) newEntry.notesEs = body.notesEs.slice(0, 500);
+    doc.versions = [...versions, newEntry];
+    // Roll the latest version's size + timestamp forward so list views
+    // surface them without a separate fetch. We deliberately DO NOT
+    // overwrite `doc.uploadedBy` — that field is the immutable original
+    // uploader and is what the A-09 client caption / DELETE dual-gate
+    // checks against. The latest version's uploader is preserved on the
+    // versions[] entry above.
+    doc.fileSize = fileSize;
+    doc.uploadedAt = uploadedAt;
+    await persistDocumentsForProject(projectId);
+    await appendActivityAndPersist(projectId, {
+      type: "document_version_added",
+      actor: uploadedBy,
+      description: `New version v${nextVersionNumber} of "${doc.name}" uploaded`,
+      descriptionEs: `Nueva versión v${nextVersionNumber} de "${doc.name}" subida`,
+    });
+    return res.status(201).json(doc);
   },
 );
 

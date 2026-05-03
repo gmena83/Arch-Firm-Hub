@@ -7,11 +7,16 @@
  */
 
 /**
- * Patch the safe, mutable metadata of a document. At least one of `isClientVisible` or `featuredAsCover` must be present.
+ * Patch the safe, mutable metadata of a document. At least one of `isClientVisible`, `featuredAsCover`, or `caption` must be present.
  */
 export interface DocumentUpdateRequest {
-  /** Toggle whether the document is visible in the client-facing document list. */
+  /** Toggle whether the document is visible in the client-facing document list. Team-only. */
   isClientVisible?: boolean;
-  /** Toggle whether this construction-progress photo is the staff-curated cover. Setting to `true` flips any other photo on the same project off so only one cover is flagged at a time. Only valid for documents with `type === "photo"` and `photoCategory === "construction_progress"`. */
+  /** Toggle whether this construction-progress photo is the staff-curated cover. Setting to `true` flips any other photo on the same project off so only one cover is flagged at a time. Only valid for documents with `type === "photo"` and `photoCategory === "construction_progress"`. Team-only. */
   featuredAsCover?: boolean;
+  /**
+   * Update the photo caption (max 500 chars). Allowed for team/admin/superadmin OR the original uploader (so clients can edit captions on photos they uploaded themselves).
+   * @maxLength 500
+   */
+  caption?: string;
 }

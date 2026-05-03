@@ -23,11 +23,11 @@ MAP = {
     "A-02": ("Done", "Done + verified 2026-05 (Task #157): the 'Non-Billable Expenses' / 'Gastos no facturables' tab is rendered by artifacts/konti-dashboard/src/components/cost-plus-budget.tsx (L51-L171) inside the Cost-Plus budget card on the project detail page, with category badge, date, description, payer, amount, and a 'Non-Billable Total' / 'Total no facturable' subtotal. Data comes from the existing PROJECT_COST_PLUS API (cp.nonBillableExpenses + cp.nonBillableTotal). The original ask was a display tab; in-dashboard CRUD authoring is tracked separately if KONTi wants it later."),
     "A-03": ("Done", "Done in #61 (client portal expansion: client uploads enabled)."),
     "A-04": ("Done", "Done in #63 (document organization: contracts/agreements grouping)."),
-    "A-05": ("Open", None),
+    "A-05": ("Done", "Done in #158: documents now support a 'New version' upload — POST /api/projects/:projectId/documents/:documentId/versions appends a versions[] entry, rolls primary fileSize/uploadedBy/uploadedAt forward, and emits a `document_version_added` activity (artifacts/api-server/src/routes/projects.ts L749+); the project-detail DocCard renders a team-only Upload icon next to each doc row that picks a file and calls useAppendProjectDocumentVersion."),
     "A-06": ("Done", "Done in #61 (per-document client visibility) and reinforced by #88 (client ownership checks)."),
     "A-07": ("Done", "Done in #105 (Site photos: upload, categorize, link them from the project report)."),
     "A-08": ("Done", "Done in #75 (ClientContactCard with phone, postal, physical addresses)."),
-    "A-09": ("Open", None),
+    "A-09": ("Done", "Done in #158: PATCH /api/projects/:projectId/documents/:documentId now accepts a `caption` field with a 500-char cap behind a dual gate — team/admin/superadmin can edit any document, clients can edit ONLY captions on documents they themselves uploaded (artifacts/api-server/src/routes/projects.ts L584-L745). The site-photos gallery renders Pencil/Trash buttons on each owned thumbnail (artifacts/konti-dashboard/src/components/site-photos-gallery.tsx) so clients can rename or remove their own uploads inline."),
     "A-10": ("Needs Decision", None),
     "A-11": ("Done — needs verification", "Likely closed by #62 + #75 (Contractor Estimate Rollup on the project report); needs PM eyes-on confirmation that the consolidated view matches the original ask."),
     "A-12": ("Done", "Done in #61 hardening + verified 2026-05 (Task #156): client-side audit log shipped — backend GET /api/projects/:id/audit-log accepts the client role behind enforceClientOwnership with a `?clientOnly=true` filter (artifacts/api-server/src/routes/projects.ts ~L2386), and the bilingual ClientActivityCard is mounted on the project detail page (artifacts/konti-dashboard/src/components/client-activity-card.tsx + project-detail.tsx ~L1721) with a Show-all / Client-only toggle. Non-owner 403 + owner 200 paths covered by client-ownership.test.ts L382-L420 (pre-existing — no new test was needed in this task)."),
@@ -35,7 +35,7 @@ MAP = {
 
     # --- B. Cost Calculator ---
     "B-01": ("Done", "Done in #75 (CSV header aliases: Description, UnitPrice, etc.)."),
-    "B-02": ("Open", None),
+    "B-02": ("Done", "Done in #158: Hourly vs Lump Sum labor classification shipped — ContractorEstimateLine grew an optional `laborType: 'hourly' | 'lump'` (artifacts/api-server/src/routes/estimating.ts L71-L86); PUT /contractor-estimate/lines now reads/preserves it, and when category==='labor' && laborType==='lump' it forces qty=1 unit='lump' so lineTotal === lump sum and the variance report's amount-delta math is honest. The dashboard contractor-calculator edit table renders a Hourly/Lump Sum select on labor lines, mirrors the qty/unit normalisation client-side, disables qty/unit while lump is active, and shows a 'Lump'/'Global' badge in read-only view."),
     "B-03": ("Done", "Done in #75 (calculator auto-populates from imported materials)."),
     "B-04": ("Done", "Done in #75 (inline edit + PATCH /projects/:id/calculations/:lineId persistence)."),
     "B-05": ("Done", "Done in #75 (Project Information panel with bathrooms/kitchens/margin/mgmt-fee inputs)."),
@@ -50,7 +50,7 @@ MAP = {
     "B-14": ("Open", None),
 
     # --- C. Project Report ---
-    "C-01": ("Open", "Punchlist persistence shipped in #32; photo links + categories on the report still pending."),
+    "C-01": ("Done", "Done in #158: punchlist items now carry optional `category`/`categoryEs`/`photoUrl`/`photoDocumentId` (artifacts/api-server/src/data/seed.ts PunchlistItem interface). Seven proj-2 construction items were tagged with bilingual categories (Interior Finishes, Pool & Outdoor, Electrical, Plumbing) and two thumbnails. The PunchlistPanel groups items into sticky bilingual section headers and renders a 12×12 thumbnail when photoUrl is set (artifacts/konti-dashboard/src/components/punchlist-panel.tsx ~L311). Original 'persistence shipped in #32' note still applies."),
     "C-02": ("Done", "Done in #99 (Reviewer feedback bundle #2): contractor BOM detail now gated by !isClientView so client viewers only see the Cost-by-Category rollup and never the raw line items."),
     "C-03": ("Done", "Done in #99 (Reviewer feedback bundle #2): phase numbers no longer rendered anywhere in the project report (phase chips, timeline, donut all show labels only)."),
     "C-04": ("Done", "Done in #99 (Reviewer feedback bundle #2): added Phase Progress donut on the project report mirroring the punchlist phase-pie style with per-phase % completion and an avg-completion centre label."),

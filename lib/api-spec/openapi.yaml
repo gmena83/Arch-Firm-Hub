@@ -362,6 +362,63 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /projects/{projectId}/documents/{documentId}/versions:
+    post:
+      operationId: appendProjectDocumentVersion
+      tags: [documents]
+      summary: Append a new version to an existing document (team-only)
+      description: |
+        Records a new entry in the document's `versions[]` history, bumps the
+        primary `fileSize` / `uploadedBy` / `uploadedAt` metadata to the new
+        version, and emits a `document_version_added` activity. Auto-increments
+        the version number from the existing history.
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: documentId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DocumentVersionCreateRequest"
+      responses:
+        "201":
+          description: Updated document with the appended version
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Document"
+        "400":
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Insufficient permissions (team-only)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Project or document not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /projects/{projectId}/calculations:
     get:
       operationId: getProjectCalculations
@@ -3479,14 +3536,40 @@ components:
 
     DocumentUpdateRequest:
       type: object
-      description: Patch the safe, mutable metadata of a document. At least one of `isClientVisible` or `featuredAsCover` must be present.
+      description: Patch the safe, mutable metadata of a document. At least one of `isClientVisible`, `featuredAsCover`, or `caption` must be present.
       properties:
         isClientVisible:
           type: boolean
-          description: Toggle whether the document is visible in the client-facing document list.
+          description: Toggle whether the document is visible in the client-facing document list. Team-only.
         featuredAsCover:
           type: boolean
-          description: Toggle whether this construction-progress photo is the staff-curated cover. Setting to `true` flips any other photo on the same project off so only one cover is flagged at a time. Only valid for documents with `type === "photo"` and `photoCategory === "construction_progress"`.
+          description: Toggle whether this construction-progress photo is the staff-curated cover. Setting to `true` flips any other photo on the same project off so only one cover is flagged at a time. Only valid for documents with `type === "photo"` and `photoCategory === "construction_progress"`. Team-only.
+        caption:
+          type: string
+          maxLength: 500
+          description: Update the photo caption (max 500 chars). Allowed for team/admin/superadmin OR the original uploader (so clients can edit captions on photos they uploaded themselves).
+
+    DocumentVersionCreateRequest:
+      type: object
+      description: Append a new version to an existing document. Team-only.
+      properties:
+        fileSize:
+          type: string
+          description: Human-readable file size of the new version (e.g. "1.4 MB").
+        notes:
+          type: string
+          maxLength: 500
+          description: Optional English notes about what changed in this version.
+        notesEs:
+          type: string
+          maxLength: 500
+          description: Optional Spanish notes about what changed in this version.
+        mimeType:
+          type: string
+          description: Optional MIME type of the new version.
+        fileBase64:
+          type: string
+          description: Optional base64 payload (raw or `data:` URL) for the new version.
 
     Material:
       type: object
@@ -4756,6 +4839,18 @@ components:
           type: string
           description: ISO timestamp the item was marked done
         updatedAt: { type: string }
+        category:
+          type: string
+          description: Optional grouping category (English) used to render sticky section headers in the punchlist panel.
+        categoryEs:
+          type: string
+          description: Optional Spanish translation of `category`.
+        photoUrl:
+          type: string
+          description: Optional thumbnail URL (data URL or http(s)) shown alongside the item.
+        photoDocumentId:
+          type: string
+          description: Optional ID of a project document whose `imageUrl` / Drive thumbnail should be shown as the item thumbnail.
       required: [id, projectId, phase, label, labelEs, owner, status, updatedAt]
 
     PunchlistResponse:

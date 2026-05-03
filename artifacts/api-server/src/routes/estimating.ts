@@ -74,6 +74,12 @@ export interface ContractorEstimateLine {
   unit: string;
   unitPrice: number;
   lineTotal: number;
+  // Task #158 / B-02 — Hourly vs Lump Sum labor classification. Optional and
+  // only meaningful for `category === "labor"`. Defaults to "hourly" when
+  // omitted; "lump" lines are treated as fixed-price (variance is amount-delta
+  // rather than per-hour delta) and the dashboard's calculator forces qty=1
+  // unit="lump" so the line total IS the lump sum.
+  laborType?: "hourly" | "lump";
 }
 
 export interface ContractorEstimate {
@@ -1064,11 +1070,27 @@ router.put("/projects/:id/contractor-estimate/lines", requireRole(["team", "admi
     const category = typeof raw["category"] === "string" ? (raw["category"] as string) : existing?.category ?? "materials";
     const description = typeof raw["description"] === "string" ? (raw["description"] as string) : existing?.description ?? "Line";
     const descriptionEs = typeof raw["descriptionEs"] === "string" ? (raw["descriptionEs"] as string) : existing?.descriptionEs ?? description;
-    const quantity = Number(raw["quantity"] ?? existing?.quantity ?? 0);
-    const unit = typeof raw["unit"] === "string" ? (raw["unit"] as string) : existing?.unit ?? "unit";
+    let quantity = Number(raw["quantity"] ?? existing?.quantity ?? 0);
+    let unit = typeof raw["unit"] === "string" ? (raw["unit"] as string) : existing?.unit ?? "unit";
     const unitPrice = Number(raw["unitPrice"] ?? existing?.unitPrice ?? 0);
+    // Task #158 / B-02 — `laborType` only meaningful on labor lines. When set
+    // to "lump", normalise qty=1 unit="lump" so `lineTotal === lump sum` and
+    // the variance report's amount delta math is honest.
+    const rawLaborType = typeof raw["laborType"] === "string" ? (raw["laborType"] as string) : existing?.laborType;
+    let laborType: "hourly" | "lump" | undefined;
+    if (category === "labor") {
+      laborType = rawLaborType === "lump" ? "lump" : "hourly";
+      if (laborType === "lump") {
+        quantity = 1;
+        unit = "lump";
+      }
+    }
     const lineTotal = Math.round(quantity * unitPrice * 100) / 100;
-    return { id, category, description, descriptionEs, quantity, unit, unitPrice, lineTotal };
+    return {
+      id, category, description, descriptionEs,
+      quantity, unit, unitPrice, lineTotal,
+      ...(laborType ? { laborType } : {}),
+    };
   });
   const subtotalLabor = updatedLines.filter((l) => l.category === "labor").reduce((a, b) => a + b.lineTotal, 0);
   const subtotalSubcontractor = updatedLines.filter((l) => l.category === "subcontractor").reduce((a, b) => a + b.lineTotal, 0);

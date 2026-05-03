@@ -12,6 +12,7 @@ import {
   useDeleteProjectDocument,
   useUpdateProjectDocument,
   useUpdateProjectClientContact,
+  useAppendProjectDocumentVersion,
   getGetProjectQueryKey,
   getGetProjectTasksQueryKey,
   getGetProjectWeatherQueryKey,
@@ -54,9 +55,9 @@ import { InspectionsSection } from "@/components/inspections-section";
 import { PunchlistPanel } from "@/components/punchlist-panel";
 import { MilestonesTimeline } from "@/components/milestones-timeline";
 import {
-  MapPin, Users, FileText, Upload, Check, Clock, ChevronLeft,
+  MapPin, Users, FileText, Upload, Upload as UploadIcon, Check, Clock, ChevronLeft,
   Wind, Droplets, Thermometer, Eye, EyeOff, ArrowRight, X,
-  ChevronDown, ChevronUp, BarChart2, History, Trash2,
+  ChevronDown, ChevronUp, BarChart2, History, Trash2, Loader2,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -978,6 +979,41 @@ function DocCard({ doc, isClientView, projectId }: { doc: Document; isClientView
   const queryClient = useQueryClient();
   const [showVersions, setShowVersions] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  // Task #158 / A-05 — Team-only "Upload new version" affordance. We capture
+  // the picked file size client-side; on success the API rolls primary
+  // metadata forward, so we just refetch documents.
+  const appendVersion = useAppendProjectDocumentVersion({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getGetProjectDocumentsQueryKey(projectId) });
+        toast({ title: t("New version uploaded", "Nueva versión subida") });
+      },
+      onError: () => {
+        toast({ title: t("Could not upload version", "No se pudo subir la versión"), variant: "destructive" });
+      },
+    },
+  });
+  const versionFileRef = useRef<HTMLInputElement | null>(null);
+  const onPickVersion = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    versionFileRef.current?.click();
+  };
+  const onVersionFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    const sizeKb = Math.max(1, Math.round(file.size / 1024));
+    const fileSize = sizeKb >= 1024 ? `${(sizeKb / 1024).toFixed(1)} MB` : `${sizeKb} KB`;
+    appendVersion.mutate({
+      projectId,
+      documentId: doc.id,
+      data: {
+        fileSize,
+        notes: file.name,
+        notesEs: file.name,
+      },
+    });
+  };
   const updateDoc = useUpdateProjectDocument({
     mutation: {
       onSuccess: () => {
@@ -1119,6 +1155,27 @@ function DocCard({ doc, isClientView, projectId }: { doc: Document; isClientView
             >
               <Eye className="w-3 h-3" />
             </span>
+          )}
+          {!isClientView && (
+            <>
+              <input
+                ref={versionFileRef}
+                type="file"
+                onChange={onVersionFileChange}
+                className="hidden"
+                data-testid={`input-version-file-${doc.id}`}
+              />
+              <button
+                onClick={onPickVersion}
+                disabled={appendVersion.isPending}
+                className="p-1 text-muted-foreground hover:text-konti-olive transition-colors shrink-0 mt-0.5 disabled:opacity-50"
+                data-testid={`btn-upload-version-${doc.id}`}
+                aria-label={t("Upload new version", "Subir nueva versión")}
+                title={t("Upload new version", "Subir nueva versión")}
+              >
+                {appendVersion.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UploadIcon className="w-3.5 h-3.5" />}
+              </button>
+            </>
           )}
           {hasVersions && (
             <button

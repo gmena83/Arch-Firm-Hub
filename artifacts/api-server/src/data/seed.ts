@@ -1351,6 +1351,7 @@ export type ProjectActivityType =
   | "punchlist_change"
   | "document_visibility_change"
   | "document_featured_change"
+  | "document_version_added"
   | "client_view"
   | "document_download"
   | "client_upload"
@@ -1447,6 +1448,7 @@ const ACTIVITY_TYPE_TO_ENTITY: Record<string, AuditEntity> = {
   punchlist_change: "punchlist",
   document_visibility_change: "document",
   document_featured_change: "document",
+  document_version_added: "document",
   document_download: "document",
   client_upload: "document",
   document_removed: "document",
@@ -2420,6 +2422,14 @@ export interface PunchlistItem {
   waiverReason?: string;
   completedAt?: string;
   updatedAt: string;
+  // Task #158 / C-01 — optional grouping + thumbnail. When `category` is set,
+  // the punchlist panel renders sticky section headers grouping items together;
+  // when `photoUrl` (or `photoDocumentId` resolving to a project document) is
+  // set, a small thumbnail is shown alongside the item.
+  category?: string;
+  categoryEs?: string;
+  photoUrl?: string;
+  photoDocumentId?: string;
 }
 
 export function punchlistKey(projectId: string, phase: string): string {
@@ -2428,13 +2438,13 @@ export function punchlistKey(projectId: string, phase: string): string {
 
 export const PROJECT_PUNCHLIST: Record<string, PunchlistItem[]> = {
   [punchlistKey("proj-2", "construction")]: [
-    { id: "pl-2c-1", projectId: "proj-2", phase: "construction", label: "Touch-up paint master suite", labelEs: "Retoque de pintura suite principal", owner: "Jorge Rosa", dueDate: "2026-04-25", status: "done", completedAt: "2026-04-15T16:00:00Z", updatedAt: "2026-04-15T16:00:00Z" },
-    { id: "pl-2c-2", projectId: "proj-2", phase: "construction", label: "Adjust kitchen cabinet alignment", labelEs: "Ajustar alineación de gabinetes de cocina", owner: "Nainoshka", dueDate: "2026-04-25", status: "done", completedAt: "2026-04-16T10:00:00Z", updatedAt: "2026-04-16T10:00:00Z" },
-    { id: "pl-2c-3", projectId: "proj-2", phase: "construction", label: "Final pool tile grout cleanup", labelEs: "Limpieza final de mortero de azulejos de la piscina", owner: "Jorge Rosa", dueDate: "2026-04-28", status: "in_progress", updatedAt: "2026-04-18T09:00:00Z" },
-    { id: "pl-2c-4", projectId: "proj-2", phase: "construction", label: "Install missing outlet covers — studio", labelEs: "Instalar tapas de tomacorrientes faltantes — estudio", owner: "Subcontractor — Eléctrico PR", dueDate: "2026-04-30", status: "open", updatedAt: "2026-04-10T09:00:00Z" },
-    { id: "pl-2c-5", projectId: "proj-2", phase: "construction", label: "Replace cracked terrace tile (NE corner)", labelEs: "Reemplazar azulejo roto en terraza (esquina NE)", owner: "Jorge Rosa", dueDate: "2026-05-02", status: "open", updatedAt: "2026-04-12T09:00:00Z" },
-    { id: "pl-2c-6", projectId: "proj-2", phase: "construction", label: "Re-seal master shower silicone", labelEs: "Resellar silicona de la ducha principal", owner: "Subcontractor — Plomería", dueDate: "2026-05-05", status: "open", updatedAt: "2026-04-14T09:00:00Z" },
-    { id: "pl-2c-7", projectId: "proj-2", phase: "construction", label: "Trim exterior landscaping near entry", labelEs: "Recortar paisajismo exterior junto a la entrada", owner: "Michelle Telon Sosa", dueDate: "2026-05-08", status: "open", updatedAt: "2026-04-15T09:00:00Z" },
+    { id: "pl-2c-1", projectId: "proj-2", phase: "construction", label: "Touch-up paint master suite", labelEs: "Retoque de pintura suite principal", owner: "Jorge Rosa", dueDate: "2026-04-25", status: "done", completedAt: "2026-04-15T16:00:00Z", updatedAt: "2026-04-15T16:00:00Z", category: "Interior Finishes", categoryEs: "Acabados Interiores", photoUrl: "/seed-images/konti-vertical-garden.png" },
+    { id: "pl-2c-2", projectId: "proj-2", phase: "construction", label: "Adjust kitchen cabinet alignment", labelEs: "Ajustar alineación de gabinetes de cocina", owner: "Nainoshka", dueDate: "2026-04-25", status: "done", completedAt: "2026-04-16T10:00:00Z", updatedAt: "2026-04-16T10:00:00Z", category: "Interior Finishes", categoryEs: "Acabados Interiores" },
+    { id: "pl-2c-3", projectId: "proj-2", phase: "construction", label: "Final pool tile grout cleanup", labelEs: "Limpieza final de mortero de azulejos de la piscina", owner: "Jorge Rosa", dueDate: "2026-04-28", status: "in_progress", updatedAt: "2026-04-18T09:00:00Z", category: "Pool & Outdoor", categoryEs: "Piscina y Exterior", photoUrl: "/seed-images/konti-elevated-house.png" },
+    { id: "pl-2c-4", projectId: "proj-2", phase: "construction", label: "Install missing outlet covers — studio", labelEs: "Instalar tapas de tomacorrientes faltantes — estudio", owner: "Subcontractor — Eléctrico PR", dueDate: "2026-04-30", status: "open", updatedAt: "2026-04-10T09:00:00Z", category: "Electrical", categoryEs: "Eléctrico" },
+    { id: "pl-2c-5", projectId: "proj-2", phase: "construction", label: "Replace cracked terrace tile (NE corner)", labelEs: "Reemplazar azulejo roto en terraza (esquina NE)", owner: "Jorge Rosa", dueDate: "2026-05-02", status: "open", updatedAt: "2026-04-12T09:00:00Z", category: "Pool & Outdoor", categoryEs: "Piscina y Exterior" },
+    { id: "pl-2c-6", projectId: "proj-2", phase: "construction", label: "Re-seal master shower silicone", labelEs: "Resellar silicona de la ducha principal", owner: "Subcontractor — Plomería", dueDate: "2026-05-05", status: "open", updatedAt: "2026-04-14T09:00:00Z", category: "Plumbing", categoryEs: "Plomería" },
+    { id: "pl-2c-7", projectId: "proj-2", phase: "construction", label: "Trim exterior landscaping near entry", labelEs: "Recortar paisajismo exterior junto a la entrada", owner: "Michelle Telon Sosa", dueDate: "2026-05-08", status: "open", updatedAt: "2026-04-15T09:00:00Z", category: "Pool & Outdoor", categoryEs: "Piscina y Exterior" },
   ],
   [punchlistKey("proj-3", "completed")]: [
     { id: "pl-3f-1", projectId: "proj-3", phase: "completed", label: "Final walkthrough touch-ups", labelEs: "Retoques del recorrido final", owner: "Jorge Rosa", dueDate: "2025-11-22", status: "done", completedAt: "2025-11-22T15:00:00Z", updatedAt: "2025-11-22T15:00:00Z" },
@@ -2458,10 +2468,35 @@ export function countOpenPunchlistItems(projectId: string, phase: string): numbe
 // Mutate in-place rather than reassigning the const so route modules that
 // already imported the reference see the persisted state.
 {
+  // Build a by-id index of the seed values so we can re-overlay the
+  // taxonomy/thumbnail fields (category/categoryEs/photoUrl/photoDocumentId)
+  // even when a persisted snapshot exists. Without this, Task #158 / C-01
+  // category groupings would silently disappear on any environment that has
+  // an older punchlist.json on disk (which the in-process demo always does
+  // after a single edit). Mutable workflow fields (status, owner, dueDate,
+  // updatedAt, completedAt, waiverReason) are not touched.
+  const seedTaxonomyById = new Map<string, Pick<PunchlistItem, "category" | "categoryEs" | "photoUrl" | "photoDocumentId">>();
+  for (const items of Object.values(PROJECT_PUNCHLIST)) {
+    for (const it of items) {
+      if (it.category || it.photoUrl || it.photoDocumentId) {
+        seedTaxonomyById.set(it.id, {
+          ...(it.category !== undefined ? { category: it.category } : {}),
+          ...(it.categoryEs !== undefined ? { categoryEs: it.categoryEs } : {}),
+          ...(it.photoUrl !== undefined ? { photoUrl: it.photoUrl } : {}),
+          ...(it.photoDocumentId !== undefined ? { photoDocumentId: it.photoDocumentId } : {}),
+        });
+      }
+    }
+  }
   const persisted = loadPersistedPunchlist();
   if (persisted) {
     for (const k of Object.keys(PROJECT_PUNCHLIST)) delete PROJECT_PUNCHLIST[k];
-    for (const [k, v] of Object.entries(persisted)) PROJECT_PUNCHLIST[k] = v;
+    for (const [k, v] of Object.entries(persisted)) {
+      PROJECT_PUNCHLIST[k] = v.map((it) => {
+        const overlay = seedTaxonomyById.get(it.id);
+        return overlay ? { ...it, ...overlay } : it;
+      });
+    }
   }
 }
 

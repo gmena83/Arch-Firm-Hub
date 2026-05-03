@@ -580,23 +580,32 @@ export const UpdateProjectDocumentParams = zod.object({
   documentId: zod.coerce.string(),
 });
 
+export const updateProjectDocumentBodyCaptionMax = 500;
+
 export const UpdateProjectDocumentBody = zod
   .object({
     isClientVisible: zod
       .boolean()
       .optional()
       .describe(
-        "Toggle whether the document is visible in the client-facing document list.",
+        "Toggle whether the document is visible in the client-facing document list. Team-only.",
       ),
     featuredAsCover: zod
       .boolean()
       .optional()
       .describe(
-        'Toggle whether this construction-progress photo is the staff-curated cover. Setting to `true` flips any other photo on the same project off so only one cover is flagged at a time. Only valid for documents with `type === \"photo\"` and `photoCategory === \"construction_progress\"`.',
+        'Toggle whether this construction-progress photo is the staff-curated cover. Setting to `true` flips any other photo on the same project off so only one cover is flagged at a time. Only valid for documents with `type === \"photo\"` and `photoCategory === \"construction_progress\"`. Team-only.',
+      ),
+    caption: zod
+      .string()
+      .max(updateProjectDocumentBodyCaptionMax)
+      .optional()
+      .describe(
+        "Update the photo caption (max 500 chars). Allowed for team\/admin\/superadmin OR the original uploader (so clients can edit captions on photos they uploaded themselves).",
       ),
   })
   .describe(
-    "Patch the safe, mutable metadata of a document. At least one of `isClientVisible` or `featuredAsCover` must be present.",
+    "Patch the safe, mutable metadata of a document. At least one of `isClientVisible`, `featuredAsCover`, or `caption` must be present.",
   );
 
 export const UpdateProjectDocumentResponse = zod.object({
@@ -715,6 +724,54 @@ export const DeleteProjectDocumentParams = zod.object({
   projectId: zod.coerce.string(),
   documentId: zod.coerce.string(),
 });
+
+/**
+ * Records a new entry in the document's `versions[]` history, bumps the
+primary `fileSize` / `uploadedBy` / `uploadedAt` metadata to the new
+version, and emits a `document_version_added` activity. Auto-increments
+the version number from the existing history.
+
+ * @summary Append a new version to an existing document (team-only)
+ */
+export const AppendProjectDocumentVersionParams = zod.object({
+  projectId: zod.coerce.string(),
+  documentId: zod.coerce.string(),
+});
+
+export const appendProjectDocumentVersionBodyNotesMax = 500;
+
+export const appendProjectDocumentVersionBodyNotesEsMax = 500;
+
+export const AppendProjectDocumentVersionBody = zod
+  .object({
+    fileSize: zod
+      .string()
+      .optional()
+      .describe(
+        'Human-readable file size of the new version (e.g. \"1.4 MB\").',
+      ),
+    notes: zod
+      .string()
+      .max(appendProjectDocumentVersionBodyNotesMax)
+      .optional()
+      .describe("Optional English notes about what changed in this version."),
+    notesEs: zod
+      .string()
+      .max(appendProjectDocumentVersionBodyNotesEsMax)
+      .optional()
+      .describe("Optional Spanish notes about what changed in this version."),
+    mimeType: zod
+      .string()
+      .optional()
+      .describe("Optional MIME type of the new version."),
+    fileBase64: zod
+      .string()
+      .optional()
+      .describe(
+        "Optional base64 payload (raw or `data:` URL) for the new version.",
+      ),
+  })
+  .describe("Append a new version to an existing document. Team-only.");
 
 /**
  * @summary Get material calculations for a project
@@ -1246,6 +1303,28 @@ export const ListProjectPunchlistResponse = zod.object({
         .optional()
         .describe("ISO timestamp the item was marked done"),
       updatedAt: zod.string(),
+      category: zod
+        .string()
+        .optional()
+        .describe(
+          "Optional grouping category (English) used to render sticky section headers in the punchlist panel.",
+        ),
+      categoryEs: zod
+        .string()
+        .optional()
+        .describe("Optional Spanish translation of `category`."),
+      photoUrl: zod
+        .string()
+        .optional()
+        .describe(
+          "Optional thumbnail URL (data URL or http(s)) shown alongside the item.",
+        ),
+      photoDocumentId: zod
+        .string()
+        .optional()
+        .describe(
+          "Optional ID of a project document whose `imageUrl` \/ Drive thumbnail should be shown as the item thumbnail.",
+        ),
     }),
   ),
   openCount: zod.number(),
@@ -1331,6 +1410,28 @@ export const UpdateProjectPunchlistItemResponse = zod.object({
       .optional()
       .describe("ISO timestamp the item was marked done"),
     updatedAt: zod.string(),
+    category: zod
+      .string()
+      .optional()
+      .describe(
+        "Optional grouping category (English) used to render sticky section headers in the punchlist panel.",
+      ),
+    categoryEs: zod
+      .string()
+      .optional()
+      .describe("Optional Spanish translation of `category`."),
+    photoUrl: zod
+      .string()
+      .optional()
+      .describe(
+        "Optional thumbnail URL (data URL or http(s)) shown alongside the item.",
+      ),
+    photoDocumentId: zod
+      .string()
+      .optional()
+      .describe(
+        "Optional ID of a project document whose `imageUrl` \/ Drive thumbnail should be shown as the item thumbnail.",
+      ),
   }),
 });
 
@@ -1404,6 +1505,28 @@ export const SetProjectPunchlistItemStatusResponse = zod.object({
       .optional()
       .describe("ISO timestamp the item was marked done"),
     updatedAt: zod.string(),
+    category: zod
+      .string()
+      .optional()
+      .describe(
+        "Optional grouping category (English) used to render sticky section headers in the punchlist panel.",
+      ),
+    categoryEs: zod
+      .string()
+      .optional()
+      .describe("Optional Spanish translation of `category`."),
+    photoUrl: zod
+      .string()
+      .optional()
+      .describe(
+        "Optional thumbnail URL (data URL or http(s)) shown alongside the item.",
+      ),
+    photoDocumentId: zod
+      .string()
+      .optional()
+      .describe(
+        "Optional ID of a project document whose `imageUrl` \/ Drive thumbnail should be shown as the item thumbnail.",
+      ),
   }),
 });
 

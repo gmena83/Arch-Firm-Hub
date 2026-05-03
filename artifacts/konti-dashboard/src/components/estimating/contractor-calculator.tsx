@@ -63,7 +63,19 @@ export function ContractorCalculator({ defaultProjectId }: { defaultProjectId?: 
   const startEdit = () => { if (estimate) setEditLines(estimate.lines.map((l) => ({ ...l }))); };
   const cancelEdit = () => setEditLines(null);
   const updateLine = (i: number, patch: Partial<EditableLine>) => {
-    setEditLines((prev) => prev ? prev.map((l, idx) => idx === i ? { ...l, ...patch, lineTotal: Math.round((Number(patch.quantity ?? l.quantity) * Number(patch.unitPrice ?? l.unitPrice)) * 100) / 100 } : l) : prev);
+    setEditLines((prev) => prev ? prev.map((l, idx) => {
+      if (idx !== i) return l;
+      const next: EditableLine = { ...l, ...patch };
+      // Task #158 / B-02 — Lump-sum labor lines force qty=1 unit="lump" so
+      // `lineTotal === lump sum` (variance-report friendly). Switching back
+      // to "hourly" leaves whatever the user typed in qty/unit alone.
+      if (next.category === "labor" && next.laborType === "lump") {
+        next.quantity = 1;
+        next.unit = "lump";
+      }
+      next.lineTotal = Math.round(Number(next.quantity) * Number(next.unitPrice) * 100) / 100;
+      return next;
+    }) : prev);
   };
   const removeLine = (i: number) => setEditLines((prev) => prev ? prev.filter((_, idx) => idx !== i) : prev);
   const addLine = () => setEditLines((prev) => prev ? [...prev, { id: `line-new-${prev.length + 1}`, category: "materials", description: "New line", descriptionEs: "Nueva línea", quantity: 1, unit: "unit", unitPrice: 0, lineTotal: 0 }] : prev);
@@ -263,15 +275,41 @@ export function ContractorCalculator({ defaultProjectId }: { defaultProjectId?: 
                         <option value="labor">{t("Labor", "Mano de Obra")}</option>
                         <option value="subcontractor">{t("Subcontractor", "Subcontratistas")}</option>
                       </select>
+                      {l.category === "labor" && (
+                        <select
+                          value={l.laborType ?? "hourly"}
+                          onChange={(e) => updateLine(i, { laborType: e.target.value as "hourly" | "lump" })}
+                          data-testid={`edit-line-labor-type-${i}`}
+                          className="mt-1 w-full text-[11px] px-1.5 py-0.5 rounded border border-input bg-background"
+                          aria-label={t("Labor type (hourly or lump sum)", "Tipo de mano de obra (por hora o suma global)")}
+                        >
+                          <option value="hourly">{t("Hourly", "Por hora")}</option>
+                          <option value="lump">{t("Lump Sum", "Suma global")}</option>
+                        </select>
+                      )}
                     </td>
                     <td className="px-2 py-1">
                       <input value={lang === "es" ? l.descriptionEs : l.description} onChange={(e) => updateLine(i, lang === "es" ? { descriptionEs: e.target.value } : { description: e.target.value })} className="w-full text-xs px-1.5 py-1 rounded border border-input bg-background" data-testid={`edit-line-desc-${i}`} />
                     </td>
                     <td className="px-2 py-1">
-                      <input type="number" min={0} step="0.01" value={l.quantity} onChange={(e) => updateLine(i, { quantity: Number(e.target.value) })} className="w-20 text-xs px-1.5 py-1 rounded border border-input bg-background text-right" data-testid={`edit-line-qty-${i}`} />
+                      <input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={l.quantity}
+                        onChange={(e) => updateLine(i, { quantity: Number(e.target.value) })}
+                        disabled={l.category === "labor" && l.laborType === "lump"}
+                        className="w-20 text-xs px-1.5 py-1 rounded border border-input bg-background text-right disabled:opacity-50"
+                        data-testid={`edit-line-qty-${i}`}
+                      />
                     </td>
                     <td className="px-2 py-1">
-                      <input value={l.unit} onChange={(e) => updateLine(i, { unit: e.target.value })} className="w-16 text-xs px-1.5 py-1 rounded border border-input bg-background" />
+                      <input
+                        value={l.unit}
+                        onChange={(e) => updateLine(i, { unit: e.target.value })}
+                        disabled={l.category === "labor" && l.laborType === "lump"}
+                        className="w-16 text-xs px-1.5 py-1 rounded border border-input bg-background disabled:opacity-50"
+                      />
                     </td>
                     <td className="px-2 py-1">
                       <input type="number" min={0} step="0.01" value={l.unitPrice} onChange={(e) => updateLine(i, { unitPrice: Number(e.target.value) })} className="w-24 text-xs px-1.5 py-1 rounded border border-input bg-background text-right" data-testid={`edit-line-price-${i}`} />
@@ -285,7 +323,14 @@ export function ContractorCalculator({ defaultProjectId }: { defaultProjectId?: 
                   </tr>
                 ) : (
                   <tr key={l.id}>
-                    <td className="px-3 py-1.5 capitalize">{l.category}</td>
+                    <td className="px-3 py-1.5 capitalize">
+                      {l.category}
+                      {l.category === "labor" && l.laborType === "lump" && (
+                        <span className="ml-1.5 inline-flex items-center text-[10px] uppercase tracking-wide font-semibold px-1.5 py-0.5 rounded-full bg-konti-olive/15 text-konti-olive border border-konti-olive/30" data-testid={`line-lump-badge-${i}`}>
+                          {t("Lump", "Global")}
+                        </span>
+                      )}
+                    </td>
                     <td className="px-3 py-1.5">{lang === "es" ? l.descriptionEs : l.description}</td>
                     <td className="px-3 py-1.5 text-right">{l.quantity}</td>
                     <td className="px-3 py-1.5">{l.unit}</td>

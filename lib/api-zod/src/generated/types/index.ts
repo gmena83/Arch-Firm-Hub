@@ -90,6 +90,7 @@ export * from "./documentPhotoCategory";
 export * from "./documentType";
 export * from "./documentUpdateRequest";
 export * from "./documentVersion";
+export * from "./documentVersionCreateRequest";
 export * from "./driveBackfillResponse";
 export * from "./driveBackfillResult";
 export * from "./driveBackfillResultStatus";

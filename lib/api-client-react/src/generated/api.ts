@@ -57,6 +57,7 @@ import type {
   Document,
   DocumentCreateRequest,
   DocumentUpdateRequest,
+  DocumentVersionCreateRequest,
   DriveBackfillResponse,
   DriveConfigResponse,
   DriveConfigureRequest,
@@ -1149,6 +1150,132 @@ export const useDeleteProjectDocument = <
   TContext
 > => {
   return useMutation(getDeleteProjectDocumentMutationOptions(options));
+};
+
+/**
+ * Records a new entry in the document's `versions[]` history, bumps the
+primary `fileSize` / `uploadedBy` / `uploadedAt` metadata to the new
+version, and emits a `document_version_added` activity. Auto-increments
+the version number from the existing history.
+
+ * @summary Append a new version to an existing document (team-only)
+ */
+export const getAppendProjectDocumentVersionUrl = (
+  projectId: string,
+  documentId: string,
+) => {
+  return `/api/projects/${projectId}/documents/${documentId}/versions`;
+};
+
+export const appendProjectDocumentVersion = async (
+  projectId: string,
+  documentId: string,
+  documentVersionCreateRequest?: DocumentVersionCreateRequest,
+  options?: RequestInit,
+): Promise<Document> => {
+  return customFetch<Document>(
+    getAppendProjectDocumentVersionUrl(projectId, documentId),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(documentVersionCreateRequest),
+    },
+  );
+};
+
+export const getAppendProjectDocumentVersionMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof appendProjectDocumentVersion>>,
+    TError,
+    {
+      projectId: string;
+      documentId: string;
+      data: BodyType<DocumentVersionCreateRequest>;
+    },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof appendProjectDocumentVersion>>,
+  TError,
+  {
+    projectId: string;
+    documentId: string;
+    data: BodyType<DocumentVersionCreateRequest>;
+  },
+  TContext
+> => {
+  const mutationKey = ["appendProjectDocumentVersion"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof appendProjectDocumentVersion>>,
+    {
+      projectId: string;
+      documentId: string;
+      data: BodyType<DocumentVersionCreateRequest>;
+    }
+  > = (props) => {
+    const { projectId, documentId, data } = props ?? {};
+
+    return appendProjectDocumentVersion(
+      projectId,
+      documentId,
+      data,
+      requestOptions,
+    );
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AppendProjectDocumentVersionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof appendProjectDocumentVersion>>
+>;
+export type AppendProjectDocumentVersionMutationBody =
+  BodyType<DocumentVersionCreateRequest>;
+export type AppendProjectDocumentVersionMutationError =
+  ErrorType<ErrorResponse>;
+
+/**
+ * @summary Append a new version to an existing document (team-only)
+ */
+export const useAppendProjectDocumentVersion = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof appendProjectDocumentVersion>>,
+    TError,
+    {
+      projectId: string;
+      documentId: string;
+      data: BodyType<DocumentVersionCreateRequest>;
+    },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof appendProjectDocumentVersion>>,
+  TError,
+  {
+    projectId: string;
+    documentId: string;
+    data: BodyType<DocumentVersionCreateRequest>;
+  },
+  TContext
+> => {
+  return useMutation(getAppendProjectDocumentVersionMutationOptions(options));
 };
 
 /**

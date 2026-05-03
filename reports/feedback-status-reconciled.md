@@ -8,9 +8,9 @@ Reconciled workbook: `attached_assets/KONTi_Dashboard_Feedback_Consolidated_v3_a
 
 | Status | Count |
 |---|---:|
-| Open | 5 |
+| Open | 1 |
 | In Progress | 0 |
-| Done | 49 |
+| Done | 53 |
 | Done — needs verification | 1 |
 | Needs Spec | 0 |
 | Needs Decision | 2 |
@@ -31,12 +31,15 @@ These rows look closed on paper but a PM should eyeball the live UI before promo
 | A-02 | Open | Done | Done + verified 2026-05 (Task #157): the 'Non-Billable Expenses' / 'Gastos no facturables' tab is rendered by artifacts/konti-dashboard/src/components/cost-plus-budget.tsx (L51-L171) inside the Cost-Plus budget card on the project detail page, with category badge, date, description, payer, amount, and a 'Non-Billable Total' / 'Total no facturable' subtotal. Data comes from the existing PROJECT_COST_PLUS API (cp.nonBillableExpenses + cp.nonBillableTotal). The original ask was a display tab; in-dashboard CRUD authoring is tracked separately if KONTi wants it later. |
 | A-03 | Open | Done | Done in #61 (client portal expansion: client uploads enabled). |
 | A-04 | Open | Done | Done in #63 (document organization: contracts/agreements grouping). |
+| A-05 | Open | Done | Done in #158: documents now support a 'New version' upload — POST /api/projects/:projectId/documents/:documentId/versions appends a versions[] entry, rolls primary fileSize/uploadedBy/uploadedAt forward, and emits a `document_version_added` activity (artifacts/api-server/src/routes/projects.ts L749+); the project-detail DocCard renders a team-only Upload icon next to each doc row that picks a file and calls useAppendProjectDocumentVersion. |
 | A-06 | Open | Done | Done in #61 (per-document client visibility) and reinforced by #88 (client ownership checks). |
 | A-07 | Open | Done | Done in #105 (Site photos: upload, categorize, link them from the project report). |
 | A-08 | Open | Done | Done in #75 (ClientContactCard with phone, postal, physical addresses). |
+| A-09 | Open | Done | Done in #158: PATCH /api/projects/:projectId/documents/:documentId now accepts a `caption` field with a 500-char cap behind a dual gate — team/admin/superadmin can edit any document, clients can edit ONLY captions on documents they themselves uploaded (artifacts/api-server/src/routes/projects.ts L584-L745). The site-photos gallery renders Pencil/Trash buttons on each owned thumbnail (artifacts/konti-dashboard/src/components/site-photos-gallery.tsx) so clients can rename or remove their own uploads inline. |
 | A-12 | Open | Done | Done in #61 hardening + verified 2026-05 (Task #156): client-side audit log shipped — backend GET /api/projects/:id/audit-log accepts the client role behind enforceClientOwnership with a `?clientOnly=true` filter (artifacts/api-server/src/routes/projects.ts ~L2386), and the bilingual ClientActivityCard is mounted on the project detail page (artifacts/konti-dashboard/src/components/client-activity-card.tsx + project-detail.tsx ~L1721) with a Show-all / Client-only toggle. Non-owner 403 + owner 200 paths covered by client-ownership.test.ts L382-L420 (pre-existing — no new test was needed in this task). |
 | A-13 | Open | Done | Done in #62 (KONTi brand pass) and #74 (header text readable on bright cover photos). |
 | B-01 | Open | Done | Done in #75 (CSV header aliases: Description, UnitPrice, etc.). |
+| B-02 | Open | Done | Done in #158: Hourly vs Lump Sum labor classification shipped — ContractorEstimateLine grew an optional `laborType: 'hourly' | 'lump'` (artifacts/api-server/src/routes/estimating.ts L71-L86); PUT /contractor-estimate/lines now reads/preserves it, and when category==='labor' && laborType==='lump' it forces qty=1 unit='lump' so lineTotal === lump sum and the variance report's amount-delta math is honest. The dashboard contractor-calculator edit table renders a Hourly/Lump Sum select on labor lines, mirrors the qty/unit normalisation client-side, disables qty/unit while lump is active, and shows a 'Lump'/'Global' badge in read-only view. |
 | B-03 | Open | Done | Done in #75 (calculator auto-populates from imported materials). |
 | B-04 | Open | Done | Done in #75 (inline edit + PATCH /projects/:id/calculations/:lineId persistence). |
 | B-05 | Open | Done | Done in #75 (Project Information panel with bathrooms/kitchens/margin/mgmt-fee inputs). |
@@ -48,6 +51,7 @@ These rows look closed on paper but a PM should eyeball the live UI before promo
 | B-11 | In Progress | Done | Done in #28 (real PDF/image OCR replaces the mock). |
 | B-12 | In Progress | Done | Done in #29 (PDF export now uses the saved report template). |
 | B-13 | Open | Done | Done in #99 (Reviewer feedback bundle #2): Materials Library 'Add Material' button now opens a modal that POSTs a single material via the existing /api/estimating/materials/import endpoint and refreshes the catalog. |
+| C-01 | Open | Done | Done in #158: punchlist items now carry optional `category`/`categoryEs`/`photoUrl`/`photoDocumentId` (artifacts/api-server/src/data/seed.ts PunchlistItem interface). Seven proj-2 construction items were tagged with bilingual categories (Interior Finishes, Pool & Outdoor, Electrical, Plumbing) and two thumbnails. The PunchlistPanel groups items into sticky bilingual section headers and renders a 12×12 thumbnail when photoUrl is set (artifacts/konti-dashboard/src/components/punchlist-panel.tsx ~L311). Original 'persistence shipped in #32' note still applies. |
 | C-02 | Open | Done | Done in #99 (Reviewer feedback bundle #2): contractor BOM detail now gated by !isClientView so client viewers only see the Cost-by-Category rollup and never the raw line items. |
 | C-03 | Open | Done | Done in #99 (Reviewer feedback bundle #2): phase numbers no longer rendered anywhere in the project report (phase chips, timeline, donut all show labels only). |
 | C-04 | Open | Done | Done in #99 (Reviewer feedback bundle #2): added Phase Progress donut on the project report mirroring the punchlist phase-pie style with per-phase % completion and an avg-completion centre label. |
@@ -81,11 +85,7 @@ These rows look closed on paper but a PM should eyeball the live UI before promo
 
 | ID | Was | Now | Note |
 |---|---|---|---|
-| A-05 | Open | Open | — |
-| A-09 | Open | Open | — |
-| B-02 | Open | Open | — |
 | B-14 | Open | Open | — |
-| C-01 | Open | Open | Punchlist persistence shipped in #32; photo links + categories on the report still pending. |
 
 ## Items needing a product decision
 

@@ -13,6 +13,7 @@ import {
 import { useLang } from "@/hooks/use-lang";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
+import { resolveSeedImageUrl } from "@/lib/seed-image-url";
 import { ListChecks, Plus, X, Check, Clock, AlertCircle, ShieldOff, Trash2, ArrowRight, Loader2 } from "lucide-react";
 
 type PunchlistStatus = PunchlistItemStatus;
@@ -304,13 +305,53 @@ export function PunchlistPanel({
         </div>
       </div>
 
-      <div className="space-y-2 mb-4">
-        {items.map((item) => (
+      <div className="space-y-4 mb-4 max-h-[640px] overflow-y-auto pr-1" data-testid="punchlist-items-container">
+        {(() => {
+          // Task #158 / C-01 — Group items by `category` (preserving the
+          // server-provided order within each group) with a sticky header per
+          // category. Items missing a category fall into "Other / Otros".
+          const groups: Array<{ key: string; label: string; labelEs: string; rows: PunchlistItem[] }> = [];
+          const indexByKey = new Map<string, number>();
+          for (const it of items) {
+            const key = it.category ?? "__uncategorized";
+            const label = it.category ?? t("Other", "Otros");
+            const labelEs = it.categoryEs ?? it.category ?? t("Other", "Otros");
+            let i = indexByKey.get(key);
+            if (i === undefined) {
+              i = groups.length;
+              indexByKey.set(key, i);
+              groups.push({ key, label, labelEs, rows: [] });
+            }
+            groups[i].rows.push(it);
+          }
+          return groups.map((g) => (
+            <div key={g.key} data-testid={`punchlist-group-${g.key}`} className="space-y-2">
+              <div
+                className="sticky top-0 z-10 -mx-1 px-1 py-1 bg-card/95 backdrop-blur border-b border-border"
+                data-testid={`punchlist-group-header-${g.key}`}
+              >
+                <p className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground flex items-center justify-between">
+                  <span>{lang === "es" ? g.labelEs : g.label}</span>
+                  <span className="text-muted-foreground/70">{g.rows.length}</span>
+                </p>
+              </div>
+              {g.rows.map((item) => {
+                const thumb = item.photoUrl ? resolveSeedImageUrl(item.photoUrl) : undefined;
+                return (
           <div
             key={item.id}
             data-testid={`punchlist-item-${item.id}`}
             className="rounded-lg border border-border bg-muted/20 p-3 flex items-start gap-3"
           >
+            {thumb && (
+              <img
+                src={thumb}
+                alt=""
+                loading="lazy"
+                data-testid={`punchlist-thumb-${item.id}`}
+                className="w-12 h-12 rounded object-cover border border-border shrink-0"
+              />
+            )}
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-foreground">
                 {lang === "es" ? item.labelEs : item.label}
@@ -374,7 +415,11 @@ export function PunchlistPanel({
               </div>
             )}
           </div>
-        ))}
+                );
+              })}
+            </div>
+          ));
+        })()}
       </div>
 
       {canEdit && !isFinalPhase && (

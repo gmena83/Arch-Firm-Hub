@@ -1,15 +1,17 @@
 import { useMemo, useState } from "react";
-import { Camera, X as XIcon, ImageIcon, Star } from "lucide-react";
+import { Camera, X as XIcon, ImageIcon, Star, Pencil, Trash2 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useGetProjectDocuments,
   useUpdateProjectDocument,
+  useDeleteProjectDocument,
   getGetProjectDocumentsQueryKey,
   getGetProjectQueryKey,
   getListProjectsQueryKey,
   type Document,
 } from "@workspace/api-client-react";
 import { useLang } from "@/hooks/use-lang";
+import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { resolveSeedImageUrl } from "@/lib/seed-image-url";
 
@@ -79,6 +81,7 @@ interface SitePhotosGalleryProps {
 
 export function SitePhotosGallery({ projectId, isClientView }: SitePhotosGalleryProps) {
   const { t, lang } = useLang();
+  const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [lightboxId, setLightboxId] = useState<string | null>(null);
@@ -103,6 +106,54 @@ export function SitePhotosGallery({ projectId, isClientView }: SitePhotosGallery
   // server enforces the single-cover invariant by flipping any other
   // flagged photo on the same project off.
   const updateDocument = useUpdateProjectDocument();
+  // Task #158 / A-09 — caption-edit + delete affordances for client-uploaded
+  // photos. The same mutation hook handles both team and client edits; the
+  // server-side dual gate enforces ownership for clients.
+  const deleteDocument = useDeleteProjectDocument();
+  const refreshDocs = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: getGetProjectDocumentsQueryKey(projectId) }),
+      queryClient.invalidateQueries({ queryKey: getGetProjectQueryKey(projectId) }),
+      queryClient.invalidateQueries({ queryKey: getListProjectsQueryKey() }),
+    ]);
+  };
+  const canManagePhoto = (p: Document) => {
+    if (!isClientView) return true; // staff/team always
+    return !!user && p.uploadedBy === user.id;
+  };
+  const handleEditCaption = async (e: React.MouseEvent, p: Document) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const next = window.prompt(
+      t("Edit caption (max 500 chars):", "Editar subtítulo (máx. 500 caracteres):"),
+      p.caption ?? "",
+    );
+    if (next === null) return;
+    const trimmed = next.slice(0, 500);
+    try {
+      await updateDocument.mutateAsync({
+        projectId,
+        documentId: p.id,
+        data: { caption: trimmed },
+      });
+      await refreshDocs();
+      toast({ title: t("Caption updated", "Subtítulo actualizado") });
+    } catch {
+      toast({ title: t("Could not update caption", "No se pudo actualizar el subtítulo"), variant: "destructive" });
+    }
+  };
+  const handleDeletePhoto = async (e: React.MouseEvent, p: Document) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (!window.confirm(t(`Delete "${p.name}"?`, `¿Eliminar "${p.name}"?`))) return;
+    try {
+      await deleteDocument.mutateAsync({ projectId, documentId: p.id });
+      await refreshDocs();
+      toast({ title: t("Photo deleted", "Foto eliminada") });
+    } catch {
+      toast({ title: t("Could not delete photo", "No se pudo eliminar la foto"), variant: "destructive" });
+    }
+  };
   const handleToggleCover = async (
     e: React.MouseEvent | React.KeyboardEvent,
     photo: Document,
@@ -248,6 +299,30 @@ export function SitePhotosGallery({ projectId, isClientView }: SitePhotosGallery
                             </span>
                           )}
                         </button>
+                        {canManagePhoto(p) && (
+                          <div className="absolute bottom-1 right-1 flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                            <button
+                              type="button"
+                              onClick={(e) => void handleEditCaption(e, p)}
+                              data-testid={`photo-edit-caption-${p.id}`}
+                              aria-label={t("Edit caption", "Editar subtítulo")}
+                              title={t("Edit caption", "Editar subtítulo")}
+                              className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-white/90 text-foreground border border-card-border shadow-sm hover:bg-white"
+                            >
+                              <Pencil className="w-3 h-3" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => void handleDeletePhoto(e, p)}
+                              data-testid={`photo-delete-${p.id}`}
+                              aria-label={t("Delete photo", "Eliminar foto")}
+                              title={t("Delete photo", "Eliminar foto")}
+                              className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-white/90 text-destructive border border-card-border shadow-sm hover:bg-white"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        )}
                         {isCoverCandidate && (
                           <button
                             type="button"

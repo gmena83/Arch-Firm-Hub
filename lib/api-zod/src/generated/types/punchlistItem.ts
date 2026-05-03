@@ -23,4 +23,12 @@ export interface PunchlistItem {
   /** ISO timestamp the item was marked done */
   completedAt?: string;
   updatedAt: string;
+  /** Optional grouping category (English) used to render sticky section headers in the punchlist panel. */
+  category?: string;
+  /** Optional Spanish translation of `category`. */
+  categoryEs?: string;
+  /** Optional thumbnail URL (data URL or http(s)) shown alongside the item. */
+  photoUrl?: string;
+  /** Optional ID of a project document whose `imageUrl` / Drive thumbnail should be shown as the item thumbnail. */
+  photoDocumentId?: string;
 }
