@@ -30,7 +30,7 @@ MAP = {
     "A-09": ("Open", None),
     "A-10": ("Needs Decision", None),
     "A-11": ("Done — needs verification", "Likely closed by #62 + #75 (Contractor Estimate Rollup on the project report); needs PM eyes-on confirmation that the consolidated view matches the original ask."),
-    "A-12": ("Open", "Admin-side audit log shipped in #73; client-side audit log still V2."),
+    "A-12": ("Done", "Done in #61 hardening + verified 2026-05 (Task #156): client-side audit log shipped — backend GET /api/projects/:id/audit-log accepts the client role behind enforceClientOwnership with a `?clientOnly=true` filter (artifacts/api-server/src/routes/projects.ts ~L2386), and the bilingual ClientActivityCard is mounted on the client project page (artifacts/konti-dashboard/src/components/client-activity-card.tsx + project-detail.tsx ~L1721) with a Show-all / Client-only toggle. Non-owner 403 + owner 200 paths covered by client-ownership.test.ts L382-L420."),
     "A-13": ("Done", "Done in #62 (KONTi brand pass) and #74 (header text readable on bright cover photos)."),
 
     # --- B. Cost Calculator ---

@@ -8,9 +8,9 @@ Reconciled workbook: `attached_assets/KONTi_Dashboard_Feedback_Consolidated_v3_a
 
 | Status | Count |
 |---|---:|
-| Open | 7 |
+| Open | 6 |
 | In Progress | 0 |
-| Done | 44 |
+| Done | 45 |
 | Done — needs verification | 1 |
 | Needs Spec | 0 |
 | Needs Decision | 5 |
@@ -33,6 +33,7 @@ These rows look closed on paper but a PM should eyeball the live UI before promo
 | A-06 | Open | Done | Done in #61 (per-document client visibility) and reinforced by #88 (client ownership checks). |
 | A-07 | Open | Done | Done in #105 (Site photos: upload, categorize, link them from the project report). |
 | A-08 | Open | Done | Done in #75 (ClientContactCard with phone, postal, physical addresses). |
+| A-12 | Open | Done | Done in #61 hardening + verified 2026-05 (Task #156): client-side audit log shipped — backend GET /api/projects/:id/audit-log accepts the client role behind enforceClientOwnership with a `?clientOnly=true` filter (artifacts/api-server/src/routes/projects.ts ~L2386), and the bilingual ClientActivityCard is mounted on the client project page (artifacts/konti-dashboard/src/components/client-activity-card.tsx + project-detail.tsx ~L1721) with a Show-all / Client-only toggle. Non-owner 403 + owner 200 paths covered by client-ownership.test.ts L382-L420. |
 | A-13 | Open | Done | Done in #62 (KONTi brand pass) and #74 (header text readable on bright cover photos). |
 | B-01 | Open | Done | Done in #75 (CSV header aliases: Description, UnitPrice, etc.). |
 | B-03 | Open | Done | Done in #75 (calculator auto-populates from imported materials). |
@@ -79,7 +80,6 @@ These rows look closed on paper but a PM should eyeball the live UI before promo
 | A-02 | Open | Open | — |
 | A-05 | Open | Open | — |
 | A-09 | Open | Open | — |
-| A-12 | Open | Open | Admin-side audit log shipped in #73; client-side audit log still V2. |
 | B-02 | Open | Open | — |
 | B-14 | Open | Open | — |
 | C-01 | Open | Open | Punchlist persistence shipped in #32; photo links + categories on the report still pending. |
