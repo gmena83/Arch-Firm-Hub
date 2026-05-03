@@ -2429,6 +2429,11 @@ export interface PunchlistItem {
   category?: string;
   categoryEs?: string;
   photoUrl?: string;
+  // Optional document-backed evidence pointer. When set and `photoUrl`
+  // is unset, clients resolve the URL via the project's documents list
+  // (the dashboard's punchlist panel falls back to a placeholder until
+  // the document map is hydrated).
+  photoDocumentId?: string;
 }
 
 export function punchlistKey(projectId: string, phase: string): string {
@@ -2474,14 +2479,15 @@ export function countOpenPunchlistItems(projectId: string, phase: string): numbe
   // an older punchlist.json on disk (which the in-process demo always does
   // after a single edit). Mutable workflow fields (status, owner, dueDate,
   // updatedAt, completedAt, waiverReason) are not touched.
-  const seedTaxonomyById = new Map<string, Pick<PunchlistItem, "category" | "categoryEs" | "photoUrl">>();
+  const seedTaxonomyById = new Map<string, Pick<PunchlistItem, "category" | "categoryEs" | "photoUrl" | "photoDocumentId">>();
   for (const items of Object.values(PROJECT_PUNCHLIST)) {
     for (const it of items) {
-      if (it.category || it.photoUrl) {
+      if (it.category || it.photoUrl || it.photoDocumentId) {
         seedTaxonomyById.set(it.id, {
           ...(it.category !== undefined ? { category: it.category } : {}),
           ...(it.categoryEs !== undefined ? { categoryEs: it.categoryEs } : {}),
           ...(it.photoUrl !== undefined ? { photoUrl: it.photoUrl } : {}),
+          ...(it.photoDocumentId !== undefined ? { photoDocumentId: it.photoDocumentId } : {}),
         });
       }
     }

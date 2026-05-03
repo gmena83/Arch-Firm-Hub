@@ -29,4 +29,6 @@ export interface PunchlistItem {
   categoryEs?: string;
   /** Optional thumbnail URL (data URL, seed-image path, or http(s)) shown alongside the item. Rendered as a clickable thumbnail that opens the full image in a new tab; items without a `photoUrl` show a neutral placeholder so the layout stays uniform. */
   photoUrl?: string;
+  /** Optional id of a project document whose stored URL should be resolved client-side and shown as the thumbnail. Reserved for the document-backed punchlist evidence path; when present and `photoUrl` is unset, the dashboard resolves the URL via the project's documents list. */
+  photoDocumentId?: string;
 }

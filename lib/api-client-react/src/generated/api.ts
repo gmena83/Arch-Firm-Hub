@@ -1153,10 +1153,14 @@ export const useDeleteProjectDocument = <
 };
 
 /**
- * Records a new entry in the document's `versions[]` history, bumps the
-primary `fileSize` / `uploadedBy` / `uploadedAt` metadata to the new
+ * Records a new entry in the document's `versions[]` history, rolls the
+primary `fileSize` and `uploadedAt` metadata forward to the new
 version, and emits a `document_version_added` activity. Auto-increments
-the version number from the existing history.
+the version number from the existing history. The document's primary
+`uploadedBy` field is intentionally PRESERVED as the immutable
+original-uploader handle so the A-09 client caption / DELETE dual gate
+keeps working after team version uploads — the latest version's
+uploader is captured on the corresponding `versions[]` entry instead.
 
  * @summary Append a new version to an existing document (team-only)
  */

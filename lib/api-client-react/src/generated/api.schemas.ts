@@ -1821,6 +1821,8 @@ export interface PunchlistItem {
   categoryEs?: string;
   /** Optional thumbnail URL (data URL, seed-image path, or http(s)) shown alongside the item. Rendered as a clickable thumbnail that opens the full image in a new tab; items without a `photoUrl` show a neutral placeholder so the layout stays uniform. */
   photoUrl?: string;
+  /** Optional id of a project document whose stored URL should be resolved client-side and shown as the thumbnail. Reserved for the document-backed punchlist evidence path; when present and `photoUrl` is unset, the dashboard resolves the URL via the project's documents list. */
+  photoDocumentId?: string;
 }
 
 export interface PunchlistResponse {
@@ -1964,6 +1966,41 @@ export interface SuperadminAuditEntry {
   target: string;
   message: string;
   messageEs: string;
+}
+
+/**
+ * Only meaningful when `category === "labor"`. `lump` lines are normalised to `quantity=1`, `unit="lump"`.
+ */
+export type ContractorEstimateLineLaborType =
+  (typeof ContractorEstimateLineLaborType)[keyof typeof ContractorEstimateLineLaborType];
+
+export const ContractorEstimateLineLaborType = {
+  hourly: "hourly",
+  lump: "lump",
+} as const;
+
+/**
+ * Single line on a contractor estimate. Materials and subcontractor
+lines always price as `quantity × unitPrice`. Labor lines carry an
+optional `laborType` discriminator (Task #158 / B-02): `hourly`
+lines also price as `quantity × unitPrice`; `lump` lines are fixed
+price — the server normalises them to `quantity = 1` and
+`unit = "lump"` on PUT so the variance report's amount-delta math
+treats `lineTotal` as the lump sum.
+
+ */
+export interface ContractorEstimateLine {
+  id: string;
+  /** Bucket the line rolls up into. Typically `materials`, `labor`, or `subcontractor`. */
+  category: string;
+  description: string;
+  descriptionEs: string;
+  quantity: number;
+  unit: string;
+  unitPrice: number;
+  lineTotal: number;
+  /** Only meaningful when `category === "labor"`. `lump` lines are normalised to `quantity=1`, `unit="lump"`. */
+  laborType?: ContractorEstimateLineLaborType;
 }
 
 /**

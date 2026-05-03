@@ -267,6 +267,53 @@ test("B-02: PUT lines with laborType=lump forces qty=1 unit=lump", async () => {
   });
 });
 
+test("B-02: variance-report estimated bucket reflects lump+hourly normalised line totals", async () => {
+  await withServer(async (baseUrl) => {
+    const team = await login(baseUrl, "demo@konti.com");
+    // Re-seed the estimate with two labor lines: one lump, one hourly.
+    await fetch(`${baseUrl}/api/projects/proj-1/contractor-estimate`, {
+      method: "POST",
+      headers: authHeaders(team.token, true),
+      body: JSON.stringify({ scope: ["pool"], source: "test" }),
+    });
+    const seedLines = {
+      lines: [
+        { id: "var-lump", category: "labor", description: "Crew week", descriptionEs: "Cuadrilla semana", quantity: 999, unit: "hours", unitPrice: 4500, laborType: "lump" },
+        { id: "var-hourly", category: "labor", description: "Painter", descriptionEs: "Pintor", quantity: 40, unit: "hours", unitPrice: 35, laborType: "hourly" },
+      ],
+    };
+    const lineRes = await fetch(`${baseUrl}/api/projects/proj-1/contractor-estimate/lines`, {
+      method: "PUT",
+      headers: authHeaders(team.token, true),
+      body: JSON.stringify(seedLines),
+    });
+    assert.equal(lineRes.status, 200);
+    const lineBody = (await lineRes.json()) as { lines: Array<{ id: string; lineTotal: number }> };
+    const lump = lineBody.lines.find((l) => l.id === "var-lump")!;
+    const hourly = lineBody.lines.find((l) => l.id === "var-hourly")!;
+    // Pull the variance report and check the labor bucket.
+    const varRes = await fetch(`${baseUrl}/api/projects/proj-1/variance-report`, {
+      headers: authHeaders(team.token),
+    });
+    assert.equal(varRes.status, 200);
+    const varBody = (await varRes.json()) as {
+      buckets: Array<{ key: string; estimated: number; variance: number; variancePercent: number | null }>;
+    };
+    const labor = varBody.buckets.find((b) => b.key === "labor");
+    assert.ok(labor, "variance report must include a labor bucket");
+    // Estimated labor must be at least lump (4500) + hourly (1400) = 5900.
+    // (The bucket may include other seeded labor lines; we only assert our
+    // contributions land in it, which is enough to prove lump+hourly both
+    // surface honest amount-deltas to the variance math.)
+    assert.ok(
+      labor.estimated >= lump.lineTotal + hourly.lineTotal,
+      `labor bucket estimated (${labor.estimated}) must include both lump (${lump.lineTotal}) and hourly (${hourly.lineTotal}) line totals`,
+    );
+    assert.equal(lump.lineTotal, 4500, "lump labor lineTotal === unitPrice (single lump sum)");
+    assert.equal(hourly.lineTotal, 1400, "hourly labor lineTotal === qty * unitPrice");
+  });
+});
+
 // ---------------------------------------------------------------------------
 // C-01  Punchlist items expose category metadata
 // ---------------------------------------------------------------------------

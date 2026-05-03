@@ -46,6 +46,8 @@ export * from "./contractorBulkCreateRequest";
 export * from "./contractorBulkCreateResponse";
 export * from "./contractorBulkCreateResponseSkippedItem";
 export * from "./contractorCreateRequest";
+export * from "./contractorEstimateLine";
+export * from "./contractorEstimateLineLaborType";
 export * from "./contractorMonitoringResponse";
 export * from "./contractorMonitoringRow";
 export * from "./contractorMonitoringRowStatus";
