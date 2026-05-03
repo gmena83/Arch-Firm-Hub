@@ -91,7 +91,7 @@ export interface ContractorEstimate {
   scope: string[];
   bathrooms?: number;
   kitchens?: number;
-  lines: Array<{ id: string; category: string; description: string; descriptionEs: string; quantity: number; unit: string; unitPrice: number; lineTotal: number }>;
+  lines: Array<{ id: string; category: string; description: string; descriptionEs: string; quantity: number; unit: string; unitPrice: number; lineTotal: number; laborType?: "hourly" | "lump" }>;
   subtotalMaterials: number;
   subtotalLabor: number;
   subtotalSubcontractor: number;
