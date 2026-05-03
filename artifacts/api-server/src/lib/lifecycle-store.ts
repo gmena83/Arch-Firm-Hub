@@ -41,6 +41,7 @@ import {
   projectCsvMappingsTable,
   preDesignChecklistsTable,
   projectActivitiesTable,
+  projectDocumentsTable,
   lifecycleMigrationsTable,
 } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
@@ -57,6 +58,7 @@ import {
   PROJECT_CSV_MAPPINGS,
   PRE_DESIGN_CHECKLISTS,
   PROJECT_ACTIVITIES,
+  DOCUMENTS,
   type Lead,
   type Inspection,
   type ChangeOrder,
@@ -100,6 +102,14 @@ export type PersistedCsvMappings = Partial<
   Record<CsvImportKind, Record<string, string | null>>
 >;
 
+// Document records in seed.ts are heterogeneous (pdf vs photo, optional
+// drive* / caption / versions[]). Permissive Record so the snapshot path
+// can round-trip without forcing a stricter type on every route reader.
+export type PersistedDocument = Record<string, unknown> & {
+  id: string;
+  projectId: string;
+};
+
 export interface PersistedLifecycleSnapshot {
   projects: PersistedProject[];
   projectTasks: Record<string, PersistedTask[]>;
@@ -113,6 +123,7 @@ export interface PersistedLifecycleSnapshot {
   csvMappings: Record<string, PersistedCsvMappings>;
   preDesignChecklists: Record<string, PreDesignChecklistItem[]>;
   activities: Record<string, ProjectActivity[]>;
+  documents: Record<string, PersistedDocument[]>;
 }
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -135,6 +146,7 @@ export async function loadLifecycleSnapshotFromDb(): Promise<PersistedLifecycleS
     csvRows,
     checklistRows,
     activityRows,
+    documentRows,
   ] = await Promise.all([
     db.select().from(projectsTable),
     db.select().from(projectTasksTable),
@@ -148,6 +160,7 @@ export async function loadLifecycleSnapshotFromDb(): Promise<PersistedLifecycleS
     db.select().from(projectCsvMappingsTable),
     db.select().from(preDesignChecklistsTable),
     db.select().from(projectActivitiesTable),
+    db.select().from(projectDocumentsTable),
   ]);
 
   const empty =
@@ -162,7 +175,8 @@ export async function loadLifecycleSnapshotFromDb(): Promise<PersistedLifecycleS
     budgetRows.length === 0 &&
     csvRows.length === 0 &&
     checklistRows.length === 0 &&
-    activityRows.length === 0;
+    activityRows.length === 0 &&
+    documentRows.length === 0;
   if (empty) return null;
 
   // -- projects ---------------------------------------------------------
@@ -383,6 +397,13 @@ export async function loadLifecycleSnapshotFromDb(): Promise<PersistedLifecycleS
     });
   }
 
+  // -- documents --------------------------------------------------------
+  const documents: Record<string, PersistedDocument[]> = {};
+  for (const r of [...documentRows].sort((a, b) => a.position - b.position)) {
+    if (!documents[r.projectId]) documents[r.projectId] = [];
+    documents[r.projectId]!.push(rowToDocument(r));
+  }
+
   return {
     projects,
     projectTasks,
@@ -396,6 +417,7 @@ export async function loadLifecycleSnapshotFromDb(): Promise<PersistedLifecycleS
     csvMappings,
     preDesignChecklists,
     activities,
+    documents,
   };
 }
 
@@ -406,6 +428,7 @@ export async function loadLifecycleSnapshotFromDb(): Promise<PersistedLifecycleS
 async function _writeSnapshot(tx: Tx, snap: PersistedLifecycleSnapshot): Promise<void> {
   // Wipe all lifecycle tables first; same trade-off as estimating —
   // simpler than diffing, tables stay small.
+  await tx.delete(projectDocumentsTable);
   await tx.delete(projectActivitiesTable);
   await tx.delete(preDesignChecklistsTable);
   await tx.delete(projectCsvMappingsTable);
@@ -536,6 +559,12 @@ async function _writeSnapshot(tx: Tx, snap: PersistedLifecycleSnapshot): Promise
     });
   }
   if (activityRows.length > 0) await tx.insert(projectActivitiesTable).values(activityRows);
+
+  const documentRows: (typeof projectDocumentsTable.$inferInsert)[] = [];
+  for (const [projectId, list] of Object.entries(snap.documents)) {
+    list.forEach((d, position) => documentRows.push(documentToRow(projectId, d, position)));
+  }
+  if (documentRows.length > 0) await tx.insert(projectDocumentsTable).values(documentRows);
 }
 
 export async function saveLifecycleSnapshotToDb(snap: PersistedLifecycleSnapshot): Promise<void> {
@@ -656,6 +685,80 @@ function changeOrderToRow(projectId: string, co: ChangeOrder, position: number):
     decisionNote: co.decisionNote ?? null,
     outsideOfScope: co.outsideOfScope,
   };
+}
+
+// Document mapper. Typed columns cover the fields routes read directly;
+// every other property survives in `metadata` (versions[], previewable,
+// future fields) so the snapshot round-trips losslessly.
+const DOCUMENT_TYPED_KEYS = new Set<string>([
+  "id", "projectId", "name", "type", "category", "isClientVisible",
+  "featuredAsCover", "uploadedBy", "uploadedAt", "fileSize", "mimeType",
+  "description", "photoCategory", "caption", "imageUrl",
+  "driveFileId", "driveFolderId", "driveWebViewLink", "driveWebContentLink",
+  "driveThumbnailLink", "driveDownloadProxyUrl",
+]);
+
+function documentToRow(projectId: string, d: PersistedDocument, position: number): typeof projectDocumentsTable.$inferInsert {
+  const get = <T>(k: string): T | undefined => d[k] as T | undefined;
+  const metadata: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(d)) {
+    if (!DOCUMENT_TYPED_KEYS.has(k) && v !== undefined) metadata[k] = v;
+  }
+  return {
+    projectId,
+    id: d.id,
+    position,
+    name: (get<string>("name") ?? "") as string,
+    type: (get<string>("type") ?? "pdf") as string,
+    category: (get<string>("category") ?? "") as string,
+    isClientVisible: get<boolean>("isClientVisible") === true,
+    featuredAsCover: get<boolean>("featuredAsCover") ?? null,
+    uploadedBy: (get<string>("uploadedBy") ?? "system") as string,
+    uploadedAt: (get<string>("uploadedAt") ?? new Date().toISOString()) as string,
+    fileSize: (get<string>("fileSize") ?? "0 KB") as string,
+    mimeType: get<string>("mimeType") ?? null,
+    description: get<string>("description") ?? null,
+    photoCategory: get<string>("photoCategory") ?? null,
+    caption: get<string>("caption") ?? null,
+    imageUrl: get<string>("imageUrl") ?? null,
+    driveFileId: get<string>("driveFileId") ?? null,
+    driveFolderId: get<string>("driveFolderId") ?? null,
+    driveWebViewLink: get<string>("driveWebViewLink") ?? null,
+    driveWebContentLink: get<string>("driveWebContentLink") ?? null,
+    driveThumbnailLink: get<string>("driveThumbnailLink") ?? null,
+    driveDownloadProxyUrl: get<string>("driveDownloadProxyUrl") ?? null,
+    metadata: Object.keys(metadata).length > 0 ? metadata : null,
+  };
+}
+
+function rowToDocument(r: typeof projectDocumentsTable.$inferSelect): PersistedDocument {
+  const out: Record<string, unknown> = {
+    id: r.id,
+    projectId: r.projectId,
+    name: r.name,
+    type: r.type,
+    category: r.category,
+    isClientVisible: r.isClientVisible,
+    uploadedBy: r.uploadedBy,
+    uploadedAt: r.uploadedAt,
+    fileSize: r.fileSize,
+  };
+  if (r.featuredAsCover !== null) out["featuredAsCover"] = r.featuredAsCover;
+  if (r.mimeType !== null) out["mimeType"] = r.mimeType;
+  if (r.description !== null) out["description"] = r.description;
+  if (r.photoCategory !== null) out["photoCategory"] = r.photoCategory;
+  if (r.caption !== null) out["caption"] = r.caption;
+  if (r.imageUrl !== null) out["imageUrl"] = r.imageUrl;
+  if (r.driveFileId !== null) out["driveFileId"] = r.driveFileId;
+  if (r.driveFolderId !== null) out["driveFolderId"] = r.driveFolderId;
+  if (r.driveWebViewLink !== null) out["driveWebViewLink"] = r.driveWebViewLink;
+  if (r.driveWebContentLink !== null) out["driveWebContentLink"] = r.driveWebContentLink;
+  if (r.driveThumbnailLink !== null) out["driveThumbnailLink"] = r.driveThumbnailLink;
+  if (r.driveDownloadProxyUrl !== null) out["driveDownloadProxyUrl"] = r.driveDownloadProxyUrl;
+  if (r.metadata) {
+    for (const [k, v] of Object.entries(r.metadata)) out[k] = v;
+  }
+  return out as PersistedDocument;
 }
 
 // ---------------------------------------------------------------------------
@@ -815,6 +918,14 @@ export async function saveActivitiesForProject(projectId: string, list: ProjectA
   });
 }
 
+export async function saveDocumentsForProject(projectId: string, list: PersistedDocument[]): Promise<void> {
+  await db.transaction(async (tx) => {
+    await tx.delete(projectDocumentsTable).where(eq(projectDocumentsTable.projectId, projectId));
+    if (list.length === 0) return;
+    await tx.insert(projectDocumentsTable).values(list.map((d, i) => documentToRow(projectId, d, i)));
+  });
+}
+
 // ---------------------------------------------------------------------------
 // One-time seed → Postgres migration
 // ---------------------------------------------------------------------------
@@ -857,6 +968,7 @@ function buildSnapshotFromSeed(): PersistedLifecycleSnapshot {
     csvMappings: structuredClone(PROJECT_CSV_MAPPINGS) as Record<string, PersistedCsvMappings>,
     preDesignChecklists: structuredClone(PRE_DESIGN_CHECKLISTS),
     activities: structuredClone(PROJECT_ACTIVITIES),
+    documents: structuredClone(DOCUMENTS) as Record<string, PersistedDocument[]>,
   };
 }
 
@@ -883,6 +995,7 @@ export async function migrateLifecycleSeedIfNeeded(): Promise<{
   const [
     projectCount, taskCount, leadCount, insCount, coCount, profileCount,
     seenCount, structCount, budgetCount, csvCount, checkCount, actCount,
+    docCount,
   ] = await Promise.all([
     db.select({ n: sql<number>`count(*)::int` }).from(projectsTable),
     db.select({ n: sql<number>`count(*)::int` }).from(projectTasksTable),
@@ -896,12 +1009,14 @@ export async function migrateLifecycleSeedIfNeeded(): Promise<{
     db.select({ n: sql<number>`count(*)::int` }).from(projectCsvMappingsTable),
     db.select({ n: sql<number>`count(*)::int` }).from(preDesignChecklistsTable),
     db.select({ n: sql<number>`count(*)::int` }).from(projectActivitiesTable),
+    db.select({ n: sql<number>`count(*)::int` }).from(projectDocumentsTable),
   ]);
   const totalRows =
     (projectCount[0]?.n ?? 0) + (taskCount[0]?.n ?? 0) + (leadCount[0]?.n ?? 0) +
     (insCount[0]?.n ?? 0) + (coCount[0]?.n ?? 0) + (profileCount[0]?.n ?? 0) +
     (seenCount[0]?.n ?? 0) + (structCount[0]?.n ?? 0) + (budgetCount[0]?.n ?? 0) +
-    (csvCount[0]?.n ?? 0) + (checkCount[0]?.n ?? 0) + (actCount[0]?.n ?? 0);
+    (csvCount[0]?.n ?? 0) + (checkCount[0]?.n ?? 0) + (actCount[0]?.n ?? 0) +
+    (docCount[0]?.n ?? 0);
 
   if (totalRows > 0) {
     logger.warn(
@@ -939,6 +1054,7 @@ export async function migrateLifecycleSeedIfNeeded(): Promise<{
 // fresh test run gets the same boot-time path the production server does.
 export async function __resetLifecycleTablesForTest(): Promise<void> {
   await db.transaction(async (tx) => {
+    await tx.delete(projectDocumentsTable);
     await tx.delete(projectActivitiesTable);
     await tx.delete(preDesignChecklistsTable);
     await tx.delete(projectCsvMappingsTable);

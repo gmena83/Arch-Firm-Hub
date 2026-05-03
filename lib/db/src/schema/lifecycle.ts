@@ -287,6 +287,54 @@ export const projectActivitiesTable = pgTable(
   ],
 );
 
+// -- project_documents -------------------------------------------------------
+// Backs the in-memory `DOCUMENTS` map in seed.ts (Task #150). Document
+// records are heterogeneous (pdf vs photo, optional caption / photoCategory
+// / drive* / versions[]) so we project the fields routes actually read into
+// typed columns and stash the long-tail extras (versions array, previewable
+// flag, future fields) in `metadata`. Same shape strategy `projectsTable`
+// uses for its own optional fields.
+//
+// Drive integration (Task #128) keeps the file BYTES in Google Drive when
+// configured; this table is the canonical metadata store either way, so a
+// container redeploy with Drive disabled no longer loses uploads or
+// visibility/cover-photo toggles.
+export const projectDocumentsTable = pgTable(
+  "project_documents",
+  {
+    projectId: text("project_id").notNull(),
+    id: text("id").notNull(),
+    position: integer("position").notNull(),
+    name: text("name").notNull(),
+    type: text("type").notNull(),
+    category: text("category").notNull(),
+    isClientVisible: boolean("is_client_visible").notNull(),
+    featuredAsCover: boolean("featured_as_cover"),
+    uploadedBy: text("uploaded_by").notNull(),
+    uploadedAt: text("uploaded_at").notNull(),
+    fileSize: text("file_size").notNull(),
+    mimeType: text("mime_type"),
+    description: text("description"),
+    // Photo-specific (only set when type === "photo").
+    photoCategory: text("photo_category"),
+    caption: text("caption"),
+    imageUrl: text("image_url"),
+    // Drive integration columns (set only when isDriveEnabled was true at upload).
+    driveFileId: text("drive_file_id"),
+    driveFolderId: text("drive_folder_id"),
+    driveWebViewLink: text("drive_web_view_link"),
+    driveWebContentLink: text("drive_web_content_link"),
+    driveThumbnailLink: text("drive_thumbnail_link"),
+    driveDownloadProxyUrl: text("drive_download_proxy_url"),
+    // Open-ended metadata (versions[], previewable, future fields).
+    metadata: jsonb("metadata").$type<Record<string, unknown>>(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.projectId, t.id] }),
+    index("project_documents_project_id_idx").on(t.projectId),
+  ],
+);
+
 // -- lifecycle_migrations ----------------------------------------------------
 // Single-row marker tracking that the one-time seed → Postgres hydration
 // has already run, so we never re-import on subsequent boots even if the

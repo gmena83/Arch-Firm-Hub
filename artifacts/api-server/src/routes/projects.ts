@@ -57,6 +57,7 @@ import {
   persistAssistedBudgetForProject,
   persistCsvMappingForProject,
   persistPreDesignChecklistForProject,
+  persistDocumentsForProject,
 } from "../lib/lifecycle-persistence";
 import { savePunchlist } from "../data/punchlist-store";
 import { requireRole } from "../middlewares/require-role";
@@ -482,6 +483,12 @@ router.post("/projects/:projectId/documents", requireRole(["team", "admin", "sup
     ...(driveDownloadProxyUrl ? { driveDownloadProxyUrl } : {}),
   };
   (DOCUMENTS as Record<string, unknown[]>)[projectId] = [...list, doc];
+  // Persist document metadata to Postgres BEFORE responding so a crash
+  // after-ack cannot lose the upload (Task #150 — same durability contract
+  // as inspections / change orders). The Drive byte upload above is the
+  // canonical store for the file CONTENTS when configured; this row is the
+  // canonical store for the metadata either way.
+  await persistDocumentsForProject(projectId);
   // Surface upload in the project timeline. Use a dedicated audit type when
   // the uploader is a client so the team's audit log can highlight it.
   const actor = (req as { user?: { name?: string } }).user?.name ?? (isClient ? "Client" : "Team");
@@ -605,6 +612,10 @@ router.patch(
       }
     }
 
+    // Persist (Task #150). Both the visibility flip and the cover-photo
+    // single-cover invariant mutate `list` in place; one save call per
+    // request covers both branches.
+    await persistDocumentsForProject(projectId);
     return res.json(driveWarning ? { ...doc, driveWarning } : doc);
   },
 );
@@ -663,6 +674,9 @@ router.delete(
     }
     list.splice(idx, 1);
     (DOCUMENTS as Record<string, unknown[]>)[projectId] = list;
+    // Persist deletion (Task #150) — without this the row reappears at
+    // boot from hydration of the previous snapshot.
+    await persistDocumentsForProject(projectId);
     const actor = user?.name ?? (isClient ? "Client" : "Team");
     await appendActivityAndPersist(projectId, {
       type: "document_removed",

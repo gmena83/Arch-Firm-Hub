@@ -85,6 +85,7 @@ test("LC-1: lifecycle snapshot round-trips through Postgres", async () => {
       projectTasks: { "lc-rt-p1": [{ id: "t1", projectId: "lc-rt-p1", title: "Do thing", titleEs: "Hacer cosa", dueDate: "2026-05-10", completed: false, assignee: "RT", priority: "medium", phase: "discovery" }] },
       preDesignChecklists: { "lc-rt-p1": [{ id: "ck-1", label: "Site visit", labelEs: "Visita", status: "pending", assignee: "RT" }] },
       activities: { "lc-rt-p1": [{ id: "act-1", type: "phase_change", actor: "RT", description: "Created", descriptionEs: "Creado", timestamp: "2026-05-01T00:00:00Z" }] },
+      documents: { "lc-rt-p1": [{ id: "doc-rt-1", projectId: "lc-rt-p1", name: "RT.pdf", type: "pdf", category: "internal", isClientVisible: false, uploadedBy: "RT", uploadedAt: "2026-05-01T00:00:00Z", fileSize: "1 KB" }] },
     });
 
     const fromDb = await loadLifecycleSnapshotFromDb();
@@ -100,6 +101,7 @@ test("LC-1: lifecycle snapshot round-trips through Postgres", async () => {
     assert.equal(fromDb!.assistedBudgets["lc-rt-p1"]?.high, 300000);
     assert.equal(fromDb!.preDesignChecklists["lc-rt-p1"]?.[0]?.label, "Site visit");
     assert.equal(fromDb!.activities["lc-rt-p1"]?.length, 1);
+    assert.equal((fromDb!.documents["lc-rt-p1"]?.[0] as { name: string } | undefined)?.name, "RT.pdf");
   } finally {
     await __resetLifecycleTablesForTest();
   }
@@ -586,6 +588,166 @@ test("LC-16: re-accepting after the project row was manually deleted returns 409
       void LEADS;
     });
   } finally {
+    await flushLifecyclePersistence();
+    await __resetLifecycleTablesForTest();
+    __resetLifecycleHydrationForTest();
+  }
+});
+
+test("LC-17: POST /projects/:id/documents persists doc row before 201", async () => {
+  await __resetLifecycleTablesForTest();
+  __resetLifecycleHydrationForTest();
+  try {
+    await ensureLifecycleHydrated();
+    await withServer(async (baseUrl) => {
+      const token = await login(baseUrl, "demo@konti.com");
+      const auth = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
+      const res = await fetch(`${baseUrl}/api/projects/proj-1/documents`, {
+        method: "POST",
+        headers: auth,
+        body: JSON.stringify({
+          name: "LC-17.pdf",
+          type: "pdf",
+          category: "internal",
+          isClientVisible: false,
+          description: "LC-17 marker",
+        }),
+      });
+      assert.equal(res.status, 201);
+      const created = (await res.json()) as { id: string };
+      const snap = await loadLifecycleSnapshotFromDb();
+      const list = snap!.documents["proj-1"] ?? [];
+      const found = list.find((d) => (d as { id: string }).id === created.id);
+      assert.ok(found, "uploaded doc must be in DB before 201");
+      assert.equal((found as { name: string }).name, "LC-17.pdf");
+      assert.equal((found as { isClientVisible: boolean }).isClientVisible, false);
+    });
+  } finally {
+    await flushLifecyclePersistence();
+    await __resetLifecycleTablesForTest();
+    __resetLifecycleHydrationForTest();
+  }
+});
+
+test("LC-18: PATCH /documents/:id persists visibility/cover toggle before 200", async () => {
+  await __resetLifecycleTablesForTest();
+  __resetLifecycleHydrationForTest();
+  try {
+    await ensureLifecycleHydrated();
+    await withServer(async (baseUrl) => {
+      const token = await login(baseUrl, "demo@konti.com");
+      const auth = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
+      const created = await fetch(`${baseUrl}/api/projects/proj-1/documents`, {
+        method: "POST",
+        headers: auth,
+        body: JSON.stringify({
+          name: "LC-18.pdf",
+          type: "pdf",
+          category: "internal",
+          isClientVisible: false,
+        }),
+      });
+      const docId = ((await created.json()) as { id: string }).id;
+      const patch = await fetch(`${baseUrl}/api/projects/proj-1/documents/${docId}`, {
+        method: "PATCH",
+        headers: auth,
+        body: JSON.stringify({ isClientVisible: true }),
+      });
+      assert.equal(patch.status, 200);
+      const snap = await loadLifecycleSnapshotFromDb();
+      const found = (snap!.documents["proj-1"] ?? []).find((d) => (d as { id: string }).id === docId);
+      assert.equal((found as { isClientVisible: boolean }).isClientVisible, true, "visibility flip must be in DB before ack");
+    });
+  } finally {
+    await flushLifecyclePersistence();
+    await __resetLifecycleTablesForTest();
+    __resetLifecycleHydrationForTest();
+  }
+});
+
+test("LC-19: DELETE /documents/:id persists removal before 2xx", async () => {
+  await __resetLifecycleTablesForTest();
+  __resetLifecycleHydrationForTest();
+  try {
+    await ensureLifecycleHydrated();
+    await withServer(async (baseUrl) => {
+      const token = await login(baseUrl, "demo@konti.com");
+      const auth = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
+      const created = await fetch(`${baseUrl}/api/projects/proj-1/documents`, {
+        method: "POST",
+        headers: auth,
+        body: JSON.stringify({ name: "LC-19.pdf", type: "pdf", category: "internal", isClientVisible: false }),
+      });
+      const docId = ((await created.json()) as { id: string }).id;
+      const del = await fetch(`${baseUrl}/api/projects/proj-1/documents/${docId}`, {
+        method: "DELETE", headers: auth,
+      });
+      assert.ok(del.status === 200 || del.status === 204, `expected 2xx, got ${del.status}`);
+      const snap = await loadLifecycleSnapshotFromDb();
+      const found = (snap!.documents["proj-1"] ?? []).find((d) => (d as { id: string }).id === docId);
+      assert.equal(found, undefined, "deleted doc must NOT be in DB after ack");
+    });
+  } finally {
+    await flushLifecyclePersistence();
+    await __resetLifecycleTablesForTest();
+    __resetLifecycleHydrationForTest();
+  }
+});
+
+test("LC-20: doc upload survives a simulated restart even when Drive integration is OFF", async () => {
+  // Task #150 — close the loop on the original feedback: every doc upload
+  // is lost on restart when Drive is disabled. Drop DRIVE_* env, post a
+  // doc, simulate restart, confirm GET /documents still returns it.
+  const driveKeys = ["DRIVE_CLIENT_ID", "DRIVE_CLIENT_SECRET", "DRIVE_REFRESH_TOKEN", "DRIVE_FOLDER_ID"];
+  const saved: Record<string, string | undefined> = {};
+  for (const k of driveKeys) { saved[k] = process.env[k]; delete process.env[k]; }
+  await __resetLifecycleTablesForTest();
+  __resetLifecycleHydrationForTest();
+  try {
+    await ensureLifecycleHydrated();
+    const { DOCUMENTS } = await import("../../data/seed");
+    let docId = "";
+    await withServer(async (baseUrl) => {
+      const token = await login(baseUrl, "demo@konti.com");
+      const auth = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
+      const created = await fetch(`${baseUrl}/api/projects/proj-1/documents`, {
+        method: "POST",
+        headers: auth,
+        body: JSON.stringify({
+          name: "LC-20-no-drive.pdf",
+          type: "pdf",
+          category: "internal",
+          isClientVisible: false,
+          description: "Drive-off durability marker",
+        }),
+      });
+      assert.equal(created.status, 201);
+      docId = ((await created.json()) as { id: string }).id;
+    });
+    await flushLifecyclePersistence();
+
+    // Simulated restart — wipe in-memory DOCUMENTS, drop hydration cache,
+    // re-hydrate from Postgres only.
+    for (const k of Object.keys(DOCUMENTS)) delete (DOCUMENTS as Record<string, unknown>)[k];
+    __resetLifecycleHydrationForTest();
+    await ensureLifecycleHydrated();
+
+    await withServer(async (baseUrl) => {
+      const token = await login(baseUrl, "demo@konti.com");
+      const list = await fetch(`${baseUrl}/api/projects/proj-1/documents`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      assert.equal(list.status, 200);
+      const docs = (await list.json()) as { id: string; name: string }[];
+      const found = docs.find((d) => d.id === docId);
+      assert.ok(found, "doc uploaded with Drive OFF must reappear after rehydration from Postgres");
+      assert.equal(found!.name, "LC-20-no-drive.pdf");
+    });
+  } finally {
+    for (const k of driveKeys) {
+      if (saved[k] === undefined) delete process.env[k];
+      else process.env[k] = saved[k];
+    }
     await flushLifecyclePersistence();
     await __resetLifecycleTablesForTest();
     __resetLifecycleHydrationForTest();

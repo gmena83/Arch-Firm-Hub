@@ -28,6 +28,7 @@ import {
   PROJECT_CSV_MAPPINGS,
   PRE_DESIGN_CHECKLISTS,
   PROJECT_ACTIVITIES,
+  DOCUMENTS,
   AUDIT_LOG,
   appendActivity as _appendActivity,
   entityForActivityType,
@@ -55,9 +56,11 @@ import {
   saveCsvMappingForProject,
   savePreDesignChecklistForProject,
   saveActivitiesForProject,
+  saveDocumentsForProject,
   type PersistedProject,
   type PersistedTask,
   type PersistedCsvMappings,
+  type PersistedDocument,
   type PersistedLifecycleSnapshot,
 } from "./lifecycle-store";
 import { logger } from "./logger";
@@ -181,6 +184,11 @@ export function applyLifecycleSnapshot(snap: PersistedLifecycleSnapshot): void {
   for (const k of Object.keys(PRE_DESIGN_CHECKLISTS)) delete PRE_DESIGN_CHECKLISTS[k];
   for (const [pid, list] of Object.entries(snap.preDesignChecklists)) PRE_DESIGN_CHECKLISTS[pid] = list;
 
+  // -- documents -------------------------------------------------------
+  const docs = DOCUMENTS as Record<string, PersistedDocument[]>;
+  for (const k of Object.keys(docs)) delete docs[k];
+  for (const [pid, list] of Object.entries(snap.documents)) docs[pid] = list;
+
   // -- activities + AUDIT_LOG rebuild ----------------------------------
   for (const k of Object.keys(PROJECT_ACTIVITIES)) delete PROJECT_ACTIVITIES[k];
   for (const [pid, list] of Object.entries(snap.activities)) PROJECT_ACTIVITIES[pid] = list;
@@ -303,6 +311,13 @@ export function persistActivitiesForProject(projectId: string): Promise<void> {
   return wrapPersist("project_activities", chain(_activitiesPending, projectId, () => saveActivitiesForProject(projectId, list)));
 }
 
+const _documentsPending = new Map<string, Promise<unknown>>();
+export function persistDocumentsForProject(projectId: string): Promise<void> {
+  const raw = (DOCUMENTS as Record<string, PersistedDocument[]>)[projectId] ?? [];
+  const list = structuredClone(raw) as PersistedDocument[];
+  return wrapPersist("project_documents", chain(_documentsPending, projectId, () => saveDocumentsForProject(projectId, list)));
+}
+
 // Per-user queues.
 const _profilePending = new Map<string, Promise<unknown>>();
 export function persistUserProfile(userId: string): Promise<void> {
@@ -358,6 +373,7 @@ export async function flushLifecyclePersistence(): Promise<void> {
     ...Array.from(_csvPending.values()),
     ...Array.from(_checklistPending.values()),
     ...Array.from(_activitiesPending.values()),
+    ...Array.from(_documentsPending.values()),
     ...Array.from(_profilePending.values()),
     ...Array.from(_seenPending.values()),
   ];
