@@ -14,7 +14,7 @@ import { useLang } from "@/hooks/use-lang";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { resolveSeedImageUrl } from "@/lib/seed-image-url";
-import { ListChecks, Plus, X, Check, Clock, AlertCircle, ShieldOff, Trash2, ArrowRight, Loader2 } from "lucide-react";
+import { ListChecks, Plus, X, Check, Clock, AlertCircle, ShieldOff, Trash2, ArrowRight, Loader2, Image as ImageIcon } from "lucide-react";
 
 type PunchlistStatus = PunchlistItemStatus;
 
@@ -343,14 +343,31 @@ export function PunchlistPanel({
             data-testid={`punchlist-item-${item.id}`}
             className="rounded-lg border border-border bg-muted/20 p-3 flex items-start gap-3"
           >
-            {thumb && (
-              <img
-                src={thumb}
-                alt=""
-                loading="lazy"
-                data-testid={`punchlist-thumb-${item.id}`}
-                className="w-12 h-12 rounded object-cover border border-border shrink-0"
-              />
+            {thumb ? (
+              <a
+                href={thumb}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={t("Open full photo in new tab", "Abrir foto completa en una nueva pestaña")}
+                data-testid={`punchlist-thumb-link-${item.id}`}
+                className="shrink-0 rounded border border-border overflow-hidden focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                <img
+                  src={thumb}
+                  alt=""
+                  loading="lazy"
+                  data-testid={`punchlist-thumb-${item.id}`}
+                  className="w-12 h-12 object-cover hover:opacity-90 transition-opacity"
+                />
+              </a>
+            ) : (
+              <div
+                aria-hidden="true"
+                data-testid={`punchlist-thumb-placeholder-${item.id}`}
+                className="w-12 h-12 rounded border border-dashed border-border bg-muted/40 shrink-0 flex items-center justify-center text-muted-foreground/50"
+              >
+                <ImageIcon className="w-5 h-5" />
+              </div>
             )}
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-foreground">

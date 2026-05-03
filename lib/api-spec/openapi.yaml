@@ -3551,7 +3551,13 @@ components:
 
     DocumentVersionCreateRequest:
       type: object
-      description: Append a new version to an existing document. Team-only.
+      description: |
+        Append a new version entry to an existing document. Team-only.
+        This endpoint records version METADATA (size, uploader, timestamp,
+        notes) — file content storage in this demo is handled out of band
+        (the Drive integration sync layer in production; static seed
+        images in dev), matching every other document upload path in the
+        dashboard.
       properties:
         fileSize:
           type: string
@@ -3564,12 +3570,6 @@ components:
           type: string
           maxLength: 500
           description: Optional Spanish notes about what changed in this version.
-        mimeType:
-          type: string
-          description: Optional MIME type of the new version.
-        fileBase64:
-          type: string
-          description: Optional base64 payload (raw or `data:` URL) for the new version.
 
     Material:
       type: object
@@ -4847,10 +4847,7 @@ components:
           description: Optional Spanish translation of `category`.
         photoUrl:
           type: string
-          description: Optional thumbnail URL (data URL or http(s)) shown alongside the item.
-        photoDocumentId:
-          type: string
-          description: Optional ID of a project document whose `imageUrl` / Drive thumbnail should be shown as the item thumbnail.
+          description: Optional thumbnail URL (data URL, seed-image path, or http(s)) shown alongside the item. Rendered as a clickable thumbnail that opens the full image in a new tab; items without a `photoUrl` show a neutral placeholder so the layout stays uniform.
       required: [id, projectId, phase, label, labelEs, owner, status, updatedAt]
 
     PunchlistResponse:

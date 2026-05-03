@@ -760,18 +760,10 @@ export const AppendProjectDocumentVersionBody = zod
       .max(appendProjectDocumentVersionBodyNotesEsMax)
       .optional()
       .describe("Optional Spanish notes about what changed in this version."),
-    mimeType: zod
-      .string()
-      .optional()
-      .describe("Optional MIME type of the new version."),
-    fileBase64: zod
-      .string()
-      .optional()
-      .describe(
-        "Optional base64 payload (raw or `data:` URL) for the new version.",
-      ),
   })
-  .describe("Append a new version to an existing document. Team-only.");
+  .describe(
+    "Append a new version entry to an existing document. Team-only.\nThis endpoint records version METADATA (size, uploader, timestamp,\nnotes) — file content storage in this demo is handled out of band\n(the Drive integration sync layer in production; static seed\nimages in dev), matching every other document upload path in the\ndashboard.\n",
+  );
 
 /**
  * @summary Get material calculations for a project
@@ -1317,13 +1309,7 @@ export const ListProjectPunchlistResponse = zod.object({
         .string()
         .optional()
         .describe(
-          "Optional thumbnail URL (data URL or http(s)) shown alongside the item.",
-        ),
-      photoDocumentId: zod
-        .string()
-        .optional()
-        .describe(
-          "Optional ID of a project document whose `imageUrl` \/ Drive thumbnail should be shown as the item thumbnail.",
+          "Optional thumbnail URL (data URL, seed-image path, or http(s)) shown alongside the item. Rendered as a clickable thumbnail that opens the full image in a new tab; items without a `photoUrl` show a neutral placeholder so the layout stays uniform.",
         ),
     }),
   ),
@@ -1424,13 +1410,7 @@ export const UpdateProjectPunchlistItemResponse = zod.object({
       .string()
       .optional()
       .describe(
-        "Optional thumbnail URL (data URL or http(s)) shown alongside the item.",
-      ),
-    photoDocumentId: zod
-      .string()
-      .optional()
-      .describe(
-        "Optional ID of a project document whose `imageUrl` \/ Drive thumbnail should be shown as the item thumbnail.",
+        "Optional thumbnail URL (data URL, seed-image path, or http(s)) shown alongside the item. Rendered as a clickable thumbnail that opens the full image in a new tab; items without a `photoUrl` show a neutral placeholder so the layout stays uniform.",
       ),
   }),
 });
@@ -1519,13 +1499,7 @@ export const SetProjectPunchlistItemStatusResponse = zod.object({
       .string()
       .optional()
       .describe(
-        "Optional thumbnail URL (data URL or http(s)) shown alongside the item.",
-      ),
-    photoDocumentId: zod
-      .string()
-      .optional()
-      .describe(
-        "Optional ID of a project document whose `imageUrl` \/ Drive thumbnail should be shown as the item thumbnail.",
+        "Optional thumbnail URL (data URL, seed-image path, or http(s)) shown alongside the item. Rendered as a clickable thumbnail that opens the full image in a new tab; items without a `photoUrl` show a neutral placeholder so the layout stays uniform.",
       ),
   }),
 });

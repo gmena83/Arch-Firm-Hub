@@ -27,8 +27,6 @@ export interface PunchlistItem {
   category?: string;
   /** Optional Spanish translation of `category`. */
   categoryEs?: string;
-  /** Optional thumbnail URL (data URL or http(s)) shown alongside the item. */
+  /** Optional thumbnail URL (data URL, seed-image path, or http(s)) shown alongside the item. Rendered as a clickable thumbnail that opens the full image in a new tab; items without a `photoUrl` show a neutral placeholder so the layout stays uniform. */
   photoUrl?: string;
-  /** Optional ID of a project document whose `imageUrl` / Drive thumbnail should be shown as the item thumbnail. */
-  photoDocumentId?: string;
 }

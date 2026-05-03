@@ -2424,12 +2424,11 @@ export interface PunchlistItem {
   updatedAt: string;
   // Task #158 / C-01 — optional grouping + thumbnail. When `category` is set,
   // the punchlist panel renders sticky section headers grouping items together;
-  // when `photoUrl` (or `photoDocumentId` resolving to a project document) is
+  // when `photoUrl` is
   // set, a small thumbnail is shown alongside the item.
   category?: string;
   categoryEs?: string;
   photoUrl?: string;
-  photoDocumentId?: string;
 }
 
 export function punchlistKey(projectId: string, phase: string): string {
@@ -2469,21 +2468,20 @@ export function countOpenPunchlistItems(projectId: string, phase: string): numbe
 // already imported the reference see the persisted state.
 {
   // Build a by-id index of the seed values so we can re-overlay the
-  // taxonomy/thumbnail fields (category/categoryEs/photoUrl/photoDocumentId)
+  // taxonomy/thumbnail fields (category/categoryEs/photoUrl)
   // even when a persisted snapshot exists. Without this, Task #158 / C-01
   // category groupings would silently disappear on any environment that has
   // an older punchlist.json on disk (which the in-process demo always does
   // after a single edit). Mutable workflow fields (status, owner, dueDate,
   // updatedAt, completedAt, waiverReason) are not touched.
-  const seedTaxonomyById = new Map<string, Pick<PunchlistItem, "category" | "categoryEs" | "photoUrl" | "photoDocumentId">>();
+  const seedTaxonomyById = new Map<string, Pick<PunchlistItem, "category" | "categoryEs" | "photoUrl">>();
   for (const items of Object.values(PROJECT_PUNCHLIST)) {
     for (const it of items) {
-      if (it.category || it.photoUrl || it.photoDocumentId) {
+      if (it.category || it.photoUrl) {
         seedTaxonomyById.set(it.id, {
           ...(it.category !== undefined ? { category: it.category } : {}),
           ...(it.categoryEs !== undefined ? { categoryEs: it.categoryEs } : {}),
           ...(it.photoUrl !== undefined ? { photoUrl: it.photoUrl } : {}),
-          ...(it.photoDocumentId !== undefined ? { photoDocumentId: it.photoDocumentId } : {}),
         });
       }
     }

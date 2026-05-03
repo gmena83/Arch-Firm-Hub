@@ -7,7 +7,13 @@
  */
 
 /**
- * Append a new version to an existing document. Team-only.
+ * Append a new version entry to an existing document. Team-only.
+This endpoint records version METADATA (size, uploader, timestamp,
+notes) — file content storage in this demo is handled out of band
+(the Drive integration sync layer in production; static seed
+images in dev), matching every other document upload path in the
+dashboard.
+
  */
 export interface DocumentVersionCreateRequest {
   /** Human-readable file size of the new version (e.g. "1.4 MB"). */
@@ -22,8 +28,4 @@ export interface DocumentVersionCreateRequest {
    * @maxLength 500
    */
   notesEs?: string;
-  /** Optional MIME type of the new version. */
-  mimeType?: string;
-  /** Optional base64 payload (raw or `data:` URL) for the new version. */
-  fileBase64?: string;
 }

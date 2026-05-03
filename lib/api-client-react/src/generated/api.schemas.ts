@@ -670,7 +670,13 @@ export interface DocumentUpdateRequest {
 }
 
 /**
- * Append a new version to an existing document. Team-only.
+ * Append a new version entry to an existing document. Team-only.
+This endpoint records version METADATA (size, uploader, timestamp,
+notes) — file content storage in this demo is handled out of band
+(the Drive integration sync layer in production; static seed
+images in dev), matching every other document upload path in the
+dashboard.
+
  */
 export interface DocumentVersionCreateRequest {
   /** Human-readable file size of the new version (e.g. "1.4 MB"). */
@@ -685,10 +691,6 @@ export interface DocumentVersionCreateRequest {
    * @maxLength 500
    */
   notesEs?: string;
-  /** Optional MIME type of the new version. */
-  mimeType?: string;
-  /** Optional base64 payload (raw or `data:` URL) for the new version. */
-  fileBase64?: string;
 }
 
 export type MaterialCategory =
@@ -1817,10 +1819,8 @@ export interface PunchlistItem {
   category?: string;
   /** Optional Spanish translation of `category`. */
   categoryEs?: string;
-  /** Optional thumbnail URL (data URL or http(s)) shown alongside the item. */
+  /** Optional thumbnail URL (data URL, seed-image path, or http(s)) shown alongside the item. Rendered as a clickable thumbnail that opens the full image in a new tab; items without a `photoUrl` show a neutral placeholder so the layout stays uniform. */
   photoUrl?: string;
-  /** Optional ID of a project document whose `imageUrl` / Drive thumbnail should be shown as the item thumbnail. */
-  photoDocumentId?: string;
 }
 
 export interface PunchlistResponse {
