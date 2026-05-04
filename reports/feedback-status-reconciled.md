@@ -13,7 +13,7 @@ Reconciled workbook: `attached_assets/KONTi_Dashboard_Feedback_Consolidated_v3_a
 | Done | 53 |
 | Done — needs verification | 1 |
 | Needs Spec | 0 |
-| Needs Decision | 2 |
+| Needs Decision | 1 |
 
 ## Items moved to **Done — needs verification**
 
@@ -91,7 +91,6 @@ These rows look closed on paper but a PM should eyeball the live UI before promo
 
 | ID | Was | Now |
 |---|---|---|
-| A-10 | Needs Decision | Needs Decision |
 | D-02 | Needs Decision | Needs Decision |
 
 ## Notes
