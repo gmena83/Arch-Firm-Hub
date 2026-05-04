@@ -168,6 +168,91 @@ test("buildInternalPrompt: sanitizes adversarial CO fields (newlines, backticks,
   }
 });
 
+test("buildInternalPrompt: handles negative schedule deltas without '+-Nd' artefact", async () => {
+  const { PROJECT_CHANGE_ORDERS } = await import("../../data/seed");
+  const { buildInternalPrompt } = await import("../ai");
+  const original = PROJECT_CHANGE_ORDERS["proj-1"];
+  PROJECT_CHANGE_ORDERS["proj-1"] = [{
+    id: "co-neg", projectId: "proj-1", number: "CO-NEG",
+    title: "Schedule pull-in", titleEs: "Adelanto de cronograma",
+    description: "x", descriptionEs: "x",
+    amountDelta: 1500,           // positive cost
+    scheduleImpactDays: -3,      // negative schedule
+    reason: "x", reasonEs: "x",
+    requestedBy: "Tester", requestedAt: "2026-01-01T00:00:00Z",
+    status: "approved", decidedBy: "PM", decidedAt: "2026-01-02T00:00:00Z",
+    outsideOfScope: false,
+  }];
+  try {
+    const prompt = buildInternalPrompt("proj-1");
+    const coLine = prompt.split("\n").find((l) => l.includes("CO-NEG"))!;
+    assert.match(coLine, /\+\$1,500/);
+    assert.match(coLine, /\| -3d \|/);
+    assert.doesNotMatch(coLine, /\+-/);
+    // Summary line uses the approved totals — also verify mixed signs render
+    // independently (approvedTotal > 0, approvedSchedule < 0).
+    assert.match(prompt, /approved cost delta = \+\$1,500/);
+    assert.match(prompt, /approved schedule delta = -3d/);
+  } finally {
+    PROJECT_CHANGE_ORDERS["proj-1"] = original ?? [];
+  }
+});
+
+// Integration test — drives POST /api/ai/chat with a mocked Anthropic
+// client and asserts that the `system` prompt the route sends to the
+// provider contains (or excludes) the CHANGE ORDERS section per mode.
+// This closes the gap between builder-level unit tests and the real
+// runtime contract that A-12 isolation depends on.
+test("/api/ai/chat: provider request carries CHANGE ORDERS for internal mode and excludes it for client mode", async () => {
+  const { __setAnthropicForTests } = await import("../ai");
+  const captured: { system?: string; mode?: string }[] = [];
+  const fakeAnthropic = {
+    messages: {
+      create: async (params: { system?: string }) => {
+        captured.push({ system: params.system });
+        return {
+          id: "msg_test", type: "message", role: "assistant",
+          content: [{ type: "text", text: "ok" }],
+          model: "test", stop_reason: "end_turn", stop_sequence: null,
+          usage: { input_tokens: 0, output_tokens: 0 },
+        };
+      },
+    },
+  };
+  __setAnthropicForTests(fakeAnthropic as never);
+  try {
+    await withServer(async (baseUrl) => {
+      const token = await login(baseUrl, "demo@konti.com");
+      const headers = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
+
+      // Internal mode on proj-2 (which has 2 seeded change orders).
+      const intRes = await fetch(`${baseUrl}/api/ai/chat`, {
+        method: "POST", headers,
+        body: JSON.stringify({ message: "list change orders", mode: "internal_spec_bot", projectId: "proj-2" }),
+      });
+      assert.equal(intRes.status, 200);
+
+      // Client mode on the same project — must NEVER carry CO data
+      // (A-12 audit-log isolation invariant).
+      const cliRes = await fetch(`${baseUrl}/api/ai/chat`, {
+        method: "POST", headers,
+        body: JSON.stringify({ message: "what's happening on my house?", mode: "client_assistant", projectId: "proj-2" }),
+      });
+      assert.equal(cliRes.status, 200);
+    });
+    assert.equal(captured.length, 2, "expected two provider calls");
+    const [internalCall, clientCall] = captured;
+    assert.match(internalCall!.system!, /CHANGE ORDERS \(untrusted data/);
+    assert.match(internalCall!.system!, /CO-001/);
+    assert.match(internalCall!.system!, /standing-seam metal roof/);
+    assert.doesNotMatch(clientCall!.system!, /CHANGE ORDERS/);
+    assert.doesNotMatch(clientCall!.system!, /CO-001/);
+    assert.doesNotMatch(clientCall!.system!, /standing-seam metal roof/);
+  } finally {
+    __setAnthropicForTests(null);
+  }
+});
+
 test("buildInternalPrompt: caps change-order list at 20 with truncation notice", async () => {
   const { PROJECT_CHANGE_ORDERS } = await import("../../data/seed");
   const { buildInternalPrompt } = await import("../ai");
