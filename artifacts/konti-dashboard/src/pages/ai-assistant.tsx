@@ -422,7 +422,15 @@ export default function AiAssistantPage() {
                 <MessageSquare className="w-3.5 h-3.5" />
                 {t("Client Assistant", "Asistente del Cliente")}
               </button>
-              <button onClick={() => setActiveMode("internal_spec_bot")} data-testid="tab-spec-bot" className={`flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeMode === "internal_spec_bot" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}>
+              <button
+                onClick={() => setActiveMode("internal_spec_bot")}
+                data-testid="tab-spec-bot"
+                title={t(
+                  "Internal spec bot — ask about specs, documents, tasks, and change orders for the selected project.",
+                  "Bot interno de especificaciones — pregunta sobre especificaciones, documentos, tareas y órdenes de cambio del proyecto seleccionado."
+                )}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeMode === "internal_spec_bot" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}
+              >
                 <Briefcase className="w-3.5 h-3.5" />
                 {t("Internal Spec Bot", "Bot de Especificaciones")}
               </button>
