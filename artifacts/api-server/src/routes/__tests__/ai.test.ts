@@ -100,7 +100,7 @@ test("buildInternalPrompt: includes CHANGE ORDERS section with project COs", asy
   assert.match(prompt, /\+\$8,400/);
   assert.match(prompt, /status=approved/);
   assert.match(prompt, /status=pending/);
-  assert.match(prompt, /Summary: 2 total \| 1 pending/);
+  assert.match(prompt, /Summary: 2 active \| 1 pending/);
   assert.match(prompt, /Cambio a techo metálico de costura alzada/);
 });
 
@@ -163,6 +163,50 @@ test("buildInternalPrompt: sanitizes adversarial CO fields (newlines, backticks,
     const section = prompt.slice(sectionStart);
     const fenceCount = (section.match(/```/g) ?? []).length;
     assert.equal(fenceCount, 2, "CO section must have exactly one open + one close fence");
+  } finally {
+    PROJECT_CHANGE_ORDERS["proj-1"] = original ?? [];
+  }
+});
+
+test("buildInternalPrompt: hides rejected COs from the model (open+approved only) and surfaces a hidden-count notice", async () => {
+  const { PROJECT_CHANGE_ORDERS } = await import("../../data/seed");
+  const { buildInternalPrompt } = await import("../ai");
+  const original = PROJECT_CHANGE_ORDERS["proj-1"];
+  PROJECT_CHANGE_ORDERS["proj-1"] = [
+    {
+      id: "co-vis", projectId: "proj-1", number: "CO-VIS",
+      title: "Visible approved", titleEs: "Aprobada visible",
+      description: "x", descriptionEs: "x",
+      amountDelta: 500, scheduleImpactDays: 1,
+      reason: "x", reasonEs: "x",
+      requestedBy: "Tester", requestedAt: "2026-01-02T00:00:00Z",
+      status: "approved", decidedBy: "PM", decidedAt: "2026-01-03T00:00:00Z",
+      outsideOfScope: false,
+    },
+    {
+      id: "co-hid", projectId: "proj-1", number: "CO-HIDDEN",
+      title: "Owner cancelled this scope item",
+      titleEs: "El propietario canceló esta partida",
+      description: "x", descriptionEs: "x",
+      amountDelta: 9999, scheduleImpactDays: 99,
+      reason: "x", reasonEs: "x",
+      requestedBy: "Tester", requestedAt: "2026-01-01T00:00:00Z",
+      status: "rejected", decidedBy: "PM", decidedAt: "2026-01-02T00:00:00Z",
+      outsideOfScope: false,
+    },
+  ];
+  try {
+    const prompt = buildInternalPrompt("proj-1");
+    // The approved CO must appear; the rejected one must NOT (so the model
+    // cannot cite stale $9,999 / 99-day numbers).
+    assert.match(prompt, /CO-VIS/);
+    assert.doesNotMatch(prompt, /CO-HIDDEN/);
+    assert.doesNotMatch(prompt, /\$9,999/);
+    assert.doesNotMatch(prompt, /99d/);
+    // But the model should know the rejected CO exists so it can answer
+    // "any rejected COs?" honestly without claiming there are none.
+    assert.match(prompt, /1 rejected CO\(s\) hidden/);
+    assert.match(prompt, /Summary: 1 active/);
   } finally {
     PROJECT_CHANGE_ORDERS["proj-1"] = original ?? [];
   }
@@ -274,8 +318,8 @@ test("buildInternalPrompt: caps change-order list at 20 with truncation notice",
     // example in the trailing instruction).
     const renderedNumbers = (prompt.match(/^- CO-\d{3}/gm) ?? []);
     assert.equal(renderedNumbers.length, 20, "should render exactly 20 COs");
-    assert.match(prompt, /showing 20 most-recent of 25 total/);
-    assert.match(prompt, /Summary: 25 total \| 25 pending/);
+    assert.match(prompt, /showing 20 most-recent of 25 active/);
+    assert.match(prompt, /Summary: 25 active \| 25 pending/);
   } finally {
     PROJECT_CHANGE_ORDERS["proj-1"] = original ?? [];
   }
