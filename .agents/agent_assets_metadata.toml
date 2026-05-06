@@ -48,3 +48,9 @@ id = "eEqJzssjfdclrDC10MuQA"
 uri = "file://reports/feedback-status-2026-05-01.md"
 type = "text"
 title = "KONTi Feedback Status — May 1, 2026 (categorized + prioritized)"
+
+[[outputs]]
+id = "S3t50LEXfjpxAVTznTbRR"
+uri = "file://.local/reports/app-status-and-feedback-bundle.md"
+type = "text"
+title = "KONTi Dashboard — Status Report & Feedback Bundle Triage"
