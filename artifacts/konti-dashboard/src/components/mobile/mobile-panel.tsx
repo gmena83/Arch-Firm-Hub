@@ -1,10 +1,25 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ChevronRight, ChevronDown, X } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useMobileV2Flag } from "@/hooks/use-mobile-v2";
 import { useLang } from "@/hooks/use-lang";
 
 type ExpandMode = "inline" | "sheet";
+
+type GroupSignal = { command: "open" | "close"; nonce: number } | null;
+const MobilePanelGroupCtx = createContext<GroupSignal>(null);
+
+interface MobilePanelGroupProps {
+  signal: GroupSignal;
+  children: ReactNode;
+}
+
+/** Wrap a region of `<MobilePanel>`s so a parent control can broadcast
+ *  expand-all / collapse-all commands down to inline panels. */
+export function MobilePanelGroup({ signal, children }: MobilePanelGroupProps) {
+  const value = useMemo(() => signal, [signal?.command, signal?.nonce]);
+  return <MobilePanelGroupCtx.Provider value={value}>{children}</MobilePanelGroupCtx.Provider>;
+}
 
 interface MobilePanelProps {
   title: string;
@@ -43,10 +58,19 @@ export function MobilePanel({
   const isMobile = useIsMobile();
   const [v2] = useMobileV2Flag();
   const [open, setOpen] = useState<boolean>(defaultOpen || forceOpen);
+  const groupSignal = useContext(MobilePanelGroupCtx);
 
   useEffect(() => {
     if (forceOpen) setOpen(true);
   }, [forceOpen]);
+
+  useEffect(() => {
+    if (!groupSignal) return;
+    // Only inline panels respond to expand-all / collapse-all; sheet
+    // panels stay closed because opening them would stack modals.
+    if (expandMode !== "inline") return;
+    setOpen(groupSignal.command === "open");
+  }, [groupSignal, expandMode]);
 
   const active = isMobile && v2 && !forceOpen;
 
@@ -185,7 +209,6 @@ export function MobileSheet({ title, icon, onClose, children }: MobileSheetProps
 }
 
 interface MobileExpandToggleProps {
-  pageKey: string;
   onExpandAll: () => void;
   onCollapseAll: () => void;
   allExpanded: boolean;
@@ -202,11 +225,23 @@ export function MobileExpandToggle({ onExpandAll, onCollapseAll, allExpanded }: 
       <button
         type="button"
         onClick={allExpanded ? onCollapseAll : onExpandAll}
-        className="text-xs px-3 py-1.5 rounded-md border border-border bg-card text-muted-foreground hover:bg-muted active:bg-muted/70"
+        className="text-xs min-h-[44px] px-3 py-1.5 rounded-md border border-border bg-card text-muted-foreground hover:bg-muted active:bg-muted/70"
         data-testid="mobile-expand-toggle"
       >
         {allExpanded ? t("Collapse all", "Cerrar todo") : t("Expand all", "Abrir todo")}
       </button>
     </div>
   );
+}
+
+/** Convenience hook to drive `<MobilePanelGroup>` + `<MobileExpandToggle>`. */
+export function useMobilePanelGroup() {
+  const [signal, setSignal] = useState<GroupSignal>(null);
+  const [allExpanded, setAllExpanded] = useState(false);
+  return {
+    signal,
+    allExpanded,
+    onExpandAll: () => { setAllExpanded(true); setSignal({ command: "open", nonce: Date.now() }); },
+    onCollapseAll: () => { setAllExpanded(false); setSignal({ command: "close", nonce: Date.now() }); },
+  };
 }

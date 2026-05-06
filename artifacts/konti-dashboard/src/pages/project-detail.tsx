@@ -54,7 +54,7 @@ import { resolveSeedImageUrl } from "@/lib/seed-image-url";
 import { InspectionsSection } from "@/components/inspections-section";
 import { PunchlistPanel } from "@/components/punchlist-panel";
 import { MilestonesTimeline } from "@/components/milestones-timeline";
-import { MobilePanel } from "@/components/mobile/mobile-panel";
+import { MobilePanel, MobilePanelGroup, MobileExpandToggle, useMobilePanelGroup } from "@/components/mobile/mobile-panel";
 import {
   MapPin, Users, FileText, Upload, Upload as UploadIcon, Check, Clock, ChevronLeft,
   Wind, Droplets, Thermometer, Eye, EyeOff, ArrowRight, X,
