@@ -54,3 +54,9 @@ id = "S3t50LEXfjpxAVTznTbRR"
 uri = "file://.local/reports/app-status-and-feedback-bundle.md"
 type = "text"
 title = "KONTi Dashboard — Status Report & Feedback Bundle Triage"
+
+[[outputs]]
+id = "xEv-EXhSVvzbc4L9GnRdb"
+uri = "file://reports/KONTi_Status_Report_V1_Final.md"
+type = "text"
+title = "KONTi Dashboard — V1 Final Status Report (2026-05-06)"
