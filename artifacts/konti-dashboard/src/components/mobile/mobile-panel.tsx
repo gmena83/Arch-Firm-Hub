@@ -228,7 +228,9 @@ export function MobileExpandToggle({ onExpandAll, onCollapseAll, allExpanded }: 
         className="text-xs min-h-[44px] px-3 py-1.5 rounded-md border border-border bg-card text-muted-foreground hover:bg-muted active:bg-muted/70"
         data-testid="mobile-expand-toggle"
       >
-        {allExpanded ? t("Collapse all", "Cerrar todo") : t("Expand all", "Abrir todo")}
+        {allExpanded
+          ? t("Collapse all sections", "Cerrar todas las secciones")
+          : t("Expand all sections", "Abrir todas las secciones")}
       </button>
     </div>
   );
