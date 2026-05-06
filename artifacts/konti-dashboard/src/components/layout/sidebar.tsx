@@ -1,9 +1,10 @@
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, FolderOpen, Calculator, Package, MessageSquare, LogOut, Menu, X, Users, FileCheck, Settings, Inbox, ShieldCheck, KeyRound } from "lucide-react";
+import { LayoutDashboard, FolderOpen, Calculator, Package, MessageSquare, LogOut, Menu, X, Users, FileCheck, Settings, Inbox, ShieldCheck, KeyRound, Smartphone } from "lucide-react";
 import { useState } from "react";
 import { useListLeads } from "@workspace/api-client-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useLang } from "@/hooks/use-lang";
+import { useMobileV2Flag } from "@/hooks/use-mobile-v2";
 import { NotificationBell } from "./notification-bell";
 import logoWhite from "@assets/Horizontal02_WhitePNG_1776258303461.png";
 import menatechLogo from "@assets/menatech}_1776274281761.png";
@@ -36,6 +37,7 @@ export function Sidebar() {
   const { logout, user } = useAuth();
   const { t, lang, toggleLang } = useLang();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [mobileV2, setMobileV2] = useMobileV2Flag();
 
   const isClient = user?.role === "client";
   const isAdmin = user?.role === "admin" || user?.role === "superadmin";
@@ -172,6 +174,20 @@ export function Sidebar() {
           </button>
         </div>
         <div className="flex items-center justify-end gap-1">
+          <button
+            type="button"
+            onClick={() => setMobileV2(!mobileV2)}
+            data-testid="toggle-mobile-v2"
+            title={mobileV2
+              ? t("Mobile V2 on — tap to use the classic stack", "Móvil V2 activo — toca para usar el diseño clásico")
+              : t("Try the new mobile card layout", "Probar el nuevo diseño de tarjetas")}
+            className={`flex items-center justify-center gap-1 min-w-[44px] min-h-[44px] px-2 py-1 rounded text-[10px] font-semibold transition-colors ${
+              mobileV2 ? "bg-konti-olive text-white" : "text-white/70 hover:text-white"
+            }`}
+          >
+            <Smartphone className="w-3 h-3" />
+            <span>V2</span>
+          </button>
           {showNotifications && <NotificationBell />}
           <LangToggle testId="lang-toggle-mobile" />
         </div>

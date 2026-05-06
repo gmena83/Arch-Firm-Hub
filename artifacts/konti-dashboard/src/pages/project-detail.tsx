@@ -54,6 +54,7 @@ import { resolveSeedImageUrl } from "@/lib/seed-image-url";
 import { InspectionsSection } from "@/components/inspections-section";
 import { PunchlistPanel } from "@/components/punchlist-panel";
 import { MilestonesTimeline } from "@/components/milestones-timeline";
+import { MobilePanel } from "@/components/mobile/mobile-panel";
 import {
   MapPin, Users, FileText, Upload, Upload as UploadIcon, Check, Clock, ChevronLeft,
   Wind, Droplets, Thermometer, Eye, EyeOff, ArrowRight, X,
@@ -1589,6 +1590,13 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
         {/* Left column */}
         <div className="md:col-span-2 space-y-4 md:space-y-6">
           {/* Phase timeline */}
+          <MobilePanel
+            title={t("Project Timeline", "Cronograma del proyecto")}
+            summary={t(`Phase ${project.phaseNumber} of ${phases.length}`, `Fase ${project.phaseNumber} de ${phases.length}`)}
+            expandMode="inline"
+            defaultOpen
+            testId="mobile-panel-timeline"
+          >
           <div className="bg-card rounded-xl border border-card-border p-5 shadow-sm">
             <h2 className="font-bold text-foreground mb-4">{t("Project Timeline", "Cronograma del proyecto")}</h2>
             <div className="flex items-center gap-1">
@@ -1613,52 +1621,79 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
               })}
             </div>
           </div>
+          </MobilePanel>
 
           {/* Client Questions & Notes (auto-collected from AI chat) */}
-          <ClientQuestionsPanel projectId={projectId} isClientView={isClientView} />
+          <MobilePanel title={t("Client Questions & Notes", "Preguntas y notas del cliente")} summary={t("Auto-collected from AI chat", "Recopiladas del chat IA")} expandMode="sheet">
+            <ClientQuestionsPanel projectId={projectId} isClientView={isClientView} />
+          </MobilePanel>
 
           {/* Pre-Design & Viability Panel */}
-          <PreDesignPanel projectId={projectId} isClientView={isClientView} currentPhase={project.phase} />
+          <MobilePanel title={t("Pre-Design & Viability", "Pre-Diseño y Viabilidad")} summary={t("Site assessment, scope, viability checks", "Evaluación, alcance, verificaciones")} expandMode="sheet">
+            <PreDesignPanel projectId={projectId} isClientView={isClientView} currentPhase={project.phase} />
+          </MobilePanel>
 
           {/* Proposals (Pre-Design → onward) */}
-          <ProposalsPanel projectId={projectId} isClientView={isClientView} currentPhase={project.phase} />
+          <MobilePanel title={t("Proposals", "Propuestas")} summary={t("Design + budget proposals", "Propuestas de diseño y presupuesto")} expandMode="sheet">
+            <ProposalsPanel projectId={projectId} isClientView={isClientView} currentPhase={project.phase} />
+          </MobilePanel>
 
           {/* Design sub-phases (Design phase onward) */}
-          <div id="design">
-            <DesignPanel projectId={projectId} isClientView={isClientView} currentPhase={project.phase} />
-          </div>
+          <MobilePanel title={t("Design", "Diseño")} summary={t("Schematic, development, construction docs", "Esquemático, desarrollo, documentos")} expandMode="sheet">
+            <div id="design">
+              <DesignPanel projectId={projectId} isClientView={isClientView} currentPhase={project.phase} />
+            </div>
+          </MobilePanel>
 
           {/* Change Orders (Design phase onward, or anytime there are existing COs) */}
-          <div id="change-orders">
-            <ChangeOrdersPanel projectId={projectId} isClientView={isClientView} currentPhase={project.phase} />
-          </div>
+          <MobilePanel title={t("Change Orders", "Órdenes de cambio")} summary={t("Approved scope changes & costs", "Cambios aprobados y costos")} expandMode="sheet">
+            <div id="change-orders">
+              <ChangeOrdersPanel projectId={projectId} isClientView={isClientView} currentPhase={project.phase} />
+            </div>
+          </MobilePanel>
 
           {/* Phase 4 — Permits authorization workflow */}
-          <PermitsPanel projectId={projectId} projectPhase={project.phase} onProjectUpdated={onProjectUpdated} />
+          <MobilePanel title={t("Permits", "Permisos")} summary={t("OGPE submittals & signatures", "Sometimientos y firmas OGPE")} expandMode="sheet">
+            <PermitsPanel projectId={projectId} projectPhase={project.phase} onProjectUpdated={onProjectUpdated} />
+          </MobilePanel>
 
           {/* Phase 5 — Construction milestones + inspections (visible from construction onward) */}
           {(project.phase === "construction" || project.phase === "completed") && (
             <>
-              <MilestonesTimeline projectId={projectId} />
-              <InspectionsSection projectId={projectId} />
+              <MobilePanel title={t("Construction Milestones", "Hitos de construcción")} summary={t("Foundation → final timeline", "Cimientos → cronograma final")} expandMode="sheet">
+                <MilestonesTimeline projectId={projectId} />
+              </MobilePanel>
+              <MobilePanel title={t("Inspections", "Inspecciones")} summary={t("Scheduled & completed site inspections", "Inspecciones del sitio")} expandMode="sheet">
+                <InspectionsSection projectId={projectId} />
+              </MobilePanel>
             </>
           )}
 
           {/* Phase Punchlist — gates phase advancement */}
-          <div id="punchlist">
-            <PunchlistPanel
-              projectId={projectId}
-              currentPhase={project.phase}
-              isClientView={isClientView}
-              onAdvanced={onProjectUpdated}
-            />
-          </div>
+          <MobilePanel title={t("Punchlist", "Lista de pendientes")} summary={t("Open items that gate phase advancement", "Pendientes que bloquean el avance")} expandMode="sheet">
+            <div id="punchlist">
+              <PunchlistPanel
+                projectId={projectId}
+                currentPhase={project.phase}
+                isClientView={isClientView}
+                onAdvanced={onProjectUpdated}
+              />
+            </div>
+          </MobilePanel>
 
           {/* Site Photos gallery (#105) */}
-          <SitePhotosGallery projectId={projectId} isClientView={isClientView} />
+          <MobilePanel title={t("Site Photos", "Fotos del sitio")} summary={t("Categorized progress photos", "Fotos de progreso categorizadas")} expandMode="sheet">
+            <SitePhotosGallery projectId={projectId} isClientView={isClientView} />
+          </MobilePanel>
 
           {/* Weather widget */}
           {weather && (
+            <MobilePanel
+              title={t("Site Conditions", "Condiciones del Sitio")}
+              summary={`${weather.city} · ${weather.temperature}${weather.temperatureUnit}`}
+              expandMode="inline"
+              testId="mobile-panel-weather"
+            >
             <div className="bg-card rounded-xl border border-card-border p-5 shadow-sm">
               <h2 className="font-bold text-foreground mb-4">{t("Site Conditions", "Condiciones del Sitio")} — {weather.city}</h2>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
@@ -1703,9 +1738,16 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
                 <WeatherHistoryChart history={weather.weatherHistory} />
               )}
             </div>
+            </MobilePanel>
           )}
 
           {/* Tasks */}
+          <MobilePanel
+            title={t("Tasks", "Tareas")}
+            summary={t(`${tasks.filter((x) => !x.completed).length} open · ${tasks.filter((x) => x.completed).length} done`, `${tasks.filter((x) => !x.completed).length} abiertas · ${tasks.filter((x) => x.completed).length} hechas`)}
+            expandMode="sheet"
+            testId="mobile-panel-tasks"
+          >
           <div id="tasks" className="bg-card rounded-xl border border-card-border p-5 shadow-sm scroll-mt-20">
             <h2 className="font-bold text-foreground mb-4">{t("Tasks", "Tareas")}</h2>
             <div className="space-y-2">
@@ -1741,18 +1783,29 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
               })}
             </div>
           </div>
+          </MobilePanel>
         </div>
 
         {/* Right column */}
         <div className="space-y-4 md:space-y-6">
           {/* Phase 5 — Cost-Plus breakdown (shown for construction & completed projects) */}
           {(project.phase === "construction" || project.phase === "completed") && (
-            <CostPlusBudget projectId={projectId} isClientView={isClientView} />
+            <MobilePanel title={t("Cost-Plus Budget", "Presupuesto Costo-Plus")} summary={t("Live actuals & markup breakdown", "Reales en vivo y desglose")} expandMode="sheet">
+              <CostPlusBudget projectId={projectId} isClientView={isClientView} />
+            </MobilePanel>
           )}
 
-          <ProjectInvoices projectId={projectId} />
+          <MobilePanel title={t("Invoices", "Facturas")} summary={t("Project invoices & payments", "Facturas y pagos del proyecto")} expandMode="sheet">
+            <ProjectInvoices projectId={projectId} />
+          </MobilePanel>
 
           {/* Budget */}
+          <MobilePanel
+            title={t("Budget", "Presupuesto")}
+            summary={isClientView ? `${spendPct}% ${t("used", "utilizado")}` : `$${project.budgetUsed.toLocaleString()} / $${project.budgetAllocated.toLocaleString()}`}
+            expandMode="inline"
+            defaultOpen
+          >
           <div className="bg-card rounded-xl border border-card-border p-5 shadow-sm">
             <h2 className="font-bold text-foreground mb-3">{t("Budget", "Presupuesto")}</h2>
             {isClientView ? (
@@ -1772,47 +1825,57 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
             <p className="text-xs text-muted-foreground">{spendPct}% {t("used", "utilizado")}</p>
             <ChangeOrderDelta projectId={projectId} />
           </div>
+          </MobilePanel>
 
           {/* Team-only: client activity audit log */}
           {!isClientView && (
-            <ClientActivityCard projectId={projectId} />
+            <MobilePanel title={t("Client Activity", "Actividad del cliente")} summary={t("Audit log of client interactions", "Registro de interacciones")} expandMode="sheet">
+              <ClientActivityCard projectId={projectId} />
+            </MobilePanel>
           )}
 
           {/* Team-only: editable client contact info (CSV item #20). */}
           {!isClientView && (
-            <ClientContactCard
-              projectId={projectId}
-              clientName={project.clientName}
-              initialPhone={(project as { clientPhone?: string }).clientPhone ?? ""}
-              initialPostal={(project as { clientPostalAddress?: string }).clientPostalAddress ?? ""}
-              initialPhysical={(project as { clientPhysicalAddress?: string }).clientPhysicalAddress ?? ""}
-            />
+            <MobilePanel title={t("Client Contact", "Contacto del cliente")} summary={project.clientName} expandMode="inline">
+              <ClientContactCard
+                projectId={projectId}
+                clientName={project.clientName}
+                initialPhone={(project as { clientPhone?: string }).clientPhone ?? ""}
+                initialPostal={(project as { clientPostalAddress?: string }).clientPostalAddress ?? ""}
+                initialPhysical={(project as { clientPhysicalAddress?: string }).clientPhysicalAddress ?? ""}
+              />
+            </MobilePanel>
           )}
 
           {/* Team-only: project-level metadata (B-05) — single source of truth
               for square meters, bathrooms, kitchens, project type, and
               contingency, consumed read-only by the Contractor Calculator. */}
           {!isClientView && (
-            <ProjectMetadataCard
-              projectId={projectId}
-              variant="editable"
-              squareMeters={project.squareMeters}
-              bathrooms={project.bathrooms}
-              kitchens={project.kitchens}
-              projectType={project.projectType}
-              contingencyPercent={project.contingencyPercent}
-            />
+            <MobilePanel title={t("Project Metadata", "Metadatos del proyecto")} summary={`${project.squareMeters}m² · ${project.bathrooms}🛁 · ${project.kitchens}🍳`} expandMode="inline">
+              <ProjectMetadataCard
+                projectId={projectId}
+                variant="editable"
+                squareMeters={project.squareMeters}
+                bathrooms={project.bathrooms}
+                kitchens={project.kitchens}
+                projectType={project.projectType}
+                contingencyPercent={project.contingencyPercent}
+              />
+            </MobilePanel>
           )}
 
           {/* Team-only: contractor monitoring narrative card */}
           {!isClientView && (
-            <div className="bg-card rounded-xl border border-card-border p-5 shadow-sm" data-testid="contractor-monitoring-card">
-              <ContractorMonitoringSection projectId={projectId} variant="card" />
-            </div>
+            <MobilePanel title={t("Contractor Monitoring", "Monitoreo de contratistas")} summary={t("Narrative status by trade", "Estado por oficio")} expandMode="sheet">
+              <div className="bg-card rounded-xl border border-card-border p-5 shadow-sm" data-testid="contractor-monitoring-card">
+                <ContractorMonitoringSection projectId={projectId} variant="card" />
+              </div>
+            </MobilePanel>
           )}
 
           {/* Team */}
           {!isClientView && project.teamMembers && (
+            <MobilePanel title={t("Team", "Equipo")} summary={`${project.teamMembers.length} ${t("members", "miembros")}`} expandMode="inline">
             <div className="bg-card rounded-xl border border-card-border p-5 shadow-sm">
               <h2 className="font-bold text-foreground mb-3 flex items-center gap-1.5">
                 <Users className="w-4 h-4" /> {t("Team", "Equipo")}
@@ -1828,9 +1891,11 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
                 ))}
               </div>
             </div>
+            </MobilePanel>
           )}
 
           {/* Estimated vs Actual snapshot */}
+          <MobilePanel title={t("Estimated vs Actual", "Estimado vs Real")} summary={t("Variance snapshot link", "Enlace al reporte de varianza")} expandMode="inline">
           <div className="bg-card rounded-xl border border-card-border p-5 shadow-sm" data-testid="variance-snapshot-link">
             <div className="flex items-center justify-between mb-2">
               <h2 className="font-bold text-foreground">{t("Estimated vs Actual", "Estimado vs Real")}</h2>
@@ -1848,9 +1913,11 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
               )}
             </p>
           </div>
+          </MobilePanel>
 
           {/* Material Cost Summary */}
           {calc && (
+            <MobilePanel title={t("Material Costs", "Costos de Materiales")} summary={`$${calc.grandTotal.toLocaleString()} ${t("total", "total")}`} expandMode="inline">
             <div className="bg-card rounded-xl border border-card-border p-5 shadow-sm" data-testid="material-cost-summary">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="font-bold text-foreground">{t("Material Costs", "Costos de Materiales")}</h2>
@@ -1874,9 +1941,16 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
                 </div>
               </div>
             </div>
+            </MobilePanel>
           )}
 
           {/* Documents */}
+          <MobilePanel
+            title={t("Documents", "Documentos")}
+            summary={t(`${docs.length} file(s) · tap to browse`, `${docs.length} archivo(s) · toca para abrir`)}
+            expandMode="sheet"
+            testId="mobile-panel-documents"
+          >
           <div className="bg-card rounded-xl border border-card-border p-5 shadow-sm">
             <div className="flex items-center justify-between mb-3">
               <h2 className="font-bold text-foreground">{t("Documents", "Documentos")}</h2>
@@ -1911,6 +1985,7 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
               )}
             </div>
           </div>
+          </MobilePanel>
         </div>
       </div>
 
