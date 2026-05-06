@@ -1472,6 +1472,8 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
   const isClientView = viewRole === "client";
   const docs = isClientView ? allDocs.filter((d) => d.isClientVisible) : allDocs;
 
+  const mobileGroup = useMobilePanelGroup();
+
   if (projectLoading || !project) {
     return <div className="h-96 bg-card rounded-xl border animate-pulse" />;
   }
@@ -1586,6 +1588,12 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
         canEdit
       />
 
+      <MobileExpandToggle
+        onExpandAll={mobileGroup.onExpandAll}
+        onCollapseAll={mobileGroup.onCollapseAll}
+        allExpanded={mobileGroup.allExpanded}
+      />
+      <MobilePanelGroup signal={mobileGroup.signal}>
       <div className="grid md:grid-cols-3 gap-4 md:gap-6">
         {/* Left column */}
         <div className="md:col-span-2 space-y-4 md:space-y-6">
@@ -1988,6 +1996,7 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
           </MobilePanel>
         </div>
       </div>
+      </MobilePanelGroup>
 
       {showUpload && (
         <UploadModal

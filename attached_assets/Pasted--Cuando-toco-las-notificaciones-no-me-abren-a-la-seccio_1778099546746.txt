@@ -1,0 +1,31 @@
+ Cuando toco las notificaciones, no me abren a la seccion actualizada y queda solapada con la imagen del proyecto. 
+No deja cargar imagenes en la sección de FOTOS
+No me deja editar las columnas de MATERIALES (los ya existentes)
+La actualización no se puede realizar manual?
+Bot: no aparece el historial de chats generados
+En que seccion estan los ACUERDOS?  (A-04)
+ Donde se cargan las facturas? A-01
+En la parte de LEDAS dejar la opción de Aceptar - Declinar oferta - Dejar en Pendiente
+Aca luego podemos proponer que se envie un mail al cliente informando próximos pasos. Que te parece?
+Desde donde dejo un REGISTRO de AUDITORÍA? 
+Mejorar visual de las etiquetas: que esten mas oscuras las letras. Desde donde se pueden dejar actualizaciones del monitoreo?
+Desde donde agrego tareas? Desde el ASANA y se vincula o al reves? No hay opción de botones:
+No me deja cargar nuevas fotos en la parte de Fotos del Sitio
+No me deja escanear ni guardar recibo
+No me exporto ninguno de los 2 archivos
+Cambiar y dejar editar el Directorio de Equipo y los contratistas
+No comprendo este renglón: Porque no existe seccion de IMPORTACIONES (Es Materiales Importados)
+Cuando estoy en Calculadora estimando materiales: de que manera puedo cargarlos nuevos en el proyecto? No me da la opcion de agregar al producto.
+Calculadora de costos: Hay manera de luego sumar a los proyectos estos materiales nuevos?
+En la parte de PERMISOS: no veo desarrollado este item: Hacer clickeables los ítems hacia el detalle del proyecto. 	
+Tampoco me deja agregar manualmente algun permiso o escribir una leyenda. Desde donde se retroalimenta esto?
+En el Punchlist: agregar la opcion de vincular fotos y comentarios. Hice una de test pero no me deja editarlos o modificarlos: 
+
+Me dió error en la Carga de DOCUMENTOS: directamente no me dejó cargarlo y aparecia como bloqueado
+
+I-04 · Emails de firma implementados ✅ :El envío automático de email al cliente al solicitar su firma ya está implementado. Implementado en #102 (real signature handoff emails). Esto no lo pude detectar, me indica que todos los archivas se van a enviar el cliente. Tampoco me deja categorizarlo
+No veo el Historial de versiones de documentos - no me deja descargarlo o ver las fotos cargadas
+
+OCR real de recibos desde PDF/imagen (actualmente mockeado): este tampoco lo veo desarrollado, donde lo puedo encontrar?
+Persistencia de notas del asistente de IA entre reinicios: tampoco me aparecen el historial
+La sincronización con el Drive se hace sobre el de Konti?
