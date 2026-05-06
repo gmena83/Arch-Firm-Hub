@@ -46,6 +46,7 @@ export function DriveIntegrationPanel() {
   const cfg = status.data?.config;
   const connected = status.data?.connected === true;
   const configured = status.data?.configured === true;
+  const connectedEmail = status.data?.connectedEmail ?? null;
 
   const [rootFolderId, setRootFolderId] = useState<string>("");
   const [createName, setCreateName] = useState<string>("");
@@ -193,15 +194,18 @@ export function DriveIntegrationPanel() {
         ),
       };
     }
+    const emailSuffix = connectedEmail
+      ? t(` Connected as ${connectedEmail}.`, ` Conectado como ${connectedEmail}.`)
+      : "";
     return {
       tone: "ok" as const,
       icon: CheckCircle2,
       text: t(
-        `Storing uploads in “${cfg?.rootFolderName ?? cfg?.rootFolderId}”.`,
-        `Almacenando cargas en "${cfg?.rootFolderName ?? cfg?.rootFolderId}".`,
+        `Storing uploads in “${cfg?.rootFolderName ?? cfg?.rootFolderId}”.${emailSuffix}`,
+        `Almacenando cargas en "${cfg?.rootFolderName ?? cfg?.rootFolderId}".${emailSuffix}`,
       ),
     };
-  }, [status.isLoading, status.data, connected, configured, cfg, t]);
+  }, [status.isLoading, status.data, connected, configured, cfg, connectedEmail, t]);
 
   const Icon = banner.icon;
   const bannerClass =

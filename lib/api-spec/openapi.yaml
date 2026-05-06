@@ -4248,6 +4248,11 @@ components:
         configured: { type: boolean }
         connectionMessage: { type: string }
         connectionMessageEs: { type: string }
+        connectedEmail:
+          oneOf:
+            - { type: string }
+            - { type: "null" }
+          description: Email address of the Google account currently authorized for Drive uploads. `null` when not connected or when the about-call failed.
         config: { $ref: "#/components/schemas/DriveIntegrationConfig" }
       required: [connected, configured, connectionMessage, connectionMessageEs, config]
 

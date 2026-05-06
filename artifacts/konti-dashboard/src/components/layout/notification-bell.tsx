@@ -32,6 +32,18 @@ const ICON_MAP: Record<ActivityType, React.ReactNode> = {
   client_question: <HelpCircle className="w-3.5 h-3.5" />,
 };
 
+// B6 (#170): map each activity type to a deep-link section anchor on the
+// project-detail page so clicking a notification scrolls the user straight
+// to the relevant panel instead of dropping them at the top of the page.
+const SECTION_BY_TYPE: Record<ActivityType, string> = {
+  document_upload: "section-documents",
+  task_completed: "section-tasks",
+  phase_change: "section-timeline",
+  weather_alert: "section-weather",
+  comment: "section-questions",
+  client_question: "section-questions",
+};
+
 const COLOR_MAP: Record<ActivityType, string> = {
   document_upload: "bg-sky-100 text-sky-600",
   task_completed: "bg-green-100 text-green-600",
@@ -153,7 +165,11 @@ export function NotificationBell() {
   const handleClick = (item: NotificationItem) => {
     if (!item.seen) void markSeen(item.id);
     setOpen(false);
-    setLocation(`/projects/${item.projectId}`);
+    const anchor = SECTION_BY_TYPE[item.type];
+    setLocation(`/projects/${item.projectId}${anchor ? `#${anchor}` : ""}`);
+    // The destination page (project-detail) owns the deterministic
+    // hash → expand → retry-scroll logic so it works regardless of
+    // mobile-V2 panel state. We do NOT scroll here.
   };
 
   return (

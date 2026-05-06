@@ -12,5 +12,7 @@ export interface DriveStatusResponse {
   configured: boolean;
   connectionMessage: string;
   connectionMessageEs: string;
+  /** Email address of the Google account currently authorized for Drive uploads. `null` when not connected or when the about-call failed. */
+  connectedEmail?: string | null;
   config: DriveIntegrationConfig;
 }

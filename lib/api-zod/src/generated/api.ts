@@ -4067,6 +4067,12 @@ export const GetDriveStatusResponse = zod.object({
   configured: zod.boolean(),
   connectionMessage: zod.string(),
   connectionMessageEs: zod.string(),
+  connectedEmail: zod
+    .union([zod.string(), zod.null()])
+    .optional()
+    .describe(
+      "Email address of the Google account currently authorized for Drive uploads. `null` when not connected or when the about-call failed.",
+    ),
   config: zod.object({
     enabled: zod.boolean(),
     rootFolderId: zod.union([zod.string(), zod.null()]),

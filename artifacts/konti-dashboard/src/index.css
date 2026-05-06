@@ -218,6 +218,14 @@
   h1, h2, h3 { font-family: 'Montserrat', sans-serif; font-weight: 700; }
 }
 
+/* F17 (#170): bump muted-foreground contrast on phones so secondary
+   labels stay legible in bright outdoor light. The desktop palette
+   stays unchanged so the brand-tuned look is preserved at sm+. */
+@media (max-width: 640px) {
+  :root { --muted-foreground: 207 14% 28%; }
+  .dark { --muted-foreground: 207 12% 74%; }
+}
+
 @layer utilities {
   input[type="search"]::-webkit-search-cancel-button { @apply hidden; }
 

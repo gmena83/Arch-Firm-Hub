@@ -223,11 +223,30 @@ router.get("/integrations/drive/status", requireRole([...ADMIN_ROLES]), async (_
   let connected = false;
   let connectionMessage = "Not connected. Use the Replit Google Drive connector to authorize.";
   let connectionMessageEs = "No conectado. Autoriza el conector de Google Drive de Replit.";
+  let connectedEmail: string | null = null;
   try {
-    await getDriveAccessToken();
+    const token = await getDriveAccessToken();
     connected = true;
     connectionMessage = "Connector authorized.";
     connectionMessageEs = "Conector autorizado.";
+    // G20 (#170): surface which Google account is currently connected so an
+    // admin can confirm uploads will land in the right Drive. Best-effort —
+    // failures here must not flip `connected` back to false.
+    try {
+      const aboutResp = await fetch(
+        "https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)",
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      if (aboutResp.ok) {
+        const body = (await aboutResp.json()) as { user?: { emailAddress?: string } };
+        if (typeof body.user?.emailAddress === "string") {
+          connectedEmail = body.user.emailAddress;
+        }
+      }
+    } catch {
+      // Swallow — connectedEmail stays null and the UI falls back to
+      // the generic "Connector authorized" banner.
+    }
   } catch (err) {
     if (err instanceof DriveNotConnectedError) {
       connectionMessage = err.message;
@@ -241,6 +260,7 @@ router.get("/integrations/drive/status", requireRole([...ADMIN_ROLES]), async (_
     configured,
     connectionMessage,
     connectionMessageEs,
+    connectedEmail,
     config: cfg,
   });
 });

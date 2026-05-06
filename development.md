@@ -1,6 +1,13 @@
 # KONTi Dashboard — Development Roadmap
 
-_Generated 2026-04-23 from a code + logs + test-result audit of the KONTi MVP._
+_Generated 2026-04-23, refreshed 2026-05-06 for V1 delivery (Task #170)._
+
+> **V1 status (2026-05-06):** Phases A (persistence), B (typed API), C (auth),
+> and most of D (tests) are MERGED. Phase A's #150 documents persistence,
+> #156 audit log shipping, #161 same-day fixes (B6 anchor scroll, F17 mobile
+> contrast, F18 import wording, G20 Drive email surfacing) all landed under
+> Task #170. The six items in `.local/reports/v1-backlog-parking.md` form the
+> V1.x backlog; everything else is parked for V2.
 
 This roadmap captures the gaps, fixes, and optimizations identified during a sweep of the codebase, the running workflows' logs, and the most recent end-to-end test results. It is organized into eight Dev Phases (A–H), in roughly the order you'd want to attack them. Each item lists the files involved and a one-line fix hint so an engineer can pick it up directly. The appendix lists the follow-up tasks that have already been proposed in the project, mapped to the phases below.
 

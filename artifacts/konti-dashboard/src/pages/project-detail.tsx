@@ -1325,7 +1325,7 @@ function ClientQuestionsPanel({ projectId, isClientView }: { projectId: string; 
   );
 
   return (
-    <div className="bg-card border border-card-border rounded-xl p-5" data-testid="client-questions-panel">
+    <div id="section-questions" className="bg-card border border-card-border rounded-xl p-5 scroll-mt-20" data-testid="client-questions-panel">
       <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
         <h2 className="text-base font-bold text-foreground">
           {isClientView ? t("My Notes & Questions", "Mis Notas y Preguntas") : t("Client Notes & Questions", "Notas y Preguntas del Cliente")}
@@ -1474,6 +1474,49 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
 
   const mobileGroup = useMobilePanelGroup();
 
+  // B6 (#170): deterministic deep-link from notification bell.
+  // Notification clicks set `location.hash = #section-*`. On mount and
+  // hashchange, we (a) broadcast `expand-all` so every inline MobilePanel
+  // mounts its content (the anchored <div id="section-*"> only exists
+  // when the panel is open), then (b) retry-poll for the target element
+  // — falling back to the panel's outer card testid for sheet-mode
+  // panels whose body stays unmounted until the user taps. Retry caps
+  // at ~2.5s so slow hydration doesn't drop the scroll.
+  const expandAllRef = useRef(mobileGroup.onExpandAll);
+  expandAllRef.current = mobileGroup.onExpandAll;
+  useEffect(() => {
+    const SECTION_FALLBACK_TESTID: Record<string, string> = {
+      "section-timeline": "mobile-panel-timeline",
+      "section-weather": "mobile-panel-weather",
+      "section-tasks": "mobile-panel-tasks",
+      "section-documents": "mobile-panel-documents",
+      "section-questions": "client-questions-panel",
+    };
+    const handleHash = () => {
+      const hash = window.location.hash.replace(/^#/, "");
+      if (!hash || !(hash in SECTION_FALLBACK_TESTID)) return;
+      // Open every inline panel so anchored content mounts in the DOM.
+      expandAllRef.current();
+      const start = Date.now();
+      const tryScroll = () => {
+        const target =
+          document.getElementById(hash) ??
+          document.querySelector(`[data-testid="${SECTION_FALLBACK_TESTID[hash]}"]`);
+        if (target instanceof HTMLElement) {
+          target.scrollIntoView({ behavior: "smooth", block: "start" });
+          return;
+        }
+        if (Date.now() - start < 2500) {
+          window.setTimeout(tryScroll, 100);
+        }
+      };
+      tryScroll();
+    };
+    handleHash();
+    window.addEventListener("hashchange", handleHash);
+    return () => window.removeEventListener("hashchange", handleHash);
+  }, [projectId]);
+
   if (projectLoading || !project) {
     return <div className="h-96 bg-card rounded-xl border animate-pulse" />;
   }
@@ -1605,7 +1648,7 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
             defaultOpen
             testId="mobile-panel-timeline"
           >
-          <div className="bg-card rounded-xl border border-card-border p-5 shadow-sm">
+          <div id="section-timeline" className="bg-card rounded-xl border border-card-border p-5 shadow-sm scroll-mt-20">
             <h2 className="font-bold text-foreground mb-4">{t("Project Timeline", "Cronograma del proyecto")}</h2>
             <div className="flex items-center gap-1">
               {phases.map((phase, i) => {
@@ -1632,7 +1675,7 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
           </MobilePanel>
 
           {/* Client Questions & Notes (auto-collected from AI chat) */}
-          <MobilePanel title={t("Client Questions & Notes", "Preguntas y notas del cliente")} summary={t("Auto-collected from AI chat", "Recopiladas del chat IA")} expandMode="sheet">
+          <MobilePanel title={t("Client Questions & Notes", "Preguntas y notas del cliente")} summary={t("Auto-collected from AI chat", "Recopiladas del chat IA")} expandMode="sheet" testId="client-questions-panel">
             <ClientQuestionsPanel projectId={projectId} isClientView={isClientView} />
           </MobilePanel>
 
@@ -1702,7 +1745,7 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
               expandMode="inline"
               testId="mobile-panel-weather"
             >
-            <div className="bg-card rounded-xl border border-card-border p-5 shadow-sm">
+            <div id="section-weather" className="bg-card rounded-xl border border-card-border p-5 shadow-sm scroll-mt-20">
               <h2 className="font-bold text-foreground mb-4">{t("Site Conditions", "Condiciones del Sitio")} — {weather.city}</h2>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                 <div className="flex flex-col gap-1">
@@ -1756,7 +1799,7 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
             expandMode="sheet"
             testId="mobile-panel-tasks"
           >
-          <div id="tasks" className="bg-card rounded-xl border border-card-border p-5 shadow-sm scroll-mt-20">
+          <div id="section-tasks" className="bg-card rounded-xl border border-card-border p-5 shadow-sm scroll-mt-20">
             <h2 className="font-bold text-foreground mb-4">{t("Tasks", "Tareas")}</h2>
             <div className="space-y-2">
               {tasks.map((task) => {
@@ -1959,7 +2002,7 @@ function ProjectDetailContent({ projectId }: { projectId: string }) {
             expandMode="sheet"
             testId="mobile-panel-documents"
           >
-          <div className="bg-card rounded-xl border border-card-border p-5 shadow-sm">
+          <div id="section-documents" className="bg-card rounded-xl border border-card-border p-5 shadow-sm scroll-mt-20">
             <div className="flex items-center justify-between mb-3">
               <h2 className="font-bold text-foreground">{t("Documents", "Documentos")}</h2>
               <button

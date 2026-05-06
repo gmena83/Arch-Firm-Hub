@@ -183,8 +183,8 @@ function TemplatePreviewPanel({ projectId, entries, grandTotal }: { projectId: s
         <FileText className="w-4 h-4 shrink-0 text-muted-foreground" />
         <span>
           {t(
-            "No report template uploaded yet — set one up under Imports → Report Template to preview the calculator in your team's report layout.",
-            "Aún no hay plantilla de reporte — súbela en Importaciones → Plantilla de Reporte para previsualizar la calculadora en el formato del equipo."
+            "No report template uploaded yet — set one up under Imported Materials → Report Template to preview the calculator in your team's report layout.",
+            "Aún no hay plantilla de reporte — súbela en Materiales Importados → Plantilla de Reporte para previsualizar la calculadora en el formato del equipo."
           )}
         </span>
       </div>
