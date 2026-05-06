@@ -10,8 +10,8 @@ Reconciled workbook: `attached_assets/KONTi_Dashboard_Feedback_Consolidated_v3_a
 |---|---:|
 | Open | 1 |
 | In Progress | 0 |
-| Done | 54 |
-| Done — needs verification | 1 |
+| Done | 55 |
+| Done — needs verification | 0 |
 | Needs Spec | 0 |
 | Needs Decision | 0 |
 
@@ -21,7 +21,6 @@ These rows look closed on paper but a PM should eyeball the live UI before promo
 
 | ID | Was | Now | Why verification is suggested |
 |---|---|---|---|
-| A-11 | In Progress | Done — needs verification | Likely closed by #62 + #75 (Contractor Estimate Rollup on the project report); needs PM eyes-on confirmation that the consolidated view matches the original ask. |
 
 ## Items moved to **Done**
 
@@ -36,6 +35,7 @@ These rows look closed on paper but a PM should eyeball the live UI before promo
 | A-07 | Open | Done | Done in #105 (Site photos: upload, categorize, link them from the project report). |
 | A-08 | Open | Done | Done in #75 (ClientContactCard with phone, postal, physical addresses). |
 | A-09 | Open | Done | Done in #158: PATCH /api/projects/:projectId/documents/:documentId now accepts a `caption` field with a 500-char cap behind a dual gate — team/admin/superadmin can edit any document, clients can edit ONLY captions on documents they themselves uploaded (artifacts/api-server/src/routes/projects.ts L584-L745). The site-photos gallery renders Pencil/Trash buttons on each owned thumbnail (artifacts/konti-dashboard/src/components/site-photos-gallery.tsx) so clients can rename or remove their own uploads inline. |
+| A-11 | In Progress | Done | Done in #62 + #75 (Contractor Estimate Rollup on the project report) — PM eyes-on verified 2026-05-06: the consolidated view shows delays, weather, issues, change orders, non-compliance, and rework as originally requested. / Verificación PM 2026-05-06: el reporte consolidado del contratista cubre retrasos, clima, incidencias, órdenes de cambio, no-conformidades y rework según el pedido original. |
 | A-12 | Open | Done | Done in #61 hardening + verified 2026-05 (Task #156): client-side audit log shipped — backend GET /api/projects/:id/audit-log accepts the client role behind enforceClientOwnership with a `?clientOnly=true` filter (artifacts/api-server/src/routes/projects.ts ~L2386), and the bilingual ClientActivityCard is mounted on the project detail page (artifacts/konti-dashboard/src/components/client-activity-card.tsx + project-detail.tsx ~L1721) with a Show-all / Client-only toggle. Non-owner 403 + owner 200 paths covered by client-ownership.test.ts L382-L420 (pre-existing — no new test was needed in this task). |
 | A-13 | Open | Done | Done in #62 (KONTi brand pass) and #74 (header text readable on bright cover photos). |
 | B-01 | Open | Done | Done in #75 (CSV header aliases: Description, UnitPrice, etc.). |
