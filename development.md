@@ -15,19 +15,29 @@ The phases are ordered by risk-to-confidence ratio: the earliest phases protect 
 
 ---
 
-## Executive summary
+## Executive summary (refreshed 2026-05-06 for V1)
 
-- **Status:** All three artifacts (api-server, konti-dashboard, mockup-sandbox) are running in development. The dashboard typecheck is clean. The most recent production deploy succeeded — what looked like a crash in the deploy logs is just normal Autoscale cool-down (the server idled, then received `SIGTERM`).
-- **Biggest gap (Phase A):** Most mutable data (notes, receipts, contractor estimates, report templates, punchlist edits, project mutations) lives in plain in-memory arrays in `seed.ts` and route modules. Anything entered after deploy is lost on restart, so any "real" usage is currently a demo.
-- **Second-biggest gap (Phase B):** Roughly six client panels still call the legacy `customFetch` helper instead of the typed hooks generated from the OpenAPI spec, and several routes are not in `lib/api-spec/openapi.yaml` at all. The contract drifts every time a route is added.
-- **Hardening (Phase C):** A handful of read-only project routes are still public; the role + ownership pattern from earlier tasks should be applied consistently. Error response shape is also inconsistent across routes.
-- **Test coverage (Phase D):** AI, notifications, leads, and dashboard routes have no integration tests; one estimating test has a brittle hardcoded tolerance that drifts when seed data changes.
-- **AI / PDF / OCR (Phase E):** Receipt OCR and the report-template PDF export are still mocked or short-circuited. They look real to the user, but they're not.
-- **Performance (Phase F):** API bundle is 2.1 MB with a build-time warning; Vite has a slow cold start; production source maps are 5 MB.
-- **UX freshness, i18n, a11y (Phase G):** Phase-advance doesn't fully refresh dependent panels; a few hard-coded English strings remain; a few forms lack accessible labels.
-- **Ops (Phase H):** Currently `autoscale` (cheap, cold starts). Switch to Reserved VM if always-on latency matters; add a static health probe for the dashboard artifact.
+- **Status:** All three artifacts (api-server, konti-dashboard, mockup-sandbox) running in development; dashboard typecheck clean; most recent production deploy healthy. **V1 cut:** 55 of 56 reconciled feedback items are Done (1 Open: B-14, deferred to V1.x). 61 of 100 project tasks are MERGED, 6 are kept Active as the V1.x must-haves, and the remaining 23 drafts are recommended for archival per `.local/reports/v1-backlog-parking.md`.
+- **Phase A — Persistence (SHIPPED):** Estimating + calculator (#141), lifecycle (#144), durable lead-link (#147), project documents (#150), and audit log (#156) all persist to Postgres via Drizzle. Mutations are request-coupled — a 200 OK guarantees a committed row. The in-memory `seed.ts` is now read-only and acts as the bootstrap fixture.
+- **Phase B — API contract (SHIPPED):** All routes are in `lib/api-spec/openapi.yaml`; the dashboard uses the orval-generated typed hooks. The `customFetch` helper is no longer the default integration path. G20 added `connectedEmail` to `DriveStatusResponse`.
+- **Phase C — Hardening (SHIPPED for V1 surface):** Role + ownership middleware applied to all project routes. Error response shape standardized to `{error, code, ...}`. `#68` (read-only endpoint lock-down) is parked for V2.
+- **Phase D — Tests (PARTIAL):** Persistence + lifecycle gates have integration coverage. AI + notifications still uncovered (parked for V2 as #38/#40). E2E for notification deep-link added as follow-up #172.
+- **Phase E — AI / PDF / OCR (PARTIAL):** Receipt OCR live via PDF.co; report-template PDF export still mocked (parked as #78/#79).
+- **Phase F — Performance + UX polish (V1 polish SHIPPED):** F17 (mobile contrast), F18 (calculator copy), and the mobile V2 minimalist cards (#165) all landed. Bundle-size and source-map work parked for V2.
+- **Phase G — Notifications + integrations (SHIPPED for V1):** B6 deterministic deep-link from notification bell with expand-all + retry-scroll fallback (project-detail.tsx). G20 Drive `connectedEmail` surfaced in the Settings banner. B8 audit-log sidebar entry already shipped under #156.
+- **Phase H — Ops:** Autoscale; Reserved VM upgrade still optional. Health probe added in #102.
 
-The project is in good shape for an MVP demo and is already deployed. To convert it into something teams use day-to-day, Phase A is the unblocker — without persistent storage, every "save" the user performs is a lie, and that erodes trust faster than any cosmetic bug.
+### V1 board snapshot (2026-05-06)
+
+| Bucket | Count |
+|---|---:|
+| Shipped & validated (MERGED) | 61 |
+| Cancelled / superseded | 10 |
+| Active — V1.x must-haves | 6 |
+| Drafts to archive (V2 / dups) | 23 |
+| **Total project tasks** | **100** |
+
+The V1.x must-haves: #46 (calculator master template), #80 (imported-material persistence), #81 (estimating DB migration), #82 (punchlist-corruption recovery), #85 (construction-status detail per project), #92 (audit-log persistence). Everything else is parked or shipped.
 
 ---
 
