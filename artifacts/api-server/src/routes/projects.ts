@@ -366,7 +366,8 @@ router.get("/projects/:projectId/tasks", requireRole(["team", "admin", "superadm
   return res.json(tasks);
 });
 
-router.get("/projects/:projectId/weather", async (req, res) => {
+router.get("/projects/:projectId/weather", requireRole(["team", "admin", "superadmin", "architect", "client"]), async (req, res) => {
+  if (!enforceClientOwnership(req, res, req.params["projectId"] as string)) return;
   const weather = WEATHER_DATA[req.params["projectId"] as keyof typeof WEATHER_DATA];
   if (!weather) {
     res.status(404).json({ error: "not_found", message: "Weather data not found for project" });
@@ -1073,7 +1074,7 @@ router.patch(
   },
 );
 
-router.get("/materials", async (req, res) => {
+router.get("/materials", requireRole(["team", "admin", "superadmin", "architect", "client"]), async (req, res) => {
   const category = req.query["category"] as string | undefined;
   const all = [...MATERIALS, ...EXTRA_MATERIALS];
   const materials = category ? all.filter((m) => m.category === category) : all;
