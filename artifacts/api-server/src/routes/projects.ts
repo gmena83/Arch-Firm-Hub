@@ -1563,8 +1563,15 @@ router.post("/projects/:id/advance-phase", requireRole(["team", "client"]), asyn
   }
 
   // Task #144 — persist project (phase + label fields mutated above) before ack.
-  try { await persistProjectsToDb(); }
-  catch { return res.status(500).json({ error: "persist_failed", message: "Phase advance was applied in memory but failed to save. Please retry." }); }
+  try {
+    await persistProjectsToDb();
+  } catch (err) {
+    logger.error({ err, projectId: project.id }, "phase advance persist failed");
+    return res.status(500).json({
+      error: "persist_failed",
+      message: "Phase advance was applied in memory but failed to save. Please retry.",
+    });
+  }
 
   return res.json({ project, advancedTo: nextPhase, ...(emailWarning ? { emailWarning } : {}) });
 });
@@ -1777,8 +1784,15 @@ router.post("/projects/:id/gamma-report", requireRole(["team"]), async (req, res
     description: "GAMMA presentation generated for client review",
     descriptionEs: "Presentación GAMMA generada para revisión del cliente",
   });
-  try { await persistProjectsToDb(); }
-  catch { return res.status(500).json({ error: "persist_failed", message: "GAMMA URL was set in memory but failed to save. Please retry." }); }
+  try {
+    await persistProjectsToDb();
+  } catch (err) {
+    logger.error({ err, projectId: project.id }, "gamma url persist failed");
+    return res.status(500).json({
+      error: "persist_failed",
+      message: "GAMMA URL was set in memory but failed to save. Please retry.",
+    });
+  }
   return res.json({
     projectId: project.id,
     reportId,
@@ -1902,8 +1916,15 @@ router.post("/projects/:id/design/advance-sub-phase", requireRole(["team", "admi
   (project as { phaseLabel: string }).phaseLabel = labels.en;
   (project as { phaseLabelEs: string }).phaseLabelEs = labels.es;
   (project as { phaseNumber: number }).phaseNumber = PHASE_ORDER.indexOf(nextPhase) + 1;
-  try { await persistProjectsToDb(); }
-  catch { return res.status(500).json({ error: "persist_failed", message: "Sub-phase advance was applied in memory but failed to save. Please retry." }); }
+  try {
+    await persistProjectsToDb();
+  } catch (err) {
+    logger.error({ err, projectId: project.id }, "sub-phase advance persist failed");
+    return res.status(500).json({
+      error: "persist_failed",
+      message: "Sub-phase advance was applied in memory but failed to save. Please retry.",
+    });
+  }
   return res.json({ projectId: project.id, state, project });
 });
 
@@ -1991,8 +2012,15 @@ router.post("/projects/:id/proposals/:proposalId/approve", requireRole(["client"
     description: `Phase advanced to ${labels.en} (proposal approved)`,
     descriptionEs: `Fase avanzada a ${labels.es} (propuesta aprobada)`,
   });
-  try { await persistProjectsToDb(); }
-  catch { return res.status(500).json({ error: "persist_failed", message: "Proposal approval was applied in memory but failed to save. Please retry." }); }
+  try {
+    await persistProjectsToDb();
+  } catch (err) {
+    logger.error({ err, projectId: project.id }, "proposal approval persist failed");
+    return res.status(500).json({
+      error: "persist_failed",
+      message: "Proposal approval was applied in memory but failed to save. Please retry.",
+    });
+  }
   const stashedWarning = (req as { _emailWarning?: string })._emailWarning;
   return res.json({
     projectId: project.id,
@@ -2447,8 +2475,15 @@ router.post("/projects/:id/permit-items/:itemId/state", requireRole(["admin", "a
   }
   // Task #144 — `project.phase` may have been auto-advanced; persist before ack.
   if (advanced) {
-    try { await persistProjectsToDb(); }
-    catch { return res.status(500).json({ error: "persist_failed", message: "Phase auto-advance was applied in memory but failed to save. Please retry." }); }
+    try {
+      await persistProjectsToDb();
+    } catch (err) {
+      logger.error({ err, projectId: project.id }, "phase auto-advance persist failed");
+      return res.status(500).json({
+        error: "persist_failed",
+        message: "Phase auto-advance was applied in memory but failed to save. Please retry.",
+      });
+    }
   }
   return res.json({ projectId: project.id, permitItem: item, project, advancedToConstruction: advanced });
 });
@@ -2836,8 +2871,15 @@ router.patch(
       descriptionEs: `Metadatos del proyecto actualizados para ${project.name}.`,
     });
 
-    try { await persistProjectsToDb(); }
-    catch { return res.status(500).json({ error: "persist_failed", message: "Metadata edits were applied in memory but failed to save. Please retry." }); }
+    try {
+      await persistProjectsToDb();
+    } catch (err) {
+      logger.error({ err, projectId: project.id }, "metadata update persist failed");
+      return res.status(500).json({
+        error: "persist_failed",
+        message: "Metadata edits were applied in memory but failed to save. Please retry.",
+      });
+    }
 
     return res.json({
       projectId: project.id,
