@@ -26,7 +26,55 @@ app.use(
     },
   }),
 );
-app.use(cors());
+
+// Secure CORS configuration
+const allowedOriginsEnv = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim()) : [];
+
+const corsOptions: cors.CorsOptions = {
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    // 1. Allow localhost
+    if (/^https?:\/\/localhost(:\d+)?$/.test(origin)) {
+      return callback(null, true);
+    }
+
+    // 2. Allow specific environment-configured origins
+    if (allowedOriginsEnv.includes(origin)) {
+      return callback(null, true);
+    }
+
+    // 3. Allow flexible development environments (e.g. Replit, Claude workspaces, Antigravity)
+    // Matches patterns like *.replit.dev, *.replit.app, *.claude.work, etc.
+    const allowedSuffixes = [
+      ".replit.dev",
+      ".replit.app",
+      ".claude.work",
+      ".antigravity.dev"
+    ];
+
+    try {
+      const url = new URL(origin);
+      if (allowedSuffixes.some(suffix => url.hostname.endsWith(suffix))) {
+        return callback(null, true);
+      }
+    } catch (e) {
+      // Invalid origin format
+    }
+
+    // Disallow otherwise
+    callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+  methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
+  optionsSuccessStatus: 204
+};
+
+app.use(cors(corsOptions));
+
 // 25mb body cap accommodates base64-encoded receipt photos / PDFs for OCR
 // and the photo-upload data URLs added in #105. Browsers inflate raw bytes
 // by ~33% in base64, so the 10MB client-side cap becomes ~13.4MB on the
