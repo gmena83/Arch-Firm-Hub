@@ -495,15 +495,20 @@ function flattenDocsForBackfill(): BackfillDocument[] {
 function applyBackfillResultsToDocs(
   results: ReadonlyArray<{ documentId: string; status: string; driveFileId: string | null }>,
 ): void {
+  const docsMap = new Map<string, Record<string, unknown>>();
+  for (const list of Object.values(DOCUMENTS)) {
+    for (const doc of list as Array<Record<string, unknown>>) {
+      if (typeof doc["id"] === "string") {
+        docsMap.set(doc["id"], doc);
+      }
+    }
+  }
+
   for (const r of results) {
     if (r.status !== "uploaded" || !r.driveFileId) continue;
-    for (const list of Object.values(DOCUMENTS)) {
-      const target = (list as Array<Record<string, unknown>>).find(
-        (d) => d["id"] === r.documentId,
-      );
-      if (target) {
-        target["driveFileId"] = r.driveFileId;
-      }
+    const target = docsMap.get(r.documentId);
+    if (target) {
+      target["driveFileId"] = r.driveFileId;
     }
   }
 }
